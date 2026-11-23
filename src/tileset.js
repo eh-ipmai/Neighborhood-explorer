@@ -1201,5 +1201,182 @@ export function buildSnesSpriteAtlas(paletteName = "snes_classic") {
     sprites[`hero_scooter_${dir}`] = bakeHeroSprite(dir, 0, true);
   }
 
+  // --- 12. Phase 3 Celebratory 2-Handed Overhead Item Fanfare Pose ---
+  {
+    const { canvas, ctx } = makeCanvas(20, 26);
+    const cx = 10;
+    const feetY = 22;
+    const O = "#1c1b24";
+    px(ctx, cx - 5, feetY, 10, 3, "rgba(16, 26, 18, 0.42)");
+    // Legs + red sneakers
+    px(ctx, cx - 4, feetY - 5, 4, 6, O);
+    px(ctx, cx - 3, feetY - 4, 2, 3, "#3b598f");
+    px(ctx, cx - 3, feetY - 1, 2, 2, "#d64538");
+    px(ctx, cx, feetY - 5, 4, 6, O);
+    px(ctx, cx + 1, feetY - 4, 2, 3, "#3b598f");
+    px(ctx, cx + 1, feetY - 1, 2, 2, "#d64538");
+    // Torso
+    px(ctx, cx - 5, feetY - 12, 10, 8, O);
+    px(ctx, cx - 4, feetY - 11, 8, 6, "#47c4b4");
+    // Both arms raised high in classic Zelda item-get pose!
+    px(ctx, cx - 7, feetY - 19, 3, 8, O);
+    px(ctx, cx - 6, feetY - 18, 1, 6, "#47c4b4");
+    px(ctx, cx - 6, feetY - 19, 2, 2, "#f7d1ab");
+    px(ctx, cx + 4, feetY - 19, 3, 8, O);
+    px(ctx, cx + 5, feetY - 18, 1, 6, "#47c4b4");
+    px(ctx, cx + 4, feetY - 19, 2, 2, "#f7d1ab");
+    // Happy smiling head
+    const headY = feetY - 21;
+    px(ctx, cx - 5, headY, 10, 10, O);
+    px(ctx, cx - 4, headY + 3, 8, 6, "#f7d1ab");
+    px(ctx, cx - 4, headY, 8, 4, "#8c502b");
+    px(ctx, cx - 3, headY, 6, 2, "#ba713f");
+    px(ctx, cx - 3, headY + 5, 2, 1, "#1c1c26");
+    px(ctx, cx + 1, headY + 5, 2, 1, "#1c1c26");
+    px(ctx, cx - 1, headY + 7, 2, 1, "#c94c4c");
+    sprites.hero_fanfare = canvas;
+  }
+
+  // --- 13. Phase 3 Neighborhood NPCs (4 charming SNES character palettes) ---
+  const npcThemes = [
+    { shirt: "#d95f76", shirtLight: "#f08498", hair: "#4f3222", hat: null },      // Mom / Librarian
+    { shirt: "#4c8c5c", shirtLight: "#6eb57e", hair: "#6e462d", hat: "#c9964c" }, // Ranger / Scout
+    { shirt: "#f2f0ea", shirtLight: "#ffffff", hair: "#3d2e24", hat: "#ffffff" }, // Baker Ben (chef hat!)
+    { shirt: "#5b82c9", shirtLight: "#82a8eb", hair: "#9e6338", hat: "#e85d75" }, // Scooper Maya / Friend
+  ];
+  npcThemes.forEach((t, idx) => {
+    const { canvas, ctx } = makeCanvas(18, 24);
+    const cx = 9;
+    const fy = 21;
+    const O = "#1c1b24";
+    px(ctx, cx - 4, fy, 8, 2, "rgba(16, 26, 18, 0.38)");
+    px(ctx, cx - 3, fy - 4, 3, 5, O);
+    px(ctx, cx - 2, fy - 3, 1, 3, "#3b4c6b");
+    px(ctx, cx, fy - 4, 3, 5, O);
+    px(ctx, cx + 1, fy - 3, 1, 3, "#3b4c6b");
+    // Torso
+    px(ctx, cx - 4, fy - 11, 8, 8, O);
+    px(ctx, cx - 3, fy - 10, 6, 6, t.shirt);
+    px(ctx, cx - 2, fy - 10, 4, 3, t.shirtLight);
+    // Head
+    const hy = fy - 19;
+    px(ctx, cx - 4, hy, 8, 9, O);
+    px(ctx, cx - 3, hy + 2, 6, 6, "#f7d1ab");
+    px(ctx, cx - 3, hy + 1, 6, 3, t.hair);
+    if (t.hat) {
+      px(ctx, cx - 4, hy - 2, 8, 4, O);
+      px(ctx, cx - 3, hy - 1, 6, 2, t.hat);
+    }
+    px(ctx, cx - 2, hy + 5, 1, 2, "#1c1c26");
+    px(ctx, cx + 1, hy + 5, 1, 2, "#1c1c26");
+    sprites[`npc_${idx}`] = canvas;
+  });
+
+  // --- 14. Phase 3 Wooden Chest / Little Free Library Box + Quest Exclamation Bubble + Fanfare Star ---
+  for (const open of [false, true]) {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    px(ctx, 2, 12, 12, 3, "rgba(16, 26, 18, 0.38)");
+    px(ctx, 2, open ? 3 : 5, 12, open ? 11 : 9, P.outline);
+    px(ctx, 3, open ? 4 : 6, 10, open ? 9 : 7, "#8c542c");
+    px(ctx, 3, open ? 4 : 6, 10, 3, open ? "#3d2616" : "#b87442");
+    if (open) {
+      // Glowing little books / treasure peeking out!
+      px(ctx, 4, 5, 3, 3, "#f4d35e");
+      px(ctx, 8, 5, 4, 3, "#52b788");
+    }
+    // Gold brass bands & clasp
+    px(ctx, 3, 9, 10, 1, "#f4d35e");
+    px(ctx, 7, 8, 2, 3, "#f4d35e");
+    sprites[open ? "chest_open" : "chest_closed"] = canvas;
+  }
+
+  {
+    const { canvas, ctx } = makeCanvas(10, 12);
+    px(ctx, 1, 0, 8, 9, P.outline);
+    px(ctx, 3, 9, 4, 2, P.outline);
+    px(ctx, 2, 1, 6, 7, "#f4d35e");
+    px(ctx, 4, 2, 2, 3, "#2b2112");
+    px(ctx, 4, 6, 2, 1, "#2b2112");
+    sprites.quest_bubble = canvas;
+  }
+
+  {
+    const { canvas, ctx } = makeCanvas(9, 9);
+    px(ctx, 4, 0, 1, 9, "#fff6b8");
+    px(ctx, 0, 4, 9, 1, "#fff6b8");
+    px(ctx, 3, 2, 3, 5, "#f4d35e");
+    px(ctx, 2, 3, 5, 3, "#f4d35e");
+    px(ctx, 4, 4, 1, 1, "#ffffff");
+    sprites.fanfare_star = canvas;
+  }
+
+  // Crisp 12x12 overhead item icons for fanfare lift
+  const makeIcon = (drawFn) => {
+    const { canvas, ctx } = makeCanvas(12, 12);
+    px(ctx, 1, 1, 10, 10, "rgba(28, 34, 40, 0.85)");
+    drawFn(ctx);
+    return canvas;
+  };
+  sprites.item_map = makeIcon((ctx) => {
+    px(ctx, 2, 2, 8, 8, "#e8d8b5");
+    px(ctx, 5, 2, 1, 8, "#b89f72");
+    px(ctx, 3, 4, 6, 2, "#52b788");
+    px(ctx, 7, 7, 2, 2, "#d94a38");
+  });
+  sprites.item_icecream = makeIcon((ctx) => {
+    px(ctx, 4, 6, 4, 5, "#d49b54");
+    px(ctx, 5, 9, 2, 2, "#b57c3a");
+    px(ctx, 3, 3, 6, 4, "#ff99b8");
+    px(ctx, 4, 2, 4, 3, "#fff6e6");
+  });
+  sprites.item_challah = makeIcon((ctx) => {
+    px(ctx, 2, 4, 8, 5, "#d9923b");
+    px(ctx, 3, 3, 6, 4, "#f4c26b");
+    px(ctx, 4, 4, 1, 1, "#fff9e0");
+    px(ctx, 7, 5, 1, 1, "#fff9e0");
+  });
+  sprites.item_book = makeIcon((ctx) => {
+    px(ctx, 2, 2, 8, 8, "#3a6ea5");
+    px(ctx, 3, 3, 6, 6, "#5c94cc");
+    px(ctx, 2, 2, 2, 8, "#22466e");
+    px(ctx, 5, 4, 3, 2, "#f4d35e");
+  });
+  sprites.item_shoes = makeIcon((ctx) => {
+    px(ctx, 2, 5, 8, 5, "#d94a38");
+    px(ctx, 2, 9, 8, 1, "#ffffff");
+    px(ctx, 4, 3, 3, 3, "#f0725c");
+    px(ctx, 5, 6, 3, 1, "#f4d35e");
+  });
+  sprites.item_scooter = makeIcon((ctx) => {
+    px(ctx, 2, 8, 8, 2, "#4de0d8");
+    px(ctx, 8, 2, 2, 7, "#dbe4ee");
+    px(ctx, 2, 9, 2, 2, "#1c1b24");
+    px(ctx, 8, 9, 2, 2, "#1c1b24");
+  });
+  sprites.item_compass = makeIcon((ctx) => {
+    px(ctx, 3, 3, 6, 6, "#f4d35e");
+    px(ctx, 4, 4, 4, 4, "#ffffff");
+    px(ctx, 5, 4, 2, 2, "#d93b36");
+  });
+  sprites.item_stamp = makeIcon((ctx) => {
+    px(ctx, 3, 2, 6, 8, "#6ee7a8");
+    px(ctx, 4, 4, 4, 4, "#24573d");
+  });
+  sprites.item_cholent = makeIcon((ctx) => {
+    px(ctx, 2, 5, 8, 5, "#6b4226");
+    px(ctx, 3, 4, 6, 2, "#e85d38");
+    px(ctx, 4, 2, 1, 2, "#ffffff");
+    px(ctx, 7, 2, 1, 2, "#ffffff");
+  });
+  sprites.item_glove = makeIcon((ctx) => {
+    px(ctx, 3, 3, 6, 7, "#d99b26");
+    px(ctx, 4, 4, 4, 4, "#f4d35e");
+  });
+  sprites.item_badge = makeIcon((ctx) => {
+    px(ctx, 3, 2, 6, 8, "#f4d35e");
+    px(ctx, 4, 4, 4, 4, "#24573d");
+    px(ctx, 5, 5, 2, 2, "#fff6b8");
+  });
+
   return sprites;
 }

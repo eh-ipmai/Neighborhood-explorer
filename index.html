@@ -12,11 +12,14 @@
     <style>
       :root {
         --bg: #111613;
-        --panel: rgba(20, 34, 26, 0.9);
+        --panel: rgba(20, 34, 26, 0.92);
         --snes-green: #24573d;
         --snes-green-dark: #163a28;
         --snes-gold: #e6b84c;
         --snes-gold-dark: #9c7224;
+        --parchment: #efe1bf;
+        --parchment-dark: #d9c496;
+        --ink: #2b2112;
         --border: rgba(232, 240, 226, 0.35);
         --text: #f7f9f2;
         --accent: #f4d35e;
@@ -64,11 +67,19 @@
         touch-action: none;
       }
 
-      /* Option 1 SNES Gold-Framed Green Street Banner */
-      #street-banner {
+      /* Top-left Stack: Street Banner + Active Quest Compass */
+      #top-left-stack {
         position: fixed;
         top: calc(12px + var(--safe-top));
         left: calc(12px + var(--safe-left));
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        z-index: 20;
+      }
+
+      #street-banner {
         background: linear-gradient(180deg, var(--snes-green) 0%, var(--snes-green-dark) 100%);
         border: 3px solid var(--snes-gold);
         outline: 2px solid #2b2112;
@@ -80,7 +91,6 @@
         text-transform: uppercase;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.25);
         transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
-        z-index: 20;
         pointer-events: none;
       }
 
@@ -93,6 +103,21 @@
         font-size: 10px;
         margin-left: 8px;
         opacity: 0.92;
+      }
+
+      #quest-tracker {
+        background: rgba(18, 30, 23, 0.88);
+        border: 1px solid rgba(230, 184, 76, 0.55);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 11px;
+        color: #f7e9b8;
+        cursor: pointer;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+      }
+
+      #quest-tracker:hover {
+        border-color: var(--accent);
       }
 
       /* Top-right compact SNES HUD */
@@ -129,7 +154,7 @@
       /* Safety & pickup toast */
       #safety-toast {
         position: fixed;
-        top: calc(58px + var(--safe-top));
+        top: calc(64px + var(--safe-top));
         left: 50%;
         transform: translateX(-50%) translateY(-6px);
         background: rgba(18, 34, 26, 0.95);
@@ -144,12 +169,51 @@
         transition: opacity 0.2s ease, transform 0.2s ease;
         pointer-events: none;
         white-space: nowrap;
+        max-width: 92vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
       }
 
       #safety-toast.visible {
         opacity: 1;
         transform: translateX(-50%) translateY(0);
+      }
+
+      /* Overhead Item Fanfare Banner */
+      #fanfare-banner {
+        position: fixed;
+        top: calc(96px + var(--safe-top));
+        left: 50%;
+        transform: translateX(-50%) scale(0.95);
+        background: linear-gradient(180deg, #275e42 0%, #173c29 100%);
+        border: 3px solid var(--snes-gold);
+        outline: 2px solid #2b2112;
+        border-radius: 10px;
+        padding: 10px 18px;
+        text-align: center;
+        z-index: 45;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      }
+
+      #fanfare-banner.visible {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+      }
+
+      #fanfare-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      #fanfare-sub {
+        font-size: 11px;
+        color: #eef5ec;
+        margin-top: 3px;
       }
 
       /* Landmark or Per-Address House Pill */
@@ -175,6 +239,60 @@
 
       #landmark-pill.visible {
         opacity: 1;
+      }
+
+      /* Phase 3: 16-Bit SNES RPG Dialogue Textbox */
+      #dialogue-box {
+        position: fixed;
+        bottom: calc(20px + var(--safe-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(560px, 92vw);
+        background: linear-gradient(180deg, #1b3d2b 0%, #11291d 100%);
+        border: 3px solid var(--snes-gold);
+        outline: 2px solid #2b2112;
+        border-radius: 10px;
+        padding: 12px 16px 10px;
+        z-index: 50;
+        display: none;
+        cursor: pointer;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.68);
+      }
+
+      #dialogue-box.open {
+        display: block;
+      }
+
+      #dialogue-speaker {
+        display: inline-block;
+        background: var(--snes-gold);
+        color: #1f170a;
+        font-weight: 700;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        margin-bottom: 6px;
+        letter-spacing: 0.03em;
+      }
+
+      #dialogue-text {
+        font-size: 13.5px;
+        line-height: 1.5;
+        min-height: 40px;
+        color: #f8fbf4;
+      }
+
+      #dialogue-hint {
+        text-align: right;
+        font-size: 10px;
+        color: var(--accent);
+        margin-top: 4px;
+        animation: blinkHint 1s infinite;
+      }
+
+      @keyframes blinkHint {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.35; }
       }
 
       /* Touch controls for iPad Safari */
@@ -241,7 +359,10 @@
 
       .utility-row {
         display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
         gap: 6px;
+        max-width: 280px;
       }
 
       .action-row {
@@ -250,7 +371,7 @@
       }
 
       .touch-btn {
-        min-width: 84px;
+        min-width: 86px;
         height: 66px;
         padding: 6px 12px;
         border-radius: 18px;
@@ -291,6 +412,11 @@
         border-color: rgba(110, 231, 168, 0.7);
       }
 
+      .touch-btn.btn-look.talk-ready {
+        border-color: var(--accent);
+        box-shadow: 0 0 14px rgba(244, 211, 94, 0.45);
+      }
+
       .touch-btn.btn-look.active,
       .touch-btn.btn-look:active {
         background: rgba(110, 231, 168, 0.38);
@@ -302,8 +428,8 @@
         height: 30px;
         padding: 0 10px;
         border-radius: 999px;
-        border: 1px solid rgba(230, 184, 76, 0.4);
-        background: rgba(17, 28, 22, 0.78);
+        border: 1px solid rgba(230, 184, 76, 0.45);
+        background: rgba(17, 28, 22, 0.82);
         color: #f3f7ee;
         font-family: inherit;
         font-size: 11px;
@@ -315,22 +441,148 @@
         color: var(--accent);
       }
 
-      /* In-game Real House Color Painter modal (iPad friendly) */
-      #paint-modal {
+      /* Shared Modal Backdrop */
+      .modal-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(8, 14, 10, 0.72);
+        background: rgba(8, 14, 10, 0.76);
         display: none;
         align-items: center;
         justify-content: center;
-        padding: 16px;
+        padding: 14px;
         z-index: 60;
       }
 
-      #paint-modal.open {
+      .modal-overlay.open {
         display: flex;
       }
 
+      /* Phase 3: Folded Paper Map & Quest/Backpack Parchment Overlay */
+      .papermap-card {
+        width: min(680px, 95vw);
+        max-height: 92vh;
+        overflow-y: auto;
+        background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-dark) 100%);
+        color: var(--ink);
+        border: 4px solid #7a5428;
+        outline: 2px solid #2b2112;
+        border-radius: 12px;
+        padding: 14px 16px;
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
+      }
+
+      .papermap-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border-bottom: 2px dashed rgba(92, 67, 40, 0.4);
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+      }
+
+      .papermap-header h3 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .papermap-stats {
+        font-size: 11px;
+        color: #5c4328;
+      }
+
+      .papermap-body {
+        display: grid;
+        grid-template-columns: minmax(220px, 280px) 1fr;
+        gap: 14px;
+        align-items: start;
+      }
+
+      @media (max-width: 620px) {
+        .papermap-body {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      #paper-map-canvas {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border: 3px solid #5c4328;
+        border-radius: 6px;
+        image-rendering: pixelated;
+        background: #e6d4ad;
+        box-shadow: inset 0 0 18px rgba(92, 67, 40, 0.28);
+      }
+
+      .map-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 6px;
+        font-size: 10px;
+        color: #4f3a22;
+      }
+
+      .map-panel-section {
+        background: rgba(255, 250, 238, 0.58);
+        border: 1px solid rgba(92, 67, 40, 0.32);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+      }
+
+      .map-panel-section h4 {
+        margin: 0 0 6px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #4a3319;
+      }
+
+      .quest-item {
+        font-size: 11.5px;
+        line-height: 1.4;
+        margin-bottom: 6px;
+      }
+
+      .quest-done {
+        opacity: 0.6;
+        text-decoration: line-through;
+      }
+
+      .backpack-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .item-chip {
+        background: #fff9eb;
+        border: 1px solid #9e7b4a;
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 11px;
+        color: var(--ink);
+      }
+
+      .parchment-btn {
+        height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1px solid #5c4328;
+        background: #2b2112;
+        color: #f7e9b8;
+        font-family: inherit;
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      .parchment-btn.secondary {
+        background: transparent;
+        color: #5c4328;
+      }
+
+      /* In-game Real House Color Painter modal */
       .paint-card {
         width: min(380px, 94vw);
         background: #17271e;
@@ -418,12 +670,20 @@
       <canvas id="game-canvas"></canvas>
     </div>
 
-    <div id="street-banner">
-      <span id="street-name">BOYLSTON ST</span>
-      <span id="street-zone" class="zone-tag">sidewalk</span>
+    <div id="top-left-stack">
+      <div id="street-banner">
+        <span id="street-name">BOYLSTON ST</span>
+        <span id="street-zone" class="zone-tag">sidewalk</span>
+      </div>
+      <button id="quest-tracker" type="button">🎯 Exploring Newton Centre</button>
     </div>
 
     <div id="safety-toast"></div>
+
+    <div id="fanfare-banner">
+      <div id="fanfare-title">★ GOT ITEM!</div>
+      <div id="fanfare-sub"></div>
+    </div>
 
     <div id="hud-status">
       <div id="hud-xp" class="xp">Safety XP: 0</div>
@@ -433,6 +693,12 @@
     </div>
 
     <div id="landmark-pill"></div>
+
+    <div id="dialogue-box" role="dialog" aria-live="polite">
+      <div id="dialogue-speaker">Neighbor</div>
+      <div id="dialogue-text"></div>
+      <div id="dialogue-hint">▼ Tap or press Space</div>
+    </div>
 
     <div id="touch-controls">
       <div id="dpad" class="dpad" aria-label="Directional Pad">
@@ -445,6 +711,7 @@
 
       <div class="action-cluster">
         <div class="utility-row">
+          <button id="btn-map" class="mini-btn" type="button" aria-label="Open Folded Paper Map">🗺️ Map (M)</button>
           <button id="btn-paint" class="mini-btn" type="button" aria-label="Paint Nearby House">🎨 Paint</button>
           <button id="btn-mute" class="mini-btn" type="button" aria-label="Toggle Sound">🔊 SFX</button>
           <button id="btn-debug" class="mini-btn" type="button">Grid (C)</button>
@@ -455,15 +722,53 @@
             <span class="btn-icon">⚡</span>
             <span>FASTER</span>
           </button>
-          <button id="btn-look" class="touch-btn btn-look" type="button" aria-label="Look Both Ways">
-            <span class="btn-icon">👀</span>
-            <span>LOOK<br />BOTH WAYS</span>
+          <button id="btn-look" class="touch-btn btn-look" type="button" aria-label="Look Both Ways or Talk">
+            <span id="btn-look-icon" class="btn-icon">👀</span>
+            <span id="btn-look-label">LOOK<br />BOTH WAYS</span>
           </button>
         </div>
       </div>
     </div>
 
-    <div id="paint-modal" role="dialog" aria-modal="true" aria-label="Paint House Real Colors">
+    <!-- Phase 3: Fog-of-War Folded Paper Map & Quest/Backpack Overlay -->
+    <div id="map-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Folded Paper Map">
+      <div class="papermap-card">
+        <div class="papermap-header">
+          <div>
+            <h3>🗺️ Folded Paper Map — Newton Centre</h3>
+            <div id="map-stats" class="papermap-stats">Explored: 0% • Landmarks: 1/9</div>
+          </div>
+          <button id="btn-map-close" class="parchment-btn" type="button">Fold Map ✕</button>
+        </div>
+
+        <div class="papermap-body">
+          <div>
+            <canvas id="paper-map-canvas" width="256" height="256"></canvas>
+            <div class="map-legend">
+              <span>🔴 You</span>
+              <span>🟨 Home / Quest</span>
+              <span>🟩 Discovered</span>
+            </div>
+          </div>
+          <div>
+            <div class="map-panel-section">
+              <h4>📜 Active Quests</h4>
+              <div id="map-quest-list"></div>
+            </div>
+            <div class="map-panel-section">
+              <h4>🎒 Explorer Backpack</h4>
+              <div id="map-backpack" class="backpack-grid"></div>
+            </div>
+            <div style="display:flex; justify-content:flex-end;">
+              <button id="btn-reset-progress" class="parchment-btn secondary" type="button">Reset Adventure</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Real House Color Painter Modal -->
+    <div id="paint-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Paint House Real Colors">
       <div class="paint-card">
         <div class="paint-header">
           <h3 id="paint-title">🎨 Paint House</h3>

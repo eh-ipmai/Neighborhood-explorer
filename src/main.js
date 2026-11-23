@@ -12,6 +12,11 @@ import {
   LOOK_DURATION_SEC,
   SAFE_CROSSING_DURATION_SEC,
 } from "./safety.js";
+import {
+  createQuestSystem,
+  getItemMeta,
+} from "./quests.js";
+import { createPaperMapRenderer } from "./papermap.js";
 import { createUI } from "./ui.js";
 import {
   isMuted,
@@ -22,6 +27,9 @@ import {
   playGrassRustle,
   playCoinPickup,
   playBoostWhoosh,
+  playItemFanfare,
+  playTextBlip,
+  playLandmarkDiscover,
 } from "./audio.js";
 import {
   buildSnesSpriteAtlas,
@@ -97,7 +105,7 @@ function isRoadTile(id) {
 
 /**
  * Deterministic placement of decorative 16-bit SNES oak trees on open grass tiles,
- * plus glowing WALK signal posts & red fire hydrants beside crosswalks/corners!
+ * glowing WALK signal posts, red fire hydrants, and parked retro cars in parking lots.
  */
 function buildNeighborhoodProps(worldMap) {
   const { width, height } = worldMap.dimensions;
@@ -114,7 +122,6 @@ function buildNeighborhoodProps(worldMap) {
       const idx = ty * width + tx;
       const cur = base[idx];
 
-      // 0. Cute parked retro 16-bit cars in select northern parking lot stalls
       if (cur === 8 && base[(ty - 1) * width + tx] !== 8 && base[(ty + 1) * width + tx] === 8) {
         const h = ((tx * 37 + ty * 91) >>> 0) % 5;
         if (h === 0 || h === 2) {
@@ -122,7 +129,6 @@ function buildNeighborhoodProps(worldMap) {
         }
       }
 
-      // 1. Oak trees on open grass / woods away from roads & houses
       if (cur === 0 || cur === 7) {
         const hash = ((tx * 73856093) ^ (ty * 19349663)) >>> 0;
         const threshold = cur === 7 ? 15 : 6;
@@ -143,7 +149,6 @@ function buildNeighborhoodProps(worldMap) {
         }
       }
 
-      // 2. Glowing green WALK signals & red fire hydrants on sidewalk corners next to crosswalks!
       if (cur === 1) {
         const n = base[(ty - 1) * width + tx];
         const s = base[(ty + 1) * width + tx];
@@ -152,7 +157,6 @@ function buildNeighborhoodProps(worldMap) {
         const nearCrosswalk = n === 4 || s === 4 || w === 4 || e === 4;
 
         if (nearCrosswalk) {
-          // Cluster deduplication (1 signal post per ~5-tile crosswalk cluster)
           const clusterKey = `${Math.floor(tx / 5)},${Math.floor(ty / 5)}`;
           if (!signalPlacedCells.has(clusterKey)) {
             signalPlacedCells.add(clusterKey);
@@ -184,26 +188,26 @@ async function boot() {
 
   // Merge data/house_colors.json with any live localStorage paints from iPad scouting
   const rawColorEntries = {};
-  for (const [k, v] of Object.entries(baseHouseColors || {})) {
-    if (k.startsWith("_") || !v || typeof v !== "object") continue;
-    rawColorEntries[k] = { ...v };
+  for (const [key, val] of Object.entries(baseHouseColors || {})) {
+    if (key.startsWith("_") || !val || typeof val !== "object") continue;
+    rawColorEntries[key] = { ...val };
   }
   try {
     const saved = JSON.parse(localStorage.getItem(HOUSE_COLORS_STORAGE_KEY) || "{}");
-    for (const [k, v] of Object.entries(saved)) {
-      if (v && typeof v === "object") rawColorEntries[k] = { ...v };
+    for (const [key, val] of Object.entries(saved)) {
+      if (val && typeof val === "object") rawColorEntries[key] = { ...val };
     }
   } catch {
-    // Ignore storage errors in restricted private tabs
+    // Ignore storage errors in private tabs
   }
 
   const normalizedColorMap = {};
   function rebuildNormalizedColorMap() {
     for (const key of Object.keys(normalizedColorMap)) delete normalizedColorMap[key];
-    for (const [k, v] of Object.entries(rawColorEntries)) {
-      const norm = normalizeAddress(k);
-      if (norm) normalizedColorMap[norm] = v;
-      normalizedColorMap[k] = v;
+    for (const [key, val] of Object.entries(rawColorEntries)) {
+      const norm = normalizeAddress(key);
+      if (norm) normalizedColorMap[norm] = val;
+      normalizedColorMap[key] = val;
     }
   }
   rebuildNormalizedColorMap();
@@ -212,7 +216,7 @@ async function boot() {
     try {
       localStorage.setItem(HOUSE_COLORS_STORAGE_KEY, JSON.stringify(rawColorEntries));
     } catch {
-      // Ignore storage errors
+      // ignore
     }
   }
 
@@ -225,12 +229,18 @@ async function boot() {
 
   const collider = createMapCollider(worldMap);
   const safety = createSafetySystem(worldMap);
+  const questSystem = createQuestSystem({
+    landmarks,
+    quests,
+    worldMap,
+    storage: typeof localStorage !== "undefined" ? localStorage : null,
+  });
+  const paperMap = createPaperMapRenderer(worldMap);
   const { treeGrid, walkSignals, hydrants, parkedCars } = buildNeighborhoodProps(worldMap);
   const buildingIndex = buildBuildingSpatialIndex(buildings);
 
   const hasPerAddressBuildings = buildings.length > 0;
 
-  // Lazy cache for baked crisp 16-bit per-address house canvases (supports instant live repainting!)
   const bakedHouseCache = new Map();
   let paintRevision = 1;
   function getBakedHouse(building) {
@@ -252,6 +262,9 @@ async function boot() {
     y: Math.floor(mapH / 2),
   };
 
+  // Reveal initial Home Base area on the Folded Paper Map
+  questSystem.revealFogAtTile(spawnTile.x, spawnTile.y, 2);
+
   const playerState = {
     x: spawnTile.x * tileSize + tileSize / 2,
     y: spawnTile.y * tileSize + tileSize / 2,
@@ -259,18 +272,20 @@ async function boot() {
     moving: false,
     walkTimer: 0,
     stepSoundCooldown: 0,
-    safetyXP: 0,
-    coins: 0,
-    acorns: 0,
     lookTimer: 0,
     lookSavedFacing: "down",
     safeCrossingTimer: 0,
     lastLookAwardTileKey: "",
     lastLookAwardTime: -99,
     lastGrassTileKey: "",
+    lastFogTileKey: "",
     wasFasterActive: false,
     elapsedTime: 0,
   };
+
+  // Overhead Item Fanfare queue & active timer
+  const fanfareQueue = [];
+  let activeFanfare = null; // { itemMeta, sourceLabel, timer }
 
   const dustPuffs = [];
   const leafParticles = [];
@@ -299,11 +314,72 @@ async function boot() {
 
   let ui;
 
-  function triggerLookBothWays() {
-    if (playerState.lookTimer > 0) return;
+  function enqueueFanfare(entries) {
+    if (!Array.isArray(entries) || entries.length === 0) return;
+    for (const item of entries) fanfareQueue.push(item);
+    if (!activeFanfare) startNextFanfare();
+  }
+
+  function startNextFanfare() {
+    if (fanfareQueue.length === 0) {
+      activeFanfare = null;
+      ui?.setFanfareBanner(null);
+      return;
+    }
+    const next = fanfareQueue.shift();
+    const itemMeta = getItemMeta(next.itemId);
+    activeFanfare = {
+      itemMeta,
+      sourceLabel: next.sourceLabel || "",
+      timer: 2.1,
+    };
+    playerState.facing = "down";
+    playerState.moving = false;
+    playItemFanfare();
+    ui?.setFanfareBanner(itemMeta, next.sourceLabel);
+  }
+
+  function triggerLookOrInteract() {
+    if (ui?.isMapOpen() || ui?.isPaintOpen()) return;
+
+    // Advance active dialogue if open
+    if (ui?.isDialogueOpen()) {
+      ui.advanceDialogue();
+      return;
+    }
+
+    // Dismiss active fanfare early after 0.6s
+    if (activeFanfare) {
+      if (activeFanfare.timer < 1.5) startNextFanfare();
+      return;
+    }
 
     const tx = Math.floor(playerState.x / tileSize);
     const ty = Math.floor(playerState.y / tileSize);
+
+    // 1. Check if standing right next to a Landmark NPC or Wooden Chest
+    const nearby = questSystem.findNearbyInteraction(tx, ty);
+    if (nearby) {
+      const outcome =
+        nearby.kind === "chest"
+          ? questSystem.interactWithChest(nearby.target.id)
+          : questSystem.interactWithNpc(nearby.target.id);
+      if (outcome) {
+        ui?.openDialogue({
+          speaker: outcome.speaker,
+          lines: outcome.lines,
+          onComplete: () => {
+            if (outcome.fanfareQueue.length > 0) {
+              enqueueFanfare(outcome.fanfareQueue);
+            }
+          },
+        });
+        return;
+      }
+    }
+
+    // 2. Otherwise perform Look Both Ways safety check!
+    if (playerState.lookTimer > 0) return;
     const result = safety.inspectCrossingContext(tx, ty);
 
     playerState.lookSavedFacing = playerState.facing;
@@ -316,7 +392,8 @@ async function boot() {
         playerState.elapsedTime - playerState.lastLookAwardTime > 8);
 
     if (canAwardXP) {
-      playerState.safetyXP += result.xpReward;
+      questSystem.state.safetyXP += result.xpReward;
+      questSystem.save();
       playerState.lastLookAwardTileKey = tileKey;
       playerState.lastLookAwardTime = playerState.elapsedTime;
     }
@@ -331,7 +408,24 @@ async function boot() {
     );
   }
 
+  function togglePaperMap() {
+    if (ui?.isDialogueOpen() || ui?.isPaintOpen()) return;
+    const nextOpen = !ui?.isMapOpen();
+    ui?.setMapModalOpen(nextOpen, questSystem);
+    if (nextOpen) {
+      const tx = Math.floor(playerState.x / tileSize);
+      const ty = Math.floor(playerState.y / tileSize);
+      paperMap.renderToCanvas(ui.getMapCanvas(), {
+        questSystem,
+        playerTileX: tx,
+        playerTileY: ty,
+        timeSec: playerState.elapsedTime,
+      });
+    }
+  }
+
   function openPaintForNearbyHouse() {
+    if (ui?.isDialogueOpen() || ui?.isMapOpen()) return;
     const tx = Math.floor(playerState.x / tileSize);
     const ty = Math.floor(playerState.y / tileSize);
     const nearbyCandidates = buildingIndex.queryBounds(tx - 6, ty - 6, tx + 6, ty + 6);
@@ -381,27 +475,30 @@ async function boot() {
       return showDebug;
     },
     onResetHome: resetToHome,
-    onLookBothWays: triggerLookBothWays,
+    onLookOrInteract: triggerLookOrInteract,
     onToggleMute: () => toggleMute(),
     onOpenPaint: openPaintForNearbyHouse,
+    onToggleMap: togglePaperMap,
+    onResetProgress: () => {
+      questSystem.resetProgress();
+      questSystem.revealFogAtTile(spawnTile.x, spawnTile.y, 2);
+      resetToHome();
+      ui?.refreshMapSidePanels(questSystem);
+      ui?.showSafetyToast("Adventure progress reset!");
+    },
+    onTextBlip: playTextBlip,
   });
 
   k.onKeyPress("c", () => {
     showDebug = !showDebug;
   });
-
-  k.onKeyPress("h", () => {
-    resetToHome();
-  });
-
-  k.onKeyPress("m", () => {
-    toggleMute();
-  });
-
+  k.onKeyPress("h", resetToHome);
+  k.onKeyPress("m", togglePaperMap);
+  k.onKeyPress("tab", togglePaperMap);
   k.onKeyPress("p", openPaintForNearbyHouse);
-
-  k.onKeyPress("space", triggerLookBothWays);
-  k.onKeyPress("e", triggerLookBothWays);
+  k.onKeyPress("space", triggerLookOrInteract);
+  k.onKeyPress("e", triggerLookOrInteract);
+  k.onKeyPress("enter", triggerLookOrInteract);
 
   function readInput() {
     let dx = 0;
@@ -426,8 +523,8 @@ async function boot() {
 
   function findNearestLandmark(tx, ty) {
     let best = null;
-    for (const lm of landmarks) {
-      const distTiles = Math.hypot(lm.tileX - tx, lm.tileY - ty);
+    for (const lm of questSystem.landmarks) {
+      const distTiles = Math.hypot(lm.walkTileX - tx, lm.walkTileY - ty);
       if (!best || distTiles < best.distTiles) {
         best = { landmark: lm, distTiles };
       }
@@ -477,6 +574,36 @@ async function boot() {
     const dt = Math.min(k.dt(), 0.05);
     playerState.elapsedTime += dt;
 
+    // Typewriter update when dialogue is open
+    ui.updateDialogueTypewriter(dt);
+
+    // Animate Folded Paper Map pulsing beacon while map modal is open
+    if (ui.isMapOpen()) {
+      const tx = Math.floor(playerState.x / tileSize);
+      const ty = Math.floor(playerState.y / tileSize);
+      paperMap.renderToCanvas(ui.getMapCanvas(), {
+        questSystem,
+        playerTileX: tx,
+        playerTileY: ty,
+        timeSec: playerState.elapsedTime,
+      });
+      return;
+    }
+
+    // Active Overhead Item Fanfare freeze
+    if (activeFanfare) {
+      activeFanfare.timer -= dt;
+      if (activeFanfare.timer <= 0) {
+        startNextFanfare();
+      }
+      return;
+    }
+
+    if (ui.isDialogueOpen() || ui.isPaintOpen()) {
+      playerState.moving = false;
+      return;
+    }
+
     if (playerState.safeCrossingTimer > 0) {
       playerState.safeCrossingTimer = Math.max(0, playerState.safeCrossingTimer - dt);
     }
@@ -502,12 +629,13 @@ async function boot() {
       const dist = Math.hypot(d.x - playerState.x, d.y - playerState.y);
       if (d.age > 0.25 && dist < 14) {
         if (d.kind === "coin") {
-          playerState.coins += 1;
+          questSystem.state.coins += 1;
           ui.showSafetyToast("🪙 Found a Neighborhood Coin!", 1500);
         } else {
-          playerState.acorns += 1;
+          questSystem.state.acorns += 1;
           ui.showSafetyToast("🌰 Found a Lucky Acorn!", 1500);
         }
+        questSystem.save();
         playCoinPickup();
         groundDrops.splice(i, 1);
       } else if (d.age > 15) {
@@ -518,6 +646,7 @@ async function boot() {
     const curTx = Math.floor(playerState.x / tileSize);
     const curTy = Math.floor(playerState.y / tileSize);
     const curTileType = safety.getTileType(curTx, curTy);
+    const gear = questSystem.getGear();
 
     isFasterNow = false;
 
@@ -535,12 +664,13 @@ async function boot() {
       playerState.walkTimer = 0;
     } else {
       const input = readInput();
-      const speedMult = safety.getSpeedMultiplier(
+      const baseSafetyMult = safety.getSpeedMultiplier(
         curTileType,
         input.wantsFaster,
         playerState.safeCrossingTimer > 0
       );
-      isFasterNow = speedMult > 1 && (input.x !== 0 || input.y !== 0);
+      const effectiveMult = baseSafetyMult > 1 ? Math.max(baseSafetyMult, gear.mult) : 1;
+      isFasterNow = effectiveMult > 1 && (input.x !== 0 || input.y !== 0);
 
       if (isFasterNow && !playerState.wasFasterActive) {
         playBoostWhoosh();
@@ -552,7 +682,7 @@ async function boot() {
         input,
         dt,
         collider.isBoxBlocked,
-        { speed: PLAYER_SPEED_PX * speedMult }
+        { speed: PLAYER_SPEED_PX * effectiveMult }
       );
       playerState.x = moved.x;
       playerState.y = moved.y;
@@ -592,9 +722,34 @@ async function boot() {
     const tileType = safety.getTileType(tx, ty);
     const streetZone = safety.getStreetZoneAt(tx, ty);
 
-    const tileKey = `${tx},${ty}`;
-    if (playerState.moving && tileType === "tall_grass" && tileKey !== playerState.lastGrassTileKey) {
-      playerState.lastGrassTileKey = tileKey;
+    // Update Fog-of-War & passive landmark/quest triggers whenever tile changes
+    const posKey = `${tx},${ty}`;
+    if (posKey !== playerState.lastFogTileKey) {
+      playerState.lastFogTileKey = posKey;
+      const events = questSystem.updatePlayerPosition(tx, ty);
+      for (const ev of events) {
+        if (ev.type === "landmark_discovered") {
+          playLandmarkDiscover();
+          ui.showSafetyToast(
+            `🗺️ Discovered ${ev.landmark.name}! (+${ev.landmark.discoveryXP} XP)`,
+            2800
+          );
+        } else if (ev.type === "quest_completed") {
+          ui.showSafetyToast(`🏆 Quest Complete: ${ev.quest.title}!`, 2800);
+          if (ev.rewardItem) {
+            enqueueFanfare([
+              { itemId: ev.rewardItem, sourceLabel: `Quest Reward: ${ev.quest.title}` },
+            ]);
+          }
+        } else if (ev.type === "step_advanced") {
+          playLandmarkDiscover();
+          ui.showSafetyToast(`🎯 Next: ${ev.nextStep.instruction}`, 2600);
+        }
+      }
+    }
+
+    if (playerState.moving && tileType === "tall_grass" && posKey !== playerState.lastGrassTileKey) {
+      playerState.lastGrassTileKey = posKey;
       spawnTallGrassRustle(playerState.x, playerState.y);
     } else if (tileType !== "tall_grass") {
       playerState.lastGrassTileKey = "";
@@ -615,11 +770,14 @@ async function boot() {
       originName: worldMap.origin?.name,
       nearestLandmark: findNearestLandmark(tx, ty),
       nearestBuilding: findNearestBuilding(nearbyHouses, tx, ty),
+      nearbyInteraction: questSystem.findNearbyInteraction(tx, ty),
+      questHint: questSystem.formatTargetHint(tx, ty),
+      gearLabel: gear.label,
       debugEnabled: showDebug,
       muted: isMuted(),
-      safetyXP: playerState.safetyXP,
-      coins: playerState.coins,
-      acorns: playerState.acorns,
+      safetyXP: questSystem.state.safetyXP,
+      coins: questSystem.state.coins,
+      acorns: questSystem.state.acorns,
       isFasterActive: isFasterNow,
       safeCrossingActive: playerState.safeCrossingTimer > 0,
     });
@@ -630,12 +788,6 @@ async function boot() {
     return baseLayer[ty * mapW + tx];
   }
 
-  /**
-   * Auto-tiled ground renderer:
-   *  - 3D raised stone sidewalk curbs wherever sidewalks border asphalt
-   *  - Clean multi-lane road shoulder lines & single directional centerlines (no stacked stripes!)
-   *  - Direction-aware zebra crosswalks (horizontal vs vertical bars)
-   */
   function drawGroundTile(tx, ty, tileId, animFrame) {
     const pxPos = tx * tileSize;
     const pyPos = ty * tileSize;
@@ -661,7 +813,6 @@ async function boot() {
     }
 
     if (tileId === 8) {
-      // Surface parking lot: stall stripes along top/northern row, smooth aisle elsewhere
       const above = tileAt(tx, ty - 1);
       k.drawSprite(above !== 8 ? "parking_0" : "parking_1", pxPos, pyPos);
       return;
@@ -672,10 +823,8 @@ async function boot() {
     const w = tileAt(tx - 1, ty);
     const e = tileAt(tx + 1, ty);
 
-    // Sidewalk with 3D stone curbs facing roads + crisp grass edge trim (seamless across 2-tile wide walks!)
     if (tileId === 1) {
       k.drawSprite((tx + ty) % 2 === 0 ? "sidewalk_0" : "sidewalk_1", pxPos, pyPos);
-      // Road-facing 3D stone curb lip
       if (isRoadTile(s)) {
         k.drawRect({ pos: k.vec2(pxPos, pyPos + 13), width: 16, height: 1, color: k.rgb(245, 240, 228) });
         k.drawRect({ pos: k.vec2(pxPos, pyPos + 14), width: 16, height: 2, color: k.rgb(138, 130, 116) });
@@ -703,7 +852,6 @@ async function boot() {
       return;
     }
 
-    // Direction-aware Zebra Crosswalk (stripes parallel to traffic flow, consistent across clusters!)
     if (tileId === 4) {
       let ewTraffic = 0;
       let nsTraffic = 0;
@@ -717,13 +865,10 @@ async function boot() {
         if (tn === 2 || tn === 3) nsTraffic++;
         if (ts === 2 || ts === 3) nsTraffic++;
       }
-      // Traffic moving E-W -> horizontal stripes (pedestrians cross N-S);
-      // Traffic moving N-S -> vertical stripes (pedestrians cross E-W)
       k.drawSprite(ewTraffic >= nsTraffic ? "crosswalk_h" : "crosswalk_v", pxPos, pyPos);
       return;
     }
 
-    // Clean Multi-Lane Main Road (3) & Residential Road (2)
     if (tileId === 2 || tileId === 3) {
       k.drawSprite(tileId === 3 ? "road_main_base" : "road_res_base", pxPos, pyPos);
 
@@ -732,7 +877,6 @@ async function boot() {
       const wRoad = isRoadTile(w);
       const eRoad = isRoadTile(e);
 
-      // Crisp curb drop-shadow & white shoulder stripes along road edges
       if (!nRoad) {
         k.drawRect({ pos: k.vec2(pxPos, pyPos), width: 16, height: 1, color: k.rgb(36, 40, 48) });
         k.drawRect({ pos: k.vec2(pxPos, pyPos + 2), width: 16, height: 1, color: k.rgb(224, 230, 238), opacity: 0.78 });
@@ -751,14 +895,12 @@ async function boot() {
       }
 
       if (tileId === 2) {
-        // Residential road: clean dashed centerline only along straightaways (not intersections!)
         if (wRoad && eRoad && !nRoad && !sRoad && tx % 2 === 0) {
           k.drawRect({ pos: k.vec2(pxPos + 3, pyPos + 7), width: 10, height: 2, color: k.rgb(222, 228, 236), opacity: 0.75 });
         } else if (nRoad && sRoad && !wRoad && !eRoad && ty % 2 === 0) {
           k.drawRect({ pos: k.vec2(pxPos + 7, pyPos + 3), width: 2, height: 10, color: k.rgb(222, 228, 236), opacity: 0.75 });
         }
       } else {
-        // Arterial Route 9 (Boylston St): single clean double-yellow divider right in the middle of the avenue!
         const nMain = n === 3;
         const sMain = s === 3;
         const wMain = w === 3;
@@ -767,15 +909,12 @@ async function boot() {
         const w2Main = tileAt(tx - 2, ty) === 3;
 
         if (wMain && eMain && nMain && sMain && !n2Main) {
-          // Exact horizontal center band of multi-lane E-W arterial!
           k.drawRect({ pos: k.vec2(pxPos, pyPos + 6), width: 16, height: 1, color: k.rgb(232, 190, 74) });
           k.drawRect({ pos: k.vec2(pxPos, pyPos + 9), width: 16, height: 1, color: k.rgb(232, 190, 74) });
         } else if (nMain && sMain && wMain && eMain && !w2Main && n2Main) {
-          // Exact vertical center band of multi-lane N-S arterial
           k.drawRect({ pos: k.vec2(pxPos + 6, pyPos), width: 1, height: 16, color: k.rgb(232, 190, 74) });
           k.drawRect({ pos: k.vec2(pxPos + 9, pyPos), width: 1, height: 16, color: k.rgb(232, 190, 74) });
         } else if (wMain && eMain && !nMain && sMain && tx % 2 === 0) {
-          // Subtle dashed white lane divider on outer lane
           k.drawRect({ pos: k.vec2(pxPos + 4, pyPos + 14), width: 8, height: 1, color: k.rgb(224, 230, 238), opacity: 0.55 });
         }
       }
@@ -791,7 +930,6 @@ async function boot() {
     const pxPos = Math.round(playerState.x);
     const pyPos = Math.round(playerState.y);
 
-    // Safe Crossing emerald glow ring under feet
     if (playerState.safeCrossingTimer > 0) {
       k.drawRect({
         pos: k.vec2(pxPos - 8, pyPos + 1),
@@ -803,7 +941,9 @@ async function boot() {
     }
 
     let sprName;
-    if (isFasterNow) {
+    if (activeFanfare) {
+      sprName = "hero_fanfare";
+    } else if (isFasterNow) {
       sprName = `hero_scooter_${playerState.facing}`;
     } else if (!playerState.moving) {
       sprName = `hero_${playerState.facing}_0`;
@@ -812,10 +952,23 @@ async function boot() {
       sprName = `hero_${playerState.facing}_${step}`;
     }
 
-    // Center 20x26 hero sprite cleanly above player feet (pxPos, pyPos + 4)
     k.drawSprite(sprName, pxPos - 10, pyPos - 19);
 
-    // Visual glance arcs when actively Looking Both Ways
+    // Overhead Item Fanfare floating item + orbiting golden sparkles!
+    if (activeFanfare) {
+      const floatBob = Math.sin(playerState.elapsedTime * 6) * 2;
+      const itemY = pyPos - 34 + floatBob;
+      k.drawSprite(activeFanfare.itemMeta.sprite || "item_badge", pxPos - 6, itemY);
+
+      const angle = playerState.elapsedTime * 4;
+      for (let i = 0; i < 4; i++) {
+        const a = angle + (i * Math.PI) / 2;
+        const sx = pxPos - 4 + Math.cos(a) * 11;
+        const sy = itemY + 2 + Math.sin(a) * 7;
+        k.drawSprite("fanfare_star", sx, sy);
+      }
+    }
+
     if (playerState.lookTimer > 0) {
       if (playerState.facing === "left") {
         k.drawRect({ pos: k.vec2(pxPos - 13, pyPos - 13), width: 5, height: 2, color: k.rgb(110, 231, 168) });
@@ -843,7 +996,7 @@ async function boot() {
       }
     }
 
-    // 2. Y-sorted 16-bit SNES buildings (O(1) spatial chunk query!), trees, WALK signals, hydrants & hero
+    // 2. Y-sorted 16-bit SNES buildings, trees, props, NPCs, wooden chests & hero
     const drawables = [];
 
     const visibleBuildings = buildingIndex.queryBounds(startX - 1, startY - 1, endX + 1, endY + 1);
@@ -873,7 +1026,6 @@ async function boot() {
       }
     }
 
-    // Glowing green WALK signal posts at crosswalks
     const walkSignalBright = playerState.safeCrossingTimer > 0 ? 1 : animFrame;
     for (const sig of walkSignals) {
       if (sig.tx < startX - 1 || sig.tx > endX + 1 || sig.ty < startY - 1 || sig.ty > endY + 1) continue;
@@ -885,7 +1037,6 @@ async function boot() {
       });
     }
 
-    // Red fire hydrants at sidewalk corners
     for (const hy of hydrants) {
       if (hy.tx < startX - 1 || hy.tx > endX + 1 || hy.ty < startY - 1 || hy.ty > endY + 1) continue;
       const hx = hy.tx * tileSize + 3;
@@ -896,7 +1047,6 @@ async function boot() {
       });
     }
 
-    // Parked 16-bit retro cars inside surface parking lots
     for (const car of parkedCars) {
       if (car.tx < startX - 1 || car.tx > endX + 1 || car.ty < startY - 1 || car.ty > endY + 1) continue;
       const cx = car.tx * tileSize + 1;
@@ -907,35 +1057,60 @@ async function boot() {
       });
     }
 
-    // Landmark beacons
-    for (const lm of landmarks) {
-      if (lm.tileX < startX - 2 || lm.tileX > endX + 2 || lm.tileY < startY - 2 || lm.tileY > endY + 2) {
+    // Phase 3: Landmark NPCs with idle bounce + floating '!' quest objective bubble
+    const activeTarget = questSystem.getActiveObjectiveTarget();
+    for (const npc of questSystem.npcs) {
+      if (
+        npc.walkTileX < startX - 2 ||
+        npc.walkTileX > endX + 2 ||
+        npc.walkTileY < startY - 2 ||
+        npc.walkTileY > endY + 2
+      ) {
         continue;
       }
-      const lx = lm.tileX * tileSize + tileSize / 2;
-      const ly = lm.tileY * tileSize + tileSize / 2;
-      const bob = Math.sin(playerState.elapsedTime * 4) * 1.5;
+      const nx = npc.walkTileX * tileSize + tileSize / 2;
+      const ny = npc.walkTileY * tileSize + tileSize / 2;
+      const idleBob = Math.sin(playerState.elapsedTime * 3 + npc.walkTileX) > 0.6 ? -1 : 0;
+      const isQuestTarget = activeTarget && activeTarget.landmarkId === npc.id;
+      const bubbleBob = Math.sin(playerState.elapsedTime * 6) * 2;
+
       drawables.push({
-        sortY: ly + 4,
+        sortY: ny + 4,
         draw: () => {
-          k.drawRect({
-            pos: k.vec2(lx - 4, ly - 5 + bob),
-            width: 8,
-            height: 8,
-            color: k.rgb(244, 211, 94),
-            outline: { width: 1, color: k.rgb(42, 30, 12) },
-          });
-          k.drawRect({
-            pos: k.vec2(lx - 1, ly - 2 + bob),
-            width: 2,
-            height: 2,
-            color: k.rgb(220, 74, 52),
-          });
+          k.drawSprite(npc.npcSprite, nx - 9, ny - 17 + idleBob);
+          if (isQuestTarget) {
+            k.drawSprite("quest_bubble", nx - 5, ny - 31 + bubbleBob);
+          }
         },
       });
     }
 
-    // Ground drops (Coins & Acorns)
+    // Phase 3: Hidden Wooden Chests (e.g. Quest 2 Little Free Library)
+    for (const chest of questSystem.interactables) {
+      if (
+        chest.tileX < startX - 2 ||
+        chest.tileX > endX + 2 ||
+        chest.tileY < startY - 2 ||
+        chest.tileY > endY + 2
+      ) {
+        continue;
+      }
+      const cx = chest.tileX * tileSize;
+      const cy = chest.tileY * tileSize;
+      const isQuestTarget = activeTarget && activeTarget.landmarkId === null && !chest.opened;
+      const bubbleBob = Math.sin(playerState.elapsedTime * 6) * 2;
+
+      drawables.push({
+        sortY: cy + tileSize,
+        draw: () => {
+          k.drawSprite(chest.opened ? "chest_open" : "chest_closed", cx, cy);
+          if (isQuestTarget) {
+            k.drawSprite("quest_bubble", cx + 3, cy - 13 + bubbleBob);
+          }
+        },
+      });
+    }
+
     for (const d of groundDrops) {
       const bounce = Math.abs(Math.sin(d.age * 7)) * 3;
       drawables.push({
@@ -944,7 +1119,6 @@ async function boot() {
       });
     }
 
-    // Player + dust puffs
     drawables.push({
       sortY: playerState.y + 4,
       draw: () => {
@@ -964,7 +1138,6 @@ async function boot() {
     drawables.sort((a, b) => a.sortY - b.sortY);
     for (const item of drawables) item.draw();
 
-    // 3. Leaf rustle particles on top
     for (const p of leafParticles) {
       k.drawRect({
         pos: k.vec2(p.x, p.y),
@@ -975,7 +1148,6 @@ async function boot() {
       });
     }
 
-    // 4. Optional collision & tile grid debug overlay (C)
     if (showDebug) {
       for (let ty = startY; ty <= endY; ty++) {
         const rowOffset = ty * mapW;
@@ -1015,6 +1187,7 @@ async function boot() {
     worldMap,
     landmarks,
     quests,
+    questSystem,
     playerState,
   };
 }

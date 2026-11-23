@@ -209,3 +209,18 @@ export function playItemFanfare() {
     }, idx * 95);
   });
 }
+
+/** Soft SNES dialogue typewriter text blip */
+export function playTextBlip() {
+  playTone({ freq: 520 + Math.random() * 60, duration: 0.022, type: "triangle", volume: 0.02 });
+}
+
+/** Ascending 3-note landmark discovery chime (G5 -> B5 -> D6) */
+export function playLandmarkDiscover() {
+  const notes = [783.99, 987.77, 1174.66];
+  notes.forEach((freq, idx) => {
+    setTimeout(() => {
+      playTone({ freq, duration: 0.12, type: "sine", volume: 0.05 });
+    }, idx * 80);
+  });
+}

@@ -1,0 +1,546 @@
+/**
+ * Phase 3: Dynamic Landmarks, Multi-Step Quests, Inventory, Equipment Progression,
+ * and Fog-of-War Exploration State (loaded dynamically from data/landmarks.json & data/quests.json).
+ */
+
+export const SAVE_STORAGE_KEY = "neighborhood_explorer_save_v1";
+export const FOG_GRID_SIZE = 32; // 32x32 cells over the map (16x16 tiles per cell on 512x512)
+
+export const ITEM_CATALOG = {
+  folded_map: { name: "Folded Paper Map", icon: "🗺️", sprite: "item_map", desc: "Unrolls Newton Centre streets as you explore!" },
+  trail_compass: { name: "Trail Compass", icon: "🧭", sprite: "item_compass", desc: "Helps spot hidden trails in Oakdale Woods." },
+  field_stamp: { name: "Weeks Field Stamp", icon: "⚾", sprite: "item_stamp", desc: "Official park scout stamp from Weeks Field." },
+  fresh_challah_bag: { name: "Warm Challah & Bagels", icon: "🥯", sprite: "item_challah", desc: "Fresh from Rosenfeld's Bagels on Centre St!" },
+  double_scoop_cone: { name: "Double Scoop Cone", icon: "🍦", sprite: "item_icecream", desc: "Sweet explorer energy from J.P. Licks!" },
+  library_card: { name: "Newton Library Card", icon: "📚", sprite: "item_book", desc: "Unlocks books & secret reading nooks!" },
+  spicy_cholent: { name: "Dad's Spicy Cholent", icon: "🍲", sprite: "item_cholent", desc: "Legendary Kiddush dish with fiery speed energy!" },
+  golden_mizuno_glove: { name: "Golden Mizuno Glove", icon: "🧤", sprite: "item_glove", desc: "All-star fielder's mitt from Ward Field!" },
+  coop_badge: { name: "Co-Op Explorer Badge", icon: "🤝", sprite: "item_badge", desc: "Best friends backyard adventure pass!" },
+  running_shoes: { name: "Running Shoes", icon: "👟", sprite: "item_shoes", desc: "Unlocks faster sidewalk jogging (1.75x speed)!" },
+  rare_book_stamp: { name: "Rare Book Stamp", icon: "📖", sprite: "item_book", desc: "Found inside the secret Little Free Library!" },
+  scooter: { name: "Neighborhood Scooter", icon: "🛴", sprite: "item_scooter", desc: "High-speed sidewalk kick scooter (2.05x speed)!" },
+  mountain_bike: { name: "Trek Mountain Bike", icon: "🚲", sprite: "item_scooter", desc: "Top-tier trail & sidewalk cruiser (2.45x speed)!" },
+  pogo_stick: { name: "Secret Pogo Stick", icon: "🦘", sprite: "item_badge", desc: "Bouncy surprise hidden behind the gaga pit!" },
+};
+
+export function getItemMeta(itemId) {
+  return (
+    ITEM_CATALOG[itemId] || {
+      name: String(itemId || "Mystery Item")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+      icon: "⭐",
+      sprite: "item_badge",
+      desc: "A special neighborhood keepsake!",
+    }
+  );
+}
+
+/**
+ * Snap a landmark/chest tile onto the nearest walkable tile (preferring sidewalk/grass)
+ * so NPCs and treasure chests are always reachable and never trapped inside solid buildings.
+ */
+export function snapToWalkableTile(worldMap, targetX, targetY, maxRadius = 10) {
+  const { width, height } = worldMap.dimensions;
+  const base = worldMap.layers.base;
+  const collision = worldMap.layers.collision;
+
+  const clampX = Math.max(0, Math.min(width - 1, Math.round(targetX)));
+  const clampY = Math.max(0, Math.min(height - 1, Math.round(targetY)));
+
+  if (collision[clampY * width + clampX] === 0) {
+    return { x: clampX, y: clampY };
+  }
+
+  let fallback = null;
+  for (let r = 1; r <= maxRadius; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const tx = clampX + dx;
+        const ty = clampY + dy;
+        if (tx < 0 || ty < 0 || tx >= width || ty >= height) continue;
+        const idx = ty * width + tx;
+        if (collision[idx] === 0) {
+          if (base[idx] === 1) return { x: tx, y: ty }; // Prefer front sidewalk
+          if (!fallback) fallback = { x: tx, y: ty };
+        }
+      }
+    }
+    if (fallback) return fallback;
+  }
+  return { x: clampX, y: clampY };
+}
+
+/**
+ * Compute human-friendly compass bearing & distance (e.g. "210m NW") from player to target.
+ */
+export function formatCompassHint(fromX, fromY, toX, toY, scaleMetersPerTile = 6) {
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const distTiles = Math.hypot(dx, dy);
+  const meters = Math.round(distTiles * scaleMetersPerTile);
+  if (distTiles < 3) return "Right here!";
+
+  const angle = Math.atan2(dy, dx); // 0 = East, -PI/2 = North, PI/2 = South
+  const dirs = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"];
+  const idx = ((Math.round(angle / (Math.PI / 4)) % 8) + 8) % 8;
+  return `${meters}m ${dirs[idx]}`;
+}
+
+/**
+ * Compute traversal gear tier & FASTER speed multiplier from Safety XP & unlocked items (GDD Section 6).
+ */
+export function getTraversalGear(safetyXP, inventorySet) {
+  if (safetyXP >= 750 || inventorySet.has("mountain_bike")) {
+    return { id: "mountain_bike", label: "BIKE", mult: 2.35 };
+  }
+  if (safetyXP >= 350 || inventorySet.has("scooter")) {
+    return { id: "scooter", label: "SCOOTER", mult: 2.05 };
+  }
+  if (safetyXP >= 100 || inventorySet.has("running_shoes")) {
+    return { id: "running_shoes", label: "SHOES", mult: 1.75 };
+  }
+  return { id: "sneakers", label: "FAST", mult: 1.65 };
+}
+
+export function createQuestSystem({ landmarks = [], quests = [], worldMap, storage = null } = {}) {
+  const mapW = worldMap.dimensions.width;
+  const mapH = worldMap.dimensions.height;
+  const scaleMeters = worldMap.scaleMetersPerTile || 6;
+
+  // Build reachable world positions for every landmark NPC
+  const landmarkMap = new Map();
+  const npcs = landmarks.map((lm, index) => {
+    const pos = snapToWalkableTile(worldMap, lm.tileX, lm.tileY);
+    const enriched = {
+      ...lm,
+      walkTileX: pos.x,
+      walkTileY: pos.y,
+      npcSprite: `npc_${index % 4}`,
+    };
+    landmarkMap.set(lm.id, enriched);
+    return enriched;
+  });
+
+  // Extract interactable world objects (e.g. Quest 2 hidden Little Free Library chest)
+  const interactables = [];
+  for (const q of quests) {
+    for (const step of q.steps || []) {
+      if (step.completionTrigger === "interact_object" && step.targetTile) {
+        const pos = snapToWalkableTile(worldMap, step.targetTile.x, step.targetTile.y);
+        interactables.push({
+          id: `${q.id}_step_${step.stepIndex}`,
+          questId: q.id,
+          stepIndex: step.stepIndex,
+          name: "Hidden Little Free Library",
+          tileX: pos.x,
+          tileY: pos.y,
+          instruction: step.instruction,
+          opened: false,
+        });
+      }
+    }
+  }
+
+  // Core progression state
+  const state = {
+    safetyXP: 0,
+    coins: 0,
+    acorns: 0,
+    discoveredLandmarks: new Set(["home_base"]),
+    claimedLandmarkRewards: new Set(),
+    inventory: new Set(["folded_map"]),
+    completedQuests: new Set(),
+    activeQuestId: quests[0]?.id || null,
+    activeStepIndex: 0,
+    openedInteractables: new Set(),
+    fogCells: new Uint8Array(FOG_GRID_SIZE * FOG_GRID_SIZE),
+  };
+
+  function loadSaved() {
+    if (!storage) return;
+    try {
+      const raw = storage.getItem(SAVE_STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (typeof saved.safetyXP === "number") state.safetyXP = saved.safetyXP;
+      if (typeof saved.coins === "number") state.coins = saved.coins;
+      if (typeof saved.acorns === "number") state.acorns = saved.acorns;
+      if (Array.isArray(saved.discoveredLandmarks)) {
+        state.discoveredLandmarks = new Set(saved.discoveredLandmarks);
+      }
+      if (Array.isArray(saved.claimedLandmarkRewards)) {
+        state.claimedLandmarkRewards = new Set(saved.claimedLandmarkRewards);
+      }
+      if (Array.isArray(saved.inventory)) {
+        state.inventory = new Set(saved.inventory);
+      }
+      if (Array.isArray(saved.completedQuests)) {
+        state.completedQuests = new Set(saved.completedQuests);
+      }
+      if (saved.activeQuestId !== undefined) {
+        state.activeQuestId = saved.activeQuestId;
+      }
+      if (typeof saved.activeStepIndex === "number") {
+        state.activeStepIndex = saved.activeStepIndex;
+      }
+      if (Array.isArray(saved.openedInteractables)) {
+        state.openedInteractables = new Set(saved.openedInteractables);
+        for (const obj of interactables) {
+          obj.opened = state.openedInteractables.has(obj.id);
+        }
+      }
+      if (Array.isArray(saved.fogRevealedIndices)) {
+        for (const idx of saved.fogRevealedIndices) {
+          if (idx >= 0 && idx < state.fogCells.length) state.fogCells[idx] = 1;
+        }
+      }
+    } catch {
+      // Ignore corrupt saved state
+    }
+  }
+
+  function save() {
+    if (!storage) return;
+    try {
+      const fogRevealedIndices = [];
+      for (let i = 0; i < state.fogCells.length; i++) {
+        if (state.fogCells[i] === 1) fogRevealedIndices.push(i);
+      }
+      storage.setItem(
+        SAVE_STORAGE_KEY,
+        JSON.stringify({
+          safetyXP: state.safetyXP,
+          coins: state.coins,
+          acorns: state.acorns,
+          discoveredLandmarks: [...state.discoveredLandmarks],
+          claimedLandmarkRewards: [...state.claimedLandmarkRewards],
+          inventory: [...state.inventory],
+          completedQuests: [...state.completedQuests],
+          activeQuestId: state.activeQuestId,
+          activeStepIndex: state.activeStepIndex,
+          openedInteractables: [...state.openedInteractables],
+          fogRevealedIndices,
+        })
+      );
+    } catch {
+      // Ignore storage quota / private mode errors
+    }
+  }
+
+  function resetProgress() {
+    state.safetyXP = 0;
+    state.coins = 0;
+    state.acorns = 0;
+    state.discoveredLandmarks = new Set(["home_base"]);
+    state.claimedLandmarkRewards = new Set();
+    state.inventory = new Set(["folded_map"]);
+    state.completedQuests = new Set();
+    state.activeQuestId = quests[0]?.id || null;
+    state.activeStepIndex = 0;
+    state.openedInteractables = new Set();
+    state.fogCells.fill(0);
+    for (const obj of interactables) obj.opened = false;
+    if (storage) {
+      try {
+        storage.removeItem(SAVE_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  loadSaved();
+
+  function revealFogAtTile(tx, ty, radiusCells = 2) {
+    const cx = Math.floor((tx / mapW) * FOG_GRID_SIZE);
+    const cy = Math.floor((ty / mapH) * FOG_GRID_SIZE);
+    let newlyRevealed = 0;
+    for (let dy = -radiusCells; dy <= radiusCells; dy++) {
+      for (let dx = -radiusCells; dx <= radiusCells; dx++) {
+        if (dx * dx + dy * dy > radiusCells * radiusCells + 1) continue;
+        const gx = cx + dx;
+        const gy = cy + dy;
+        if (gx < 0 || gy < 0 || gx >= FOG_GRID_SIZE || gy >= FOG_GRID_SIZE) continue;
+        const idx = gy * FOG_GRID_SIZE + gx;
+        if (state.fogCells[idx] === 0) {
+          state.fogCells[idx] = 1;
+          newlyRevealed++;
+        }
+      }
+    }
+    if (newlyRevealed > 0) save();
+    return newlyRevealed;
+  }
+
+  function getExploredPercent() {
+    let count = 0;
+    for (let i = 0; i < state.fogCells.length; i++) {
+      if (state.fogCells[i] === 1) count++;
+    }
+    return Math.round((count / state.fogCells.length) * 100);
+  }
+
+  function getActiveQuest() {
+    if (!state.activeQuestId) return null;
+    return quests.find((q) => q.id === state.activeQuestId) || null;
+  }
+
+  function getActiveStep() {
+    const q = getActiveQuest();
+    if (!q || !Array.isArray(q.steps)) return null;
+    return q.steps[state.activeStepIndex] || null;
+  }
+
+  function getActiveObjectiveTarget() {
+    const step = getActiveStep();
+    if (!step) return null;
+    if (step.targetLandmarkId) {
+      const lm = landmarkMap.get(step.targetLandmarkId);
+      if (lm) {
+        return {
+          label: lm.name,
+          tileX: lm.walkTileX,
+          tileY: lm.walkTileY,
+          landmarkId: lm.id,
+          instruction: step.instruction,
+        };
+      }
+    }
+    if (step.targetTile) {
+      return {
+        label: getActiveQuest()?.title || "Secret Spot",
+        tileX: step.targetTile.x,
+        tileY: step.targetTile.y,
+        landmarkId: null,
+        instruction: step.instruction,
+      };
+    }
+    return null;
+  }
+
+  function advanceQuestStep() {
+    const q = getActiveQuest();
+    if (!q) return null;
+
+    if (state.activeStepIndex + 1 < q.steps.length) {
+      state.activeStepIndex += 1;
+      save();
+      return { type: "step_advanced", quest: q, nextStep: q.steps[state.activeStepIndex] };
+    }
+
+    // Quest complete!
+    state.completedQuests.add(q.id);
+    const reward = q.rewards || {};
+    if (reward.xp) state.safetyXP += reward.xp;
+    if (reward.coins) state.coins += reward.coins;
+    if (reward.item) state.inventory.add(reward.item);
+
+    // Activate next uncompleted quest automatically
+    const nextQuest = quests.find((cand) => !state.completedQuests.has(cand.id)) || null;
+    state.activeQuestId = nextQuest ? nextQuest.id : null;
+    state.activeStepIndex = 0;
+    save();
+
+    return {
+      type: "quest_completed",
+      quest: q,
+      rewardItem: reward.item || null,
+      rewardXP: reward.xp || 0,
+      rewardCoins: reward.coins || 0,
+      nextQuest,
+    };
+  }
+
+  /**
+   * Check passive proximity triggers as player walks (landmark discovery + tile_reach steps).
+   */
+  function updatePlayerPosition(tx, ty) {
+    const events = [];
+    revealFogAtTile(tx, ty);
+
+    // 1. Auto-discover landmarks when within 6 tiles
+    for (const lm of npcs) {
+      if (state.discoveredLandmarks.has(lm.id)) continue;
+      if (Math.hypot(lm.walkTileX - tx, lm.walkTileY - ty) <= 6) {
+        state.discoveredLandmarks.add(lm.id);
+        if (lm.discoveryXP) state.safetyXP += lm.discoveryXP;
+        save();
+        events.push({ type: "landmark_discovered", landmark: lm });
+      }
+    }
+
+    // 2. Check tile_reach active quest step
+    const step = getActiveStep();
+    if (step && step.completionTrigger === "tile_reach" && step.targetTile) {
+      if (Math.hypot(step.targetTile.x - tx, step.targetTile.y - ty) <= 4) {
+        const res = advanceQuestStep();
+        if (res) events.push(res);
+      }
+    }
+
+    return events;
+  }
+
+  /**
+   * Find closest interactable NPC or hidden chest within reach (<= 3.2 tiles).
+   */
+  function findNearbyInteraction(tx, ty, maxDist = 3.2) {
+    let best = null;
+
+    for (const lm of npcs) {
+      const dist = Math.hypot(lm.walkTileX - tx, lm.walkTileY - ty);
+      if (dist <= maxDist && (!best || dist < best.dist)) {
+        best = { kind: "npc", target: lm, dist };
+      }
+    }
+
+    for (const obj of interactables) {
+      const dist = Math.hypot(obj.tileX - tx, obj.tileY - ty);
+      if (dist <= maxDist && (!best || dist < best.dist)) {
+        best = { kind: "chest", target: obj, dist };
+      }
+    }
+
+    return best;
+  }
+
+  /**
+   * Interact with a landmark NPC: discovers landmark, builds dialogue lines,
+   * grants landmark reward item (first visit), and advances matching npc_talk quest step.
+   */
+  function interactWithNpc(landmarkId) {
+    const lm = landmarkMap.get(landmarkId);
+    if (!lm) return null;
+
+    const fanfareQueue = [];
+    const lines = Array.isArray(lm.dialogue) && lm.dialogue.length > 0
+      ? [...lm.dialogue]
+      : [`Hello from ${lm.name}!`];
+
+    if (!state.discoveredLandmarks.has(lm.id)) {
+      state.discoveredLandmarks.add(lm.id);
+      if (lm.discoveryXP) state.safetyXP += lm.discoveryXP;
+    }
+
+    if (lm.rewardItem && !state.claimedLandmarkRewards.has(lm.id)) {
+      state.claimedLandmarkRewards.add(lm.id);
+      state.inventory.add(lm.rewardItem);
+      fanfareQueue.push({
+        itemId: lm.rewardItem,
+        sourceLabel: lm.name,
+      });
+    }
+
+    // Check if active quest step targets this NPC
+    const step = getActiveStep();
+    let questEvent = null;
+    if (step && step.completionTrigger === "npc_talk" && step.targetLandmarkId === lm.id) {
+      questEvent = advanceQuestStep();
+      if (questEvent?.type === "quest_completed") {
+        lines.push(`★ Quest Complete: ${questEvent.quest.title}! (+${questEvent.rewardXP} XP, +${questEvent.rewardCoins} Coins)`);
+        if (questEvent.rewardItem) {
+          fanfareQueue.push({
+            itemId: questEvent.rewardItem,
+            sourceLabel: `Quest Reward: ${questEvent.quest.title}`,
+          });
+        }
+      } else if (questEvent?.type === "step_advanced") {
+        lines.push(`Next Goal: ${questEvent.nextStep.instruction}`);
+      }
+    }
+
+    save();
+
+    return {
+      speaker: `${lm.npcName || "Neighbor"} • ${lm.name}`,
+      lines,
+      fanfareQueue,
+      questEvent,
+    };
+  }
+
+  /**
+   * Interact with a hidden world object (e.g. Little Free Library Wooden Chest).
+   */
+  function interactWithChest(chestId) {
+    const obj = interactables.find((o) => o.id === chestId);
+    if (!obj) return null;
+
+    const fanfareQueue = [];
+    const lines = [];
+
+    if (obj.opened) {
+      lines.push("The little wooden book chest is already open — full of neighborhood stories!");
+      return { speaker: obj.name, lines, fanfareQueue, questEvent: null };
+    }
+
+    obj.opened = true;
+    state.openedInteractables.add(obj.id);
+    lines.push("You opened the hidden Little Free Library chest beneath the tall green oaks!");
+
+    const step = getActiveStep();
+    let questEvent = null;
+    if (
+      step &&
+      step.completionTrigger === "interact_object" &&
+      getActiveQuest()?.id === obj.questId
+    ) {
+      questEvent = advanceQuestStep();
+      if (questEvent?.type === "quest_completed") {
+        lines.push(`★ Quest Complete: ${questEvent.quest.title}! (+${questEvent.rewardXP} XP, +${questEvent.rewardCoins} Coins)`);
+        if (questEvent.rewardItem) {
+          fanfareQueue.push({
+            itemId: questEvent.rewardItem,
+            sourceLabel: `Quest Reward: ${questEvent.quest.title}`,
+          });
+        }
+      }
+    } else {
+      // Opened early before Quest 2 became active — still award a fun discovery bonus!
+      state.inventory.add("rare_book_stamp");
+      state.coins += 15;
+      fanfareQueue.push({
+        itemId: "rare_book_stamp",
+        sourceLabel: obj.name,
+      });
+    }
+
+    save();
+    return {
+      speaker: obj.name,
+      lines,
+      fanfareQueue,
+      questEvent,
+    };
+  }
+
+  return {
+    state,
+    npcs,
+    interactables,
+    landmarks: npcs,
+    quests,
+    save,
+    resetProgress,
+    revealFogAtTile,
+    getExploredPercent,
+    getActiveQuest,
+    getActiveStep,
+    getActiveObjectiveTarget,
+    getGear: () => getTraversalGear(state.safetyXP, state.inventory),
+    formatTargetHint: (tx, ty) => {
+      const target = getActiveObjectiveTarget();
+      if (!target) return null;
+      return {
+        ...target,
+        compass: formatCompassHint(tx, ty, target.tileX, target.tileY, scaleMeters),
+      };
+    },
+    updatePlayerPosition,
+    findNearbyInteraction,
+    interactWithNpc,
+    interactWithChest,
+  };
+}
