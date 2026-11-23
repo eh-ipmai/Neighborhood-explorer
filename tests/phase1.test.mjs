@@ -10,7 +10,9 @@ import {
   createMapCollider,
   moveWithCollision,
 } from "../src/player.js";
-import { createSafetySystem } from "../src/safety.js";
+import { createSafetySystem, findNearestBuilding } from "../src/safety.js";
+import { isMuted, setMuted, toggleMute, zzfx } from "../src/audio.js";
+import { normalizeAddress, resolveHouseStyle } from "../src/tileset.js";
 import {
   TILE_IDS,
   projectLatLonToTile,
@@ -206,4 +208,85 @@ test("LOOK BOTH WAYS detects crosswalks and awards Safety XP", () => {
   const cwResult = safety.inspectCrossingContext(64, 66);
   assert.equal(cwResult.context, "crosswalk");
   assert.equal(cwResult.xpReward, 5);
+});
+
+test("OSM rasterizer preserves 1-house-per-address buildings[] and matches address nodes", () => {
+  const originLat = 42.3192253;
+  const originLon = -71.1926696;
+  const elements = [
+    {
+      type: "way",
+      id: 101,
+      tags: { building: "house" },
+      geometry: [
+        { lat: originLat + 0.0001, lon: originLon - 0.0001 },
+        { lat: originLat + 0.0001, lon: originLon + 0.0001 },
+        { lat: originLat - 0.0001, lon: originLon + 0.0001 },
+        { lat: originLat - 0.0001, lon: originLon - 0.0001 },
+        { lat: originLat + 0.0001, lon: originLon - 0.0001 },
+      ],
+    },
+    {
+      type: "node",
+      id: 201,
+      lat: originLat,
+      lon: originLon,
+      tags: { "addr:housenumber": "565", "addr:street": "Boylston Street" },
+    },
+    {
+      type: "way",
+      id: 102,
+      tags: { building: "house", "addr:housenumber": "571", "addr:street": "Boylston Street" },
+      geometry: [
+        { lat: originLat + 0.0001, lon: originLon + 0.0003 },
+        { lat: originLat + 0.0001, lon: originLon + 0.0005 },
+        { lat: originLat - 0.0001, lon: originLon + 0.0005 },
+        { lat: originLat - 0.0001, lon: originLon + 0.0003 },
+        { lat: originLat + 0.0001, lon: originLon + 0.0003 },
+      ],
+    },
+  ];
+
+  const map = rasterizeOsmData(elements, {
+    width: 64,
+    height: 64,
+    scaleMetersPerTile: 5,
+    origin: { lat: originLat, lon: originLon, name: "Home Base (565 Boylston St)" },
+  });
+
+  assert.equal(map.buildings.length, 2);
+  const home = map.buildings.find((b) => b.isHomeBase);
+  const neighbor = map.buildings.find((b) => b.houseNumber === "571");
+  assert.ok(home, "Home Base 565 Boylston St should be flagged isHomeBase");
+  assert.equal(home.address, "565 Boylston St");
+  assert.ok(neighbor, "Neighbor 571 Boylston Street should be preserved separately");
+  assert.equal(neighbor.address, "571 Boylston Street");
+
+  const nearest = findNearestBuilding(map.buildings, home.bounds.minX, home.bounds.maxY + 1);
+  assert.equal(nearest.building.id, home.id);
+});
+
+test("ZzFX audio engine toggles mute safely in headless Node", () => {
+  setMuted(false);
+  assert.equal(isMuted(), false);
+  assert.equal(toggleMute(), true);
+  assert.equal(isMuted(), true);
+  // Should safely no-op without throwing when window/AudioContext is absent
+  zzfx(0.1, 0.05, 220);
+  setMuted(false);
+});
+
+test("real house color overrides match normalized addresses (St vs Street)", () => {
+  assert.equal(normalizeAddress("565 Boylston Street"), "565 boylston st");
+  assert.equal(normalizeAddress("48 Lantern Ln."), "48 lantern ln");
+
+  const overrides = {
+    [normalizeAddress("565 Boylston St")]: { preset: "navy", roof: "charcoal" },
+  };
+  const style = resolveHouseStyle(
+    { id: "osm_1", address: "565 Boylston Street", kind: "house", isHomeBase: true, bounds: { minX: 1, minY: 1, maxX: 4, maxY: 4 } },
+    overrides
+  );
+  assert.equal(style.label, "Deep Navy");
+  assert.equal(style.roofMain, "#4a5059");
 });

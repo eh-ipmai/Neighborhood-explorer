@@ -2,48 +2,111 @@
   {
     "id": "home_base",
     "name": "Player's House (565 Boylston St)",
-    "tileX": 94,
-    "tileY": 98,
+    "address": "565 Boylston St",
+    "lat": 42.3192253,
+    "lon": -71.1926696,
+    "tileX": 276,
+    "tileY": 441,
     "sprite": "house_yellow",
     "discoveryXP": 0,
     "npcName": "Mom",
     "dialogue": [
       "Welcome back, Explorer!",
-      "Check the bookshelf inside for secrets before heading down Boylston Street!"
+      "Check the bookshelf inside for secrets before heading out on Boylston Street!"
     ],
     "rewardItem": "folded_map"
   },
   {
+    "id": "oakdale_woods_trailhead",
+    "name": "Oakdale Woods Trailhead",
+    "address": "Oakdale Rd",
+    "lat": 42.3183435,
+    "lon": -71.1995786,
+    "tileX": 182,
+    "tileY": 457,
+    "sprite": "park_trailhead",
+    "discoveryXP": 40,
+    "npcName": "Ranger Rick",
+    "dialogue": [
+      "Welcome to Oakdale Woods! Rustle the tall grass along the trail to spot lucky acorns and neighborhood coins!"
+    ],
+    "rewardItem": "trail_compass"
+  },
+  {
+    "id": "weeks_field",
+    "name": "Weeks Field",
+    "address": "7 Hereward Rd",
+    "lat": 42.3236639,
+    "lon": -71.197634,
+    "tileX": 208,
+    "tileY": 358,
+    "sprite": "park_field",
+    "discoveryXP": 45,
+    "npcName": "Park Scout Sam",
+    "dialogue": [
+      "Great job crossing safely! Weeks Field is the best shortcut on the way up to Newton Centre!"
+    ],
+    "rewardItem": "field_stamp"
+  },
+  {
+    "id": "rosenfelds_bakery",
+    "name": "Rosenfeld's Bagels (Kosher Bakery)",
+    "address": "1280 Centre St",
+    "lat": 42.3296115,
+    "lon": -71.1945402,
+    "tileX": 251,
+    "tileY": 248,
+    "sprite": "kosher_bakery",
+    "discoveryXP": 55,
+    "npcName": "Baker Ben",
+    "dialogue": [
+      "Fresh warm challah and sesame bagels straight out of the oven!",
+      "Take a warm paper bag for your delivery errand — careful at the Centre Street crosswalks!"
+    ],
+    "rewardItem": "fresh_challah_bag"
+  },
+  {
+    "id": "jp_licks",
+    "name": "J.P. Licks Ice Cream Shoppe",
+    "address": "46 Langley Rd",
+    "lat": 42.330572,
+    "lon": -71.192337,
+    "tileX": 281,
+    "tileY": 230,
+    "sprite": "ice_cream_shop",
+    "discoveryXP": 55,
+    "npcName": "Scooper Maya",
+    "dialogue": [
+      "Welcome to J.P. Licks in Newton Centre! Cookies 'n' Cream or Mint Chocolate Chip?",
+      "Here's a Double Scoop Waffle Cone for super explorer energy!"
+    ],
+    "rewardItem": "double_scoop_cone"
+  },
+  {
     "id": "newton_free_library",
     "name": "Newton Free Library",
-    "tileX": 52,
-    "tileY": 28,
+    "address": "330 Homer St",
+    "lat": 42.3368211,
+    "lon": -71.2095259,
+    "tileX": 45,
+    "tileY": 114,
     "sprite": "library_building",
-    "discoveryXP": 50,
+    "discoveryXP": 75,
     "npcName": "Librarian Clara",
     "dialogue": [
-      "Hello young reader! Check the outdoor pickup lockers and Little Free Library chest for rare book stamps!"
+      "You made it all the way to the Newton Free Library!",
+      "Check the outdoor pickup lockers and Little Free Library chest for rare book stamps!"
     ],
     "rewardItem": "library_card"
   },
   {
-    "id": "maimonides_school",
-    "name": "Maimonides School",
-    "tileX": 156,
-    "tileY": 72,
-    "sprite": "school_building",
-    "discoveryXP": 60,
-    "npcName": "Gaga Pit Champion",
-    "dialogue": [
-      "Welcome to the school courtyard! Check behind the gaga pit for a secret bouncing surprise!"
-    ],
-    "rewardItem": "pogo_stick"
-  },
-  {
     "id": "beth_el_atereth_israel",
     "name": "Congregation Beth El-Atereth Israel",
-    "tileX": 74,
-    "tileY": 48,
+    "address": "561 Ward St",
+    "lat": 42.3383612,
+    "lon": -71.1968819,
+    "tileX": 219,
+    "tileY": 86,
     "sprite": "synagogue_building",
     "discoveryXP": 70,
     "npcName": "Kiddush Host",
@@ -55,7 +118,10 @@
   {
     "id": "ward_baseball_field",
     "name": "Ward Elementary Baseball Field",
-    "tileX": 124,
+    "address": "10 Dolphin Rd",
+    "lat": 42.3409049,
+    "lon": -71.1784226,
+    "tileX": 472,
     "tileY": 38,
     "sprite": "baseball_diamond",
     "discoveryXP": 80,
@@ -68,13 +134,13 @@
   {
     "id": "salzberg_house",
     "name": "The Salzberg House",
-    "tileX": 132,
-    "tileY": 112,
+    "tileX": 310,
+    "tileY": 270,
     "sprite": "friend_house",
     "discoveryXP": 65,
     "npcName": "Friend Ross",
     "dialogue": [
-      "Ready for a co-op backyard hangout? Let's team up for the neighborhood errand quest!"
+      "Ready for a co-op backyard hangout? Let's stop at J.P. Licks and Rosenfeld's on our way!"
     ],
     "rewardItem": "coop_badge"
   }

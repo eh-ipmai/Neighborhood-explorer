@@ -3,17 +3,18 @@
  * Cross-platform OpenStreetMap -> RPG Tile Grid generator (world_map.json)
  * Implements GDD Section 2:
  *   Step 1: Bounding box & Equirectangular projection (1 tile = 5m x 5m)
- *   Step 2: 5-layer rasterization priority (Water -> Parks -> Roads/Sidewalks -> Crosswalks -> Buildings)
- *   Step 3: Street metadata & zone tagging (streetZones)
+ *   Step 2: 5-layer rasterization priority (Water -> Parks/Tall Grass -> Roads/Sidewalks -> Crosswalks -> Per-Address Buildings)
+ *   Step 3: Street metadata & zone tagging (streetZones) + 1-to-1 per-address buildings[]
  *
  * Usage:
  *   node scripts/build_map.mjs                  # Live OSM Overpass build for Newton Centre
  *   node scripts/build_map.mjs --offline        # Deterministic offline Newton Centre layout
- *   node scripts/build_map.mjs --lat 42.3204 --lon -71.1965 --width 320 --height 320
+ *   node scripts/build_map.mjs --lat 42.3192 --lon -71.1927 --width 192 --height 192
  */
 
 import dns from "node:dns";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -27,6 +28,8 @@ export const TILE_IDS = {
   CROSSWALK: 4,
   BUILDING_WALL: 5,
   WATER: 6,
+  TALL_GRASS: 7,
+  PARKING_LOT: 8,
 };
 
 export const LEGEND = {
@@ -37,17 +40,23 @@ export const LEGEND = {
   "4": "crosswalk",
   "5": "building_wall",
   "6": "water",
+  "7": "tall_grass",
+  "8": "parking_lot",
 };
 
 export const DEFAULT_CONFIG = {
   tileSize: 16,
-  scaleMetersPerTile: 5,
-  width: 192,  // 192 * 5m = 960m (~0.6 mile x 0.6 mile neighborhood core)
-  height: 192, // 192 * 5m = 960m
+  scaleMetersPerTile: 6,
+  width: 512,  // 512 * 6m = 3,072m (~1.9 miles x 1.9 miles: Home Base to Newton Free Library, Beth El, Ward & Weeks Fields!)
+  height: 512, // 512 * 6m = 3,072m
   origin: {
     lat: 42.3192253,
     lon: -71.1926696,
     name: "Home Base (565 Boylston St)",
+  },
+  mapCenter: {
+    lat: 42.3292,
+    lon: -71.1942,
   },
 };
 
@@ -104,6 +113,15 @@ function inBounds(x, y, width, height) {
   return x >= 0 && y >= 0 && x < width && y < height;
 }
 
+function hashString(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+
 /**
  * Bresenham line rasterizer with configurable brush radius.
  */
@@ -145,7 +163,7 @@ function drawLine(grid, width, height, x0, y0, x1, y1, value, radius = 0, filter
  * Scanline polygon fill (even-odd rule) for water bodies, parks, and buildings.
  */
 function fillPolygon(grid, width, height, points, value, filterFn = null) {
-  if (points.length < 3) return;
+  if (points.length < 3) return 0;
   let minY = height;
   let maxY = -1;
   for (const p of points) {
@@ -155,6 +173,7 @@ function fillPolygon(grid, width, height, points, value, filterFn = null) {
   minY = Math.max(0, Math.floor(minY));
   maxY = Math.min(height - 1, Math.ceil(maxY));
 
+  let painted = 0;
   for (let y = minY; y <= maxY; y++) {
     const scanY = y + 0.5;
     const intersections = [];
@@ -175,10 +194,12 @@ function fillPolygon(grid, width, height, points, value, filterFn = null) {
         const idx = rowOffset + x;
         if (!filterFn || filterFn(grid[idx], x, y)) {
           grid[idx] = value;
+          painted++;
         }
       }
     }
   }
+  return painted;
 }
 
 function classifyRoad(tags = {}) {
@@ -221,6 +242,18 @@ function classifyRoad(tags = {}) {
   return null;
 }
 
+function classifyBuildingKind(tags = {}) {
+  const b = String(tags.building || "yes").toLowerCase();
+  const amenity = String(tags.amenity || "").toLowerCase();
+  if (amenity === "library" || b === "library") return "library";
+  if (amenity === "school" || b === "school") return "school";
+  if (amenity === "place_of_worship" || b === "church" || b === "synagogue") return "civic";
+  if (b === "garage" || b === "shed" || b === "carport" || b === "outbuilding") return "garage";
+  if (b === "commercial" || b === "retail" || b === "office" || tags.shop) return "commercial";
+  if (b === "apartments" || b === "terrace") return "apartments";
+  return "house";
+}
+
 function isWaterFeature(tags = {}) {
   return (
     tags.natural === "water" ||
@@ -246,6 +279,17 @@ function isParkFeature(tags = {}) {
     tags.landuse === "village_green" ||
     tags.natural === "wood" ||
     tags.natural === "grassland"
+  );
+}
+
+function isTallGrassFeature(tags = {}) {
+  return (
+    tags.natural === "wood" ||
+    tags.natural === "grassland" ||
+    tags.landuse === "forest" ||
+    tags.landuse === "meadow" ||
+    tags.leisure === "nature_reserve" ||
+    tags.leisure === "park"
   );
 }
 
@@ -284,7 +328,6 @@ function addPolylineStreetZones(streetZones, name, type, points, width, height, 
 
 /**
  * Find nearest walkable sidewalk/road tile to center for Home Base spawn.
- * If none is found nearby, clear a small patio at center so player is never stuck.
  */
 export function ensureWalkableSpawn(base, collision, width, height, targetX, targetY) {
   const maxRadius = 18;
@@ -303,7 +346,6 @@ export function ensureWalkableSpawn(base, collision, width, height, targetX, tar
     }
   }
 
-  // Fallback: nearest non-colliding tile
   for (let r = 0; r <= maxRadius; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
@@ -318,7 +360,6 @@ export function ensureWalkableSpawn(base, collision, width, height, targetX, tar
     }
   }
 
-  // Last resort: clear a 3x3 sidewalk around target
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       const tx = targetX + dx;
@@ -334,7 +375,7 @@ export function ensureWalkableSpawn(base, collision, width, height, targetX, tar
 
 /**
  * Step 2 & 3: Rasterize OSM elements (Overpass JSON `elements`) onto the tile grid
- * following strict 5-layer priority order and generating collision + streetZones.
+ * following strict 5-layer priority order and preserving 1-to-1 per-address buildings[].
  */
 export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
   const width = config.width ?? DEFAULT_CONFIG.width;
@@ -342,13 +383,29 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
   const tileSize = config.tileSize ?? DEFAULT_CONFIG.tileSize;
   const scaleMetersPerTile = config.scaleMetersPerTile ?? DEFAULT_CONFIG.scaleMetersPerTile;
   const origin = { ...DEFAULT_CONFIG.origin, ...(config.origin || {}) };
+  const mapCenter = config.mapCenter || { lat: origin.lat, lon: origin.lon };
 
   const base = new Array(width * height).fill(TILE_IDS.GRASS);
   const streetZones = [];
+  const buildings = [];
 
   const nodes = new Map();
   const ways = [];
   const crossingNodes = [];
+  const addressNodes = [];
+
+  const projectNode = (n) =>
+    projectLatLonToTile(n.lat, n.lon, mapCenter.lat, mapCenter.lon, width, height, scaleMetersPerTile);
+
+  const originTile = projectLatLonToTile(
+    origin.lat,
+    origin.lon,
+    mapCenter.lat,
+    mapCenter.lon,
+    width,
+    height,
+    scaleMetersPerTile
+  );
 
   for (const el of elements) {
     if (el.type === "node") {
@@ -356,18 +413,25 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
       if (el.tags && (el.tags.highway === "crossing" || el.tags.crossing)) {
         crossingNodes.push(el);
       }
+      if (el.tags && el.tags["addr:housenumber"]) {
+        const pt = projectNode(el);
+        addressNodes.push({
+          x: pt.x,
+          y: pt.y,
+          houseNumber: String(el.tags["addr:housenumber"]),
+          street: el.tags["addr:street"] ? String(el.tags["addr:street"]) : "",
+          name: el.tags.name ? String(el.tags.name) : "",
+        });
+      }
     } else if (el.type === "way") {
       ways.push(el);
     }
   }
 
-  const projectNode = (n) =>
-    projectLatLonToTile(n.lat, n.lon, origin.lat, origin.lon, width, height, scaleMetersPerTile);
-
   function getWayPoints(way) {
     if (Array.isArray(way.geometry) && way.geometry.length > 0) {
       return way.geometry.map((pt) =>
-        projectLatLonToTile(pt.lat, pt.lon, origin.lat, origin.lon, width, height, scaleMetersPerTile)
+        projectLatLonToTile(pt.lat, pt.lon, mapCenter.lat, mapCenter.lon, width, height, scaleMetersPerTile)
       );
     }
     if (Array.isArray(way.nodes)) {
@@ -383,6 +447,7 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
 
   const waterWays = [];
   const parkWays = [];
+  const parkingWays = [];
   const roadWays = [];
   const crossingWays = [];
   const buildingWays = [];
@@ -393,6 +458,8 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
       waterWays.push(way);
     } else if (tags.building) {
       buildingWays.push(way);
+    } else if (tags.amenity === "parking") {
+      parkingWays.push(way);
     } else if (tags.highway === "crossing" || tags.footway === "crossing") {
       crossingWays.push(way);
     } else if (tags.highway) {
@@ -418,16 +485,24 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     }
   }
 
-  // Priority 2: Parks & Greenery (overwrites grass cleanly, preserves water)
+  // Priority 2: Parks & Greenery (woods/parks get lush tall_grass for rustle particles)
   for (const way of parkWays) {
     const pts = getWayPoints(way);
     if (pts.length >= 3) {
-      fillPolygon(base, width, height, pts, TILE_IDS.GRASS, (cur) => cur !== TILE_IDS.WATER);
+      const tile = isTallGrassFeature(way.tags) ? TILE_IDS.TALL_GRASS : TILE_IDS.GRASS;
+      fillPolygon(base, width, height, pts, tile, (cur) => cur !== TILE_IDS.WATER);
+    }
+  }
+
+  // Priority 2.5: Surface Parking Lots (amenity=parking)
+  for (const way of parkingWays) {
+    const pts = getWayPoints(way);
+    if (pts.length >= 3) {
+      fillPolygon(base, width, height, pts, TILE_IDS.PARKING_LOT, (cur) => cur !== TILE_IDS.WATER);
     }
   }
 
   // Priority 3: Roads & Sidewalks
-  // Pass 3a: Footways & sidewalks first
   for (const { way, roadInfo } of roadWays) {
     if (roadInfo.tile !== TILE_IDS.SIDEWALK) continue;
     const pts = getWayPoints(way);
@@ -439,11 +514,9 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     }
   }
 
-  // Pass 3b: Residential roads (with flanking sidewalk buffer)
   for (const { way, roadInfo } of roadWays) {
     if (roadInfo.tile !== TILE_IDS.RESIDENTIAL_ROAD) continue;
     const pts = getWayPoints(way);
-    // Flanking sidewalks on grass tiles first
     for (let i = 0; i < pts.length - 1; i++) {
       drawLine(
         base,
@@ -455,7 +528,7 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
         pts[i + 1].y,
         TILE_IDS.SIDEWALK,
         1,
-        (cur) => cur === TILE_IDS.GRASS
+        (cur) => cur === TILE_IDS.GRASS || cur === TILE_IDS.TALL_GRASS
       );
     }
     for (let i = 0; i < pts.length - 1; i++) {
@@ -476,10 +549,10 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     }
   }
 
-  // Pass 3c: Arterial / main roads (wider road + flanking sidewalk buffer)
   for (const { way, roadInfo } of roadWays) {
     if (roadInfo.tile !== TILE_IDS.MAIN_ROAD) continue;
     const pts = getWayPoints(way);
+    // Wider 2-tile promenade sidewalks flanking busy arterial avenues (e.g. Boylston St)
     for (let i = 0; i < pts.length - 1; i++) {
       drawLine(
         base,
@@ -490,8 +563,8 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
         pts[i + 1].x,
         pts[i + 1].y,
         TILE_IDS.SIDEWALK,
-        2,
-        (cur) => cur === TILE_IDS.GRASS
+        3,
+        (cur) => cur === TILE_IDS.GRASS || cur === TILE_IDS.TALL_GRASS
       );
     }
     for (let i = 0; i < pts.length - 1; i++) {
@@ -512,7 +585,7 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     }
   }
 
-  // Priority 4: Pedestrian Crossings (OSM crossing ways + crossing nodes)
+  // Priority 4: Pedestrian Crossings
   for (const way of crossingWays) {
     const pts = getWayPoints(way);
     for (let i = 0; i < pts.length - 1; i++) {
@@ -535,21 +608,158 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     }
   }
 
-  // Priority 5: Building Footprints (avoid overwriting roads/crosswalks so streets stay passable)
+  // Priority 5: Building Footprints (1 distinct record per real house/address)
+  const homeX = Math.max(0, Math.min(width - 1, originTile.x));
+  const homeY = Math.max(0, Math.min(height - 1, originTile.y));
+  const usedAddrIndices = new Set();
+
   for (const way of buildingWays) {
     const pts = getWayPoints(way);
     if (pts.length < 3) continue;
-    fillPolygon(
+
+    let minX = width;
+    let maxX = -1;
+    let minY = height;
+    let maxY = -1;
+    for (const p of pts) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+
+    // Clamp building bounds to map; skip completely out-of-bounds polygons
+    minX = Math.max(0, minX);
+    minY = Math.max(0, minY);
+    maxX = Math.min(width - 1, maxX);
+    maxY = Math.min(height - 1, maxY);
+    if (minX > maxX || minY > maxY) continue;
+
+    const isAdjacentToRoad = (tx, ty) => {
+      for (const [ox, oy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+        const nx = tx + ox;
+        const ny = ty + oy;
+        if (!inBounds(nx, ny, width, height)) continue;
+        const nVal = base[ny * width + nx];
+        if (nVal === TILE_IDS.MAIN_ROAD || nVal === TILE_IDS.RESIDENTIAL_ROAD || nVal === TILE_IDS.CROSSWALK) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const painted = fillPolygon(
       base,
       width,
       height,
       pts,
       TILE_IDS.BUILDING_WALL,
-      (cur) =>
-        cur === TILE_IDS.GRASS ||
-        cur === TILE_IDS.SIDEWALK ||
-        cur === TILE_IDS.BUILDING_WALL
+      (cur, tx, ty) => {
+        if (cur === TILE_IDS.GRASS || cur === TILE_IDS.TALL_GRASS || cur === TILE_IDS.BUILDING_WALL) {
+          return true;
+        }
+        // Allow building to claim interior buffer sidewalk only if it doesn't break a road-adjacent sidewalk
+        if (cur === TILE_IDS.SIDEWALK) {
+          return !isAdjacentToRoad(tx, ty);
+        }
+        return false;
+      }
     );
+
+    // Ensure very small house polygons still claim at least their center tile if walkable grass
+    if (painted === 0) {
+      const mx = Math.floor((minX + maxX) / 2);
+      const my = Math.floor((minY + maxY) / 2);
+      const idx = my * width + mx;
+      if (base[idx] === TILE_IDS.GRASS || base[idx] === TILE_IDS.TALL_GRASS) {
+        base[idx] = TILE_IDS.BUILDING_WALL;
+      } else {
+        continue;
+      }
+    }
+
+    const tags = way.tags || {};
+    let houseNumber = tags["addr:housenumber"] ? String(tags["addr:housenumber"]) : "";
+    let street = tags["addr:street"] ? String(tags["addr:street"]) : "";
+    let bName = tags.name ? String(tags.name) : "";
+
+    // Match nearby OSM address node if the building polygon itself lacks addr:housenumber
+    if (!houseNumber) {
+      let bestIdx = -1;
+      let bestDist = Infinity;
+      const bCx = (minX + maxX) / 2;
+      const bCy = (minY + maxY) / 2;
+      for (let i = 0; i < addressNodes.length; i++) {
+        if (usedAddrIndices.has(i)) continue;
+        const an = addressNodes[i];
+        if (an.x >= minX - 1 && an.x <= maxX + 1 && an.y >= minY - 1 && an.y <= maxY + 1) {
+          const d = Math.hypot(an.x - bCx, an.y - bCy);
+          if (d < bestDist) {
+            bestDist = d;
+            bestIdx = i;
+          }
+        }
+      }
+      if (bestIdx !== -1) {
+        usedAddrIndices.add(bestIdx);
+        houseNumber = addressNodes[bestIdx].houseNumber;
+        street = street || addressNodes[bestIdx].street;
+        bName = bName || addressNodes[bestIdx].name;
+      }
+    }
+
+    const kind = classifyBuildingKind(tags);
+    const address = houseNumber && street
+      ? `${houseNumber} ${street}`
+      : houseNumber || bName || "";
+
+    const isHomeBase =
+      (houseNumber === "565" && street.toLowerCase().includes("boylston")) ||
+      (homeX >= minX && homeX <= maxX && homeY >= minY && homeY <= maxY);
+
+    const styleKey = address || String(way.id || `${minX}_${minY}`);
+    const styleIndex = isHomeBase ? 0 : (hashString(styleKey) % 7) + 1;
+    const osmColor = tags["building:colour"] ? String(tags["building:colour"]) : "";
+    const osmRoofColor = tags["roof:colour"] ? String(tags["roof:colour"]) : "";
+
+    buildings.push({
+      id: way.id ? `osm_${way.id}` : `b_${minX}_${minY}`,
+      houseNumber,
+      street,
+      address: isHomeBase ? "565 Boylston St" : address,
+      name: isHomeBase ? "Home Base" : bName,
+      kind,
+      isHomeBase,
+      styleIndex,
+      ...(osmColor ? { osmColor } : {}),
+      ...(osmRoofColor ? { osmRoofColor } : {}),
+      bounds: { minX, minY, maxX, maxY },
+    });
+  }
+
+  // Local neighborhood detail: small parking lot immediately to the left (west) of 575 Boylston St
+  const b575 = buildings.find(
+    (b) => b.houseNumber === "575" && b.street.toLowerCase().includes("boylston")
+  );
+  if (b575) {
+    const lotMinX = Math.max(0, b575.bounds.minX - 4);
+    const lotMaxX = Math.max(0, b575.bounds.minX - 1);
+    const lotMinY = b575.bounds.minY;
+    const lotMaxY = Math.max(lotMinY, b575.bounds.maxY - 1);
+    for (let ty = lotMinY; ty <= lotMaxY; ty++) {
+      for (let tx = lotMinX; tx <= lotMaxX; tx++) {
+        const idx = ty * width + tx;
+        const cur = base[idx];
+        if (
+          cur === TILE_IDS.GRASS ||
+          cur === TILE_IDS.TALL_GRASS ||
+          cur === TILE_IDS.SIDEWALK ||
+          cur === TILE_IDS.RESIDENTIAL_ROAD
+        ) {
+          base[idx] = TILE_IDS.PARKING_LOT;
+        }
+      }
+    }
   }
 
   // Derive collision layer (1 = solid wall/water, 0 = walkable)
@@ -557,15 +767,30 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     tileId === TILE_IDS.BUILDING_WALL || tileId === TILE_IDS.WATER ? 1 : 0
   );
 
-  // Guarantee walkable Home Base spawn near map center
-  const spawnTile = ensureWalkableSpawn(
-    base,
-    collision,
-    width,
-    height,
-    Math.floor(width / 2),
-    Math.floor(height / 2)
-  );
+  // Guarantee walkable Home Base spawn right on the sidewalk by Home Base (565 Boylston St)
+  const spawnTile = ensureWalkableSpawn(base, collision, width, height, homeX, homeY);
+
+  // If no building explicitly matched 565 Boylston St, tag the closest residential house to origin as Home Base
+  if (buildings.length > 0 && !buildings.some((b) => b.isHomeBase)) {
+    let closest = null;
+    let bestDist = Infinity;
+    for (const b of buildings) {
+      if (b.kind === "garage") continue;
+      const bx = (b.bounds.minX + b.bounds.maxX) / 2;
+      const by = (b.bounds.minY + b.bounds.maxY) / 2;
+      const d = Math.hypot(bx - homeX, by - homeY);
+      if (d < bestDist) {
+        bestDist = d;
+        closest = b;
+      }
+    }
+    if (closest) {
+      closest.isHomeBase = true;
+      closest.address = "565 Boylston St";
+      closest.name = "Home Base";
+      closest.styleIndex = 0;
+    }
+  }
 
   return {
     tileSize,
@@ -574,6 +799,7 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
       ...origin,
       spawnTile,
     },
+    mapCenter,
     dimensions: { width, height },
     legend: { ...LEGEND },
     layers: {
@@ -581,11 +807,12 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
       collision,
     },
     streetZones,
+    buildings,
   };
 }
 
 /**
- * Deterministic offline Newton Centre neighborhood layout for zero-network development & testing.
+ * Deterministic offline Newton Centre neighborhood layout with 1-house-per-address buildings[].
  */
 export function buildOfflineMap(config = {}) {
   const width = config.width ?? 128;
@@ -598,7 +825,7 @@ export function buildOfflineMap(config = {}) {
   const cx = Math.floor(width / 2);
   const cy = Math.floor(height / 2);
 
-  // Crystal Lake / Pond in NW quadrant (Water priority 1)
+  // Crystal Lake / Pond in NW quadrant
   for (let y = 14; y <= 28; y++) {
     for (let x = 14; x <= 32; x++) {
       const dx = (x - 23) / 9;
@@ -609,7 +836,16 @@ export function buildOfflineMap(config = {}) {
     }
   }
 
-  // Boylston St (Route 9) running E-W through center (arterial road + sidewalks)
+  // Oakdale Woods tall grass park patch (SE quadrant)
+  for (let y = cy + 16; y <= cy + 34; y++) {
+    for (let x = cx + 4; x <= cx + 40; x++) {
+      if (inBounds(x, y, width, height) && base[y * width + x] === TILE_IDS.GRASS) {
+        base[y * width + x] = TILE_IDS.TALL_GRASS;
+      }
+    }
+  }
+
+  // Boylston St (Route 9) running E-W
   const boylstonY = cy + 4;
   for (let x = 0; x < width; x++) {
     base[(boylstonY - 2) * width + x] = TILE_IDS.SIDEWALK;
@@ -619,7 +855,7 @@ export function buildOfflineMap(config = {}) {
     base[(boylstonY + 2) * width + x] = TILE_IDS.SIDEWALK;
   }
 
-  // Parker St running N-S (residential road + sidewalks)
+  // Parker St running N-S
   const parkerX = cx - 10;
   for (let y = 0; y < height; y++) {
     if (base[y * width + parkerX] === TILE_IDS.WATER) continue;
@@ -628,7 +864,7 @@ export function buildOfflineMap(config = {}) {
     base[y * width + (parkerX + 1)] = TILE_IDS.SIDEWALK;
   }
 
-  // Centre St running N-S east of Home Base
+  // Centre St running N-S
   const centreX = cx + 18;
   for (let y = 0; y < height; y++) {
     base[y * width + (centreX - 1)] = TILE_IDS.SIDEWALK;
@@ -636,7 +872,7 @@ export function buildOfflineMap(config = {}) {
     base[y * width + (centreX + 1)] = TILE_IDS.SIDEWALK;
   }
 
-  // Ward St running E-W north of Home Base
+  // Ward St running E-W
   const wardY = cy - 22;
   for (let x = 8; x < width - 8; x++) {
     if (base[wardY * width + x] === TILE_IDS.WATER) continue;
@@ -645,12 +881,12 @@ export function buildOfflineMap(config = {}) {
     base[(wardY + 1) * width + x] = TILE_IDS.SIDEWALK;
   }
 
-  // Oakdale Woods footpath loop in SE quadrant
+  // Oakdale Woods footpath
   for (let x = cx + 6; x <= cx + 38; x++) {
     base[(cy + 24) * width + x] = TILE_IDS.SIDEWALK;
   }
 
-  // Crosswalks across Boylston St at Parker St, Home Base, and Centre St
+  // Crosswalks across Boylston St
   for (const crossX of [parkerX, cx, centreX]) {
     for (let y = boylstonY - 1; y <= boylstonY + 1; y++) {
       base[y * width + crossX] = TILE_IDS.CROSSWALK;
@@ -658,31 +894,37 @@ export function buildOfflineMap(config = {}) {
     }
   }
 
-  // Neighborhood houses & landmark buildings
-  const buildings = [
-    // Home Base house right north of Boylston sidewalk
-    { x: cx - 3, y: cy - 3, w: 6, h: 4 },
-    // Neighbor houses along Boylston St
-    { x: cx - 22, y: cy - 3, w: 6, h: 4 },
-    { x: cx + 7, y: cy - 3, w: 6, h: 4 },
-    // Newton Free Library (NE)
-    { x: centreX + 6, y: wardY - 10, w: 10, h: 7 },
-    // Congregation Beth El-Atereth Israel (NW along Ward St)
-    { x: parkerX - 14, y: wardY - 9, w: 9, h: 6 },
-    // School building (SE)
-    { x: centreX + 8, y: boylstonY + 8, w: 10, h: 7 },
-    // Salzberg House (NE)
-    { x: centreX + 22, y: cy - 12, w: 6, h: 5 },
+  // Distinct 1-house-per-address buildings
+  const rawBuildings = [
+    { id: "home_565", houseNumber: "565", street: "Boylston St", name: "Home Base", kind: "house", isHomeBase: true, styleIndex: 0, x: cx - 3, y: cy - 3, w: 6, h: 4 },
+    { id: "house_557", houseNumber: "557", street: "Boylston St", name: "", kind: "house", isHomeBase: false, styleIndex: 1, x: cx - 22, y: cy - 3, w: 6, h: 4 },
+    { id: "house_573", houseNumber: "573", street: "Boylston St", name: "", kind: "house", isHomeBase: false, styleIndex: 2, x: cx + 7, y: cy - 3, w: 6, h: 4 },
+    { id: "library_330", houseNumber: "330", street: "Homer St", name: "Newton Free Library", kind: "library", isHomeBase: false, styleIndex: 3, x: centreX + 6, y: wardY - 10, w: 10, h: 7 },
+    { id: "bethel_561", houseNumber: "561", street: "Ward St", name: "Congregation Beth El", kind: "civic", isHomeBase: false, styleIndex: 4, x: parkerX - 14, y: wardY - 9, w: 9, h: 6 },
+    { id: "school_34", houseNumber: "34", street: "Philbrick Rd", name: "Maimonides School", kind: "school", isHomeBase: false, styleIndex: 3, x: centreX + 8, y: boylstonY + 8, w: 10, h: 7 },
+    { id: "salzberg_12", houseNumber: "12", street: "Centre St", name: "The Salzberg House", kind: "house", isHomeBase: false, styleIndex: 5, x: centreX + 22, y: cy - 12, w: 6, h: 5 },
   ];
 
-  for (const b of buildings) {
+  const buildings = [];
+  for (const b of rawBuildings) {
     for (let y = b.y; y < b.y + b.h; y++) {
       for (let x = b.x; x < b.x + b.w; x++) {
-        if (inBounds(x, y, width, height) && base[y * width + x] === TILE_IDS.GRASS) {
+        if (inBounds(x, y, width, height) && (base[y * width + x] === TILE_IDS.GRASS || base[y * width + x] === TILE_IDS.TALL_GRASS)) {
           base[y * width + x] = TILE_IDS.BUILDING_WALL;
         }
       }
     }
+    buildings.push({
+      id: b.id,
+      houseNumber: b.houseNumber,
+      street: b.street,
+      address: `${b.houseNumber} ${b.street}`,
+      name: b.name,
+      kind: b.kind,
+      isHomeBase: b.isHomeBase,
+      styleIndex: b.styleIndex,
+      bounds: { minX: b.x, minY: b.y, maxX: b.x + b.w - 1, maxY: b.y + b.h - 1 },
+    });
   }
 
   const collision = base.map((t) => (t === TILE_IDS.BUILDING_WALL || t === TILE_IDS.WATER ? 1 : 0));
@@ -729,13 +971,28 @@ export function buildOfflineMap(config = {}) {
     legend: { ...LEGEND },
     layers: { base, collision },
     streetZones,
+    buildings,
   };
 }
 
-async function fetchOsmElements(bbox) {
+async function fetchOsmChunk(bbox, label = "") {
   const bboxStr = `${bbox.south.toFixed(6)},${bbox.west.toFixed(6)},${bbox.north.toFixed(6)},${bbox.east.toFixed(6)}`;
+  const cacheDir = path.join(os.tmpdir(), "neighborhood_explorer_osm_cache_v2");
+  const cacheFile = path.join(cacheDir, `${bboxStr.replace(/[^0-9.-]/g, "_")}.json`);
+  if (fs.existsSync(cacheFile)) {
+    try {
+      const cached = JSON.parse(fs.readFileSync(cacheFile, "utf8"));
+      if (Array.isArray(cached)) {
+        console.log(`Using cached OSM chunk ${label} (${cached.length} features)`);
+        return cached;
+      }
+    } catch {
+      // Ignore corrupt cache
+    }
+  }
+
   const query = `
-[out:json][timeout:40];
+[out:json][timeout:45];
 (
   way["natural"="water"](${bboxStr});
   way["waterway"~"riverbank|river|stream|canal"](${bboxStr});
@@ -743,18 +1000,29 @@ async function fetchOsmElements(bbox) {
   way["landuse"~"grass|forest|meadow|recreation_ground|village_green"](${bboxStr});
   way["natural"~"wood|grassland"](${bboxStr});
   way["highway"](${bboxStr});
+  way["amenity"="parking"](${bboxStr});
   node["highway"="crossing"](${bboxStr});
   way["building"](${bboxStr});
 );
 out tags geom;
 `;
 
+  // Retry primary Overpass endpoint cleanly on transient 429/502/504 before trying mirrors
+  const attempts = [
+    { endpoint: OVERPASS_ENDPOINTS[0], delayMs: 0 },
+    { endpoint: OVERPASS_ENDPOINTS[0], delayMs: 4000 },
+    { endpoint: OVERPASS_ENDPOINTS[0], delayMs: 8000 },
+    { endpoint: OVERPASS_ENDPOINTS[1], delayMs: 2000 },
+    { endpoint: OVERPASS_ENDPOINTS[2], delayMs: 2000 },
+  ];
+
   let lastError = null;
-  for (const endpoint of OVERPASS_ENDPOINTS) {
+  for (const { endpoint, delayMs } of attempts) {
+    if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 45000);
-      console.log(`Querying OpenStreetMap Overpass API: ${endpoint}`);
+      const timer = setTimeout(() => controller.abort(), 50000);
+      console.log(`Querying OpenStreetMap Overpass API ${label}: ${endpoint}`);
       const res = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -770,16 +1038,57 @@ out tags geom;
         throw new Error(`HTTP ${res.status} ${res.statusText}`);
       }
       const data = await res.json();
-      if (Array.isArray(data.elements) && data.elements.length > 0) {
+      if (Array.isArray(data.elements)) {
+        fs.mkdirSync(cacheDir, { recursive: true });
+        fs.writeFileSync(cacheFile, JSON.stringify(data.elements), "utf8");
         return data.elements;
       }
-      throw new Error("Empty Overpass response");
+      throw new Error("Invalid Overpass response");
     } catch (err) {
       lastError = err;
-      console.warn(`Overpass mirror failed (${endpoint}): ${err.message}`);
+      console.warn(`Overpass attempt failed ${label} (${endpoint}): ${err.message}`);
     }
   }
-  throw lastError || new Error("All Overpass mirrors failed");
+  throw lastError || new Error("All Overpass attempts failed");
+}
+
+/**
+ * Automatically split large bounding boxes into ~1km x 1km Overpass tiles so
+ * big neighborhood maps (e.g., 3km x 3km covering Home Base -> Newton Free Library)
+ * fetch reliably without Overpass gateway timeouts, deduplicating elements by type+id.
+ */
+async function fetchOsmElements(bbox, gridMeters) {
+  const chunksPerSide = gridMeters > 2100 ? 3 : gridMeters > 1100 ? 2 : 1;
+  if (chunksPerSide === 1) {
+    return fetchOsmChunk(bbox);
+  }
+
+  const totalChunks = chunksPerSide * chunksPerSide;
+  const latStep = (bbox.north - bbox.south) / chunksPerSide;
+  const lonStep = (bbox.east - bbox.west) / chunksPerSide;
+  const dedup = new Map();
+
+  let n = 0;
+  for (let row = 0; row < chunksPerSide; row++) {
+    for (let col = 0; col < chunksPerSide; col++) {
+      n++;
+      const subBox = {
+        south: bbox.south + row * latStep,
+        north: bbox.south + (row + 1) * latStep,
+        west: bbox.west + col * lonStep,
+        east: bbox.west + (col + 1) * lonStep,
+      };
+      const els = await fetchOsmChunk(subBox, `[chunk ${n}/${totalChunks}]`);
+      for (const el of els) {
+        dedup.set(`${el.type}:${el.id}`, el);
+      }
+      console.log(`  Chunk ${n}/${totalChunks} done (${els.length} raw, ${dedup.size} unique total)`);
+      if (n < totalChunks) {
+        await new Promise((r) => setTimeout(r, 2500));
+      }
+    }
+  }
+  return Array.from(dedup.values());
 }
 
 function parseCliArgs(argv) {
@@ -787,6 +1096,10 @@ function parseCliArgs(argv) {
     offline: false,
     lat: DEFAULT_CONFIG.origin.lat,
     lon: DEFAULT_CONFIG.origin.lon,
+    centerLat: DEFAULT_CONFIG.mapCenter.lat,
+    centerLon: DEFAULT_CONFIG.mapCenter.lon,
+    customOrigin: false,
+    customCenter: false,
     name: DEFAULT_CONFIG.origin.name,
     width: DEFAULT_CONFIG.width,
     height: DEFAULT_CONFIG.height,
@@ -797,8 +1110,10 @@ function parseCliArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--offline") args.offline = true;
-    else if (a === "--lat" && argv[i + 1]) args.lat = Number(argv[++i]);
-    else if (a === "--lon" && argv[i + 1]) args.lon = Number(argv[++i]);
+    else if (a === "--lat" && argv[i + 1]) { args.lat = Number(argv[++i]); args.customOrigin = true; }
+    else if (a === "--lon" && argv[i + 1]) { args.lon = Number(argv[++i]); args.customOrigin = true; }
+    else if (a === "--center-lat" && argv[i + 1]) { args.centerLat = Number(argv[++i]); args.customCenter = true; }
+    else if (a === "--center-lon" && argv[i + 1]) { args.centerLon = Number(argv[++i]); args.customCenter = true; }
     else if (a === "--name" && argv[i + 1]) args.name = argv[++i];
     else if (a === "--width" && argv[i + 1]) args.width = Number(argv[++i]);
     else if (a === "--height" && argv[i + 1]) args.height = Number(argv[++i]);
@@ -810,6 +1125,12 @@ function parseCliArgs(argv) {
 
 async function main() {
   const args = parseCliArgs(process.argv.slice(2));
+  const mapCenter = args.customCenter
+    ? { lat: args.centerLat, lon: args.centerLon }
+    : args.customOrigin
+      ? { lat: args.lat, lon: args.lon }
+      : { lat: args.centerLat, lon: args.centerLon };
+
   const config = {
     tileSize: DEFAULT_CONFIG.tileSize,
     scaleMetersPerTile: args.scale,
@@ -820,6 +1141,7 @@ async function main() {
       lon: args.lon,
       name: args.name,
     },
+    mapCenter,
   };
 
   let worldMap;
@@ -832,18 +1154,19 @@ async function main() {
     });
   } else {
     const bbox = computeBoundingBox(
-      config.origin.lat,
-      config.origin.lon,
+      config.mapCenter.lat,
+      config.mapCenter.lon,
       config.width,
       config.height,
       config.scaleMetersPerTile
     );
+    const gridMeters = Math.max(config.width, config.height) * config.scaleMetersPerTile;
     console.log(
-      `Origin: ${config.origin.name} (${config.origin.lat}, ${config.origin.lon}) | Grid: ${config.width}x${config.height} (${config.scaleMetersPerTile}m/tile)`
+      `Origin: ${config.origin.name} (${config.origin.lat}, ${config.origin.lon}) | Map Center: (${config.mapCenter.lat}, ${config.mapCenter.lon}) | Grid: ${config.width}x${config.height} (${config.scaleMetersPerTile}m/tile = ${gridMeters}m)`
     );
     try {
-      const elements = await fetchOsmElements(bbox);
-      console.log(`Fetched ${elements.length} OpenStreetMap features. Rasterizing layers...`);
+      const elements = await fetchOsmElements(bbox, gridMeters);
+      console.log(`Fetched ${elements.length} unique OpenStreetMap features. Rasterizing layers...`);
       worldMap = rasterizeOsmData(elements, config);
     } catch (err) {
       console.warn(`Live Overpass fetch unavailable (${err.message}). Falling back to offline map.`);
@@ -860,9 +1183,10 @@ async function main() {
     tileCounts[label] = (tileCounts[label] || 0) + 1;
   }
 
+  const addressedCount = (worldMap.buildings || []).filter((b) => b.houseNumber).length;
   console.log(`Wrote ${args.out}`);
   console.log(
-    `Dimensions: ${worldMap.dimensions.width}x${worldMap.dimensions.height} | Spawn: (${worldMap.origin.spawnTile.x}, ${worldMap.origin.spawnTile.y}) | Street Zones: ${worldMap.streetZones.length}`
+    `Dimensions: ${worldMap.dimensions.width}x${worldMap.dimensions.height} | Spawn: (${worldMap.origin.spawnTile.x}, ${worldMap.origin.spawnTile.y}) | Street Zones: ${worldMap.streetZones.length} | Buildings: ${worldMap.buildings.length} (${addressedCount} with street addresses)`
   );
   console.log("Tile summary:", tileCounts);
 }

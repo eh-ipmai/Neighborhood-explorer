@@ -12,7 +12,6 @@ export function isWebGLSupported() {
       probe.getContext("webgl") ||
       probe.getContext("experimental-webgl");
     if (!gl) return false;
-    // Release probe context cleanly if extension is available
     gl.getExtension?.("WEBGL_lose_context")?.loseContext?.();
     return true;
   } catch {
@@ -32,7 +31,7 @@ function normalizeKey(key) {
 
 /**
  * Pure HTML5 2D Canvas fallback renderer with identical API to our Kaplay wrapper.
- * Works on every browser/WebView/iPad mode even when WebGL is disabled or unsupported.
+ * Supports crisp pixel sprites, baked dynamic canvases (per-address houses), and 16:9 letterboxing.
  */
 function createCanvas2DRenderer({ canvas, width, height, background }) {
   canvas.width = width;
@@ -48,6 +47,7 @@ function createCanvas2DRenderer({ canvas, width, height, background }) {
   const keyPressHandlers = new Map();
   const updateHandlers = [];
   const drawHandlers = [];
+  const spriteCache = new Map();
 
   let camX = width / 2;
   let camY = height / 2;
@@ -58,7 +58,6 @@ function createCanvas2DRenderer({ canvas, width, height, background }) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const scale = Math.min(vw / width, vh / height);
-    // Prefer integer scale on large displays, smooth full fit on small/split screens
     const effectiveScale = scale >= 2 ? Math.floor(scale) : scale;
     const drawW = Math.max(1, Math.round(width * effectiveScale));
     const drawH = Math.max(1, Math.round(height * effectiveScale));
@@ -128,6 +127,34 @@ function createCanvas2DRenderer({ canvas, width, height, background }) {
     },
     onUpdate: (fn) => updateHandlers.push(fn),
     onDraw: (fn) => drawHandlers.push(fn),
+    registerSprites: async (spriteCanvases) => {
+      for (const [name, sprCanvas] of Object.entries(spriteCanvases)) {
+        spriteCache.set(name, sprCanvas);
+      }
+    },
+    drawSprite: (name, x, y, opacity = 1) => {
+      const img = spriteCache.get(name);
+      if (!img) return;
+      if (opacity < 1) {
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.drawImage(img, Math.round(x), Math.round(y));
+        ctx.restore();
+      } else {
+        ctx.drawImage(img, Math.round(x), Math.round(y));
+      }
+    },
+    drawCanvas: (_key, offscreenCanvas, x, y, opacity = 1) => {
+      if (!offscreenCanvas) return;
+      if (opacity < 1) {
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.drawImage(offscreenCanvas, Math.round(x), Math.round(y));
+        ctx.restore();
+      } else {
+        ctx.drawImage(offscreenCanvas, Math.round(x), Math.round(y));
+      }
+    },
     drawRect: ({ pos, width: w, height: h, color, opacity = 1, fill = true, outline = null }) => {
       ctx.save();
       if (fill !== false && color) {
@@ -173,6 +200,10 @@ export function createRenderer({
         global: false,
         touchToMouse: false,
       });
+
+      const dynamicReady = new Set();
+      const dynamicLoading = new Set();
+
       return {
         mode: "kaplay-webgl",
         dt: () => k.dt(),
@@ -183,11 +214,38 @@ export function createRenderer({
         onKeyPress: (key, fn) => k.onKeyPress(key, fn),
         onUpdate: (fn) => k.onUpdate(fn),
         onDraw: (fn) => k.onDraw(fn),
+        registerSprites: async (spriteCanvases) => {
+          const loads = Object.entries(spriteCanvases).map(([name, sprCanvas]) =>
+            k.loadSprite(name, sprCanvas.toDataURL("image/png"))
+          );
+          await Promise.all(loads);
+        },
+        drawSprite: (name, x, y, opacity = 1) => {
+          k.drawSprite({
+            sprite: name,
+            pos: k.vec2(Math.round(x), Math.round(y)),
+            opacity,
+          });
+        },
+        drawCanvas: (key, offscreenCanvas, x, y, opacity = 1) => {
+          if (!offscreenCanvas) return;
+          if (dynamicReady.has(key)) {
+            k.drawSprite({
+              sprite: key,
+              pos: k.vec2(Math.round(x), Math.round(y)),
+              opacity,
+            });
+          } else if (!dynamicLoading.has(key)) {
+            dynamicLoading.add(key);
+            k.loadSprite(key, offscreenCanvas.toDataURL("image/png"))
+              .then(() => dynamicReady.add(key))
+              .catch(() => {});
+          }
+        },
         drawRect: (opts) => k.drawRect(opts),
       };
     } catch (err) {
       console.warn("Kaplay WebGL init failed; falling back to 2D Canvas:", err);
-      // Replace canvas node in case a failed WebGL init locked its context
       if (canvas?.parentNode) {
         const fresh = canvas.cloneNode(false);
         canvas.parentNode.replaceChild(fresh, canvas);
