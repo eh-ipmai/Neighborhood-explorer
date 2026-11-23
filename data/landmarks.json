@@ -1,0 +1,81 @@
+[
+  {
+    "id": "home_base",
+    "name": "Player's House (565 Boylston St)",
+    "tileX": 94,
+    "tileY": 98,
+    "sprite": "house_yellow",
+    "discoveryXP": 0,
+    "npcName": "Mom",
+    "dialogue": [
+      "Welcome back, Explorer!",
+      "Check the bookshelf inside for secrets before heading down Boylston Street!"
+    ],
+    "rewardItem": "folded_map"
+  },
+  {
+    "id": "newton_free_library",
+    "name": "Newton Free Library",
+    "tileX": 52,
+    "tileY": 28,
+    "sprite": "library_building",
+    "discoveryXP": 50,
+    "npcName": "Librarian Clara",
+    "dialogue": [
+      "Hello young reader! Check the outdoor pickup lockers and Little Free Library chest for rare book stamps!"
+    ],
+    "rewardItem": "library_card"
+  },
+  {
+    "id": "maimonides_school",
+    "name": "Maimonides School",
+    "tileX": 156,
+    "tileY": 72,
+    "sprite": "school_building",
+    "discoveryXP": 60,
+    "npcName": "Gaga Pit Champion",
+    "dialogue": [
+      "Welcome to the school courtyard! Check behind the gaga pit for a secret bouncing surprise!"
+    ],
+    "rewardItem": "pogo_stick"
+  },
+  {
+    "id": "beth_el_atereth_israel",
+    "name": "Congregation Beth El-Atereth Israel",
+    "tileX": 74,
+    "tileY": 48,
+    "sprite": "synagogue_building",
+    "discoveryXP": 70,
+    "npcName": "Kiddush Host",
+    "dialogue": [
+      "Shabbat Shalom! Try Dad's Spicy Cholent for an explosive speed boost!"
+    ],
+    "rewardItem": "spicy_cholent"
+  },
+  {
+    "id": "ward_baseball_field",
+    "name": "Ward Elementary Baseball Field",
+    "tileX": 124,
+    "tileY": 38,
+    "sprite": "baseball_diamond",
+    "discoveryXP": 80,
+    "npcName": "Coach Giants",
+    "dialogue": [
+      "Step up to the plate for batting practice or test the backyard trebuchet across the outfield!"
+    ],
+    "rewardItem": "golden_mizuno_glove"
+  },
+  {
+    "id": "salzberg_house",
+    "name": "The Salzberg House",
+    "tileX": 132,
+    "tileY": 112,
+    "sprite": "friend_house",
+    "discoveryXP": 65,
+    "npcName": "Friend Ross",
+    "dialogue": [
+      "Ready for a co-op backyard hangout? Let's team up for the neighborhood errand quest!"
+    ],
+    "rewardItem": "coop_badge"
+  }
+]

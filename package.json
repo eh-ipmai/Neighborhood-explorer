@@ -1,0 +1,22 @@
+{
+  "name": "neighborhood-explorer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Neighborhood Explorer 8-Bit RPG — Real-world neighborhood exploration game for kids",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "build:map": "node scripts/build_map.mjs",
+    "build:map:offline": "node scripts/build_map.mjs --offline",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "kaplay": "^3001.0.19"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "vite": "^6.2.0"
+  }
+}

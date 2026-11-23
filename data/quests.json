@@ -1,0 +1,71 @@
+[
+  {
+    "id": "quest_01_first_steps",
+    "tier": 1,
+    "title": "Neighborhood Scout",
+    "description": "Navigate down Boylston Street and find the Newton Free Library.",
+    "steps": [
+      {
+        "stepIndex": 1,
+        "instruction": "Walk along the Boylston Street sidewalk near Home Base.",
+        "targetTile": { "x": 96, "y": 100 },
+        "completionTrigger": "tile_reach"
+      },
+      {
+        "stepIndex": 2,
+        "instruction": "Locate Librarian Clara at the Newton Free Library.",
+        "targetLandmarkId": "newton_free_library",
+        "completionTrigger": "npc_talk"
+      }
+    ],
+    "rewards": {
+      "xp": 100,
+      "coins": 20,
+      "item": "running_shoes"
+    }
+  },
+  {
+    "id": "quest_02_riddle_hunt",
+    "tier": 2,
+    "title": "The Mystery of the Wooden Chest",
+    "description": "Solve the riddle to find the hidden Little Free Library.",
+    "steps": [
+      {
+        "stepIndex": 1,
+        "instruction": "Riddle: 'I have pages but no web, I stand near tall green oaks near Oakdale Woods.'",
+        "targetTile": { "x": 118, "y": 134 },
+        "completionTrigger": "interact_object"
+      }
+    ],
+    "rewards": {
+      "xp": 150,
+      "coins": 35,
+      "item": "rare_book_stamp"
+    }
+  },
+  {
+    "id": "quest_03_grand_errand",
+    "tier": 3,
+    "title": "The Ultimate Delivery Errand",
+    "description": "Pick up baking supplies from the Kosher Bakery and deliver them to Ranger Rick at Oakdale Woods.",
+    "steps": [
+      {
+        "stepIndex": 1,
+        "instruction": "Obtain Fresh Challah & Flour from the Kosher Bakery.",
+        "targetLandmarkId": "local_bakery",
+        "completionTrigger": "npc_talk"
+      },
+      {
+        "stepIndex": 2,
+        "instruction": "Deliver the supplies safely across Ward St to Oakdale Woods.",
+        "targetLandmarkId": "oakdale_woods_trailhead",
+        "completionTrigger": "npc_talk"
+      }
+    ],
+    "rewards": {
+      "xp": 300,
+      "coins": 100,
+      "item": "scooter"
+    }
+  }
+]

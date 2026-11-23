@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Neighborhood Explorer — 8-Bit RPG</title>
+    <style>
+      :root {
+        --bg: #111613;
+        --panel: rgba(17, 24, 20, 0.86);
+        --border: rgba(232, 240, 226, 0.35);
+        --text: #f3f7ee;
+        --accent: #f4d35e;
+        --safe: #6ee7a8;
+        --fast: #5ce1e6;
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-left: env(safe-area-inset-left, 0px);
+        --safe-right: env(safe-area-inset-right, 0px);
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        touch-action: none;
+      }
+
+      #game-shell {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg);
+      }
+
+      #game-canvas {
+        display: block;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        touch-action: none;
+      }
+
+      /* Top-left street banner */
+      #street-banner {
+        position: fixed;
+        top: calc(12px + var(--safe-top));
+        left: calc(12px + var(--safe-left));
+        background: var(--panel);
+        border: 2px solid var(--border);
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 13px;
+        letter-spacing: 0.04em;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+        transition: transform 0.25s ease, opacity 0.25s ease;
+        z-index: 20;
+        pointer-events: none;
+      }
+
+      #street-banner .zone-tag {
+        color: var(--accent);
+        font-size: 11px;
+        margin-left: 6px;
+        text-transform: uppercase;
+      }
+
+      /* Top-right compact HUD */
+      #hud-status {
+        position: fixed;
+        top: calc(12px + var(--safe-top));
+        right: calc(12px + var(--safe-right));
+        background: var(--panel);
+        border: 2px solid var(--border);
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 11px;
+        line-height: 1.45;
+        text-align: right;
+        z-index: 20;
+        pointer-events: none;
+      }
+
+      #hud-status .xp {
+        color: var(--safe);
+        font-weight: 700;
+      }
+
+      #hud-status .muted {
+        opacity: 0.72;
+      }
+
+      /* Center-bottom safety/landmark toast */
+      #safety-toast {
+        position: fixed;
+        top: calc(56px + var(--safe-top));
+        left: 50%;
+        transform: translateX(-50%) translateY(-6px);
+        background: rgba(17, 28, 22, 0.94);
+        border: 2px solid var(--safe);
+        border-radius: 999px;
+        padding: 6px 14px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--safe);
+        z-index: 25;
+        opacity: 0;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+
+      #safety-toast.visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      #landmark-pill {
+        position: fixed;
+        bottom: calc(18px + var(--safe-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--panel);
+        border: 2px solid var(--accent);
+        border-radius: 999px;
+        padding: 6px 14px;
+        font-size: 12px;
+        color: var(--accent);
+        z-index: 20;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+
+      #landmark-pill.visible {
+        opacity: 1;
+      }
+
+      /* Touch controls for iPad Safari */
+      #touch-controls {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 30;
+      }
+
+      .dpad {
+        position: fixed;
+        bottom: calc(20px + var(--safe-bottom));
+        left: calc(20px + var(--safe-left));
+        width: 144px;
+        height: 144px;
+        pointer-events: auto;
+        touch-action: none;
+      }
+
+      .dpad-ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: rgba(17, 24, 20, 0.55);
+        border: 2px solid rgba(255, 255, 255, 0.24);
+      }
+
+      .dpad-btn {
+        position: absolute;
+        width: 46px;
+        height: 46px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+
+      .dpad-btn.active {
+        background: rgba(244, 211, 94, 0.45);
+        border-color: var(--accent);
+      }
+
+      .dpad-up { top: 6px; left: 49px; }
+      .dpad-down { bottom: 6px; left: 49px; }
+      .dpad-left { top: 49px; left: 6px; }
+      .dpad-right { top: 49px; right: 6px; }
+
+      .action-cluster {
+        position: fixed;
+        bottom: calc(22px + var(--safe-bottom));
+        right: calc(18px + var(--safe-right));
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 10px;
+        pointer-events: auto;
+      }
+
+      .utility-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      .action-row {
+        display: flex;
+        gap: 12px;
+      }
+
+      .touch-btn {
+        min-width: 82px;
+        height: 64px;
+        padding: 6px 12px;
+        border-radius: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        background: rgba(17, 24, 20, 0.78);
+        color: #fff;
+        font-family: inherit;
+        font-weight: 700;
+        font-size: 11px;
+        line-height: 1.2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        cursor: pointer;
+        touch-action: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      .touch-btn .btn-icon {
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .touch-btn.btn-faster {
+        border-color: rgba(92, 225, 230, 0.65);
+      }
+
+      .touch-btn.btn-faster.active,
+      .touch-btn.btn-faster:active {
+        background: rgba(92, 225, 230, 0.35);
+        border-color: var(--fast);
+        transform: scale(0.96);
+      }
+
+      .touch-btn.btn-look {
+        border-color: rgba(110, 231, 168, 0.65);
+      }
+
+      .touch-btn.btn-look.active,
+      .touch-btn.btn-look:active {
+        background: rgba(110, 231, 168, 0.35);
+        border-color: var(--safe);
+        transform: scale(0.96);
+      }
+
+      .mini-btn {
+        height: 30px;
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(17, 24, 20, 0.72);
+        color: #f3f7ee;
+        font-family: inherit;
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      .mini-btn.active {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      @media (hover: hover) and (pointer: fine) {
+        .dpad {
+          opacity: 0.5;
+          transition: opacity 0.2s ease;
+        }
+        .dpad:hover {
+          opacity: 0.95;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-shell">
+      <canvas id="game-canvas"></canvas>
+    </div>
+
+    <div id="street-banner">
+      <span id="street-name">Home Base</span>
+      <span id="street-zone" class="zone-tag">sidewalk</span>
+    </div>
+
+    <div id="safety-toast"></div>
+
+    <div id="hud-status">
+      <div id="hud-xp" class="xp">Safety XP: 0</div>
+      <div id="hud-coords">Tile 0, 0</div>
+      <div id="hud-tile" class="muted">sidewalk</div>
+      <div class="muted">Shift: Faster • Space: Look</div>
+    </div>
+
+    <div id="landmark-pill"></div>
+
+    <div id="touch-controls">
+      <div id="dpad" class="dpad" aria-label="Directional Pad">
+        <div class="dpad-ring"></div>
+        <div class="dpad-btn dpad-up" data-dir="up">▲</div>
+        <div class="dpad-btn dpad-down" data-dir="down">▼</div>
+        <div class="dpad-btn dpad-left" data-dir="left">◀</div>
+        <div class="dpad-btn dpad-right" data-dir="right">▶</div>
+      </div>
+
+      <div class="action-cluster">
+        <div class="utility-row">
+          <button id="btn-debug" class="mini-btn" type="button">Grid (C)</button>
+          <button id="btn-home" class="mini-btn" type="button">Home (H)</button>
+        </div>
+        <div class="action-row">
+          <button id="btn-faster" class="touch-btn btn-faster" type="button" aria-label="Go Faster">
+            <span class="btn-icon">⚡</span>
+            <span>FASTER</span>
+          </button>
+          <button id="btn-look" class="touch-btn btn-look" type="button" aria-label="Look Both Ways">
+            <span class="btn-icon">👀</span>
+            <span>LOOK<br />BOTH WAYS</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
