@@ -3294,6 +3294,131 @@ async function boot() {
     if (alpha < 1) ctx.globalAlpha = 1;
   }
 
+  function roadAsphaltCss(roadId) {
+    if (roadId === 12) return "#3d424b";
+    if (roadId === 3) return "#4a4f59";
+    return "#555a63";
+  }
+
+  function outerGroundCss(groundId) {
+    if (groundId === 11) return "#6b9c3d";
+    if (groundId === 0 || groundId === 7) return "#b87f35";
+    if (groundId === 10) return "#dcc282";
+    if (groundId === 9) return "#a87e52";
+    return "#cfc4ba"; // crisp concrete sidewalk
+  }
+
+  // Smooth 2x HD curved outer corner on a road tile (turns jagged 90° stair-step bends into real curved asphalt!)
+  function drawRoadOuterCornerHD(ctx, lx, ly, corner, outerTileId, showShoulder) {
+    const x0 = lx * 2;
+    const y0 = ly * 2;
+    const S = tileSize * 2; // 32 HD px
+    const r = 10; // 5 logical px corner rounding radius
+    let vx, vy, cx, cy, a0, a1;
+    if (corner === "nw") {
+      vx = x0; vy = y0; cx = x0 + r; cy = y0 + r; a0 = Math.PI; a1 = Math.PI * 1.5;
+    } else if (corner === "ne") {
+      vx = x0 + S; vy = y0; cx = x0 + S - r; cy = y0 + r; a0 = Math.PI * 1.5; a1 = Math.PI * 2;
+    } else if (corner === "sw") {
+      vx = x0; vy = y0 + S; cx = x0 + r; cy = y0 + S - r; a0 = Math.PI * 0.5; a1 = Math.PI;
+    } else {
+      vx = x0 + S; vy = y0 + S; cx = x0 + S - r; cy = y0 + S - r; a0 = 0; a1 = Math.PI * 0.5;
+    }
+    ctx.save();
+    // 1. Fill outside of the curve with the adjacent sidewalk/park grass color
+    ctx.beginPath();
+    ctx.moveTo(vx, vy);
+    ctx.arc(cx, cy, r, a0, a1);
+    ctx.closePath();
+    ctx.fillStyle = outerGroundCss(outerTileId);
+    ctx.fill();
+    // 2. Curved 3D granite curb + dark gutter arc!
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, a0, a1);
+    ctx.strokeStyle = "rgb(66,52,54)";
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 1.5, a0, a1);
+    ctx.strokeStyle = "rgb(223,208,200)";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    // 3. Smooth curved white shoulder arc for avenues & highways
+    if (showShoulder) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.max(2, r - 2.6), a0, a1);
+      ctx.strokeStyle = "rgba(242,246,250,0.85)";
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Smooth 2x HD curved inner asphalt fillet on a sidewalk/grass corner tucked inside a 90° road bend!
+  function drawRoadInnerFilletHD(ctx, lx, ly, corner, roadTileId) {
+    const x0 = lx * 2;
+    const y0 = ly * 2;
+    const S = tileSize * 2;
+    const r = 10;
+    let vx, vy, cx, cy, a0, a1;
+    if (corner === "se") {
+      vx = x0 + S; vy = y0 + S; cx = x0 + S - r; cy = y0 + S - r; a0 = 0; a1 = Math.PI * 0.5;
+    } else if (corner === "sw") {
+      vx = x0; vy = y0 + S; cx = x0 + r; cy = y0 + S - r; a0 = Math.PI * 0.5; a1 = Math.PI;
+    } else if (corner === "ne") {
+      vx = x0 + S; vy = y0; cx = x0 + S - r; cy = y0 + r; a0 = Math.PI * 1.5; a1 = Math.PI * 2;
+    } else {
+      vx = x0; vy = y0; cx = x0 + r; cy = y0 + r; a0 = Math.PI; a1 = Math.PI * 1.5;
+    }
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(vx, vy);
+    ctx.arc(cx, cy, r, a0, a1);
+    ctx.closePath();
+    ctx.fillStyle = roadAsphaltCss(roadTileId);
+    ctx.fill();
+    // Curved granite curb bevel hugging the inner corner of the sidewalk/median!
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, a0, a1);
+    ctx.strokeStyle = "rgb(66,52,54)";
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.max(2, r - 2), a0, a1);
+    ctx.strokeStyle = "rgb(223,208,200)";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Crisp granite parkway curbing where a grassy boulevard median (PARK/GRASS) meets asphalt directly (e.g. Comm Ave!)
+  function drawParkwayMedianCurbsHD(ctx, lx, ly, tx, ty) {
+    const n = tileAt(tx, ty - 1);
+    const s = tileAt(tx, ty + 1);
+    const w = tileAt(tx - 1, ty);
+    const e = tileAt(tx + 1, ty);
+    if (isRoadTile(s)) {
+      fillRectHD(ctx, lx, ly + 14, 16, 1, "rgb(214,200,190)", 0.92);
+      fillRectHD(ctx, lx, ly + 15, 16, 1, "rgb(68,54,56)", 0.95);
+    }
+    if (isRoadTile(n)) {
+      fillRectHD(ctx, lx, ly, 16, 1, "rgb(68,54,56)", 0.95);
+      fillRectHD(ctx, lx, ly + 1, 16, 1, "rgb(214,200,190)", 0.92);
+    }
+    if (isRoadTile(e)) {
+      fillRectHD(ctx, lx + 14, ly, 1, 16, "rgb(214,200,190)", 0.92);
+      fillRectHD(ctx, lx + 15, ly, 1, 16, "rgb(68,54,56)", 0.95);
+    }
+    if (isRoadTile(w)) {
+      fillRectHD(ctx, lx, ly, 1, 16, "rgb(68,54,56)", 0.95);
+      fillRectHD(ctx, lx + 1, ly, 1, 16, "rgb(214,200,190)", 0.92);
+    }
+    if (isRoadTile(s) && isRoadTile(e) && isRoadTile(tileAt(tx + 1, ty + 1))) drawRoadInnerFilletHD(ctx, lx, ly, "se", s);
+    if (isRoadTile(s) && isRoadTile(w) && isRoadTile(tileAt(tx - 1, ty + 1))) drawRoadInnerFilletHD(ctx, lx, ly, "sw", s);
+    if (isRoadTile(n) && isRoadTile(e) && isRoadTile(tileAt(tx + 1, ty - 1))) drawRoadInnerFilletHD(ctx, lx, ly, "ne", n);
+    if (isRoadTile(n) && isRoadTile(w) && isRoadTile(tileAt(tx - 1, ty - 1))) drawRoadInnerFilletHD(ctx, lx, ly, "nw", n);
+  }
+
   function bakeGroundChunk(cx, cy) {
     const tx0 = cx * GROUND_CHUNK_TILES;
     const ty0 = cy * GROUND_CHUNK_TILES;
@@ -3340,6 +3465,7 @@ async function boot() {
           } else {
             blitAtlasToCtx(ctx, `grass_${pattern % 3}`, lx, ly);
           }
+          if (tileId === 0) drawParkwayMedianCurbsHD(ctx, lx, ly, tx, ty);
           continue;
         }
 
@@ -3350,6 +3476,7 @@ async function boot() {
           } else {
             blitAtlasToCtx(ctx, ((tx >> 1) & 1) === 0 ? "park_0" : "park_1", lx, ly);
           }
+          drawParkwayMedianCurbsHD(ctx, lx, ly, tx, ty);
           continue;
         }
 
@@ -3451,6 +3578,11 @@ async function boot() {
           } else if (isEarth(w)) {
             fillRectHD(ctx, lx, ly, 1, 16, "rgb(142,108,72)", 0.4);
           }
+          // Smooth curved inner sidewalk fillets wherever roads bend cleanly around this sidewalk corner!
+          if (isRoadTile(s) && isRoadTile(e) && isRoadTile(tileAt(tx + 1, ty + 1))) drawRoadInnerFilletHD(ctx, lx, ly, "se", s);
+          if (isRoadTile(s) && isRoadTile(w) && isRoadTile(tileAt(tx - 1, ty + 1))) drawRoadInnerFilletHD(ctx, lx, ly, "sw", s);
+          if (isRoadTile(n) && isRoadTile(e) && isRoadTile(tileAt(tx + 1, ty - 1))) drawRoadInnerFilletHD(ctx, lx, ly, "ne", n);
+          if (isRoadTile(n) && isRoadTile(w) && isRoadTile(tileAt(tx - 1, ty - 1))) drawRoadInnerFilletHD(ctx, lx, ly, "nw", n);
           continue;
         }
 
@@ -3529,6 +3661,20 @@ async function boot() {
               alpha = 0.96;
             }
             fillRectHD(ctx, lx + m.x, ly + m.y, m.w, m.h, css, alpha);
+          }
+          // Smooth curved 2x HD rounded outer corners on road bends & diagonals!
+          const showSh = tileId === 3 || tileId === 12;
+          if (!isRoadTile(n) && !isRoadTile(w) && isRoadTile(s) && isRoadTile(e)) {
+            drawRoadOuterCornerHD(ctx, lx, ly, "nw", n === 11 || w === 11 ? 11 : n, showSh);
+          }
+          if (!isRoadTile(n) && !isRoadTile(e) && isRoadTile(s) && isRoadTile(w)) {
+            drawRoadOuterCornerHD(ctx, lx, ly, "ne", n === 11 || e === 11 ? 11 : n, showSh);
+          }
+          if (!isRoadTile(s) && !isRoadTile(w) && isRoadTile(n) && isRoadTile(e)) {
+            drawRoadOuterCornerHD(ctx, lx, ly, "sw", s === 11 || w === 11 ? 11 : s, showSh);
+          }
+          if (!isRoadTile(s) && !isRoadTile(e) && isRoadTile(n) && isRoadTile(w)) {
+            drawRoadOuterCornerHD(ctx, lx, ly, "se", s === 11 || e === 11 ? 11 : s, showSh);
           }
           continue;
         }

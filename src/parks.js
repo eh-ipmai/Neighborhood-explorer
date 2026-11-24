@@ -294,6 +294,52 @@ export function buildWoodlandTreeGrid(worldMap, parkOccupiedGrid = null, graveya
       const isWoodlandFringe = !isExplicitWoods && !isDeepWoods && woodNear2[idx] === 1 && cur !== 11;
       const isTrulyWooded = isExplicitWoods || isDeepWoods;
 
+      // Boulevard Grassy Tree-Lined Median (e.g., Commonwealth Avenue Olmsted Carriage Lane Mall!):
+      // A lush grassy strip separating Main Comm Ave (MAIN_ROAD = 3) from the Carriage Lane (RESIDENTIAL_ROAD = 2)
+      // gets stately, evenly-spaced autumn shade oaks & maples right down the green separator!
+      if (cur === 11 || cur === 0) {
+        let hasMainSouth = false;
+        let hasCarriageNorth = false;
+        let medianBlocked = false;
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            const nx = tx + dx;
+            const ny = ty + dy;
+            if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+            const nt = base[ny * width + nx];
+            if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
+              if (nt === 5 || nt === 6 || nt === 4) medianBlocked = true;
+            }
+            if (dy >= 1 && nt === 3) hasMainSouth = true;
+            if (dy <= -1 && nt === 2) hasCarriageNorth = true;
+          }
+        }
+        if (hasMainSouth && hasCarriageNorth && !medianBlocked) {
+          // Keep trees cleanly spaced along the median (at least 3 tiles apart, clear of cross-street openings!)
+          const wTile = base[rowOff + (tx - 1)];
+          const eTile = base[rowOff + (tx + 1)];
+          const openSpan = (wTile === 11 || wTile === 0) && (eTile === 11 || eTile === 0);
+          if (openSpan) {
+            let treeNear = false;
+            for (let oy = -2; oy <= 2 && !treeNear; oy++) {
+              const rOff = (ty + oy) * width;
+              for (let ox = -3; ox <= 3; ox++) {
+                const gx = tx + ox;
+                const gy = ty + oy;
+                if (gx >= 0 && gy >= 0 && gx < width && gy < height && treeGrid[rOff + gx] !== 0) {
+                  treeNear = true;
+                  break;
+                }
+              }
+            }
+            if (!treeNear && ((tx + ty) % 3 === 0 || (hash2d(tx, ty) % 3 === 0))) {
+              treeGrid[idx] = 1; // Classic golden-hour New England autumn oak/maple!
+            }
+          }
+          continue;
+        }
+      }
+
       // Ensure trees never clip roads, sidewalks, buildings, or water; inside true woods allow trees
       // right up beside dirt walking trails (9) so forest trails wind authentically under the canopy!
       let clear = true;

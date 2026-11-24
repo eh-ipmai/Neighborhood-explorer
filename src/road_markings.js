@@ -78,27 +78,51 @@ export function computeRoadTileMarkings(tileAt, tx, ty) {
 
   const marks = [];
 
+  const nwOuter = !nRoad && !wRoad && sRoad && eRoad;
+  const neOuter = !nRoad && !eRoad && sRoad && wRoad;
+  const swOuter = !sRoad && !wRoad && nRoad && eRoad;
+  const seOuter = !sRoad && !eRoad && nRoad && wRoad;
+  const pushEdge = (side, inset, kind) => {
+    if (side === "n") {
+      const x0 = nwOuter ? 4 : 0;
+      const x1 = neOuter ? 12 : 16;
+      marks.push({ x: x0, y: inset, w: x1 - x0, h: 1, kind });
+    } else if (side === "s") {
+      const x0 = swOuter ? 4 : 0;
+      const x1 = seOuter ? 12 : 16;
+      marks.push({ x: x0, y: 15 - inset, w: x1 - x0, h: 1, kind });
+    } else if (side === "w") {
+      const y0 = nwOuter ? 4 : 0;
+      const y1 = swOuter ? 12 : 16;
+      marks.push({ x: inset, y: y0, w: 1, h: y1 - y0, kind });
+    } else if (side === "e") {
+      const y0 = neOuter ? 4 : 0;
+      const y1 = seOuter ? 12 : 16;
+      marks.push({ x: 15 - inset, y: y0, w: 1, h: y1 - y0, kind });
+    }
+  };
+
   // =========================================================================
   // 1. MAJOR HIGHWAY (tileId === 12): 2 lanes on EACH side of barrier (13)
   //    with crisp dashed white lane separators + clean white outer shoulders!
   // =========================================================================
   if (tileId === 12) {
-    // Clean 1px dark outer curb + crisp 1px white outer shoulder line
+    // Clean 1px dark outer curb + crisp 1px white outer shoulder line (trimmed smoothly at rounded corners!)
     if (!nRoad) {
-      marks.push({ x: 0, y: 0, w: 16, h: 1, kind: "curb" });
-      marks.push({ x: 0, y: 1, w: 16, h: 1, kind: "shoulder" });
+      pushEdge("n", 0, "curb");
+      pushEdge("n", 1, "shoulder");
     }
     if (!sRoad) {
-      marks.push({ x: 0, y: 15, w: 16, h: 1, kind: "curb" });
-      marks.push({ x: 0, y: 14, w: 16, h: 1, kind: "shoulder" });
+      pushEdge("s", 0, "curb");
+      pushEdge("s", 1, "shoulder");
     }
     if (!wRoad) {
-      marks.push({ x: 0, y: 0, w: 1, h: 16, kind: "curb" });
-      marks.push({ x: 1, y: 0, w: 1, h: 16, kind: "shoulder" });
+      pushEdge("w", 0, "curb");
+      pushEdge("w", 1, "shoulder");
     }
     if (!eRoad) {
-      marks.push({ x: 15, y: 0, w: 1, h: 16, kind: "curb" });
-      marks.push({ x: 14, y: 0, w: 1, h: 16, kind: "shoulder" });
+      pushEdge("e", 0, "curb");
+      pushEdge("e", 1, "shoulder");
     }
 
     // Locate nearest concrete median barrier (13) vertically or horizontally (within 4 tiles)
@@ -318,10 +342,10 @@ export function computeRoadTileMarkings(tileAt, tx, ty) {
   //    between the single lane going in each direction!
   // =========================================================================
   if (tileId === 2) {
-    if (!nRoad) marks.push({ x: 0, y: 0, w: 16, h: 1, kind: "curb" });
-    if (!sRoad) marks.push({ x: 0, y: 15, w: 16, h: 1, kind: "curb" });
-    if (!wRoad) marks.push({ x: 0, y: 0, w: 1, h: 16, kind: "curb" });
-    if (!eRoad) marks.push({ x: 15, y: 0, w: 1, h: 16, kind: "curb" });
+    if (!nRoad) pushEdge("n", 0, "curb");
+    if (!sRoad) pushEdge("s", 0, "curb");
+    if (!wRoad) pushEdge("w", 0, "curb");
+    if (!eRoad) pushEdge("e", 0, "curb");
 
     let left = 0;
     let right = 0;
@@ -407,20 +431,20 @@ export function computeRoadTileMarkings(tileAt, tx, ty) {
   //      direction -> double-yellow centerline + crisp dashed white lane separators!
   // =========================================================================
   if (!nRoad) {
-    marks.push({ x: 0, y: 0, w: 16, h: 1, kind: "curb" });
-    marks.push({ x: 0, y: 1, w: 16, h: 1, kind: "shoulder" });
+    pushEdge("n", 0, "curb");
+    pushEdge("n", 1, "shoulder");
   }
   if (!sRoad) {
-    marks.push({ x: 0, y: 15, w: 16, h: 1, kind: "curb" });
-    marks.push({ x: 0, y: 14, w: 16, h: 1, kind: "shoulder" });
+    pushEdge("s", 0, "curb");
+    pushEdge("s", 1, "shoulder");
   }
   if (!wRoad) {
-    marks.push({ x: 0, y: 0, w: 1, h: 16, kind: "curb" });
-    marks.push({ x: 1, y: 0, w: 1, h: 16, kind: "shoulder" });
+    pushEdge("w", 0, "curb");
+    pushEdge("w", 1, "shoulder");
   }
   if (!eRoad) {
-    marks.push({ x: 15, y: 0, w: 1, h: 16, kind: "curb" });
-    marks.push({ x: 14, y: 0, w: 1, h: 16, kind: "shoulder" });
+    pushEdge("e", 0, "curb");
+    pushEdge("e", 1, "shoulder");
   }
 
   const isAve = (t) => t === 3 || t === 4;

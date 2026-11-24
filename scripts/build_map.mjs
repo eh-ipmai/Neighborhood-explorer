@@ -1513,6 +1513,479 @@ export function simplifyGridPaths(base, width, height) {
 }
 
 /**
+ * Topology-safe road shape normalizer:
+ *  - Trims swollen 3-to-5-tile residential road blobs down to crisp, uniform 2-tile neighborhood streets.
+ *  - Trims oversized 5+-tile MAIN_ROAD swamps (away from intersections) down to clean 3-to-4-tile avenues.
+ *  - Shaves 1-tile jagged stair-step pimples and fills 1-tile recessed curb notches along straight stretches.
+ * Strictly preserves 4-way road connectivity via a 3x3 simple-point check so no street is ever severed!
+ */
+export function regularizeRoadShapes(base, width, height, protectedTiles = []) {
+  const isDrivable = (t) =>
+    t === TILE_IDS.RESIDENTIAL_ROAD ||
+    t === TILE_IDS.MAIN_ROAD ||
+    t === TILE_IDS.HIGHWAY;
+  const isAnyRoad = (t) =>
+    isDrivable(t) || t === TILE_IDS.CROSSWALK || t === TILE_IDS.HIGHWAY_MEDIAN;
+
+  const protectedSet = new Set();
+  for (const pt of protectedTiles) {
+    if (!pt || typeof pt.x !== "number" || typeof pt.y !== "number") continue;
+    const r = pt.radius ?? 1;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const px = Math.floor(pt.x) + dx;
+        const py = Math.floor(pt.y) + dy;
+        if (inBounds(px, py, width, height)) protectedSet.add(py * width + px);
+      }
+    }
+  }
+
+  // Returns true iff removing (x, y) keeps ALL remaining road tiles in its 3x3 neighborhood
+  // in a SINGLE 4-connected component (never severs a road, never creates a diagonal pinch,
+  // and never erases a dead-end street tip!).
+  const preservesRoadConnectivity = (grid, x, y) => {
+    const roadNbs = [];
+    let cardCount = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        if (isAnyRoad(grid[(y + dy) * width + (x + dx)])) {
+          roadNbs.push([dx, dy]);
+          if (dx === 0 || dy === 0) cardCount++;
+        }
+      }
+    }
+    if (cardCount < 2 || roadNbs.length < 3) return false;
+    const vis = new Set(["0"]);
+    const q = [0];
+    for (let qi = 0; qi < q.length; qi++) {
+      const [ax, ay] = roadNbs[q[qi]];
+      for (let j = 0; j < roadNbs.length; j++) {
+        const key = String(j);
+        if (vis.has(key)) continue;
+        const [bx, by] = roadNbs[j];
+        if (Math.abs(ax - bx) + Math.abs(ay - by) === 1) {
+          vis.add(key);
+          q.push(j);
+        }
+      }
+    }
+    return vis.size === roadNbs.length;
+  };
+
+  const touchesMajorOrCross = (grid, x, y) => {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const t = grid[(y + dy) * width + (x + dx)];
+        if (
+          t === TILE_IDS.MAIN_ROAD ||
+          t === TILE_IDS.HIGHWAY ||
+          t === TILE_IDS.HIGHWAY_MEDIAN ||
+          t === TILE_IDS.CROSSWALK
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  // Pass 1: Slim swollen 3+-tile residential roads down to clean uniform 2-tile streets
+  for (let pass = 0; pass < 3; pass++) {
+    const checkNW = pass % 2 === 0;
+    for (let y = 3; y < height - 3; y++) {
+      for (let x = 3; x < width - 3; x++) {
+        const idx = y * width + x;
+        if (base[idx] !== TILE_IDS.RESIDENTIAL_ROAD) continue;
+        if (protectedSet.has(idx)) continue;
+        if (touchesMajorOrCross(base, x, y)) continue;
+
+        const n = base[(y - 1) * width + x];
+        const s = base[(y + 1) * width + x];
+        const w = base[y * width + (x - 1)];
+        const e = base[y * width + (x + 1)];
+
+        const n2 = base[(y - 2) * width + x];
+        const s2 = base[(y + 2) * width + x];
+        const w2 = base[y * width + (x - 2)];
+        const e2 = base[y * width + (x + 2)];
+
+        const trimNorth = checkNW && !isAnyRoad(n) && s === TILE_IDS.RESIDENTIAL_ROAD && s2 === TILE_IDS.RESIDENTIAL_ROAD;
+        const trimSouth = !checkNW && !isAnyRoad(s) && n === TILE_IDS.RESIDENTIAL_ROAD && n2 === TILE_IDS.RESIDENTIAL_ROAD;
+        const trimWest = checkNW && !isAnyRoad(w) && e === TILE_IDS.RESIDENTIAL_ROAD && e2 === TILE_IDS.RESIDENTIAL_ROAD;
+        const trimEast = !checkNW && !isAnyRoad(e) && w === TILE_IDS.RESIDENTIAL_ROAD && w2 === TILE_IDS.RESIDENTIAL_ROAD;
+
+        if ((trimNorth || trimSouth || trimWest || trimEast) && preservesRoadConnectivity(base, x, y)) {
+          base[idx] = TILE_IDS.SIDEWALK;
+        }
+      }
+    }
+  }
+
+  // Pass 2: Slim oversized 5+-tile MAIN_ROAD swamps down to crisp 3-to-4-tile boulevards (skipping Newton Centre Square!)
+  for (let pass = 0; pass < 2; pass++) {
+    const checkNW = pass % 2 === 0;
+    for (let y = 4; y < height - 4; y++) {
+      for (let x = 4; x < width - 4; x++) {
+        if (width === 512 && x >= 225 && x <= 300 && y >= 210 && y <= 275) continue;
+        const idx = y * width + x;
+        if (base[idx] !== TILE_IDS.MAIN_ROAD) continue;
+        if (protectedSet.has(idx)) continue;
+
+        let nearOther = false;
+        for (let dy = -1; dy <= 1 && !nearOther; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nt = base[(y + dy) * width + (x + dx)];
+            if (nt === TILE_IDS.CROSSWALK || nt === TILE_IDS.HIGHWAY || nt === TILE_IDS.RESIDENTIAL_ROAD) {
+              nearOther = true;
+              break;
+            }
+          }
+        }
+        if (nearOther) continue;
+
+        const countDir = (dx, dy) => {
+          let c = 0;
+          for (let d = 1; d <= 5; d++) {
+            if (base[(y + dy * d) * width + (x + dx * d)] === TILE_IDS.MAIN_ROAD) c++;
+            else break;
+          }
+          return c;
+        };
+
+        const trimN = checkNW && !isAnyRoad(base[(y - 1) * width + x]) && countDir(0, 1) >= 4;
+        const trimS = !checkNW && !isAnyRoad(base[(y + 1) * width + x]) && countDir(0, -1) >= 4;
+        const trimW = checkNW && !isAnyRoad(base[y * width + (x - 1)]) && countDir(1, 0) >= 4;
+        const trimE = !checkNW && !isAnyRoad(base[y * width + (x + 1)]) && countDir(-1, 0) >= 4;
+
+        if ((trimN || trimS || trimW || trimE) && preservesRoadConnectivity(base, x, y)) {
+          base[idx] = TILE_IDS.SIDEWALK;
+        }
+      }
+    }
+  }
+
+  // Pass 3: Fill isolated 1-tile recessed sidewalk notches inside road walls (not touching buildings/water)
+  const snap = base.slice();
+  for (let y = 2; y < height - 2; y++) {
+    for (let x = 2; x < width - 2; x++) {
+      const idx = y * width + x;
+      if (snap[idx] !== TILE_IDS.SIDEWALK || protectedSet.has(idx)) continue;
+      let touchesWallOrWater = false;
+      for (let dy = -1; dy <= 1 && !touchesWallOrWater; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const t = snap[(y + dy) * width + (x + dx)];
+          if (t === TILE_IDS.BUILDING_WALL || t === TILE_IDS.WATER) touchesWallOrWater = true;
+        }
+      }
+      if (touchesWallOrWater) continue;
+      const nbs = [
+        snap[(y - 1) * width + x],
+        snap[(y + 1) * width + x],
+        snap[y * width + (x - 1)],
+        snap[y * width + (x + 1)],
+      ].filter(isDrivable);
+      if (nbs.length >= 3) {
+        base[idx] = nbs[0];
+      }
+    }
+  }
+}
+
+/**
+ * Reconstruct real-world Commonwealth Avenue ("Comm Ave") throughout Newton with its iconic
+ * Frederick Law Olmsted Carriage Lane layout:
+ *   - Main Commonwealth Avenue (smooth uniform 3-tile-wide MAIN_ROAD)
+ *   - Grassy Tree-Lined Separator Mall (2-tile-wide lush PARK turf between Main Comm Ave & Carriage Lane,
+ *     automatically planted with stately shade trees in src/parks.js!)
+ *   - Commonwealth Avenue Carriage Lane (1-to-2-tile-wide RESIDENTIAL_ROAD frontage lane running parallel
+ *     along the north/northeast side of the grassy separator)
+ *   - Clean cross-street openings wherever real N-S streets cross Comm Ave (Walnut, Centre, Grant, etc.)
+ *   - Strictly preserves all buildings, water (Bullough's Pond), and continuous outer sidewalks!
+ */
+export function carveCommonwealthCarriageway(base, streetZones = [], width, height, protectedTiles = []) {
+  const commZones = (streetZones || []).filter(
+    (z) => z && z.bounds && /^commonwealth avenue$/i.test(String(z.name || "").trim())
+  );
+  if (commZones.length < 4) return;
+
+  const isDrivable = (t) =>
+    t === TILE_IDS.RESIDENTIAL_ROAD ||
+    t === TILE_IDS.MAIN_ROAD ||
+    t === TILE_IDS.HIGHWAY;
+  const isRoadLike = (t) => isDrivable(t) || t === TILE_IDS.CROSSWALK;
+
+  const protectedSet = new Set();
+  for (const pt of protectedTiles) {
+    if (!pt || typeof pt.x !== "number" || typeof pt.y !== "number") continue;
+    const r = pt.radius ?? 1;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const px = Math.floor(pt.x) + dx;
+        const py = Math.floor(pt.y) + dy;
+        if (inBounds(px, py, width, height)) protectedSet.add(py * width + px);
+      }
+    }
+  }
+
+  // 1. Determine min/max X & vertical search window per X column from Commonwealth Avenue streetZones
+  const colMinY = new Int16Array(width).fill(-1);
+  const colMaxY = new Int16Array(width).fill(-1);
+  let globalMinX = width;
+  let globalMaxX = -1;
+  for (const z of commZones) {
+    const x0 = Math.max(0, Math.floor(z.bounds.minX));
+    const x1 = Math.min(width - 1, Math.floor(z.bounds.maxX));
+    const y0 = Math.max(2, Math.floor(z.bounds.minY) - 2);
+    const y1 = Math.min(height - 3, Math.floor(z.bounds.maxY) + 2);
+    if (x0 < globalMinX) globalMinX = x0;
+    if (x1 > globalMaxX) globalMaxX = x1;
+    for (let x = x0; x <= x1; x++) {
+      colMinY[x] = colMinY[x] === -1 ? y0 : Math.min(colMinY[x], y0);
+      colMaxY[x] = colMaxY[x] === -1 ? y1 : Math.max(colMaxY[x], y1);
+    }
+  }
+  if (globalMinX > globalMaxX) return;
+
+  const orig = base.slice();
+
+  // 2. Trace the true southern/main centerline of Commonwealth Avenue at every column x
+  //    (using the southern edge of MAIN_ROAD so old north-side Carriage Road blobs never pull it off-track!)
+  const rawCenterY = new Float32Array(width).fill(-1);
+  for (let x = globalMinX; x <= globalMaxX; x++) {
+    if (colMinY[x] === -1) continue;
+    let maxMainY = -1;
+    let minMainY = height;
+    for (let y = colMinY[x]; y <= colMaxY[x]; y++) {
+      const t = orig[y * width + x];
+      if (t === TILE_IDS.MAIN_ROAD) {
+        if (y > maxMainY) maxMainY = y;
+        if (y < minMainY) minMainY = y;
+      }
+    }
+    if (maxMainY !== -1) {
+      // Anchor centerline 1 tile inside the clean southern edge of Main Comm Ave
+      rawCenterY[x] = Math.max(minMainY, maxMainY - 1);
+    }
+  }
+
+  // Interpolate smoothly across short crosswalk/intersection gaps
+  let lastValidX = -1;
+  for (let x = globalMinX; x <= globalMaxX; x++) {
+    if (rawCenterY[x] >= 0) {
+      if (lastValidX >= 0 && x - lastValidX > 1 && x - lastValidX <= 14) {
+        const y0 = rawCenterY[lastValidX];
+        const y1 = rawCenterY[x];
+        for (let ix = lastValidX + 1; ix < x; ix++) {
+          const t = (ix - lastValidX) / (x - lastValidX);
+          rawCenterY[ix] = y0 + (y1 - y0) * t;
+        }
+      }
+      lastValidX = x;
+    }
+  }
+
+  // Smooth the centerline twice (radius 5) so Comm Ave sweeps gracefully like an Olmsted boulevard!
+  let centerY = rawCenterY.slice();
+  for (let pass = 0; pass < 2; pass++) {
+    const next = centerY.slice();
+    for (let x = globalMinX; x <= globalMaxX; x++) {
+      if (centerY[x] < 0) continue;
+      let sum = 0;
+      let wt = 0;
+      for (let dx = -5; dx <= 5; dx++) {
+        const nx = x + dx;
+        if (nx >= globalMinX && nx <= globalMaxX && centerY[nx] >= 0) {
+          const w = 6 - Math.abs(dx);
+          sum += centerY[nx] * w;
+          wt += w;
+        }
+      }
+      if (wt > 0) next[x] = sum / wt;
+    }
+    centerY = next;
+  }
+
+  // 3. Compute smooth unit normal (nx, ny) pointing toward the NORTH/NORTHEAST Carriage Lane side
+  const normX = new Float32Array(width);
+  const normY = new Float32Array(width);
+  for (let x = globalMinX; x <= globalMaxX; x++) {
+    if (centerY[x] < 0) continue;
+    const xl = Math.max(globalMinX, x - 3);
+    const xr = Math.min(globalMaxX, x + 3);
+    const yl = centerY[xl] >= 0 ? centerY[xl] : centerY[x];
+    const yr = centerY[xr] >= 0 ? centerY[xr] : centerY[x];
+    const tx = Math.max(1, xr - xl);
+    const ty = yr - yl;
+    const len = Math.hypot(tx, ty) || 1;
+    // Perpendicular pointing north (-y) when horizontal, and northeast (+x, -y) when curving SE!
+    normX[x] = ty / len;
+    normY[x] = -tx / len;
+  }
+
+  // 4. Detect genuine north-south cross-street corridors entering Commonwealth Avenue from outside
+  //    so cross streets (Walnut St, Centre St, Grant Ave, Lowell Ave, Hammond St, etc.) stay cleanly connected!
+  const crossRoadType = new Uint8Array(width);
+  for (let x = globalMinX; x <= globalMaxX; x++) {
+    if (centerY[x] < 0) continue;
+    const cy = centerY[x];
+    const nx = normX[x];
+    const ny = normY[x];
+    let southHits = 0;
+    let northHits = 0;
+    let isMainCross = false;
+    for (let d = 3.6; d <= 6.8; d += 0.8) {
+      const sx = Math.round(x - nx * d);
+      const sy = Math.round(cy - ny * d);
+      if (inBounds(sx, sy, width, height)) {
+        const st = orig[sy * width + sx];
+        if (isDrivable(st)) {
+          southHits++;
+          if (st === TILE_IDS.MAIN_ROAD || st === TILE_IDS.HIGHWAY) isMainCross = true;
+        }
+      }
+    }
+    for (let d = 6.8; d <= 10.0; d += 0.8) {
+      const rx = Math.round(x + nx * d);
+      const ry = Math.round(cy + ny * d);
+      if (inBounds(rx, ry, width, height)) {
+        const nt = orig[ry * width + rx];
+        if (isDrivable(nt)) {
+          northHits++;
+          if (nt === TILE_IDS.MAIN_ROAD || nt === TILE_IDS.HIGHWAY) isMainCross = true;
+        }
+      }
+    }
+    // Require a true incoming cross-street (at least 3 road tiles extending cleanly away from the boulevard)
+    if (southHits >= 3 || northHits >= 3) {
+      crossRoadType[x] = isMainCross ? TILE_IDS.MAIN_ROAD : TILE_IDS.RESIDENTIAL_ROAD;
+    }
+  }
+
+  const hasWallOrWaterWithin = (grid, tx, ty, radius = 1) => {
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const gx = tx + dx;
+        const gy = ty + dy;
+        if (!inBounds(gx, gy, width, height)) continue;
+        const t = grid[gy * width + gx];
+        if (t === TILE_IDS.BUILDING_WALL || t === TILE_IDS.WATER) return true;
+      }
+    }
+    return false;
+  };
+
+  const hasWallWithin = (grid, tx, ty, radius = 1) => {
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const gx = tx + dx;
+        const gy = ty + dy;
+        if (!inBounds(gx, gy, width, height)) continue;
+        if (grid[gy * width + gx] === TILE_IDS.BUILDING_WALL) return true;
+      }
+    }
+    return false;
+  };
+
+  // 5. Stamp the clean Olmsted cross-section using exact Euclidean signed perpendicular distance `d`
+  //    from the smoothed Commonwealth Avenue curve!
+  for (let py = 2; py < height - 2; py++) {
+    for (let px = Math.max(0, globalMinX - 2); px <= Math.min(width - 1, globalMaxX + 2); px++) {
+      const idx = py * width + px;
+      const cur = orig[idx];
+      if (
+        cur === TILE_IDS.BUILDING_WALL ||
+        cur === TILE_IDS.WATER ||
+        cur === TILE_IDS.SAND ||
+        cur === TILE_IDS.HIGHWAY_MEDIAN
+      ) {
+        continue;
+      }
+
+      // Find closest centerline sample (cx, centerY[cx]) within +-8 columns
+      let bestDistSq = Infinity;
+      let bestCx = -1;
+      const sx0 = Math.max(globalMinX, px - 8);
+      const sx1 = Math.min(globalMaxX, px + 8);
+      for (let cx = sx0; cx <= sx1; cx++) {
+        const cy = centerY[cx];
+        if (cy < 0) continue;
+        const dx = px - cx;
+        const dy = py - cy;
+        const dSq = dx * dx + dy * dy;
+        if (dSq < bestDistSq) {
+          bestDistSq = dSq;
+          bestCx = cx;
+        }
+      }
+      if (bestCx === -1 || bestDistSq > 81) continue; // > 9 tiles away
+
+      const cy = centerY[bestCx];
+      const vx = px - bestCx;
+      const vy = py - cy;
+      // Signed distance along north/northeast normal (+ = carriage lane side, - = south side)
+      const d = vx * normX[bestCx] + vy * normY[bestCx];
+      const touchesWall = hasWallWithin(orig, px, py, 1);
+      const isCross = crossRoadType[bestCx] > 0;
+      const isProt = protectedSet.has(idx);
+
+      if (d >= -1.2 && d <= 1.2) {
+        // Main Commonwealth Avenue (smooth uniform 3-tile arterial!)
+        if (!touchesWall) {
+          base[idx] = cur === TILE_IDS.CROSSWALK ? TILE_IDS.CROSSWALK : TILE_IDS.MAIN_ROAD;
+        }
+      } else if (d > 1.2 && d <= 3.35) {
+        // Iconic Grassy Tree-Lined Carriageway Separator (2-tile-wide emerald parkway mall!)
+        if (isCross && !touchesWall) {
+          base[idx] = crossRoadType[bestCx];
+        } else if (!isProt) {
+          base[idx] = TILE_IDS.PARK;
+        }
+      } else if (d > 3.35 && d <= 4.75) {
+        // Commonwealth Avenue Carriage Lane (clean continuous 1-to-2-tile frontage lane!)
+        if (!touchesWall) {
+          base[idx] =
+            cur === TILE_IDS.CROSSWALK
+              ? TILE_IDS.CROSSWALK
+              : isCross && crossRoadType[bestCx] === TILE_IDS.MAIN_ROAD
+                ? TILE_IDS.MAIN_ROAD
+                : TILE_IDS.RESIDENTIAL_ROAD;
+        } else if (isRoadLike(cur)) {
+          base[idx] = TILE_IDS.SIDEWALK;
+        }
+      } else if ((d > 4.75 && d <= 5.95) || (d >= -2.35 && d < -1.2)) {
+        // Crisp outer sidewalks framing the north edge of the Carriage Lane & south edge of Main Comm Ave!
+        if (!isCross || !isDrivable(cur)) {
+          base[idx] = TILE_IDS.SIDEWALK;
+        }
+      } else if (d > 5.95 && d <= 7.8) {
+        // Clean up any leftover excess asphalt blob north of the Carriage Lane sidewalk
+        if (!isCross && !isProt && (cur === TILE_IDS.MAIN_ROAD || cur === TILE_IDS.RESIDENTIAL_ROAD)) {
+          base[idx] = TILE_IDS.GRASS;
+        }
+      } else if (d < -2.35 && d >= -4.2) {
+        // Clean up any leftover excess asphalt blob south of Main Comm Ave sidewalk
+        if (!isCross && !isProt && cur === TILE_IDS.MAIN_ROAD) {
+          base[idx] = TILE_IDS.GRASS;
+        }
+      }
+    }
+  }
+
+  // 6. Safety guarantee: ensure zero carved road tiles touch a BUILDING_WALL directly
+  const postSnap = base.slice();
+  for (let py = 2; py < height - 2; py++) {
+    for (let px = Math.max(0, globalMinX - 2); px <= Math.min(width - 1, globalMaxX + 2); px++) {
+      const idx = py * width + px;
+      if (!isDrivable(postSnap[idx])) continue;
+      if (hasWallWithin(postSnap, px, py, 1)) {
+        base[idx] = TILE_IDS.SIDEWALK;
+      }
+    }
+  }
+}
+
+/**
  * Simplicity-first road network connectivity & clean-intersection repair pass:
  *  1. Reconnects severed street mouths (like Jackson St meeting Boylston St) where a
  *     named streetZone continues toward a nearby road or a road tip stops just short of
@@ -3976,6 +4449,7 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
   }
 
   // Enforce crisp curb-to-curb pedestrian crosswalks (zero floating mid-road crosswalks!)
+  carveCommonwealthCarriageway(base, streetZones, width, height, []);
   validateAndCleanCrosswalks(base, width, height);
 
   // Place solid concrete Jersey median barriers down multi-lane divided highways
@@ -4788,12 +5262,16 @@ export function enrichWorldMap(worldMap) {
   }
 
   widenResidentialStreets(base, width, height, protectedTiles);
+  regularizeRoadShapes(base, width, height, protectedTiles);
   prioritizeNewtonCentreRoads(base, width, height);
   eliminateDiagonalRoadPinches(base, width, height);
   enforceContinuousRoadSidewalks(base, width, height);
 
   slimOversizedSidewalks(base, width, height, protectedTiles);
   enforceContinuousRoadSidewalks(base, width, height);
+  // Carve authentic Commonwealth Avenue grassy tree-lined Carriage Lane after outer sidewalks
+  // so the Olmsted parkway separator stays lush grass (PARK) while outer sidewalks stay continuous!
+  carveCommonwealthCarriageway(base, streetZones, width, height, protectedTiles);
 
   // 6c. Restore & add Boston College Newton Campus academic school buildings on the 512x512 map
   //     AFTER road/sidewalk slimming so crisp, path-safe Collegiate Gothic school buildings always stamp cleanly!

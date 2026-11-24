@@ -11,6 +11,8 @@ import {
   classifyHouseArch,
   simplifyRoadPolyline,
   simplifyGridPaths,
+  regularizeRoadShapes,
+  carveCommonwealthCarriageway,
   slimOversizedSidewalks,
   enlargeBuildingFootprints,
   buildOfflineMap,
@@ -836,4 +838,70 @@ test("schools and non-residential buildings resolve distinct visual categories, 
     }
   }
   assert.equal(NON_RESIDENTIAL_MAP_INK.house, undefined, "residential homes must not override default home ink");
+});
+
+test("Commonwealth Avenue features a grassy, tree-lined Olmsted separator and parallel Carriage Lane across Newton, and road shapes stay uniform", () => {
+  const worldMap = JSON.parse(
+    fs.readFileSync(path.resolve(process.cwd(), "data", "world_map.json"), "utf8")
+  );
+  const { width, height } = worldMap.dimensions;
+  const base = worldMap.layers.base;
+  const gf = buildGraveyardFeatures(worldMap);
+  const pf = buildParkFeatures(worldMap, gf.graveyardGrid);
+  const treeGrid = buildWoodlandTreeGrid(worldMap, pf.occupiedGrid, gf.graveyardGrid);
+
+  // 1. Verify Commonwealth Avenue has a substantial grassy separator between Main Comm Ave (3) and Carriage Lane (2) + shade trees!
+  let medianGrassTiles = 0;
+  let medianTrees = 0;
+  const colsWithCarriageway = new Set();
+  for (let y = 50; y <= 145; y++) {
+    for (let x = 2; x < width - 2; x++) {
+      const t = base[y * width + x];
+      if (t !== TILE_IDS.PARK && t !== TILE_IDS.GRASS) continue;
+      let hasMainSouth = false;
+      let hasCarriageNorth = false;
+      for (let dy = 1; dy <= 2; dy++) {
+        if (base[(y + dy) * width + x] === TILE_IDS.MAIN_ROAD) hasMainSouth = true;
+        if (base[(y - dy) * width + x] === TILE_IDS.RESIDENTIAL_ROAD) hasCarriageNorth = true;
+      }
+      if (hasMainSouth && hasCarriageNorth) {
+        medianGrassTiles++;
+        colsWithCarriageway.add(x);
+        if (treeGrid[y * width + x] > 0) medianTrees++;
+      }
+    }
+  }
+  assert.ok(
+    medianGrassTiles >= 450,
+    `Commonwealth Ave should have a lush grassy separator along Newton (got ${medianGrassTiles} tiles)`
+  );
+  assert.ok(
+    colsWithCarriageway.size >= 240,
+    `Commonwealth Ave grassy carriage separator should span broadly across Newton (got ${colsWithCarriageway.size} columns)`
+  );
+  assert.ok(
+    medianTrees >= 40,
+    `Commonwealth Ave grassy median should be lined with shade trees (got ${medianTrees} trees)`
+  );
+
+  // 2. Verify regularizeRoadShapes trims a bloated 4-tile-wide synthetic residential street down to crisp 2 tiles without severing it!
+  const w = 16;
+  const h = 14;
+  const g = new Array(w * h).fill(TILE_IDS.GRASS);
+  for (let y = 5; y <= 8; y++) {
+    for (let x = 1; x < w - 1; x++) g[y * w + x] = TILE_IDS.RESIDENTIAL_ROAD;
+  }
+  regularizeRoadShapes(g, w, h);
+  let roadRowsAtMid = 0;
+  for (let y = 0; y < h; y++) {
+    if (g[y * w + 8] === TILE_IDS.RESIDENTIAL_ROAD) roadRowsAtMid++;
+  }
+  assert.equal(roadRowsAtMid, 2, "4-tile bloated residential street should slim cleanly to a uniform 2-tile street");
+  // Confirm continuous left-to-right connectivity remains intact
+  for (let x = 2; x < w - 2; x++) {
+    let hasRoad = false;
+    for (let y = 5; y <= 8; y++) if (g[y * w + x] === TILE_IDS.RESIDENTIAL_ROAD) hasRoad = true;
+    assert.ok(hasRoad, `regularized street must remain unbroken at column ${x}`);
+  }
+  assert.equal(typeof carveCommonwealthCarriageway, "function");
 });
