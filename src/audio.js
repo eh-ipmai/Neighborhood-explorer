@@ -182,6 +182,29 @@ export function playGrassRustle() {
   zzfx(0.05, 0.1, 420, 0.005, 0.01, 0.07, 3, 1, -1.2, 0.6);
 }
 
+/** Bubbly retro water-wading splash SFX when wading/swimming in lakes & ponds */
+export function playWaterSplash(isFast = false) {
+  zzfx(
+    isFast ? 0.065 : 0.048,
+    0.12,
+    isFast ? 310 : 240,
+    0.004,
+    0.015,
+    isFast ? 0.095 : 0.075,
+    3,
+    1.1,
+    isFast ? 1.8 : 1.1,
+    0.72
+  );
+  playTone({
+    freq: isFast ? 520 : 410,
+    endFreq: isFast ? 780 : 590,
+    duration: isFast ? 0.075 : 0.055,
+    type: "sine",
+    volume: 0.028,
+  });
+}
+
 /** Classic 2-note coin/acorn pickup ding (B5 -> E6) */
 export function playCoinPickup() {
   playTone({ freq: 987.77, duration: 0.06, type: "square", volume: 0.045 });
@@ -389,4 +412,37 @@ export function playEmtRadioBeepSfx() {
   setTimeout(() => {
     playTone({ freq: 1567.98, duration: 0.07, type: "square", volume: 0.04 });
   }, 65);
+}
+
+/** Warm wooden home door knock/chime when stepping inside or outside Home Base */
+export function playDoorChime() {
+  playTone({ freq: 392.0, duration: 0.065, type: "triangle", volume: 0.055 }); // G4
+  setTimeout(() => {
+    playTone({ freq: 523.25, duration: 0.1, type: "sine", volume: 0.055 }); // C5
+  }, 65);
+}
+
+/** Classic 16-bit Zelda-style secret reveal jingle (for sliding bookshelf & D&D puzzle solve!) */
+export function playSecretRevealSfx() {
+  const notes = [392.0, 369.99, 311.13, 220.0, 207.65, 329.63, 415.3, 523.25];
+  notes.forEach((freq, idx) => {
+    setTimeout(() => {
+      playTone({ freq, duration: idx === 7 ? 0.28 : 0.085, type: "triangle", volume: 0.06 });
+    }, idx * 75);
+  });
+}
+
+/** Cheerful Golden D20 clatter & sparkle roll chime */
+export function playDiceRollSfx(isCrit = false) {
+  const ticks = [620, 740, 560, 820, isCrit ? 1318.51 : 987.77];
+  ticks.forEach((freq, idx) => {
+    setTimeout(() => {
+      playTone({
+        freq,
+        duration: idx === 4 ? 0.24 : 0.045,
+        type: idx === 4 ? "sine" : "square",
+        volume: idx === 4 ? 0.06 : 0.035,
+      });
+    }, idx * 55);
+  });
 }

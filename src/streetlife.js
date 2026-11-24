@@ -53,12 +53,12 @@ export const PROTEST_CHANTS = [
 ];
 
 export const PROTESTOR_QUIPS = [
-  "Hey!! Watch the sign, kid! We're marching for MORE ICE CREAM on Boylston St!",
-  "TOO MANY TURKEYS! One of them just stole my bagel right out of Newton Centre!",
-  "SAVE THE AUTUMN LEAVES! Stop raking the crunchy leaf piles!!",
-  "Excuse ME?! Okay, okay, fine—I'll step aside so you can scoot past!",
-  "FREE BAGELS FOR EVERY 7-YEAR-OLD IN NEWTON! Tell your friends!",
-  "FIX THIS SIDEWALK! ...Wait, these cobblestones actually look pretty nice. Carry on!",
+  "Hi neighbor! Marching for MORE ICE CREAM really works up an appetite — got a snack to share?",
+  "We're marching peacefully for MORE PARKS & AUTUMN LEAVES! A snack break sounds amazing!",
+  "Hey there, Explorer! Our tummies are rumbling — share a snack and we'll happily step aside!",
+  "FREE BAGELS FOR EVERY 7-YEAR-OLD IN NEWTON! Speaking of which, do you have a snack?",
+  "Ooh, marching down Boylston Street makes us super hungry! Got a snack from your kitchen?",
+  "Thanks for saying hi, neighbor! If you have a snack to share, we'll gladly clear the sidewalk!",
 ];
 
 const WALKABLE_TURKEY_TILES = new Set([0, 1, 2, 4, 7, 9, 10, 11]);
@@ -212,7 +212,7 @@ export function buildStreetLife(
       chantIndex: chantIdx,
       chantText: PROTEST_CHANTS[chantIdx],
       quip: isMob
-        ? "NO PASSING! Our picket mob owns this sidewalk — figure out a detour around the block!"
+        ? "Marching together makes us hungry! Share a snack with our group and we'll happily clear the sidewalk!"
         : PROTESTOR_QUIPS[idx % PROTESTOR_QUIPS.length],
       x: ax,
       y: ay,
@@ -613,50 +613,83 @@ export function findNearbyStreetLife(streetLife, px, py, maxDistPx = 28) {
 }
 
 /**
- * Politely say "Excuse me!" to a protestor (making them step aside for 6.5s)
- * or shoo a bold turkey (making it gobble & dash away with feathers!).
+ * Share a snack with peaceful sidewalk marchers/protestors (making them cheer happily and step aside!),
+ * shoo a bold turkey (making it gobble & dash away with feathers!), or startle a spooky graveyard character.
  */
-export function interactWithStreetLife(streetLife, entry, playerX, playerY) {
+export function interactWithStreetLife(streetLife, entry, playerX, playerY, options = {}) {
   if (!entry || !entry.target) return null;
   if (entry.kind === "protestor") {
     const pr = entry.target;
-    if (pr.isMob) {
-      // Stubborn protestor mob! They refuse to clear the sidewalk so you must figure out how to go around!
-      pr.bubbleSprite = "bubble_mob_block";
-      pr.bubbleTimer = 2.8;
-      // Rally fellow mob members to wave their signs too!
+    const { hasSnack = false, consumeSnack = null, isEasyMode = false } = options || {};
+    const canShareSnack = Boolean(isEasyMode || hasSnack);
+
+    if (canShareSnack) {
+      if (!isEasyMode && typeof consumeSnack === "function") {
+        consumeSnack();
+      }
+      const stepAside = (member) => {
+        member.yieldTimer = 26.0;
+        member.pushTimer = 0;
+        member.bubbleSprite = "bubble_snack_thanks";
+        member.bubbleTimer = 3.2;
+        const dx = member.x - playerX;
+        const dy = member.y - playerY;
+        if (member.axis === "h") {
+          member.yieldOffsetY = dy >= 0 ? 12 : -12;
+          member.yieldOffsetX = 0;
+        } else {
+          member.yieldOffsetX = dx >= 0 ? 12 : -12;
+          member.yieldOffsetY = 0;
+        }
+      };
+
+      if (pr.isMob && pr.mobId) {
+        for (const peer of streetLife.protestors || []) {
+          if (peer.mobId === pr.mobId) {
+            stepAside(peer);
+          }
+        }
+        return {
+          kind: "protestor",
+          isMob: true,
+          sharedSnack: true,
+          blocked: false,
+          xpReward: 10,
+          toast: '🥨 "YUM! THANK YOU, NEIGHBOR!" The marching group cheered for snacks and happily cleared the sidewalk! (+10 XP)',
+          sound: "snack_thanks",
+        };
+      }
+
+      stepAside(pr);
+      return {
+        kind: "protestor",
+        isMob: false,
+        sharedSnack: true,
+        blocked: false,
+        xpReward: 5,
+        toast: '🥨 "Ooh, a snack! Thank you, neighbor!" The marcher smiled and stepped aside! (+5 XP)',
+        sound: "snack_thanks",
+      };
+    }
+
+    // No snacks on hand — peaceful, friendly hint (never hostile, never hurts Liam!)
+    pr.bubbleSprite = "bubble_want_snack";
+    pr.bubbleTimer = 2.8;
+    if (pr.isMob && pr.mobId) {
       for (const peer of streetLife.protestors || []) {
-        if (peer.mobId && peer.mobId === pr.mobId) {
-          peer.bubbleSprite = peer.id === pr.id ? "bubble_mob_block" : `bubble_protest_${peer.chantIndex}`;
+        if (peer.mobId === pr.mobId) {
+          peer.bubbleSprite = peer.id === pr.id ? "bubble_want_snack" : `bubble_protest_${peer.chantIndex}`;
           peer.bubbleTimer = 2.6;
         }
       }
-      return {
-        kind: "protestor",
-        isMob: true,
-        blocked: true,
-        toast: `📢 Protestor Mob: "${pr.quip}"`,
-        sound: "protestor",
-      };
-    }
-    pr.yieldTimer = 6.5;
-    pr.pushTimer = 0;
-    pr.bubbleSprite = "bubble_watch_sign";
-    pr.bubbleTimer = 2.6;
-    // Step cleanly off the player's line of travel
-    const dx = pr.x - playerX;
-    const dy = pr.y - playerY;
-    if (pr.axis === "h") {
-      pr.yieldOffsetY = dy >= 0 ? 11 : -11;
-      pr.yieldOffsetX = 0;
-    } else {
-      pr.yieldOffsetX = dx >= 0 ? 11 : -11;
-      pr.yieldOffsetY = 0;
     }
     return {
       kind: "protestor",
-      isMob: false,
-      toast: `📢 Protestor: "${pr.quip}"`,
+      isMob: Boolean(pr.isMob),
+      sharedSnack: false,
+      needsSnack: true,
+      blocked: true,
+      toast: '🥨 "Marching makes us hungry! Grab snacks from your kitchen at Home Base, J.P. Licks, or Rosenfeld\'s Bagels!"',
       sound: "protestor",
     };
   }
@@ -741,30 +774,8 @@ export function checkStreetLifeContact(
     }
   }
 
-  for (const pr of streetLife.protestors || []) {
-    if (pr.yieldTimer > 0) continue;
-    const dx = px - pr.x;
-    const dy = py - pr.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist < 15.5) {
-      const fb = fallbackDir();
-      const dirX = dist > 0.5 ? dx / dist : fb.x;
-      const dirY = dist > 0.5 ? dy / dist : fb.y;
-      return {
-        kind: "protestor",
-        isMob: Boolean(pr.isMob),
-        source: pr,
-        dirX,
-        dirY,
-        speed: pr.isMob ? 148 : 130,
-        duration: 0.24,
-        bubbleSprite: pr.isMob ? "bubble_bonk" : "bubble_ouch",
-        toast: pr.isMob
-          ? "💥 BONK! The protestor mob bounced you back — figure out a way around them!"
-          : "💥 OUCH! Bumped into a protestor's sign and got knocked back!",
-      };
-    }
-  }
+  // Peaceful neighborhood marchers/protestors NEVER hurt Liam or knock him back!
+  // They simply block the sidewalk until you share a snack with them (or walk around).
 
   for (const sp of streetLife.spookyChars || []) {
     if ((sp.defeatedTimer || 0) > 0 || sp.spookTimer > 0) continue;
@@ -997,32 +1008,22 @@ export function updateStreetLife(
       continue;
     }
 
-    // If Liam is pushing right up against a solo protestor, get extra loud — and auto-yield after 1.35s so never frustrating!
-    // Mob protestors NEVER auto-yield: Liam has to figure out a way around their blockade!
+    // Peaceful marchers simply hold their signs and gently hint for a snack when Liam walks right up!
     if (dist < 19) {
       pr.pushTimer += dt;
       if (pr.bubbleTimer <= 0.1) {
-        pr.bubbleSprite = pr.isMob ? "bubble_mob_block" : `bubble_protest_${pr.chantIndex}`;
+        pr.bubbleSprite = "bubble_want_snack";
         pr.bubbleTimer = 2.4;
       }
       if (pr.shoutSoundCooldown <= 0) {
-        pr.shoutSoundCooldown = 2.6;
+        pr.shoutSoundCooldown = 3.0;
         onProtestorShout?.(pr);
-      }
-      if (!pr.isMob && pr.pushTimer >= 1.35) {
-        pr.yieldTimer = 5.0;
-        pr.pushTimer = 0;
-        pr.bubbleSprite = "bubble_watch_sign";
-        pr.bubbleTimer = 2.2;
-        pr.yieldOffsetX = pr.axis === "v" ? (pr.x >= px ? 10 : -10) : 0;
-        pr.yieldOffsetY = pr.axis === "h" ? (pr.y >= py ? 10 : -10) : 0;
-        continue;
       }
     } else {
       pr.pushTimer = Math.max(0, pr.pushTimer - dt * 2);
     }
 
-    // Periodic shouting when Liam is within earshot (~5 tiles = 80px)
+    // Periodic friendly chanting when Liam is within earshot (~5 tiles = 80px)
     if (dist < 84) {
       pr.shoutTimer -= dt;
       if (pr.shoutTimer <= 0) {
@@ -1038,57 +1039,30 @@ export function updateStreetLife(
       }
     }
 
-    // Annoying sidewalk pacing & stepping in front of Liam!
-    // Mob protestors stay tightly clustered on their picket blockade while solo protestors intercept & patrol!
-    const paceSpeed = pr.isMob ? 9 : 16;
-    if (!pr.isMob && dist < 44 && dist > 16) {
-      // Try to intercept Liam along the sidewalk axis!
-      if (pr.axis === "h") {
-        const wantX = Math.max(pr.minPx, Math.min(pr.maxPx, px));
-        const dx = wantX - pr.x;
-        if (Math.abs(dx) > 2) {
-          const step = Math.sign(dx) * Math.min(Math.abs(dx), 24 * dt);
-          pr.x += step;
-          pr.facing = step >= 0 ? "right" : "left";
-        } else {
-          pr.facing = px >= pr.x ? "right" : "left";
-        }
-        pr.y += (pr.anchorY - pr.y) * Math.min(1, dt * 6);
-      } else {
-        const wantY = Math.max(pr.minPx, Math.min(pr.maxPx, py));
-        const dy = wantY - pr.y;
-        if (Math.abs(dy) > 2) {
-          const step = Math.sign(dy) * Math.min(Math.abs(dy), 24 * dt);
-          pr.y += step;
-        }
-        pr.x += (pr.anchorX - pr.x) * Math.min(1, dt * 6);
-        pr.facing = px >= pr.x ? "right" : "left";
+    // Peaceful back-and-forth sidewalk marching patrol (no aggressive intercepting!)
+    const paceSpeed = pr.isMob ? 8 : 14;
+    if (pr.axis === "h") {
+      pr.x += pr.dir * paceSpeed * dt;
+      pr.y += (pr.anchorY - pr.y) * Math.min(1, dt * 4);
+      if (pr.x >= pr.maxPx) {
+        pr.x = pr.maxPx;
+        pr.dir = -1;
+      } else if (pr.x <= pr.minPx) {
+        pr.x = pr.minPx;
+        pr.dir = 1;
       }
+      pr.facing = pr.dir >= 0 ? "right" : "left";
     } else {
-      // Standard back-and-forth picket patrol along the sidewalk!
-      if (pr.axis === "h") {
-        pr.x += pr.dir * paceSpeed * dt;
-        pr.y += (pr.anchorY - pr.y) * Math.min(1, dt * 4);
-        if (pr.x >= pr.maxPx) {
-          pr.x = pr.maxPx;
-          pr.dir = -1;
-        } else if (pr.x <= pr.minPx) {
-          pr.x = pr.minPx;
-          pr.dir = 1;
-        }
-        pr.facing = pr.dir >= 0 ? "right" : "left";
-      } else {
-        pr.y += pr.dir * paceSpeed * dt;
-        pr.x += (pr.anchorX - pr.x) * Math.min(1, dt * 4);
-        if (pr.y >= pr.maxPx) {
-          pr.y = pr.maxPx;
-          pr.dir = -1;
-        } else if (pr.y <= pr.minPx) {
-          pr.y = pr.minPx;
-          pr.dir = 1;
-        }
-        pr.facing = pr.dir >= 0 ? "right" : "left";
+      pr.y += pr.dir * paceSpeed * dt;
+      pr.x += (pr.anchorX - pr.x) * Math.min(1, dt * 4);
+      if (pr.y >= pr.maxPx) {
+        pr.y = pr.maxPx;
+        pr.dir = -1;
+      } else if (pr.y <= pr.minPx) {
+        pr.y = pr.minPx;
+        pr.dir = 1;
       }
+      pr.facing = pr.dir >= 0 ? "right" : "left";
     }
   }
 
@@ -1278,26 +1252,7 @@ export function performSiddurDispel(
     }
   }
 
-  for (const pr of streetLife.protestors || []) {
-    if (pr.yieldTimer > 0) continue;
-    if (Math.hypot(pr.x - px, pr.y - py) <= radiusPx) {
-      pr.yieldTimer = 14;
-      pr.pushTimer = 0;
-      pr.bubbleSprite = "bubble_watch_sign";
-      pr.bubbleTimer = 2.0;
-      const dx = pr.x - px;
-      const dy = pr.y - py;
-      if (pr.axis === "h") {
-        pr.yieldOffsetY = dy >= 0 ? 14 : -14;
-        pr.yieldOffsetX = 0;
-      } else {
-        pr.yieldOffsetX = dx >= 0 ? 14 : -14;
-        pr.yieldOffsetY = 0;
-      }
-      dispelledProtestors++;
-      positions.push({ x: pr.x, y: pr.y });
-    }
-  }
+  // Peaceful neighborhood marchers/protestors are friendly neighbors (not foes to dispel — share a snack with them instead!)
 
   for (const tk of streetLife.turkeys || []) {
     if (tk.fleeTimer > 0) continue;
@@ -1316,16 +1271,16 @@ export function performSiddurDispel(
     }
   }
 
-  const dispelledCount = dispelledSpooky + dispelledProtestors + dispelledTurkeys;
+  const dispelledCount = dispelledSpooky + dispelledTurkeys;
   return {
     dispelledCount,
     dispelledSpooky,
-    dispelledProtestors,
+    dispelledProtestors: 0,
     dispelledTurkeys,
     positions,
     toast:
       dispelledCount > 0
-        ? `📖 Shalom! Your Pocket Siddur dispelled ${dispelledCount} ${dispelledCount === 1 ? "bad guy" : "bad guys"} in a wave of light!`
+        ? `📖 Shalom! Your Pocket Siddur peacefully calmed ${dispelledCount} spooky ${dispelledCount === 1 ? "foe" : "foes"} in a wave of light!`
         : "📖 Shalom! A warm golden blessing shimmered around you!",
   };
 }

@@ -2067,15 +2067,25 @@ export function bake32BitStreetLifeSprites(chants = []) {
     accent: "#cf2b26",
     textColor: "#4a1912",
   });
-  out.bubble_watch_sign = bakePixelSpeechBubble("HEY! WATCH THE SIGN!", {
-    bg: "#fff3cc",
+  out.bubble_watch_sign = bakePixelSpeechBubble("GOT ANY SNACKS?", {
+    bg: "#fff6db",
     accent: "#d97a26",
     textColor: "#291a18",
   });
-  out.bubble_mob_block = bakePixelSpeechBubble("NO PASSING! GO AROUND!", {
-    bg: "#ffe5e0",
-    accent: "#cf2b26",
-    textColor: "#3d1010",
+  out.bubble_mob_block = bakePixelSpeechBubble("HUNGRY MARCHERS!", {
+    bg: "#fff3d6",
+    accent: "#d97a26",
+    textColor: "#3b220c",
+  });
+  out.bubble_want_snack = bakePixelSpeechBubble("SNACK PLEASE?", {
+    bg: "#fff7db",
+    accent: "#e08b26",
+    textColor: "#3b220c",
+  });
+  out.bubble_snack_thanks = bakePixelSpeechBubble("YUM! THANKS!", {
+    bg: "#e8fff0",
+    accent: "#248c52",
+    textColor: "#143d25",
   });
   out.bubble_ouch = bakePixelSpeechBubble("OUCH!", {
     bg: "#ffe3e0",

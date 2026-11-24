@@ -12,8 +12,8 @@
     "npcName": "Mom",
     "healHearts": 5,
     "dialogue": [
-      "Welcome back, Explorer! Here's a hug and a snack to restore your hearts!",
-      "Check the bookshelf inside for secrets before heading out — and watch out for cars & bikes on the road!"
+      "Welcome back, Explorer! Here's a hug and fresh snacks for your pocket — all your hearts are restored!",
+      "Step through the front door into our house to check the kitchen snack jar, outfit closet, bookshelf secrets, and D&D basement!"
     ],
     "rewardItem": "folded_map"
   },
@@ -307,8 +307,8 @@
     "npcName": "Kiddush Host",
     "healHearts": 2,
     "dialogue": [
-      "Shabbat Shalom! Try Dad's Spicy Cholent (+2 hearts!) for explosive explorer energy!",
-      "Take this Pocket Siddur too — press K (or tap 📖 Siddur) to dispel spooky ghosts, protestors & bad guys!"
+      "Shabbat Shalom! Try Dad's Spicy Cholent (+2 hearts & snacks!) for explosive explorer energy!",
+      "Take this Pocket Siddur too — press K (or tap 📖 Siddur) to dispel spooky ghosts & graveyard monsters!"
     ],
     "rewardItem": "spicy_cholent",
     "bonusItem": "pocket_siddur"

@@ -70,7 +70,7 @@ test("buildStreetLife spawns roving wild turkeys & annoying sidewalk protestors 
   }
 });
 
-test("protestors shout and block sidewalks until Liam says Excuse me, and wild turkeys puff, gobble & flee when shooed", () => {
+test("protestors peacefully block sidewalks until Liam shares a snack, and wild turkeys puff, gobble & flee when shooed", () => {
   const worldMap = JSON.parse(
     fs.readFileSync(path.resolve(process.cwd(), "data", "world_map.json"), "utf8")
   );
@@ -91,19 +91,36 @@ test("protestors shout and block sidewalks until Liam says Excuse me, and wild t
     "overlapping protestor must not trap Liam"
   );
 
-  // 2. Approaching a protestor triggers shout SFX & speech bubble; interacting makes them step aside!
+  // 2. Approaching a protestor triggers shout SFX & speech bubble; without a snack they politely ask for one;
+  //    sharing a snack makes them cheer & step aside!
   let shouted = 0;
   pr.shoutTimer = 0.01;
   updateStreetLife(sl, 0.05, { x: pr.x - 24, y: pr.y }, worldMap, {
     onProtestorShout: () => shouted++,
   });
-  assert.ok(shouted >= 1 && pr.bubbleTimer > 0, "protestor should shout with a speech bubble when Liam approaches");
+  assert.ok(shouted >= 1 && pr.bubbleTimer > 0, "protestor should chant with a speech bubble when Liam approaches");
 
   const nearPr = findNearbyStreetLife(sl, pr.x - 14, pr.y, 26);
   assert.equal(nearPr?.kind, "protestor");
-  const prRes = interactWithStreetLife(sl, nearPr, pr.x - 14, pr.y);
+
+  // Without a snack -> polite hint, stays in place
+  const noSnackRes = interactWithStreetLife(sl, nearPr, pr.x - 14, pr.y, { hasSnack: false });
+  assert.equal(noSnackRes?.sharedSnack, false);
+  assert.equal(noSnackRes?.needsSnack, true);
+  assert.equal(pr.yieldTimer, 0, "marcher should still wait for a snack when player has none");
+
+  // Sharing a snack -> consumes 1 snack, cheers, and happily steps aside!
+  let snacksLeft = 2;
+  const prRes = interactWithStreetLife(sl, nearPr, pr.x - 14, pr.y, {
+    hasSnack: snacksLeft > 0,
+    consumeSnack: () => {
+      snacksLeft--;
+    },
+  });
   assert.equal(prRes?.kind, "protestor");
-  assert.ok(pr.yieldTimer > 0, "protestor should step aside after Excuse me interaction");
+  assert.equal(prRes?.sharedSnack, true);
+  assert.equal(snacksLeft, 1, "sharing a snack should consume 1 snack");
+  assert.ok(pr.yieldTimer > 0, "marcher should happily step aside after receiving a snack");
   assert.equal(
     isBlockedByStreetLife(sl, pr.x, pr.y, DEFAULT_HITBOX, pr.x - 24, pr.y),
     false,
@@ -124,7 +141,7 @@ test("protestors shout and block sidewalks until Liam says Excuse me, and wild t
   assert.ok(tk.fleeTimer > 0, "shooed turkey should bolt away");
 });
 
-test("touching turkeys or protestors knocks Liam backwards with SNES damage state, and protestor mobs form stubborn blockades to detour around", () => {
+test("touching turkeys knocks Liam backwards, while peaceful protestor groups NEVER hurt Liam and clear the sidewalk for a snack", () => {
   const worldMap = JSON.parse(
     fs.readFileSync(path.resolve(process.cwd(), "data", "world_map.json"), "utf8")
   );
@@ -133,12 +150,12 @@ test("touching turkeys or protestors knocks Liam backwards with SNES damage stat
   );
   const sl = buildStreetLife(worldMap, { spawnTile: worldMap.origin.spawnTile, landmarks });
 
-  // 1. Mobs of 3-5 protestors spawn across Newton
-  assert.ok(Array.isArray(sl.mobs) && sl.mobs.length >= 2, `expected >= 2 protestor mobs (got ${sl.mobs?.length})`);
+  // 1. Groups of 3-5 marchers spawn across Newton
+  assert.ok(Array.isArray(sl.mobs) && sl.mobs.length >= 2, `expected >= 2 marching groups (got ${sl.mobs?.length})`);
   const mobMembers = sl.protestors.filter((p) => p.isMob);
-  assert.ok(mobMembers.length >= 6, `expected >= 6 mob protestor members (got ${mobMembers.length})`);
+  assert.ok(mobMembers.length >= 6, `expected >= 6 group marcher members (got ${mobMembers.length})`);
   for (const mob of sl.mobs) {
-    assert.ok(mob.count >= 3 && mob.count <= 5, `mob ${mob.id} should have 3..5 protestors (got ${mob.count})`);
+    assert.ok(mob.count >= 3 && mob.count <= 5, `group ${mob.id} should have 3..5 marchers (got ${mob.count})`);
   }
 
   // 2. Touching a wild turkey triggers backward knockback + hurt/damage state + invulnerability window
@@ -165,7 +182,7 @@ test("touching turkeys or protestors knocks Liam backwards with SNES damage stat
   assert.equal(pTurkey.hearts, 2, "turkey hit must visibly reduce damage hearts");
   assert.equal(checkStreetLifeContact(sl, pTurkey), null, "hurtTimer invulnerability must prevent instant double-hit");
 
-  // 3. Touching a protestor mob knocks Liam backwards AND refuses to yield on Excuse me!
+  // 3. Touching a peaceful protestor group NEVER hurts Liam or knocks him back!
   const mobPr = mobMembers[0];
   const pMob = {
     x: mobPr.x,
@@ -175,22 +192,33 @@ test("touching turkeys or protestors knocks Liam backwards with SNES damage stat
     knockbackTimer: 0,
     knockbackVx: 0,
     knockbackVy: 0,
-    hearts: 3,
-    maxHearts: 3,
+    hearts: 5,
+    maxHearts: 5,
   };
   let mobBump = null;
   updateStreetLife(sl, 0.05, pMob, worldMap, {
     onPlayerBump: (b) => { mobBump = b; },
   });
-  assert.equal(mobBump?.kind, "protestor");
-  assert.equal(mobBump?.isMob, true, "mob contact must report isMob=true");
-  assert.ok(pMob.knockbackVy > 50, "touching a mob from the south must knock Liam backwards (south)");
-  assert.ok(pMob.hurtTimer > 0.5 && pMob.hearts === 2, "mob hit must show damage state");
+  assert.equal(mobBump, null, "peaceful protestors must NEVER hurt Liam or trigger damage knockback");
+  assert.equal(pMob.hearts, 5, "peaceful protestors must NEVER take away health hearts");
+  assert.equal(pMob.hurtTimer, 0, "peaceful protestors must NEVER trigger hurt state");
 
-  // Talking to a mob protestor does NOT clear their blockade (you have to go around!)
-  const mobInteract = interactWithStreetLife(sl, { kind: "protestor", target: mobPr }, pMob.x, pMob.y);
-  assert.equal(mobInteract?.blocked, true);
-  assert.equal(mobPr.yieldTimer, 0, "stubborn protestor mob must not step aside on Excuse me");
+  // Without a snack, the group politely asks for a snack and stays in place
+  const noSnackGroup = interactWithStreetLife(sl, { kind: "protestor", target: mobPr }, pMob.x, pMob.y, {
+    hasSnack: false,
+  });
+  assert.equal(noSnackGroup?.blocked, true);
+  assert.equal(noSnackGroup?.needsSnack, true);
+  assert.equal(mobPr.yieldTimer, 0);
+
+  // Sharing a snack clears the ENTIRE marching group happily!
+  const snackGroup = interactWithStreetLife(sl, { kind: "protestor", target: mobPr }, pMob.x, pMob.y, {
+    hasSnack: true,
+  });
+  assert.equal(snackGroup?.sharedSnack, true);
+  assert.equal(snackGroup?.blocked, false);
+  const peers = sl.protestors.filter((p) => p.mobId === mobPr.mobId);
+  assert.ok(peers.every((p) => p.yieldTimer > 15), "sharing a snack must clear every member of the marching group");
 });
 
 test("spooky graveyard characters spawn strictly inside graveyard areas, stay inside them, and take down health hearts on contact", () => {

@@ -142,6 +142,9 @@ export function createSafetySystem(worldMap) {
   }
 
   function getSpeedMultiplier(tileType, wantsFaster, safeCrossingActive = false) {
+    if (tileType === "water") {
+      return wantsFaster ? 1.08 : 0.72;
+    }
     if (!wantsFaster) return 1;
     if (
       tileType === "sidewalk" ||
@@ -212,11 +215,17 @@ export function createSafetySystem(worldMap) {
     const alreadyOnRoad = isBoxOnRoad(curX, curY, hitbox);
     let blockedByRoad = false;
     let blockedByMedian = false;
+    let blockedByWater = false;
 
     function isBoxBlocked(nextX, nextY, box = hitbox) {
       if (baseIsBoxBlocked(nextX, nextY, box)) {
         if (isBoxTouchingTileType(nextX, nextY, "highway_median", box)) {
           blockedByMedian = true;
+        } else if (
+          isBoxTouchingTileType(nextX, nextY, "water", box) &&
+          !isBoxTouchingTileType(nextX, nextY, "building_wall", box)
+        ) {
+          blockedByWater = true;
         }
         return true;
       }
@@ -231,6 +240,7 @@ export function createSafetySystem(worldMap) {
       isBoxBlocked,
       wasBlockedByRoad: () => blockedByRoad,
       wasBlockedByMedian: () => blockedByMedian,
+      wasBlockedByWater: () => blockedByWater,
       wasAlreadyOnRoad: () => alreadyOnRoad,
     };
   }
@@ -258,6 +268,7 @@ export function createSafetySystem(worldMap) {
     getTileType,
     isRoadTile,
     isBoxOnRoad,
+    isBoxTouchingTileType,
     createRoadAwareBlocker,
     updateCrossingProgress,
     getStreetZoneAt,

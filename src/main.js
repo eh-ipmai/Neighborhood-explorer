@@ -27,6 +27,7 @@ import {
   playLookBothWaysChime,
   playStepTick,
   playGrassRustle,
+  playWaterSplash,
   playCoinPickup,
   playBoostWhoosh,
   playItemFanfare,
@@ -47,7 +48,11 @@ import {
   playGameOverDirge,
   playAnnoyingBikerSfx,
   playEmtRadioBeepSfx,
+  playDoorChime,
+  playSecretRevealSfx,
+  playDiceRollSfx,
 } from "./audio.js";
+import { createHomeInteriorSystem } from "./house_interior.js";
 import {
   buildSnesSpriteAtlas,
   bakeSnesBuildingCanvas,
@@ -332,6 +337,17 @@ async function boot() {
     worldMap,
     storage: typeof localStorage !== "undefined" ? localStorage : null,
   });
+  const homeInterior = createHomeInteriorSystem(questSystem);
+  const homeBaseBuilding = buildings.find((b) => b.isHomeBase) || null;
+  const homeDoorTile = homeBaseBuilding?.bounds
+    ? {
+        x: Math.min(homeBaseBuilding.bounds.maxX, homeBaseBuilding.bounds.minX + 2),
+        y: homeBaseBuilding.bounds.maxY + 1,
+      }
+    : {
+        x: (worldMap.origin?.spawnTile?.x ?? Math.floor(mapW / 2)) + 2,
+        y: (worldMap.origin?.spawnTile?.y ?? Math.floor(mapH / 2)) - 1,
+      };
   const paperMap = createPaperMapRenderer(worldMap, normalizedColorMap);
   const graveyardFeatures = buildGraveyardFeatures(worldMap);
   const parkFeatures = buildParkFeatures(worldMap, graveyardFeatures.graveyardGrid);
@@ -521,6 +537,8 @@ async function boot() {
     lastGrassTileKey: "",
     lastFogTileKey: "",
     wasFasterActive: false,
+    isWading: false,
+    waterToastCooldown: 0,
     elapsedTime: 0,
     hurtTimer: 0,
     knockbackTimer: 0,
@@ -584,9 +602,28 @@ async function boot() {
   }
 
   function findCombinedInteraction(tx, ty) {
+    // Check Home Base front door welcome mat (565 Boylston St) so Liam can step right inside his house!
+    const doorDist = Math.hypot(tx - homeDoorTile.x, ty - homeDoorTile.y);
+    const doorNear =
+      doorDist <= 1.15
+        ? {
+            kind: "home_door",
+            target: {
+              id: "home_door",
+              name: "565 Boylston St (Your House)",
+              tx: homeDoorTile.x,
+              ty: homeDoorTile.y,
+            },
+            dist: doorDist,
+          }
+        : null;
+
     // Tight, precise interaction radii so NPCs & street signs never hijack crossing a nearby road!
     const questNear = questSystem.findNearbyInteraction(tx, ty, 1.45);
     const signNear = streetSignSystem.findNearbySign(tx, ty, 1.45);
+    if (doorNear && (!questNear || doorNear.dist < questNear.dist)) {
+      return doorNear;
+    }
     if (questNear && signNear) {
       // Favor whichever one Liam is standing closer to (slight edge to NPC/chest if tied)
       if (questNear.dist <= signNear.dist + 0.25) return questNear;
@@ -670,6 +707,9 @@ async function boot() {
   await k.registerSprites(atlas);
 
   function resetToHome() {
+    if (homeInterior.state.active) {
+      homeInterior.exitHouse();
+    }
     playerState.x = spawnTile.x * tileSize + tileSize / 2;
     playerState.y = spawnTile.y * tileSize + tileSize / 2;
     playerState.facing = questSystem.state.navMode === "hard" ? "up" : "down";
@@ -682,11 +722,15 @@ async function boot() {
     playerState.safeCrossingTimer = 0;
     playerState.hasEnteredRoadSinceLook = false;
     playerState.curbStopCueTimer = 0;
+    playerState.isWading = false;
   }
 
   function resetToSalzberg() {
     const salz = questSystem.npcs.find((n) => n.id === "salzberg_house");
     if (!salz) return;
+    if (homeInterior.state.active) {
+      homeInterior.exitHouse();
+    }
     if (roadHitCutscene || ui?.isGameOverOpen()) {
       ui?.closeGameOver();
       roadHitCutscene = null;
@@ -707,6 +751,7 @@ async function boot() {
     playerState.safeCrossingTimer = 0;
     playerState.hasEnteredRoadSinceLook = false;
     playerState.curbStopCueTimer = 0;
+    playerState.isWading = false;
     questSystem.revealFogAtTile(salz.walkTileX, salz.walkTileY, 2);
     refreshPocketDirections(salz.walkTileX, salz.walkTileY, "Salzberg House");
     playCoinPickup();
@@ -842,7 +887,7 @@ async function boot() {
   function triggerSwordSlash() {
     if (roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
     if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
-    if (!questSystem.state.inventory.has("graveyard_sword")) {
+    if (!questSystem.hasSword()) {
       ui?.showSafetyToast("⚔️ Visit the Salzberg Family Home (200 Cotton St) to get the Graveyard Sword!", 2400);
       return;
     }
@@ -884,7 +929,7 @@ async function boot() {
   function triggerSiddurDispel() {
     if (roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
     if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
-    if (!questSystem.state.inventory.has("pocket_siddur")) {
+    if (!questSystem.hasSiddur()) {
       ui?.showSafetyToast("📖 Visit Beth El, Shaarei Tefillah, Temple Emanuel, or Chabad for a Pocket Siddur!", 2600);
       return;
     }
@@ -1011,6 +1056,107 @@ async function boot() {
     ui?.showSafetyToast("🏠 Back at Home Base with all 5 hearts! Watch closely for cars & bikes!", 2600);
   }
 
+  function leaveHouseToOutdoor() {
+    const ret = homeInterior.exitHouse();
+    playerState.x = ret?.x ?? homeDoorTile.x * tileSize + tileSize / 2;
+    playerState.y = (ret?.y ?? homeDoorTile.y * tileSize + tileSize / 2) + 4;
+    playerState.facing = "down";
+    playerState.moving = false;
+    playerState.isWading = false;
+    playDoorChime();
+    ui?.showSafetyToast("🏡 Stepped back outside onto 565 Boylston St!", 2000);
+  }
+
+  function handleInteriorInteraction(propId) {
+    const outcome = homeInterior.interactWithInteriorProp(propId);
+    if (!outcome) return;
+    if (outcome.action === "exit_house") {
+      leaveHouseToOutdoor();
+      return;
+    }
+    if (outcome.action === "kitchen_snacks") {
+      healPlayerHearts(outcome.healHearts || 5, "Home Kitchen");
+      playCoinPickup();
+      ui?.showSafetyToast(outcome.toast, 2600);
+      return;
+    }
+    if (outcome.action === "toggle_outfit") {
+      toggleHeroOutfitMode();
+      return;
+    }
+    if (outcome.action === "secret_reveal") {
+      playSecretRevealSfx();
+      ui?.openDialogue({
+        speaker: outcome.speaker,
+        lines: outcome.lines,
+      });
+      return;
+    }
+    if (outcome.action === "room_change") {
+      playerState.x = outcome.x;
+      playerState.y = outcome.y;
+      playerState.facing = outcome.facing;
+      playerState.moving = false;
+      playDoorChime();
+      if (outcome.toast) ui?.showSafetyToast(outcome.toast, 2400);
+      return;
+    }
+    if (outcome.action === "fanfare") {
+      playSecretRevealSfx();
+      ui?.openDialogue({
+        speaker: outcome.speaker,
+        lines: outcome.lines,
+        onComplete: () => {
+          enqueueFanfare([{ itemId: outcome.itemId, sourceLabel: outcome.sourceLabel }]);
+        },
+      });
+      return;
+    }
+    if (outcome.action === "d20_roll") {
+      playDiceRollSfx(outcome.roll === 20);
+      for (let i = 0; i < 12; i++) {
+        const ang = (i / 12) * Math.PI * 2;
+        leafParticles.push({
+          x: playerState.x,
+          y: playerState.y - 10,
+          vx: Math.cos(ang) * 32,
+          vy: Math.sin(ang) * 24 - 18,
+          life: 0.45,
+          shade: i % 2 === 0 ? [255, 226, 92] : [255, 250, 220],
+          w: 3,
+          h: 3,
+        });
+      }
+      ui?.showSafetyToast(outcome.toast, 2600);
+      return;
+    }
+    if (outcome.action === "puzzle_solved") {
+      playSecretRevealSfx();
+      ui?.showSafetyToast(outcome.toast, 2800);
+      return;
+    }
+    if (outcome.action === "switch_ok") {
+      playCoinPickup();
+      ui?.showSafetyToast(outcome.toast, 2200);
+      return;
+    }
+    if (outcome.action === "switch_reset") {
+      playCurbStopBoop();
+      ui?.showSafetyToast(outcome.toast, 2600);
+      return;
+    }
+    if (outcome.action === "dialogue") {
+      ui?.openDialogue({
+        speaker: outcome.speaker,
+        lines: outcome.lines,
+      });
+      return;
+    }
+    if (outcome.toast) {
+      ui?.showSafetyToast(outcome.toast, 2400);
+    }
+  }
+
   function triggerLookOrInteract() {
     if (ui?.isGameOverOpen()) {
       retryAfterGameOver();
@@ -1043,11 +1189,22 @@ async function boot() {
       return;
     }
 
+    // Inside Home Base (565 Boylston St): interact with kitchen snacks, closet, bookshelf, D&D basement & doors!
+    if (homeInterior.state.active) {
+      const nearProp = homeInterior.findNearbyInteriorProp(playerState.x, playerState.y);
+      if (nearProp?.target) {
+        handleInteriorInteraction(nearProp.target.id);
+      } else {
+        ui?.showSafetyToast("🏠 Walk up to the Kitchen, Closet, Bookshelf, Pool Table, or Door Mat!", 2000);
+      }
+      return;
+    }
+
     const tx = Math.floor(playerState.x / tileSize);
     const ty = Math.floor(playerState.y / tileSize);
 
     // Smart facing-aware disambiguation: Look Both Ways when facing an unchecked road,
-    // or interact cleanly with the highlighted NPC / Street Sign / Chest within tight reach!
+    // or interact cleanly with the highlighted NPC / Street Sign / Chest / Home Door within tight reach!
     const intent = getCurrentActionIntent(tx, ty);
     if (intent.mode === "look_both_ways") {
       performLookBothWays();
@@ -1056,26 +1213,64 @@ async function boot() {
 
     const nearby = intent.interaction;
     if (nearby) {
+      if (nearby.kind === "home_door") {
+        const entered = homeInterior.enterHouse(playerState.x, playerState.y);
+        playerState.x = entered.x;
+        playerState.y = entered.y;
+        playerState.facing = entered.facing;
+        playerState.moving = false;
+        playerState.isWading = false;
+        k.setCamRot(0);
+        playDoorChime();
+        ui?.showSafetyToast(
+          "🏠 Welcome inside 565 Boylston St! Try the Kitchen Snacks, Closet, Bookshelf & D&D Pool Table!",
+          3000
+        );
+        return;
+      }
       if (nearby.kind === "sign") {
         openStreetSign(nearby.target);
         return;
       }
-      if (nearby.kind === "spooky" && questSystem.state.inventory.has("graveyard_sword")) {
+      if (nearby.kind === "spooky" && questSystem.hasSword()) {
         triggerSwordSlash();
         return;
       }
       if (nearby.kind === "protestor" || nearby.kind === "turkey" || nearby.kind === "spooky") {
-        const res = interactWithStreetLife(streetLife, nearby, playerState.x, playerState.y);
+        const res = interactWithStreetLife(streetLife, nearby, playerState.x, playerState.y, {
+          hasSnack: questSystem.hasSnack(),
+          consumeSnack: () => questSystem.useSnack(),
+          isEasyMode: Boolean(questSystem.state.gpsAssist),
+        });
         if (res) {
           if (res.sound === "turkey") {
             playTurkeyGobble();
             spawnFeatherBurst(nearby.target.x, nearby.target.y);
+          } else if (res.sound === "snack_thanks") {
+            playHealHeartSfx();
+            if (res.xpReward) {
+              questSystem.state.safetyXP += res.xpReward;
+              questSystem.save();
+            }
+            for (let i = 0; i < 8; i++) {
+              const ang = (i / 8) * Math.PI * 2;
+              leafParticles.push({
+                x: nearby.target.x,
+                y: nearby.target.y - 10,
+                vx: Math.cos(ang) * 26,
+                vy: Math.sin(ang) * 18 - 20,
+                life: 0.45,
+                shade: i % 2 === 0 ? [255, 212, 92] : [116, 238, 162],
+                w: 3,
+                h: 3,
+              });
+            }
           } else if (res.sound === "protestor") {
             playProtestorShout();
           } else if (res.sound === "spooky") {
             playSpookyChime();
           }
-          ui?.showSafetyToast(res.toast, 2600);
+          ui?.showSafetyToast(res.toast, 2800);
         }
         return;
       }
@@ -1141,7 +1336,10 @@ async function boot() {
       playerState.headingDeg = 0;
       playerState.targetHeadingDeg = 0;
       k.setCamRot(0);
-      ui?.showSafetyToast("📡 GPS Assist ON — Live radar, street banner & arrow enabled", 2400);
+      ui?.showSafetyToast(
+        "📡 Easy / GPS Mode ON — All Outfits (O), Sword (J), Siddur (K), Water Wading & Top Speed unlocked!",
+        3000
+      );
     } else {
       playerState.headingDeg = 0;
       playerState.targetHeadingDeg = 0;
@@ -1169,7 +1367,7 @@ async function boot() {
       next === "link"
         ? "🗡️ Hyah! Liam put on his Legend of Zelda Link Tunic, Hylian Cap & Shield!"
         : next === "wetsuit"
-          ? "🤿 Splash! Liam put on his Summer Wetsuit & Snorkel!"
+          ? "🤿 Splash! Liam put on his Summer Wetsuit & Snorkel — ready to wade through water!"
           : next === "baseball"
             ? "⚾ Play Ball! Liam put on his Little League Uniform!"
             : "👕 Liam switched to his Polo, Kippah & Tzitzit!",
@@ -1396,6 +1594,27 @@ async function boot() {
     }
   }
 
+  function spawnWaterSplashBurst(wx, wy, count = 6, spread = 36) {
+    const splashShades = [
+      [230, 250, 255],
+      [154, 224, 248],
+      [96, 184, 224],
+      [255, 250, 232],
+    ];
+    for (let i = 0; i < count; i++) {
+      leafParticles.push({
+        x: wx + (Math.random() * 10 - 5),
+        y: wy + (Math.random() * 4 - 2),
+        vx: (Math.random() - 0.5) * spread,
+        vy: -14 - Math.random() * 18,
+        life: 0.28 + Math.random() * 0.2,
+        shade: splashShades[i % splashShades.length],
+        w: i % 2 === 0 ? 3 : 2,
+        h: 2,
+      });
+    }
+  }
+
   function spawnTallGrassRustle(wx, wy) {
     playGrassRustle();
     spawnAutumnLeafBurst(wx, wy, 5, 32);
@@ -1424,6 +1643,7 @@ async function boot() {
   k.setCamPos(cam.x, cam.y);
 
   let isFasterNow = false;
+  let isFastWadingNow = false;
   let lastHudTileKey = "";
   let cachedNearbyHouses = [];
   let cachedNearestBuilding = null;
@@ -1741,6 +1961,9 @@ async function boot() {
     if (playerState.curbStopToastCooldown > 0) {
       playerState.curbStopToastCooldown = Math.max(0, playerState.curbStopToastCooldown - dt);
     }
+    if (playerState.waterToastCooldown > 0) {
+      playerState.waterToastCooldown = Math.max(0, playerState.waterToastCooldown - dt);
+    }
     if (playerState.hurtTimer > 0) {
       playerState.hurtTimer = Math.max(0, playerState.hurtTimer - dt);
     }
@@ -1798,12 +2021,119 @@ async function boot() {
       }
     }
 
+    // --- Inside Home Base (565 Boylston St) Indoor Exploration Loop ---
+    if (homeInterior.state.active) {
+      const input = readInput();
+      const speedMult = input.wantsFaster ? 1.35 : 1.0;
+      const moved = moveWithCollision(
+        playerState,
+        input,
+        dt,
+        homeInterior.isInteriorBoxBlocked,
+        { speed: PLAYER_SPEED_PX * speedMult, tileSize }
+      );
+      playerState.x = moved.x;
+      playerState.y = moved.y;
+      playerState.facing = moved.facing;
+      playerState.moving = moved.moving;
+      playerState.isWading = false;
+      isFasterNow = false;
+      isFastWadingNow = false;
+      homeInterior.state.x = playerState.x;
+      homeInterior.state.y = playerState.y;
+
+      if (moved.moving) {
+        playerState.walkTimer += dt * 9;
+        playerState.stepSoundCooldown -= dt;
+        if (playerState.stepSoundCooldown <= 0) {
+          playStepTick(false, false);
+          playerState.stepSoundCooldown = 0.24;
+        }
+      } else {
+        playerState.walkTimer = 0;
+        playerState.stepSoundCooldown = 0;
+      }
+
+      const room = homeInterior.getRoom();
+      // Walking straight south off the front-door welcome mat smoothly exits back outside!
+      if (
+        room.id === "main_floor" &&
+        input.y > 0 &&
+        playerState.x >= 8.8 * tileSize &&
+        playerState.x <= 10.6 * tileSize &&
+        playerState.y >= 10.45 * tileSize
+      ) {
+        leaveHouseToOutdoor();
+        return;
+      }
+
+      const roomPxW = room.width * tileSize;
+      const roomPxH = room.height * tileSize;
+      const cx = roomPxW <= VIEW_W ? roomPxW / 2 : Math.max(VIEW_W / 2, Math.min(roomPxW - VIEW_W / 2, playerState.x));
+      const cy = roomPxH <= VIEW_H ? roomPxH / 2 : Math.max(VIEW_H / 2, Math.min(roomPxH - VIEW_H / 2, playerState.y));
+      cam = { x: Math.round(cx), y: Math.round(cy) };
+      k.setCamPos(cam.x, cam.y);
+      k.setCamRot(0);
+
+      const nearProp = homeInterior.findNearbyInteriorProp(playerState.x, playerState.y);
+      const gear = questSystem.getGear();
+      ui.updateHUD({
+        tileX: Math.floor(playerState.x / tileSize),
+        tileY: Math.floor(playerState.y / tileSize),
+        tileType: room.id === "dnd_basement" ? "dungeon" : "indoors",
+        streetZone: { name: room.name, type: room.tag },
+        originName: room.name,
+        nearestLandmark: null,
+        nearestBuilding: null,
+        nearbyInteraction: nearProp,
+        alternateInteraction: null,
+        facingUncheckedRoad: false,
+        questHint: questSystem.formatTargetHint(spawnTile.x, spawnTile.y),
+        pocketDirections,
+        signBanner: { title: `🏠 ${room.name}`, tag: room.tag, unknown: false },
+        navMode: questSystem.state.navMode,
+        gpsAssist: Boolean(questSystem.state.gpsAssist),
+        heroOutfit: questSystem.state.heroOutfit,
+        unlockedOutfitsCount: questSystem.getUnlockedOutfits().length,
+        checkedSignsCount: questSystem.state.checkedSigns.size,
+        checkedStreets: questSystem.state.checkedStreets,
+        gearLabel: gear.label,
+        debugEnabled: showDebug,
+        muted: isMuted(),
+        safetyXP: questSystem.state.safetyXP,
+        coins: questSystem.state.coins,
+        acorns: questSystem.state.acorns,
+        snacks: questSystem.state.snacks,
+        hasSnack: questSystem.hasSnack(),
+        hearts: playerState.hearts,
+        maxHearts: playerState.maxHearts,
+        hasSword: questSystem.hasSword(),
+        hasSiddur: questSystem.hasSiddur(),
+        isFasterActive: false,
+        isWading: false,
+        isFastWading: false,
+        safeCrossingActive: false,
+        needsLookAtCurb: false,
+      });
+      return;
+    }
+
     const curTx = Math.floor(playerState.x / tileSize);
     const curTy = Math.floor(playerState.y / tileSize);
     const curTileType = safety.getTileType(curTx, curTy);
+    const alreadyInWater = safety.isBoxTouchingTileType(
+      playerState.x,
+      playerState.y,
+      "water",
+      DEFAULT_HITBOX
+    );
+    const canWadeWater = questSystem.canWadeWater() || alreadyInWater;
+    const baseMapBlocker = (nx, ny, hb) =>
+      collider.isBoxBlocked(nx, ny, hb, { canWadeWater });
     const gear = questSystem.getGear();
 
     isFasterNow = false;
+    isFastWadingNow = false;
 
     if (playerState.knockbackTimer > 0) {
       // Classic 16-bit SNES RPG backward knockback slide (collision-safe & road-curb-safe!)
@@ -1815,7 +2145,7 @@ async function boot() {
         y: playerState.knockbackVy,
       };
       const kbRoadBlocker = safety.createRoadAwareBlocker(
-        collider.isBoxBlocked,
+        baseMapBlocker,
         playerState.x,
         playerState.y,
         playerState.safeCrossingTimer > 0,
@@ -1827,7 +2157,7 @@ async function boot() {
       });
       // If pinned against a curb, slide cleanly using solid-wall-only check so knockback never stalls completely
       if (Math.hypot(kbMoved.x - playerState.x, kbMoved.y - playerState.y) < 0.05) {
-        kbMoved = moveWithCollision(playerState, kbInput, dt, collider.isBoxBlocked, {
+        kbMoved = moveWithCollision(playerState, kbInput, dt, baseMapBlocker, {
           speed: kbSpeed * 0.7,
           tileSize,
         });
@@ -1851,12 +2181,17 @@ async function boot() {
     } else {
       const input = readInput();
       const hardMode = questSystem.state.navMode === "hard";
+      const inWater = curTileType === "water";
       const baseSafetyMult = safety.getSpeedMultiplier(
         curTileType,
         input.wantsFaster,
         playerState.safeCrossingTimer > 0
       );
-      const effectiveMult = baseSafetyMult > 1 ? Math.max(baseSafetyMult, gear.mult) : 1;
+      const effectiveMult = inWater
+        ? baseSafetyMult
+        : baseSafetyMult > 1
+          ? Math.max(baseSafetyMult, gear.mult)
+          : 1;
 
       // Hard Mode (Heading-Up): Left/Right snaps in crisp 45° compass increments (N, NE, E, SE, S, SW, W, NW)
       // with a quick smooth ease-out turn animation; Up walks straight ahead along the locked compass heading!
@@ -1903,7 +2238,9 @@ async function boot() {
         }
       }
 
-      isFasterNow = effectiveMult > 1 && (moveInput.x !== 0 || moveInput.y !== 0);
+      const hasMoveInput = moveInput.x !== 0 || moveInput.y !== 0;
+      isFasterNow = !inWater && effectiveMult > 1 && hasMoveInput;
+      isFastWadingNow = inWater && input.wantsFaster && hasMoveInput;
 
       if (isFasterNow && !playerState.wasFasterActive) {
         playBoostWhoosh();
@@ -1911,7 +2248,7 @@ async function boot() {
       playerState.wasFasterActive = isFasterNow;
 
       const roadBlocker = safety.createRoadAwareBlocker(
-        collider.isBoxBlocked,
+        baseMapBlocker,
         playerState.x,
         playerState.y,
         playerState.safeCrossingTimer > 0,
@@ -1967,22 +2304,55 @@ async function boot() {
           ui.showSafetyToast("🚧 Highway median barrier! Walk to a crosswalk to cross!", 2400);
           playerState.curbStopToastCooldown = 1.6;
         }
+      } else if (!canWadeWater && roadBlocker.wasBlockedByWater() && !moved.slidCorner) {
+        if (playerState.curbStopToastCooldown <= 0) {
+          playCurbStopBoop();
+          ui.showSafetyToast(
+            "🏊 Water's too deep! Unlock the Summer Wetsuit & Snorkel outfit to wade through water!",
+            2600
+          );
+          playerState.curbStopToastCooldown = 1.6;
+        }
       }
 
+      const nowTx = Math.floor(playerState.x / tileSize);
+      const nowTy = Math.floor(playerState.y / tileSize);
+      const nowWading = safety.getTileType(nowTx, nowTy) === "water";
+      if (nowWading && !playerState.isWading) {
+        playWaterSplash(true);
+        spawnWaterSplashBurst(playerState.x, playerState.y + 1, 9, 44);
+        if (playerState.waterToastCooldown <= 0) {
+          ui.showSafetyToast("🤿 Splash! Wading through the water in your swim outfit!", 2200);
+          playerState.waterToastCooldown = 8;
+        }
+      }
+      playerState.isWading = nowWading;
+
       if (moved.moving) {
-        playerState.walkTimer += dt * (isFasterNow ? 14 : 9);
+        playerState.walkTimer += dt * (isFasterNow ? 14 : nowWading ? (isFastWadingNow ? 10 : 6.5) : 9);
         playerState.stepSoundCooldown -= dt;
         if (playerState.stepSoundCooldown <= 0) {
-          const onSoftGround =
-            curTileType === "grass" ||
-            curTileType === "tall_grass" ||
-            curTileType === "park" ||
-            curTileType === "dirt" ||
-            curTileType === "sand";
-          playStepTick(onSoftGround, isFasterNow);
-          playerState.stepSoundCooldown = isFasterNow ? 0.15 : 0.24;
+          if (nowWading) {
+            playWaterSplash(isFastWadingNow);
+            spawnWaterSplashBurst(
+              playerState.x,
+              playerState.y + 2,
+              isFastWadingNow ? 4 : 2,
+              isFastWadingNow ? 36 : 22
+            );
+            playerState.stepSoundCooldown = isFastWadingNow ? 0.22 : 0.34;
+          } else {
+            const onSoftGround =
+              curTileType === "grass" ||
+              curTileType === "tall_grass" ||
+              curTileType === "park" ||
+              curTileType === "dirt" ||
+              curTileType === "sand";
+            playStepTick(onSoftGround, isFasterNow);
+            playerState.stepSoundCooldown = isFasterNow ? 0.15 : 0.24;
+          }
         }
-        if (isFasterNow) {
+        if (isFasterNow && !nowWading) {
           dustCooldown -= dt;
           if (dustCooldown <= 0) {
             const dustTint =
@@ -2235,11 +2605,15 @@ async function boot() {
       safetyXP: questSystem.state.safetyXP,
       coins: questSystem.state.coins,
       acorns: questSystem.state.acorns,
+      snacks: questSystem.state.snacks,
+      hasSnack: questSystem.hasSnack(),
       hearts: playerState.hearts,
       maxHearts: playerState.maxHearts,
-      hasSword: questSystem.state.inventory.has("graveyard_sword"),
-      hasSiddur: questSystem.state.inventory.has("pocket_siddur"),
+      hasSword: questSystem.hasSword(),
+      hasSiddur: questSystem.hasSiddur(),
       isFasterActive: isFasterNow,
+      isWading: playerState.isWading,
+      isFastWading: isFastWadingNow,
       safeCrossingActive: playerState.safeCrossingTimer > 0,
       needsLookAtCurb: playerState.curbStopCueTimer > 0 || actionIntent.facingUncheckedRoad || nearUncheckedRoad,
     });
@@ -2596,12 +2970,15 @@ async function boot() {
       });
     }
 
-    const rawOutfit = questSystem.state.heroOutfit;
+    const heroTx = Math.floor(playerState.x / tileSize);
+    const heroTy = Math.floor(playerState.y / tileSize);
+    const isWading = playerState.isWading || safety.getTileType(heroTx, heroTy) === "water";
+    const rawOutfit = isWading ? "wetsuit" : questSystem.state.heroOutfit;
     const outfit = atlas[`hero_${rawOutfit}_down_0`] ? rawOutfit : "polo";
     let sprName;
     if (activeFanfare) {
       sprName = `hero_${outfit}_fanfare`;
-    } else if (isFasterNow) {
+    } else if (isFasterNow && !isWading) {
       sprName = `hero_${outfit}_scooter_${playerState.facing}`;
     } else if (!playerState.moving) {
       sprName = `hero_${outfit}_${playerState.facing}_0`;
@@ -2620,8 +2997,69 @@ async function boot() {
     const hurtBlinkHide = isHurt && !isKnockback && Math.floor(playerState.elapsedTime * 18) % 2 === 0;
 
     const heroAngle = questSystem.state.navMode === "hard" ? playerState.headingDeg : 0;
+    const wadeBob = isWading ? Math.round(Math.sin(playerState.elapsedTime * (playerState.moving ? 8 : 3.5)) * 0.8) : 0;
+    const wadeSink = isWading ? 3 + wadeBob : 0;
+
+    if (isWading) {
+      // Expanding shimmering water-ripple wake behind Liam as he wades through lakes & ponds!
+      const ripplePulse = (playerState.elapsedTime * (playerState.moving ? 2.4 : 1.1)) % 1;
+      const outerW = Math.round(16 + ripplePulse * 10);
+      const outerH = Math.round(6 + ripplePulse * 4);
+      k.drawRect({
+        pos: k.vec2(pxPos - Math.floor(outerW / 2), pyPos - Math.floor(outerH / 2) + 2),
+        width: outerW,
+        height: outerH,
+        fill: false,
+        outline: {
+          width: 1,
+          color: k.rgb(218, 246, 255),
+          opacity: Math.max(0.12, (1 - ripplePulse) * 0.72),
+        },
+      });
+      const innerW = 14 + (Math.floor(playerState.elapsedTime * 4) % 2) * 2;
+      k.drawRect({
+        pos: k.vec2(pxPos - Math.floor(innerW / 2), pyPos - 1),
+        width: innerW,
+        height: 6,
+        color: k.rgb(122, 200, 232),
+        opacity: 0.36,
+      });
+    }
+
     if (!hurtBlinkHide) {
-      k.drawSprite(sprName, pxPos - 12, pyPos - 23 - hopOffset, 1, heroAngle, pxPos, pyPos);
+      k.drawSprite(sprName, pxPos - 12, pyPos - 23 - hopOffset + wadeSink, 1, heroAngle, pxPos, pyPos);
+    }
+
+    if (isWading && heroAngle === 0 && !hurtBlinkHide) {
+      // Crisp 16-bit water-surface submersion band + sparkling waterline foam across Liam's lower legs!
+      const isShoreTile =
+        tileAt(heroTx, heroTy - 1) !== 6 ||
+        tileAt(heroTx, heroTy + 1) !== 6 ||
+        tileAt(heroTx - 1, heroTy) !== 6 ||
+        tileAt(heroTx + 1, heroTy) !== 6;
+      const waterCover = isShoreTile ? k.rgb(86, 149, 191) : k.rgb(44, 96, 140);
+      const foamShift = Math.floor(playerState.elapsedTime * 5) % 2;
+      k.drawRect({
+        pos: k.vec2(pxPos - 9, pyPos + 1),
+        width: 18,
+        height: 8,
+        color: waterCover,
+        opacity: 0.86,
+      });
+      k.drawRect({
+        pos: k.vec2(pxPos - 8 + foamShift, pyPos),
+        width: 6,
+        height: 1,
+        color: k.rgb(236, 250, 255),
+        opacity: 0.85,
+      });
+      k.drawRect({
+        pos: k.vec2(pxPos + 1 - foamShift, pyPos + 1),
+        width: 7,
+        height: 1,
+        color: k.rgb(214, 242, 255),
+        opacity: 0.8,
+      });
     }
 
     // Gleaming 16-Bit Graveyard Explorer Sword Slash Arc!
@@ -3021,6 +3459,33 @@ async function boot() {
   }
 
   k.onDraw(() => {
+    if (homeInterior.state.active) {
+      homeInterior.drawInteriorRoom(k, playerState.elapsedTime);
+      const nearProp = homeInterior.findNearbyInteriorProp(playerState.x, playerState.y);
+      if (nearProp?.target) {
+        const pulse = 0.55 + Math.sin(playerState.elapsedTime * 8) * 0.25;
+        k.drawRect({
+          pos: k.vec2(Math.round(nearProp.target.x - 10), Math.round(nearProp.target.y - 5)),
+          width: 20,
+          height: 10,
+          color: k.rgb(244, 211, 94),
+          opacity: pulse * 0.35,
+          outline: { width: 1, color: k.rgb(255, 240, 140), opacity: pulse },
+        });
+      }
+      drawHero();
+      for (const p of leafParticles) {
+        k.drawRect({
+          pos: k.vec2(p.x, p.y),
+          width: p.w || 2,
+          height: p.h || 2,
+          color: k.rgb(...p.shade),
+          opacity: Math.min(1, p.life * 2.5),
+        });
+      }
+      return;
+    }
+
     const animFrame = Math.floor(playerState.elapsedTime * 2) % 2;
 
     const isHardDraw = questSystem.state.navMode === "hard";
@@ -3642,6 +4107,34 @@ async function boot() {
       }
     }
 
+    // Glowing welcome mat right at the front porch of Home Base (565 Boylston St) so kids know they can go inside!
+    if (
+      homeDoorTile.x >= startX - 2 &&
+      homeDoorTile.x <= endX + 2 &&
+      homeDoorTile.y >= startY - 2 &&
+      homeDoorTile.y <= endY + 2
+    ) {
+      const dx = homeDoorTile.x * tileSize;
+      const dy = homeDoorTile.y * tileSize;
+      const isDoorActive = activeTargetInteract?.kind === "home_door";
+      const pulse = 0.55 + Math.sin(tSec * 7) * 0.25;
+      k.drawRect({
+        pos: k.vec2(dx + 1, dy + 2),
+        width: 14,
+        height: 9,
+        color: k.rgb(156, 86, 36),
+      });
+      k.drawRect({
+        pos: k.vec2(dx + 2, dy + 3),
+        width: 12,
+        height: 7,
+        color: isDoorActive ? k.rgb(255, 224, 108) : k.rgb(228, 174, 86),
+        outline: isDoorActive
+          ? { width: 1, color: k.rgb(255, 248, 180), opacity: pulse }
+          : null,
+      });
+    }
+
     // Phase 3: Landmark NPCs with idle bounce + floating '!' quest objective bubble
     const activeTarget = questSystem.getActiveObjectiveTarget();
     for (const npc of questSystem.npcs) {
@@ -3906,12 +4399,13 @@ async function boot() {
         for (let tx = startX; tx <= endX; tx++) {
           const idx = rowOffset + tx;
           if (collisionLayer[idx] === 1) {
+            const wadeable = questSystem.canWadeWater() && baseLayer[idx] === 6;
             k.drawRect({
               pos: k.vec2(tx * tileSize, ty * tileSize),
               width: tileSize,
               height: tileSize,
-              color: k.rgb(235, 64, 52),
-              opacity: 0.3,
+              color: wadeable ? k.rgb(76, 198, 240) : k.rgb(235, 64, 52),
+              opacity: wadeable ? 0.22 : 0.3,
             });
           }
           k.drawRect({
@@ -3940,6 +4434,7 @@ async function boot() {
     landmarks,
     quests,
     questSystem,
+    homeInterior,
     streetSignSystem,
     streetLife,
     roadTraffic,

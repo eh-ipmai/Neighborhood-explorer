@@ -2145,6 +2145,298 @@ export function normalizeCrosswalkBlobs(base, width, height) {
 }
 
 /**
+ * Enforce real-world pedestrian crosswalk geometry across the entire map:
+ *   1. Every crosswalk MUST span 100% curb-to-curb across a road along ONE axis
+ *      (N-S across an E-W road, or E-W across a N-S road) with walkable pedestrian
+ *      ground (sidewalk/park/dirt/sand/grass) directly at BOTH opposite ends.
+ *   2. Never leave floating or half-road crosswalk tiles in the middle of an
+ *      intersection or wide roadway without sidewalk landings on both sides.
+ *   3. On quiet residential streets, keep crosswalks only near intersections or
+ *      park/trail crossings — never random mid-block straightaways.
+ *   4. Stamp each valid crossing as a crisp 1-tile-wide (2-tile on highways)
+ *      straight zebra stripe, restoring any stray/mid-road tiles to clean asphalt.
+ */
+export function validateAndCleanCrosswalks(base, width, height) {
+  const isDrivable = (t) =>
+    t === TILE_IDS.RESIDENTIAL_ROAD ||
+    t === TILE_IDS.MAIN_ROAD ||
+    t === TILE_IDS.HIGHWAY;
+  const isRoadLike = (t) => isDrivable(t) || t === TILE_IDS.CROSSWALK;
+  const isPedestrianLanding = (t) =>
+    t === TILE_IDS.SIDEWALK ||
+    t === TILE_IDS.PARK ||
+    t === TILE_IDS.DIRT ||
+    t === TILE_IDS.SAND ||
+    t === TILE_IDS.GRASS ||
+    t === TILE_IDS.TALL_GRASS;
+  const isTrailOrPark = (t) =>
+    t === TILE_IDS.PARK ||
+    t === TILE_IDS.DIRT ||
+    t === TILE_IDS.SAND ||
+    t === TILE_IDS.TALL_GRASS;
+
+  const snap = base.slice();
+  const visited = new Uint8Array(width * height);
+  const keptCrossings = [];
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const startIdx = y * width + x;
+      if (snap[startIdx] !== TILE_IDS.CROSSWALK || visited[startIdx]) continue;
+
+      const comp = [startIdx];
+      visited[startIdx] = 1;
+      let hwNear = 0;
+      let mainNear = 0;
+      let resNear = 0;
+      let ewRoadContacts = 0;
+      let nsRoadContacts = 0;
+      let sumX = 0;
+      let sumY = 0;
+
+      for (let q = 0; q < comp.length; q++) {
+        const ci = comp[q];
+        const cx = ci % width;
+        const cy = (ci - cx) / width;
+        sumX += cx;
+        sumY += cy;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (!inBounds(nx, ny, width, height)) continue;
+          const ni = ny * width + nx;
+          const nt = snap[ni];
+          if (nt === TILE_IDS.CROSSWALK && !visited[ni]) {
+            visited[ni] = 1;
+            comp.push(ni);
+          } else if (isDrivable(nt)) {
+            if (nt === TILE_IDS.HIGHWAY) hwNear++;
+            else if (nt === TILE_IDS.MAIN_ROAD) mainNear++;
+            else resNear++;
+            if (dx !== 0) ewRoadContacts++;
+            else nsRoadContacts++;
+          }
+        }
+      }
+
+      const totalDrivable = hwNear + mainNear + resNear;
+      if (totalDrivable === 0) {
+        for (const ci of comp) base[ci] = TILE_IDS.SIDEWALK;
+        continue;
+      }
+
+      const roadTile =
+        hwNear >= 1
+          ? TILE_IDS.HIGHWAY
+          : mainNear >= 1
+            ? TILE_IDS.MAIN_ROAD
+            : TILE_IDS.RESIDENTIAL_ROAD;
+
+      // Clear raw cluster back to asphalt (or sidewalk if touching a building wall) before stamping verified stripes
+      const touchesBuildingWall8 = (tx, ty) => {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = tx + dx;
+            const ny = ty + dy;
+            if (inBounds(nx, ny, width, height) && base[ny * width + nx] === TILE_IDS.BUILDING_WALL) {
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+      for (const ci of comp) {
+        const cx = ci % width;
+        const cy = (ci - cx) / width;
+        base[ci] = touchesBuildingWall8(cx, cy) ? TILE_IDS.SIDEWALK : roadTile;
+      }
+
+      const midX = Math.floor(sumX / comp.length);
+      const midY = Math.floor(sumY / comp.length);
+
+      // Helper: test if column cx at seed row cy forms a clean curb-to-curb N-S crossing across an E-W road
+      const measureNSSpan = (cx, cy) => {
+        if (!inBounds(cx, cy, width, height) || !isRoadLike(base[cy * width + cx])) return null;
+        let top = cy;
+        let bot = cy;
+        while (top > 0 && isRoadLike(base[(top - 1) * width + cx])) top--;
+        while (bot < height - 1 && isRoadLike(base[(bot + 1) * width + cx])) bot++;
+        const span = bot - top + 1;
+        if (span < 1 || span > 7) return null;
+        if (top <= 0 || bot >= height - 1) return null;
+        const northEnd = base[(top - 1) * width + cx];
+        const southEnd = base[(bot + 1) * width + cx];
+        if (!isPedestrianLanding(northEnd) || !isPedestrianLanding(southEnd)) return null;
+        // Must actually cross an E-W carriageway (drivable road on W or E along the span)
+        let sideRoad = 0;
+        let bothSidesRoad = 0;
+        for (let py = top; py <= bot; py++) {
+          const wR = cx > 0 && isDrivable(base[py * width + (cx - 1)]);
+          const eR = cx < width - 1 && isDrivable(base[py * width + (cx + 1)]);
+          if (wR || eR) sideRoad++;
+          if (wR && eR) bothSidesRoad++;
+        }
+        if (sideRoad === 0) return null;
+        return { axis: "ns", x: cx, top, bot, span, score: bothSidesRoad * 2 + sideRoad - span * 0.2 };
+      };
+
+      // Helper: test if row cy at seed col cx forms a clean curb-to-curb E-W crossing across a N-S road
+      const measureEWSpan = (cx, cy) => {
+        if (!inBounds(cx, cy, width, height) || !isRoadLike(base[cy * width + cx])) return null;
+        let left = cx;
+        let right = cx;
+        while (left > 0 && isRoadLike(base[cy * width + (left - 1)])) left--;
+        while (right < width - 1 && isRoadLike(base[cy * width + (right + 1)])) right++;
+        const span = right - left + 1;
+        if (span < 1 || span > 7) return null;
+        if (left <= 0 || right >= width - 1) return null;
+        const westEnd = base[cy * width + (left - 1)];
+        const eastEnd = base[cy * width + (right + 1)];
+        if (!isPedestrianLanding(westEnd) || !isPedestrianLanding(eastEnd)) return null;
+        let sideRoad = 0;
+        let bothSidesRoad = 0;
+        for (let px = left; px <= right; px++) {
+          const nR = cy > 0 && isDrivable(base[(cy - 1) * width + px]);
+          const sR = cy < height - 1 && isDrivable(base[(cy + 1) * width + px]);
+          if (nR || sR) sideRoad++;
+          if (nR && sR) bothSidesRoad++;
+        }
+        if (sideRoad === 0) return null;
+        return { axis: "ew", y: cy, left, right, span, score: bothSidesRoad * 2 + sideRoad - span * 0.2 };
+      };
+
+      // Search exact center first, then +-1 tile nudge in case an OSM crossing node sat on an intersection edge
+      const preferNS = ewRoadContacts >= nsRoadContacts;
+      let best = null;
+      const tryCandidate = (cand, distPenalty) => {
+        if (!cand) return;
+        const adjScore = cand.score - distPenalty * 1.5;
+        if (!best || adjScore > best.adjScore) {
+          best = { ...cand, adjScore };
+        }
+      };
+
+      for (const offset of [0, -1, 1]) {
+        if (preferNS) {
+          tryCandidate(measureNSSpan(midX + offset, midY), Math.abs(offset));
+        } else {
+          tryCandidate(measureEWSpan(midX, midY + offset), Math.abs(offset));
+        }
+      }
+      if (!best) {
+        for (const offset of [0, -1, 1]) {
+          if (preferNS) {
+            tryCandidate(measureEWSpan(midX, midY + offset), Math.abs(offset) + 0.5);
+          } else {
+            tryCandidate(measureNSSpan(midX + offset, midY), Math.abs(offset) + 0.5);
+          }
+        }
+      }
+      if (!best) continue;
+
+      // On quiet residential roads, only keep crosswalks near an intersection or park/trail crossing!
+      if (roadTile === TILE_IDS.RESIDENTIAL_ROAD) {
+        let nearReason = false;
+        const cx = best.axis === "ns" ? best.x : Math.round((best.left + best.right) / 2);
+        const cy = best.axis === "ew" ? best.y : Math.round((best.top + best.bot) / 2);
+        for (let dy = -5; dy <= 5 && !nearReason; dy++) {
+          for (let dx = -5; dx <= 5 && !nearReason; dx++) {
+            const nx = cx + dx;
+            const ny = cy + dy;
+            if (!inBounds(nx, ny, width, height)) continue;
+            const nt = base[ny * width + nx];
+            if (isTrailOrPark(nt) && Math.abs(dx) <= 4 && Math.abs(dy) <= 4) {
+              nearReason = true;
+            } else if (nt === TILE_IDS.MAIN_ROAD || nt === TILE_IDS.HIGHWAY) {
+              nearReason = true;
+            } else if (best.axis === "ns" && (ny < best.top - 1 || ny > best.bot + 1) && isDrivable(nt)) {
+              // Perpendicular cross-street branches north/south nearby!
+              nearReason = true;
+            } else if (best.axis === "ew" && (nx < best.left - 1 || nx > best.right + 1) && isDrivable(nt)) {
+              // Perpendicular cross-street branches east/west nearby!
+              nearReason = true;
+            }
+          }
+        }
+        if (!nearReason) continue;
+      }
+
+      keptCrossings.push({ ...best, roadTile });
+    }
+  }
+
+  // Stamp verified curb-to-curb crosswalks (avoiding overlapping/merging perpendicular stripes!)
+  const hasAdjacentCrosswalk = (tx, ty) => {
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = tx + dx;
+      const ny = ty + dy;
+      if (inBounds(nx, ny, width, height) && base[ny * width + nx] === TILE_IDS.CROSSWALK) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  for (const cr of keptCrossings) {
+    if (cr.axis === "ns") {
+      // Ensure entire column still spans drivable road & doesn't merge into an existing crosswalk!
+      let clean = true;
+      for (let py = cr.top; py <= cr.bot; py++) {
+        if (!isDrivable(base[py * width + cr.x]) || hasAdjacentCrosswalk(cr.x, py)) {
+          clean = false;
+          break;
+        }
+      }
+      if (!clean) continue;
+      for (let py = cr.top; py <= cr.bot; py++) {
+        base[py * width + cr.x] = TILE_IDS.CROSSWALK;
+      }
+      // On multi-lane highways with span <= 5, widen to a crisp 2-tile zebra crossing (max 10 tiles < 12)
+      if (cr.roadTile === TILE_IDS.HIGHWAY && cr.span <= 5 && cr.x + 1 < width - 1) {
+        let adjOk =
+          isPedestrianLanding(base[(cr.top - 1) * width + (cr.x + 1)]) &&
+          isPedestrianLanding(base[(cr.bot + 1) * width + (cr.x + 1)]);
+        for (let py = cr.top; py <= cr.bot && adjOk; py++) {
+          if (!isDrivable(base[py * width + (cr.x + 1)])) adjOk = false;
+          if (cr.x + 2 < width && base[py * width + (cr.x + 2)] === TILE_IDS.CROSSWALK) adjOk = false;
+        }
+        if (adjOk) {
+          for (let py = cr.top; py <= cr.bot; py++) {
+            base[py * width + (cr.x + 1)] = TILE_IDS.CROSSWALK;
+          }
+        }
+      }
+    } else {
+      let clean = true;
+      for (let px = cr.left; px <= cr.right; px++) {
+        if (!isDrivable(base[cr.y * width + px]) || hasAdjacentCrosswalk(px, cr.y)) {
+          clean = false;
+          break;
+        }
+      }
+      if (!clean) continue;
+      for (let px = cr.left; px <= cr.right; px++) {
+        base[cr.y * width + px] = TILE_IDS.CROSSWALK;
+      }
+      if (cr.roadTile === TILE_IDS.HIGHWAY && cr.span <= 5 && cr.y + 1 < height - 1) {
+        let adjOk =
+          isPedestrianLanding(base[(cr.y + 1) * width + (cr.left - 1)]) &&
+          isPedestrianLanding(base[(cr.y + 1) * width + (cr.right + 1)]);
+        for (let px = cr.left; px <= cr.right && adjOk; px++) {
+          if (!isDrivable(base[(cr.y + 1) * width + px])) adjOk = false;
+          if (cr.y + 2 < height && base[(cr.y + 2) * width + px] === TILE_IDS.CROSSWALK) adjOk = false;
+        }
+        if (adjOk) {
+          for (let px = cr.left; px <= cr.right; px++) {
+            base[(cr.y + 1) * width + px] = TILE_IDS.CROSSWALK;
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
  * Authoritative road-first layout for Newton Centre proper (Centre St, Cypress St,
  * Beacon St, Langley Rd, Sumner St, Willow St, Crescent Ave, Union St, Braeland Ave,
  * Herrick Rd, Chase St, Paul St, Pelham St, Pleasant St, Lyman St, Centre Green,
@@ -3683,6 +3975,9 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     }
   }
 
+  // Enforce crisp curb-to-curb pedestrian crosswalks (zero floating mid-road crosswalks!)
+  validateAndCleanCrosswalks(base, width, height);
+
   // Place solid concrete Jersey median barriers down multi-lane divided highways
   applyHighwayMedianBarriers(base, width, height);
 
@@ -3896,6 +4191,9 @@ export function buildOfflineMap(config = {}) {
   // Add divided highway median barrier along Boylston St (open at crosswalks & intersections)
   enforceContinuousRoadSidewalks(base, width, height);
   const cleanOfflineBuildings = tightenBuildingBoundsToWalls(buildings, base, width, height);
+  // Enforce crisp curb-to-curb pedestrian crosswalks (zero floating mid-road crosswalks!)
+  validateAndCleanCrosswalks(base, width, height);
+
   applyHighwayMedianBarriers(base, width, height);
 
   const collision = base.map((t) =>
@@ -4649,6 +4947,9 @@ export function enrichWorldMap(worldMap) {
       }
     }
   }
+
+  // Enforce crisp curb-to-curb pedestrian crosswalks (zero floating mid-road crosswalks!)
+  validateAndCleanCrosswalks(base, width, height);
 
   applyHighwayMedianBarriers(base, width, height);
 

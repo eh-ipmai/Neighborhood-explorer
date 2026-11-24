@@ -49,16 +49,25 @@ export function createMapCollider(worldMap) {
   const { width, height } = worldMap.dimensions;
   const tileSize = worldMap.tileSize || TILE_SIZE;
   const collision = worldMap.layers.collision;
+  const base = worldMap.layers.base;
+  const legend = worldMap.legend || {};
+  const waterEntry = Object.entries(legend).find(([, name]) => name === "water");
+  const waterTileId = waterEntry ? Number(waterEntry[0]) : 6;
 
-  function isSolidTile(tx, ty) {
+  function isSolidTile(tx, ty, options = {}) {
     if (tx < 0 || ty < 0 || tx >= width || ty >= height) return true;
-    return collision[ty * width + tx] === 1;
+    const idx = ty * width + tx;
+    if (collision[idx] !== 1) return false;
+    if (options?.canWadeWater && base && base[idx] === waterTileId) {
+      return false;
+    }
+    return true;
   }
 
   /**
    * Check whether an axis-aligned box centered at (cx, cy) overlaps any solid tile.
    */
-  function isBoxBlocked(cx, cy, hitbox = DEFAULT_HITBOX) {
+  function isBoxBlocked(cx, cy, hitbox = DEFAULT_HITBOX, options = {}) {
     const halfW = hitbox.width / 2;
     const halfH = hitbox.height / 2;
     const left = Math.floor((cx - halfW) / tileSize);
@@ -68,7 +77,7 @@ export function createMapCollider(worldMap) {
 
     for (let ty = top; ty <= bottom; ty++) {
       for (let tx = left; tx <= right; tx++) {
-        if (isSolidTile(tx, ty)) return true;
+        if (isSolidTile(tx, ty, options)) return true;
       }
     }
     return false;

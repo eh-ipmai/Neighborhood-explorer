@@ -19,8 +19,15 @@ import {
 import { HERO_OUTFITS } from "../src/characters.js";
 import { computeRoadTileMarkings } from "../src/road_markings.js";
 import { createSafetySystem, resolveActionIntent } from "../src/safety.js";
+import {
+  TILE_SIZE,
+  DEFAULT_HITBOX,
+  createMapCollider,
+  moveWithCollision,
+} from "../src/player.js";
 import { createStreetSignSystem } from "../src/streetsigns.js";
 import {
+  playWaterSplash,
   playSwordSlashSfx,
   playSiddurDispelSfx,
   playHealHeartSfx,
@@ -29,7 +36,12 @@ import {
   playGameOverDirge,
   playAnnoyingBikerSfx,
   playEmtRadioBeepSfx,
+  playDoorChime,
+  playSecretRevealSfx,
+  playDiceRollSfx,
 } from "../src/audio.js";
+import { createHomeInteriorSystem } from "../src/house_interior.js";
+import { validateAndCleanCrosswalks, TILE_IDS } from "../scripts/build_map.mjs";
 
 function loadLiveData() {
   const worldMap = JSON.parse(
@@ -124,7 +136,7 @@ test("real 5-heart health decrements without auto-refill, and Sword & Siddur def
   assert.ok(swordRes.hitCount >= 1, "Sword attack must defeat nearby graveyard enemy");
   assert.ok(sp.defeatedTimer > 10, "Defeated graveyard enemy must stay vanished during defeatedTimer");
 
-  // 3. Siddur dispel banishes graveyard foes AND calms stubborn protestor mobs!
+  // 3. Siddur dispel banishes graveyard foes & ghosts (and does NOT treat peaceful protestors as bad guys!)
   const sp2 = sl.spookyChars[1];
   sp2.defeatedTimer = 0;
   const siddurGrave = performSiddurDispel(sl, { x: sp2.x + 12, y: sp2.y }, {
@@ -135,15 +147,14 @@ test("real 5-heart health decrements without auto-refill, and Sword & Siddur def
   assert.ok(siddurGrave.dispelledSpooky >= 1, "Siddur must dispel spooky graveyard foes");
 
   const mobMember = sl.protestors.find((pr) => pr.isMob);
-  assert.ok(mobMember, "world map should include a protestor mob");
+  assert.ok(mobMember, "world map should include a marching group");
   mobMember.yieldTimer = 0;
   const siddurMob = performSiddurDispel(sl, { x: mobMember.x + 10, y: mobMember.y }, {
     graveyardGhosts: gf.ghosts,
     elapsedTime: 1,
     tileSize: 16,
   });
-  assert.ok(siddurMob.dispelledProtestors >= 1, "Siddur must dispel stubborn protestors/mobs");
-  assert.ok(mobMember.yieldTimer >= 10, "Dispelled protestor mob member must step aside cleanly");
+  assert.equal(siddurMob.dispelledProtestors, 0, "Siddur must NOT treat peaceful protestors as enemies");
 });
 
 test("road traffic has heavy highway cars & trucks, lighter side-street traffic, annoying bikers & lethal collision", () => {
@@ -334,6 +345,8 @@ test("Game starts with Polo/Kippah/Tzitzit only, earns other outfits from quests
       "bubble_police_tape",
       "bubble_fire_clear",
       "bubble_biker_0",
+      "bubble_snack_thanks",
+      "bubble_want_snack",
     ]) {
       assert.ok(atlas[key], `sprite atlas must include "${key}"`);
     }
@@ -651,4 +664,322 @@ test("tight interaction radii, facing-aware road-crossing disambiguation, and fu
     ["polo", "baseball", "wetsuit", "link"],
     "completing all 5 quests in simulation must unlock all 4 hero outfits!"
   );
+});
+
+test("water areas are blocked until unlocking the swim outfit (wetsuit), then become wadeable while walls & bounds stay solid", () => {
+  const { worldMap, landmarks, quests } = loadLiveData();
+  const qs = createQuestSystem({ landmarks, quests, worldMap });
+  const collider = createMapCollider(worldMap);
+  const safety = createSafetySystem(worldMap);
+
+  // 1. Fresh game: swim outfit is locked -> cannot wade water yet
+  assert.equal(qs.canWadeWater(), false);
+
+  // Find a real shore tile adjacent to water on the live map (e.g. Crystal Lake / Bullough's Pond)
+  const { width, height } = worldMap.dimensions;
+  const base = worldMap.layers.base;
+  const collision = worldMap.layers.collision;
+  let shoreTile = null;
+  let waterTile = null;
+  for (let ty = 1; ty < height - 1 && !shoreTile; ty++) {
+    for (let tx = 1; tx < width - 1 && !shoreTile; tx++) {
+      const idx = ty * width + tx;
+      if (collision[idx] === 0 && !safety.isRoadTile(tx, ty)) {
+        if (base[ty * width + (tx + 1)] === 6 && collision[ty * width + (tx + 1)] === 1) {
+          shoreTile = { x: tx, y: ty };
+          waterTile = { x: tx + 1, y: ty };
+        }
+      }
+    }
+  }
+  assert.ok(shoreTile && waterTile, "live map must have a walkable shore tile directly adjacent to water");
+
+  // Position player right at the eastern edge of shoreTile, facing into waterTile
+  const startState = {
+    x: shoreTile.x * TILE_SIZE + 11, // hitbox right edge = shoreTile right edge
+    y: shoreTile.y * TILE_SIZE + 8,
+    facing: "right",
+  };
+
+  // Before unlocking swim outfit: moving into water MUST be blocked and report wasBlockedByWater()
+  const lockedBlocker = safety.createRoadAwareBlocker(
+    (nx, ny, hb) => collider.isBoxBlocked(nx, ny, hb, { canWadeWater: qs.canWadeWater() }),
+    startState.x,
+    startState.y,
+    false,
+    DEFAULT_HITBOX
+  );
+  const blockedMove = moveWithCollision(startState, { x: 1, y: 0 }, 0.15, lockedBlocker.isBoxBlocked);
+  assert.equal(blockedMove.x, startState.x, "must be blocked from wading into water before unlocking wetsuit");
+  assert.equal(lockedBlocker.wasBlockedByWater(), true, "must detect water blockade for friendly hint toast");
+
+  // 2. Complete Quest 1 (J.P. Licks -> Newton Free Library) to unlock the Summer Wetsuit & Snorkel!
+  qs.setActiveQuest("quest_01_first_steps");
+  qs.interactWithNpc("jp_licks");
+  const q1Done = qs.interactWithNpc("newton_free_library");
+  assert.equal(q1Done.questEvent?.unlockedOutfit, "wetsuit");
+  assert.equal(qs.canWadeWater(), true, "unlocking wetsuit must enable water wading");
+
+  // Moving into water now succeeds even before manually toggling outfit (and never traps if toggling outfits)
+  const unlockedBlocker = safety.createRoadAwareBlocker(
+    (nx, ny, hb) => collider.isBoxBlocked(nx, ny, hb, { canWadeWater: qs.canWadeWater() }),
+    startState.x,
+    startState.y,
+    false,
+    DEFAULT_HITBOX
+  );
+  const wadeMove = moveWithCollision(startState, { x: 1, y: 0 }, 0.2, unlockedBlocker.isBoxBlocked);
+  assert.ok(wadeMove.x > startState.x, "player must wade smoothly into water once swim outfit is unlocked");
+  assert.equal(unlockedBlocker.wasBlockedByWater(), false);
+  assert.equal(collider.isSolidTile(waterTile.x, waterTile.y, { canWadeWater: true }), false);
+
+  // 3. Buildings, highway medians, and out-of-bounds edges MUST remain solid even with swim outfit!
+  const buildingIdx = base.findIndex((t, i) => t === 5 && collision[i] === 1);
+  assert.ok(buildingIdx >= 0);
+  const bx = buildingIdx % width;
+  const by = Math.floor(buildingIdx / width);
+  assert.equal(
+    collider.isSolidTile(bx, by, { canWadeWater: true }),
+    true,
+    "building walls must stay solid with swim outfit"
+  );
+
+  const medianIdx = base.findIndex((t, i) => t === 13 && collision[i] === 1);
+  assert.ok(medianIdx >= 0);
+  const mx = medianIdx % width;
+  const my = Math.floor(medianIdx / width);
+  assert.equal(
+    collider.isSolidTile(mx, my, { canWadeWater: true }),
+    true,
+    "highway medians must stay solid with swim outfit"
+  );
+  assert.equal(
+    collider.isSolidTile(-1, waterTile.y, { canWadeWater: true }),
+    true,
+    "map boundaries must stay solid with swim outfit"
+  );
+
+  // 4. Water wading speed & headless splash audio safety
+  assert.ok(safety.getSpeedMultiplier("water", false) < 1, "normal wading should be slower than walking on land");
+  assert.ok(
+    safety.getSpeedMultiplier("water", true) > safety.getSpeedMultiplier("water", false),
+    "holding FASTER in water should swim faster than normal wading"
+  );
+  assert.ok(
+    safety.getSpeedMultiplier("water", true) < safety.getSpeedMultiplier("sidewalk", true),
+    "swimming fast should stay slower than scooting on dry sidewalks"
+  );
+  playWaterSplash(false);
+  playWaterSplash(true);
+});
+
+test("Easy / GPS mode grants all outfits and abilities from the start without polluting earned Signpost/Hard unlocks", () => {
+  const { worldMap, landmarks, quests } = loadLiveData();
+  const mem = new Map();
+  const storage = {
+    getItem: (k) => (mem.has(k) ? mem.get(k) : null),
+    setItem: (k, v) => mem.set(k, String(v)),
+    removeItem: (k) => mem.delete(k),
+  };
+
+  const qs = createQuestSystem({ landmarks, quests, worldMap, storage });
+
+  // 1. In default Signpost mode on a fresh save, only Polo is unlocked and abilities are locked
+  assert.equal(qs.state.navMode, "signs");
+  assert.deepEqual(qs.getUnlockedOutfits(), ["polo"]);
+  assert.equal(qs.canWadeWater(), false);
+  assert.equal(qs.hasSword(), false);
+  assert.equal(qs.hasSiddur(), false);
+  assert.equal(qs.getGear().id, "sneakers");
+
+  // 2. Switching to Easy / GPS mode immediately grants ALL 4 outfits & ALL abilities!
+  qs.setNavMode("gps");
+  assert.equal(qs.state.gpsAssist, true);
+  assert.deepEqual(qs.getUnlockedOutfits(), ["polo", "baseball", "wetsuit", "link"]);
+  assert.equal(qs.canWadeWater(), true, "Easy/GPS mode must allow water wading immediately");
+  assert.equal(qs.hasSword(), true, "Easy/GPS mode must grant Graveyard Sword immediately");
+  assert.equal(qs.hasSiddur(), true, "Easy/GPS mode must grant Pocket Siddur immediately");
+  assert.equal(qs.getGear().id, "mountain_bike", "Easy/GPS mode must grant top traversal speed gear");
+
+  // Player can freely cycle and persist any outfit while in Easy/GPS mode
+  assert.equal(qs.toggleHeroOutfit(), "baseball");
+  assert.equal(qs.toggleHeroOutfit(), "wetsuit");
+  assert.equal(qs.toggleHeroOutfit(), "link");
+  const reloadedGps = createQuestSystem({ landmarks, quests, worldMap, storage });
+  assert.equal(reloadedGps.state.navMode, "gps");
+  assert.equal(reloadedGps.state.heroOutfit, "link", "selected outfit must persist while in Easy/GPS mode");
+  assert.deepEqual(reloadedGps.getUnlockedOutfits(), ["polo", "baseball", "wetsuit", "link"]);
+  assert.equal(reloadedGps.canWadeWater(), true);
+  assert.equal(reloadedGps.hasSword(), true);
+  assert.equal(reloadedGps.hasSiddur(), true);
+
+  // 3. Switching back to Signpost or Hard mode cleanly restores earned-only unlocks & resets unearned outfit to polo
+  reloadedGps.setNavMode("signs");
+  assert.deepEqual(reloadedGps.getUnlockedOutfits(), ["polo"]);
+  assert.equal(reloadedGps.state.heroOutfit, "polo");
+  assert.equal(reloadedGps.canWadeWater(), false);
+  assert.equal(reloadedGps.hasSword(), false);
+  assert.equal(reloadedGps.hasSiddur(), false);
+  assert.equal(reloadedGps.getGear().id, "sneakers");
+});
+
+test("every crosswalk spans curb-to-curb between walkable pedestrian sides (zero floating mid-road crosswalks)", () => {
+  const { worldMap } = loadLiveData();
+  const { width, height } = worldMap.dimensions;
+  const base = worldMap.layers.base;
+  const isRoad = (t) => t === 2 || t === 3 || t === 12;
+  const isPed = (t) => t === 1 || t === 0 || t === 9 || t === 10 || t === 11 || t === 7;
+  const visited = new Uint8Array(width * height);
+  let clusters = 0;
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = y * width + x;
+      if (base[idx] !== 4 || visited[idx]) continue;
+      const q = [[x, y]];
+      visited[idx] = 1;
+      const cells = [];
+      while (q.length) {
+        const [cx, cy] = q.shift();
+        cells.push([cx, cy]);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+          const ni = ny * width + nx;
+          if (base[ni] === 4 && !visited[ni]) {
+            visited[ni] = 1;
+            q.push([nx, ny]);
+          }
+        }
+      }
+      clusters++;
+      let touchN = false;
+      let touchS = false;
+      let touchE = false;
+      let touchW = false;
+      let touchesRoad = false;
+      for (const [cx, cy] of cells) {
+        const tn = base[(cy - 1) * width + cx];
+        const ts = base[(cy + 1) * width + cx];
+        const tw = base[cy * width + (cx - 1)];
+        const te = base[cy * width + (cx + 1)];
+        if (isPed(tn)) touchN = true;
+        if (isPed(ts)) touchS = true;
+        if (isPed(tw)) touchW = true;
+        if (isPed(te)) touchE = true;
+        if (isRoad(tn) || isRoad(ts) || isRoad(tw) || isRoad(te)) touchesRoad = true;
+      }
+      assert.ok(touchesRoad, `crosswalk at (${x},${y}) must sit on a real road`);
+      assert.ok(
+        (touchN && touchS) || (touchE && touchW),
+        `crosswalk at (${x},${y}) must connect walkable pedestrian landings on BOTH opposite sides of the road`
+      );
+    }
+  }
+  assert.ok(clusters >= 50, `expected real pedestrian crosswalks across Newton (got ${clusters})`);
+
+  // Synthetic check: floating crosswalk in the dead middle of a wide intersection is removed cleanly!
+  const w = 13;
+  const h = 13;
+  const grid = new Array(w * h).fill(TILE_IDS.SIDEWALK);
+  for (let y = 4; y <= 8; y++) {
+    for (let x = 0; x < w; x++) grid[y * w + x] = TILE_IDS.MAIN_ROAD;
+  }
+  for (let x = 4; x <= 8; x++) {
+    for (let y = 0; y < h; y++) grid[y * w + x] = TILE_IDS.MAIN_ROAD;
+  }
+  // Rogue crosswalk floating in dead center of intersection (6,6)
+  grid[6 * w + 6] = TILE_IDS.CROSSWALK;
+  // Valid crosswalk spanning curb-to-curb on the west leg at x=2 (y=4..8)
+  for (let y = 4; y <= 8; y++) grid[y * w + 2] = TILE_IDS.CROSSWALK;
+
+  validateAndCleanCrosswalks(grid, w, h);
+  assert.equal(grid[6 * w + 6], TILE_IDS.MAIN_ROAD, "floating mid-intersection crosswalk must be removed");
+  for (let y = 4; y <= 8; y++) {
+    assert.equal(grid[y * w + 2], TILE_IDS.CROSSWALK, `valid curb-to-curb crosswalk tile (2,${y}) must be kept`);
+  }
+});
+
+test("Home Base interior lets Liam go inside 565 Boylston St, restock snacks, discover Secret Reading Nook & Golden D20, and solve D&D Basement for Bag of Holding", () => {
+  const { worldMap, landmarks, quests } = loadLiveData();
+  const qs = createQuestSystem({ landmarks, quests, worldMap });
+  const home = createHomeInteriorSystem(qs);
+
+  // 1. Enter Home Base (Main Floor)
+  assert.equal(home.state.active, false);
+  const entered = home.enterHouse(4440, 7064);
+  assert.equal(home.state.active, true);
+  assert.equal(home.getRoom().id, "main_floor");
+  assert.ok(!home.isInteriorBoxBlocked(entered.x, entered.y), "living room spawn must be walkable");
+  assert.equal(home.isInteriorBoxBlocked(4, 4), true, "outer interior walls must be solid");
+
+  // 2. Kitchen Snack Jar restocks snacks up to max (5 initially) & heals all 5 hearts!
+  qs.useSnack();
+  qs.useSnack();
+  assert.equal(qs.state.snacks, 1);
+  const kitchenRes = home.interactWithInteriorProp("kitchen_snacks");
+  assert.equal(kitchenRes.healHearts, 5);
+  assert.equal(qs.state.snacks, 5, "kitchen snack jar should refill snacks up to max 5");
+
+  // 3. Suspicious Bookshelf reveals Secret Upstairs Reading Nook -> Glowing Chest -> Golden D20!
+  const reveal = home.interactWithInteriorProp("bookshelf");
+  assert.equal(reveal.action, "secret_reveal");
+  assert.equal(home.state.bookshelfOpened, true);
+  const goUp = home.interactWithInteriorProp("bookshelf");
+  assert.equal(goUp.action, "room_change");
+  assert.equal(home.getRoom().id, "upstairs_nook");
+
+  const d20Chest = home.interactWithInteriorProp("golden_d20_chest");
+  assert.equal(d20Chest.action, "fanfare");
+  assert.equal(d20Chest.itemId, "golden_d20");
+  assert.ok(qs.state.inventory.has("golden_d20"), "Golden D20 must be added to inventory");
+
+  const coinsBeforeRoll = qs.state.coins;
+  const critRoll = home.interactWithInteriorProp("golden_d20_chest", { rng: () => 0.99 });
+  assert.equal(critRoll.action, "d20_roll");
+  assert.equal(critRoll.roll, 20);
+  assert.equal(qs.state.coins, coinsBeforeRoll + 20, "natural 20 roll must award 20 bonus coins");
+
+  // Go back downstairs
+  home.interactWithInteriorProp("nook_stairs_down");
+  assert.equal(home.getRoom().id, "main_floor");
+
+  // 4. D&D Basement Pool Table -> 3 Hero Statues + 3-Switch Puzzle -> Bag of Holding (max 12 snacks!)
+  const enterDnd = home.interactWithInteriorProp("pool_table_dnd");
+  assert.equal(enterDnd.action, "room_change");
+  assert.equal(home.getRoom().id, "dnd_basement");
+
+  assert.equal(home.interactWithInteriorProp("statue_bard").action, "dialogue");
+  assert.equal(home.interactWithInteriorProp("statue_wizard").action, "dialogue");
+  assert.equal(home.interactWithInteriorProp("statue_knight").action, "dialogue");
+
+  // Sealed before puzzle is solved
+  assert.equal(home.interactWithInteriorProp("bag_of_holding_chest").action, "dialogue");
+  // Wrong switch order resets cleanly
+  assert.equal(home.interactWithInteriorProp("switch_2").action, "switch_reset");
+  // Correct order: Emerald (0) -> Sapphire (1) -> Ruby (2)
+  assert.equal(home.interactWithInteriorProp("switch_0").action, "switch_ok");
+  assert.equal(home.interactWithInteriorProp("switch_1").action, "switch_ok");
+  assert.equal(home.interactWithInteriorProp("switch_2").action, "puzzle_solved");
+
+  const bagRes = home.interactWithInteriorProp("bag_of_holding_chest");
+  assert.equal(bagRes.action, "fanfare");
+  assert.equal(bagRes.itemId, "bag_of_holding");
+  assert.ok(qs.state.inventory.has("bag_of_holding"), "Bag of Holding must be added to inventory");
+  assert.equal(qs.getMaxSnacks(), 12, "Bag of Holding must expand max snack pocket to 12");
+  assert.equal(qs.state.snacks, 12);
+
+  // 5. Exit back to Living Room -> Front Door -> Outdoor return coordinates
+  home.interactWithInteriorProp("dnd_portal_exit");
+  assert.equal(home.getRoom().id, "main_floor");
+  const ret = home.exitHouse();
+  assert.equal(home.state.active, false);
+  assert.deepEqual(ret, { x: 4440, y: 7064 });
+
+  // Headless audio smoke checks
+  playDoorChime();
+  playSecretRevealSfx();
+  playDiceRollSfx(false);
+  playDiceRollSfx(true);
 });

@@ -46,8 +46,10 @@ export const ITEM_CATALOG = {
   graveyard_sword: { name: "Graveyard Explorer Sword", icon: "⚔️", sprite: "item_sword", desc: "Gleaming hero sword from the Salzberg family — press J to fight graveyard enemies!" },
   pocket_siddur: { name: "Pocket Siddur", icon: "📖", sprite: "item_siddur", desc: "Peaceful synagogue prayerbook — press K to dispel spooky foes & neighborhood bad guys!" },
   outfit_baseball: { name: "Little League Uniform", icon: "⚾", sprite: "item_glove", desc: "Quest-earned Team Giants baseball outfit — press O to wear it!" },
-  outfit_wetsuit: { name: "Summer Wetsuit & Snorkel", icon: "🤿", sprite: "item_stamp", desc: "Quest-earned wetsuit & snorkel outfit — press O to wear it!" },
+  outfit_wetsuit: { name: "Summer Wetsuit & Snorkel", icon: "🤿", sprite: "item_stamp", desc: "Quest-earned swim outfit — lets you wade through lakes & ponds! Press O to wear it anytime!" },
   outfit_link: { name: "Hero of Hyrule (Link) Outfit", icon: "🗡️", sprite: "item_sword", desc: "Quest-earned Legend of Zelda Link tunic, cap & shield — press O to wear it!" },
+  golden_d20: { name: "Golden D20", icon: "🎲", sprite: "item_badge", desc: "Found in Home Base's secret upstairs reading nook! Roll for lucky bonus coins!" },
+  bag_of_holding: { name: "Bag of Holding", icon: "🎒", sprite: "item_badge", desc: "Earned in the 8-bit D&D Basement! Expands your snack pocket up to 12 snacks!" },
 };
 
 const ALL_OUTFIT_ORDER = ["polo", "baseball", "wetsuit", "link"];
@@ -285,9 +287,11 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     safetyXP: 0,
     coins: 0,
     acorns: 0,
+    snacks: 3,
     discoveredLandmarks: new Set(["home_base"]),
     claimedLandmarkRewards: new Set(),
     inventory: new Set(["folded_map"]),
+    openedHomeSecrets: new Set(),
     completedQuests: new Set(),
     activeQuestId: quests[0]?.id || null,
     activeStepIndex: 0,
@@ -312,6 +316,10 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       if (typeof saved.safetyXP === "number") state.safetyXP = saved.safetyXP;
       if (typeof saved.coins === "number") state.coins = saved.coins;
       if (typeof saved.acorns === "number") state.acorns = saved.acorns;
+      if (typeof saved.snacks === "number") state.snacks = Math.max(0, Math.floor(saved.snacks));
+      if (Array.isArray(saved.openedHomeSecrets)) {
+        state.openedHomeSecrets = new Set(saved.openedHomeSecrets);
+      }
       if (Array.isArray(saved.discoveredLandmarks)) {
         state.discoveredLandmarks = new Set(saved.discoveredLandmarks);
       }
@@ -366,7 +374,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       }
       if (
         ALL_OUTFIT_ORDER.includes(saved.heroOutfit) &&
-        state.unlockedOutfits.has(saved.heroOutfit)
+        (state.gpsAssist || state.unlockedOutfits.has(saved.heroOutfit))
       ) {
         state.heroOutfit = saved.heroOutfit;
       } else {
@@ -395,6 +403,8 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
           safetyXP: state.safetyXP,
           coins: state.coins,
           acorns: state.acorns,
+          snacks: state.snacks,
+          openedHomeSecrets: [...state.openedHomeSecrets],
           discoveredLandmarks: [...state.discoveredLandmarks],
           claimedLandmarkRewards: [...state.claimedLandmarkRewards],
           inventory: [...state.inventory],
@@ -421,6 +431,8 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     state.safetyXP = 0;
     state.coins = 0;
     state.acorns = 0;
+    state.snacks = 3;
+    state.openedHomeSecrets = new Set();
     state.discoveredLandmarks = new Set(["home_base"]);
     state.claimedLandmarkRewards = new Set();
     state.inventory = new Set(["folded_map"]);
@@ -677,7 +689,11 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       if (questEvent?.type === "quest_completed") {
         lines.push(`★ Quest Complete: ${questEvent.quest.title}! (+${questEvent.rewardXP} XP, +${questEvent.rewardCoins} Coins, +Hearts!)`);
         if (questEvent.unlockedOutfit) {
-          lines.push(`🎉 New Outfit Unlocked: ${OUTFIT_DISPLAY_NAMES[questEvent.unlockedOutfit]}! Press O to switch outfits!`);
+          const outfitExtra =
+            questEvent.unlockedOutfit === "wetsuit"
+              ? " Now you can wade through Crystal Lake, Bullough's Pond & water areas!"
+              : "";
+          lines.push(`🎉 New Outfit Unlocked: ${OUTFIT_DISPLAY_NAMES[questEvent.unlockedOutfit]}!${outfitExtra} Press O to switch outfits!`);
           fanfareQueue.push({
             itemId: `outfit_${questEvent.unlockedOutfit}`,
             sourceLabel: `Outfit Unlocked: ${questEvent.quest.title}`,
@@ -694,6 +710,21 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       }
     }
 
+    const SNACK_LANDMARKS = new Set([
+      "home_base",
+      "rosenfelds_bakery",
+      "jp_licks",
+      "newton_highlands_annas",
+      "route9_dunkin",
+      "beth_el_atereth_israel",
+      "chabad_newton",
+      "chestnut_hill_mall",
+    ]);
+    let gainedSnacks = 0;
+    if (SNACK_LANDMARKS.has(lm.id)) {
+      gainedSnacks = addSnacks(lm.id === "home_base" ? getMaxSnacks() : 2);
+    }
+
     save();
 
     const healHearts = Math.max(
@@ -707,6 +738,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       fanfareQueue,
       questEvent,
       healHearts,
+      gainedSnacks,
     };
   }
 
@@ -740,7 +772,11 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       if (questEvent?.type === "quest_completed") {
         lines.push(`★ Quest Complete: ${questEvent.quest.title}! (+${questEvent.rewardXP} XP, +${questEvent.rewardCoins} Coins)`);
         if (questEvent.unlockedOutfit) {
-          lines.push(`🎉 New Outfit Unlocked: ${OUTFIT_DISPLAY_NAMES[questEvent.unlockedOutfit]}! Press O to switch outfits!`);
+          const outfitExtra =
+            questEvent.unlockedOutfit === "wetsuit"
+              ? " Now you can wade through Crystal Lake, Bullough's Pond & water areas!"
+              : "";
+          lines.push(`🎉 New Outfit Unlocked: ${OUTFIT_DISPLAY_NAMES[questEvent.unlockedOutfit]}!${outfitExtra} Press O to switch outfits!`);
           fanfareQueue.push({
             itemId: `outfit_${questEvent.unlockedOutfit}`,
             sourceLabel: `Outfit Unlocked: ${questEvent.quest.title}`,
@@ -801,6 +837,9 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     state.navMode = mode;
     state.gpsAssist = mode === "gps";
     state.hardMode = mode === "hard";
+    if (!state.gpsAssist && !state.unlockedOutfits.has(state.heroOutfit)) {
+      state.heroOutfit = "polo";
+    }
     save();
     return state.navMode;
   }
@@ -825,7 +864,46 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
   }
 
   function getUnlockedOutfits() {
+    if (state.gpsAssist) return [...ALL_OUTFIT_ORDER];
     return ALL_OUTFIT_ORDER.filter((oid) => state.unlockedOutfits.has(oid));
+  }
+
+  function canWadeWater() {
+    return state.gpsAssist || state.unlockedOutfits.has("wetsuit");
+  }
+
+  function getMaxSnacks() {
+    return state.gpsAssist || state.inventory.has("bag_of_holding") ? 12 : 5;
+  }
+
+  function hasSnack() {
+    return state.gpsAssist || state.snacks > 0;
+  }
+
+  function addSnacks(amount = 1) {
+    if (!amount || amount <= 0) return 0;
+    const max = getMaxSnacks();
+    const prev = state.snacks;
+    state.snacks = Math.min(max, prev + amount);
+    const gained = state.snacks - prev;
+    if (gained > 0) save();
+    return gained;
+  }
+
+  function useSnack() {
+    if (state.gpsAssist) return true;
+    if (state.snacks <= 0) return false;
+    state.snacks -= 1;
+    save();
+    return true;
+  }
+
+  function hasSword() {
+    return state.gpsAssist || state.inventory.has("graveyard_sword");
+  }
+
+  function hasSiddur() {
+    return state.gpsAssist || state.inventory.has("pocket_siddur");
   }
 
   function unlockOutfit(outfitId) {
@@ -862,7 +940,10 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     getActiveStep,
     getActiveObjectiveTarget,
     setActiveQuest,
-    getGear: () => getTraversalGear(state.safetyXP, state.inventory),
+    getGear: () =>
+      state.gpsAssist
+        ? getTraversalGear(999, state.inventory)
+        : getTraversalGear(state.safetyXP, state.inventory),
     formatTargetHint: (tx, ty) => {
       const target = getActiveObjectiveTarget();
       if (!target) return null;
@@ -880,6 +961,13 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     cycleNavMode,
     toggleGpsAssist,
     getUnlockedOutfits,
+    canWadeWater,
+    hasSword,
+    hasSiddur,
+    getMaxSnacks,
+    hasSnack,
+    addSnacks,
+    useSnack,
     unlockOutfit,
     toggleHeroOutfit,
   };

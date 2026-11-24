@@ -258,7 +258,7 @@ export function createUI({
         navMode === "hard"
           ? "🔥 Mode: Hard"
           : navMode === "gps"
-            ? "📡 Mode: GPS"
+            ? "📡 Mode: Easy / GPS"
             : "🧭 Mode: Signs";
       btnMapGps.classList.toggle("secondary", navMode === "signs");
     }
@@ -329,7 +329,14 @@ export function createUI({
 
     if (mapBackpackEl) {
       mapBackpackEl.innerHTML = "";
-      for (const itemId of questSystem.state.inventory) {
+      const displayItems = new Set(questSystem.state.inventory);
+      if (gpsOn) {
+        displayItems.add("graveyard_sword");
+        displayItems.add("pocket_siddur");
+        displayItems.add("mountain_bike");
+        displayItems.add("outfit_wetsuit");
+      }
+      for (const itemId of displayItems) {
         const meta = getItemMeta(itemId);
         const chip = document.createElement("span");
         chip.className = "item-chip";
@@ -763,11 +770,15 @@ export function createUI({
     safetyXP = 0,
     coins = 0,
     acorns = 0,
+    snacks = 0,
+    hasSnack = false,
     hearts = 5,
     maxHearts = 5,
     hasSword = false,
     hasSiddur = false,
     isFasterActive = false,
+    isWading = false,
+    isFastWading = false,
     safeCrossingActive = false,
     needsLookAtCurb = false,
   }) {
@@ -783,15 +794,25 @@ export function createUI({
       "xp",
       safeCrossingActive ? `Safety XP: ${safetyXP} • Safe to Cross ✓` : `Safety XP: ${safetyXP}`
     );
-    setText(bagEl, "bag", `🪙 ${coins} • 🌰 ${acorns}`);
+    setText(bagEl, "bag", `🪙 ${coins} • 🌰 ${acorns} • 🥨 ${gpsAssist ? "∞" : snacks}`);
     setText(coordsEl, "coords", debugEnabled ? `Tile ${tileX}, ${tileY}` : `🪧 Signs: ${checkedSignsCount}`);
     const prettyTile = TILE_DISPLAY_LABELS[tileType] || tileType;
-    setText(tileEl, "tile", isFasterActive ? `${prettyTile} • ${gearLabel}` : prettyTile);
+    setText(
+      tileEl,
+      "tile",
+      isWading
+        ? isFastWading
+          ? `${prettyTile} • SWIM`
+          : `${prettyTile} • WADE`
+        : isFasterActive
+          ? `${prettyTile} • ${gearLabel}`
+          : prettyTile
+    );
     setClass(btnDebug, "debugAct", "active", debugEnabled);
     setText(
       btnGps,
       "gpsTxt",
-      navMode === "hard" ? "🔥 Hard (G)" : navMode === "gps" ? "📡 GPS (G)" : "🧭 Signs (G)"
+      navMode === "hard" ? "🔥 Hard (G)" : navMode === "gps" ? "📡 Easy/GPS (G)" : "🧭 Signs (G)"
     );
     setClass(btnGps, "gpsAct", "active", navMode !== "signs");
     if (btnOutfit) {
@@ -832,19 +853,21 @@ export function createUI({
       if (nearbyInteraction) {
         setClass(btnLook, "lookTalk", "talk-ready", true);
         setClass(btnLook, "lookNeed", "need-look", false);
-        if (nearbyInteraction.kind === "sign") {
+        if (nearbyInteraction.kind === "home_door") {
+          setText(btnLookIcon, "lookIcon", "🏠");
+          setHtml(btnLookLabel, "lookLbl", "GO<br/>INSIDE");
+        } else if (nearbyInteraction.kind === "house_prop") {
+          setText(btnLookIcon, "lookIcon", nearbyInteraction.target?.icon || "✨");
+          setHtml(btnLookLabel, "lookLbl", nearbyInteraction.target?.shortLabel || "CHECK");
+        } else if (nearbyInteraction.kind === "sign") {
           setText(btnLookIcon, "lookIcon", "🪧");
           setHtml(btnLookLabel, "lookLbl", "READ<br/>SIGN");
         } else if (nearbyInteraction.kind === "chest") {
           setText(btnLookIcon, "lookIcon", "📦");
           setHtml(btnLookLabel, "lookLbl", "OPEN<br/>CHEST");
         } else if (nearbyInteraction.kind === "protestor") {
-          setText(btnLookIcon, "lookIcon", "📢");
-          setHtml(
-            btnLookLabel,
-            "lookLbl",
-            nearbyInteraction.target?.isMob ? "DETOUR<br/>MOB!" : "EXCUSE<br/>ME!"
-          );
+          setText(btnLookIcon, "lookIcon", hasSnack ? "🥨" : "💬");
+          setHtml(btnLookLabel, "lookLbl", hasSnack ? "SHARE<br/>SNACK" : "SAY<br/>HI!");
         } else if (nearbyInteraction.kind === "turkey") {
           setText(btnLookIcon, "lookIcon", "🦃");
           setHtml(btnLookLabel, "lookLbl", "SHOO<br/>TURKEY");
@@ -923,7 +946,11 @@ export function createUI({
         setClass(landmarkPillEl, "pillVis", "visible", true);
       } else if (nearbyInteraction) {
         let label = "";
-        if (nearbyInteraction.kind === "sign") {
+        if (nearbyInteraction.kind === "home_door") {
+          label = "🏠 Tap GO INSIDE / Space — Enter 565 Boylston St (Your House!)";
+        } else if (nearbyInteraction.kind === "house_prop") {
+          label = `${nearbyInteraction.target?.icon || "✨"} Tap / Space — ${nearbyInteraction.target?.label || "Inspect"}`;
+        } else if (nearbyInteraction.kind === "sign") {
           const s = nearbyInteraction.target;
           label =
             gpsAssist || nearbyInteraction.alreadyChecked
@@ -932,9 +959,9 @@ export function createUI({
         } else if (nearbyInteraction.kind === "chest") {
           label = `📦 Tap OPEN / Space — ${nearbyInteraction.target.name}`;
         } else if (nearbyInteraction.kind === "protestor") {
-          label = nearbyInteraction.target?.isMob
-            ? `📢 Protestor Mob! "${nearbyInteraction.target.chantText}" — Find a way around!`
-            : `📢 Tap EXCUSE ME / Space — "${nearbyInteraction.target.chantText}"`;
+          label = hasSnack
+            ? `🥨 Tap SHARE SNACK / Space — Share a snack with the marchers ("${nearbyInteraction.target.chantText}")!`
+            : `🥨 Marching makes them hungry! Grab snacks at Home Base Kitchen, J.P. Licks, or Rosenfeld's!`;
         } else if (nearbyInteraction.kind === "turkey") {
           label = "🦃 Tap SHOO / Space — Bold Wild Newton Turkey!";
         } else if (nearbyInteraction.kind === "spooky") {
