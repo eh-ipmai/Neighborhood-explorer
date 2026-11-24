@@ -1002,8 +1002,11 @@ test("Home Base interior lets Liam go inside 565 Boylston St, restock snacks, di
   playCatMeow();
   playDogBark();
 
-  // Headless 2x HD 32-bit interior room baking check for all 3 Home Base rooms!
+  // Headless 2x HD 32-bit interior room & 4-frame animated overlay baking check for all 3 Home Base rooms!
   const prevDoc = global.document;
+  const mockGrad = () => ({ addColorStop() {} });
+  let pathCalls = 0;
+  let gradCalls = 0;
   global.document = {
     createElement: () => ({
       width: 0,
@@ -1011,9 +1014,22 @@ test("Home Base interior lets Liam go inside 565 Boylston St, restock snacks, di
       getContext: () => ({
         imageSmoothingEnabled: false,
         fillStyle: "",
+        strokeStyle: "",
+        lineWidth: 1,
         globalAlpha: 1,
         fillRect() {},
         clearRect() {},
+        beginPath() { pathCalls++; },
+        closePath() {},
+        moveTo() {},
+        lineTo() {},
+        quadraticCurveTo() {},
+        arc() {},
+        ellipse() {},
+        fill() {},
+        stroke() {},
+        createLinearGradient() { gradCalls++; return mockGrad(); },
+        createRadialGradient() { gradCalls++; return mockGrad(); },
       }),
     }),
   };
@@ -1028,7 +1044,20 @@ test("Home Base interior lets Liam go inside 565 Boylston St, restock snacks, di
       assert.equal(baked.__pixelScale, 0.5, `${roomId} must be baked at 2x HD (__pixelScale = 0.5)`);
       assert.equal(baked.width, expectedW, `${roomId} HD canvas width`);
       assert.equal(baked.height, expectedH, `${roomId} HD canvas height`);
+
+      // Verify drawInteriorRoom blits both static room & animated 2x HD lighting/flame overlays cleanly
+      home.state.active = true;
+      home.state.roomId = roomId;
+      const blits = [];
+      home.drawInteriorRoom(
+        { drawCanvas: (key, c, x, y, op = 1) => blits.push({ key, c, x, y, op }) },
+        0.5
+      );
+      assert.ok(blits.some((b) => b.key.includes("int32_") && b.op === 1), `${roomId} should blit static HD room canvas`);
+      assert.ok(blits.some((b) => b.key.includes("_fx") && b.op === 1), `${roomId} should blit animated HD effect overlay`);
     }
+    assert.ok(pathCalls > 150, `expected rich curved 32-bit vector/pixel paths across rooms (got ${pathCalls})`);
+    assert.ok(gradCalls > 80, `expected rich multi-stop gradients & radial lighting pools across rooms (got ${gradCalls})`);
   } finally {
     global.document = prevDoc;
   }
