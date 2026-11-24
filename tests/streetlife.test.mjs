@@ -11,7 +11,10 @@ import {
   isBlockedByStreetLife,
   findNearbyStreetLife,
   findNearbyHungryProtestor,
+  findNearbySnackTarget,
+  tossSnackAtAnimal,
   interactWithStreetLife,
+  performSwordAttack,
 } from "../src/streetlife.js";
 import { buildGraveyardFeatures, getGraveyardGhostPos } from "../src/graveyards.js";
 import { DEFAULT_HITBOX } from "../src/player.js";
@@ -432,5 +435,125 @@ test("wild squirrels, prowling cats, and runaway dogs with trailing leashes roam
     assert.equal(shoo?.kind, cr.kind);
     assert.equal(shoo?.sound, cr.kind);
     assert.ok(cr.fleeTimer > 0, `shooed ${cr.kind} must bolt away`);
+  }
+});
+
+test("sidewalk joggers cruise peacefully, lantern repels ghosts, and wild animals flee from tossed snacks or sword swings", () => {
+  const worldMap = JSON.parse(
+    fs.readFileSync(path.resolve(process.cwd(), "data", "world_map.json"), "utf8")
+  );
+  const landmarks = JSON.parse(
+    fs.readFileSync(path.resolve(process.cwd(), "data", "landmarks.json"), "utf8")
+  );
+  const home = worldMap.origin.spawnTile;
+  const tileSize = worldMap.tileSize || 16;
+  const { width } = worldMap.dimensions;
+  const gf = buildGraveyardFeatures(worldMap);
+  const sl = buildStreetLife(worldMap, {
+    parkOccupiedGrid: gf.occupiedGrid,
+    graveyardGrid: gf.graveyardGrid,
+    graveyardZones: gf.zones,
+    spawnTile: home,
+    landmarks,
+  });
+
+  // 1. Friendly sidewalk joggers spawn near Home Base & across Newton and NEVER hurt Liam
+  assert.ok(Array.isArray(sl.joggers) && sl.joggers.length >= 10, `expected >= 10 joggers (got ${sl.joggers?.length})`);
+  const nearJoggers = sl.joggers.filter(
+    (j) => Math.hypot(j.x / tileSize - home.x, j.y / tileSize - home.y) <= 22
+  );
+  assert.ok(nearJoggers.length >= 2, `expected >= 2 joggers near Home Base (got ${nearJoggers.length})`);
+  const j0 = sl.joggers[0];
+  const jx0 = j0.x;
+  const jy0 = j0.y;
+  const pNearJogger = { x: j0.x, y: j0.y, hearts: 5, maxHearts: 5, hurtTimer: 0 };
+  let joggerBump = null;
+  updateStreetLife(sl, 0.2, pNearJogger, worldMap, {
+    onPlayerBump: (b) => { joggerBump = b; },
+  });
+  assert.equal(joggerBump, null, "friendly sidewalk joggers must NEVER hurt Liam");
+  assert.equal(pNearJogger.hearts, 5);
+  assert.ok(Math.hypot(j0.x - jx0, j0.y - jy0) > 1, "jogger should actively run along the sidewalk");
+
+  // 2. Lantern repels floating graveyard ghosts & graveyard phantoms without taking hearts!
+  const g0 = gf.ghosts[0];
+  g0.defeatedTimer = 0;
+  g0.repelX = 0;
+  g0.repelY = 0;
+  const gp = getGraveyardGhostPos(g0, 2.0, tileSize);
+  const pLanternGhost = {
+    x: gp.cx - 8,
+    y: gp.cy,
+    facing: "right",
+    hurtTimer: 0,
+    hearts: 5,
+    maxHearts: 5,
+  };
+  let lanternGhostBump = null;
+  updateStreetLife(sl, 0.25, pLanternGhost, worldMap, {
+    graveyardGhosts: gf.ghosts,
+    elapsedTime: 2.0,
+    hasLantern: true,
+    onPlayerBump: (b) => { lanternGhostBump = b; },
+  });
+  assert.equal(lanternGhostBump, null, "holding a lantern must prevent floating ghosts from hurting Liam");
+  assert.equal(pLanternGhost.hearts, 5);
+  assert.ok(
+    Math.hypot(g0.repelX || 0, g0.repelY || 0) > 1 && g0.lanternScaredTimer > 0,
+    "floating graveyard ghost must actively recoil away from Liam's lantern"
+  );
+
+  const phantom = sl.spookyChars.find((s) => s.kind === "phantom");
+  assert.ok(phantom, "expected at least one graveyard phantom");
+  phantom.defeatedTimer = 0;
+  const pLanternPhantom = {
+    x: phantom.x - 10,
+    y: phantom.y,
+    facing: "right",
+    hurtTimer: 0,
+    hearts: 5,
+    maxHearts: 5,
+  };
+  let phantomBump = null;
+  updateStreetLife(sl, 0.1, pLanternPhantom, worldMap, {
+    graveyardGhosts: gf.ghosts,
+    elapsedTime: 2.0,
+    hasLantern: true,
+    onPlayerBump: (b) => { phantomBump = b; },
+  });
+  assert.equal(phantomBump, null, "holding a lantern must protect Liam from graveyard phantoms");
+  assert.equal(pLanternPhantom.hearts, 5);
+  assert.equal(phantom.bubbleSprite, "bubble_too_bright");
+  assert.equal(phantom.chasing, false);
+  assert.ok(phantom.vx > 20, "phantom must actively flee away from Liam's lantern");
+
+  // 3. Tossing a snack makes wild animals happily munch & run away!
+  const tk = sl.turkeys[0];
+  tk.fleeTimer = 0;
+  const snackTarget = findNearbySnackTarget(sl, tk.x - 24, tk.y, 56);
+  assert.equal(snackTarget?.kind, "turkey", "findNearbySnackTarget should find nearby wild turkey");
+  let snacksLeft = 3;
+  const tossRes = tossSnackAtAnimal(snackTarget, tk.x - 24, tk.y, {
+    hasSnack: snacksLeft > 0,
+    consumeSnack: () => { snacksLeft--; },
+  });
+  assert.equal(tossRes?.tossed, true);
+  assert.equal(snacksLeft, 2, "tossing a snack to an animal should consume 1 snack");
+  assert.ok(tk.fleeTimer >= 7, "snack-fed turkey must run away peacefully");
+  assert.equal(tk.bubbleSprite, "bubble_animal_yum");
+
+  // 4. Swinging the Sword scares nearby wild squirrels, cats, and dogs so they run away!
+  for (const cr of [sl.squirrels[0], sl.cats[0], sl.dogs[0]]) {
+    cr.fleeTimer = 0;
+    const swRes = performSwordAttack(sl, { x: cr.x - 18, y: cr.y, facing: "right" }, {
+      graveyardGhosts: gf.ghosts,
+      elapsedTime: 2.0,
+      tileSize,
+    });
+    assert.ok(
+      swRes.scaredAnimals.some((a) => a.kind === cr.kind),
+      `sword swing near ${cr.kind} must scare it away`
+    );
+    assert.ok(cr.fleeTimer >= 4, `sword-scared ${cr.kind} must bolt away`);
   }
 });

@@ -259,7 +259,7 @@ const CAR_PALETTES = [
     isTaxi: true,
     hasSunroof: false,
   },
-  // 3: Emerald Metallic Crossover SUV
+  // 3: Emerald Metallic Subaru-Style Station Wagon (roof rack!)
   {
     spec: "#a8f2c8",
     hi: "#4fc484",
@@ -272,17 +272,97 @@ const CAR_PALETTES = [
     isTaxi: false,
     hasSunroof: true,
   },
+  // 4: Midnight-Blue Sleek EV Fastback (panoramic glass roof + cyan LED DRL lightbar!)
+  {
+    spec: "#b0c8ff",
+    hi: "#4b6eb8",
+    mid: "#243b70",
+    shade: "#16264d",
+    deep: "#0c1630",
+    outline: "#080f24",
+    caliper: "#ff3b30",
+    isSuv: false,
+    isEv: true,
+    hasSunroof: true,
+  },
+  // 5: Sunset-Orange Jeep Wrangler Off-Roader (boxy roll-cage cabin + rear spare tire!)
+  {
+    spec: "#ffd4a3",
+    hi: "#f78831",
+    mid: "#d65d18",
+    shade: "#993b0d",
+    deep: "#612206",
+    outline: "#3d1404",
+    caliper: "#ffd242",
+    isSuv: true,
+    isJeep: true,
+    hasSunroof: false,
+  },
+  // 6: Mint-Teal & Cream Vintage Beetle / Mini Classic (rounded bubble roof & chrome trim!)
+  {
+    spec: "#d4fff5",
+    hi: "#6cd9c4",
+    mid: "#3ba895",
+    shade: "#247568",
+    deep: "#144a42",
+    outline: "#0b2e29",
+    caliper: "#f2f5f8",
+    isSuv: false,
+    isRetro: true,
+    hasSunroof: false,
+  },
+  // 7: Pearl-White Family Minivan (extra-long 3-row tinted cabin!)
+  {
+    spec: "#ffffff",
+    hi: "#eef3f8",
+    mid: "#cfd8e3",
+    shade: "#9aa6b5",
+    deep: "#687485",
+    outline: "#363e4d",
+    caliper: "#2e6fd9",
+    isSuv: true,
+    isVan: true,
+    hasSunroof: false,
+  },
+  // 8: Racing-Silver Open-Top Convertible Roadster (open cockpit + tan leather seats!)
+  {
+    spec: "#ffffff",
+    hi: "#d5dfeb",
+    mid: "#9eabb8",
+    shade: "#6d7a8a",
+    deep: "#454f5e",
+    outline: "#242b36",
+    caliper: "#e63946",
+    isSuv: false,
+    isConvertible: true,
+    hasSunroof: false,
+  },
+  // 9: Plum-Burgundy Sport Hatchback (rear spoiler + dark alloys!)
+  {
+    spec: "#f0b8de",
+    hi: "#b84f96",
+    mid: "#822966",
+    shade: "#571743",
+    deep: "#360c29",
+    outline: "#24071b",
+    caliper: "#5ce0ff",
+    isSuv: false,
+    isHatch: true,
+    hasSunroof: true,
+  },
 ];
 
+export const CAR_MODEL_COUNT = CAR_PALETTES.length;
+
 function bake32BitCarSideEast(pal) {
-  const cw = pal.isSuv ? 66 : 64;
-  const ch = pal.isSuv ? 40 : 38;
+  const cw = pal.isVan ? 68 : pal.isRetro ? 58 : pal.isSuv ? 66 : 64;
+  const ch = pal.isJeep ? 42 : pal.isSuv ? 40 : 38;
   const g = new PixelGrid(cw, ch);
   const wheelY = ch - 9;
   const bodyBot = ch - 10;
 
   // 1. Sculpted Aerodynamic Lower Body (rounded bumper nose + sleek beltline!)
-  const bodyTop = pal.isSuv ? 15 : 16;
+  const bodyTop = pal.isJeep ? 17 : pal.isSuv ? 15 : pal.isConvertible ? 17 : 16;
   g.rect(4, bodyTop, cw - 8, bodyBot - bodyTop, pal.mid, "paint");
   // Sloped aerodynamic hood tapering gently toward right nose
   g.rect(cw - 16, bodyTop + 1, 13, bodyBot - bodyTop - 1, pal.mid, "paint");
@@ -297,58 +377,93 @@ function bake32BitCarSideEast(pal) {
   g.rect(4, bodyBot - 4, cw - 9, 4, pal.shade, "paint");
   g.rect(5, bodyBot - 2, cw - 11, 2, pal.deep, "paint");
 
-  // 2. Sculpted Cabin Roof & Angled Windshields (SUV = long roofline; Sedan = sleek fastback!)
-  const cabL = pal.isSuv ? 7 : 12;
-  const cabR = pal.isSuv ? cw - 17 : cw - 18;
-  const cabTop = pal.isSuv ? 5 : 6;
-  // Roof crown & angled A-pillar / C-pillar slopes
-  for (let row = 0; row <= bodyTop - cabTop; row++) {
-    const t = row / Math.max(1, bodyTop - cabTop);
-    const xl = Math.round(cabL - (pal.isSuv ? t * 2 : t * 6));
-    const xr = Math.round(cabR + t * 7);
-    const col = row === 0 ? pal.spec : row <= 2 ? pal.hi : pal.mid;
-    g.rect(xl, cabTop + row, xr - xl, 1, col, "paint");
+  // 2. Model-Specific Cabin Roof & Greenhouse Silhouettes!
+  const cabL = pal.isVan ? 6 : pal.isJeep ? 9 : pal.isRetro ? 13 : pal.isHatch ? 8 : pal.isSuv ? 7 : 12;
+  const cabR = pal.isVan ? cw - 14 : pal.isJeep ? cw - 19 : pal.isRetro ? cw - 15 : pal.isSuv ? cw - 17 : cw - 18;
+  const cabTop = pal.isJeep ? 4 : pal.isRetro ? 5 : pal.isSuv ? 5 : 6;
+
+  if (pal.isConvertible) {
+    // Open-top roadster cockpit: tan leather bucket seats, roll bar, driver head & swept windshield!
+    g.rect(cabL + 4, bodyTop - 6, 10, 7, "#b5743c", "wood"); // tan leather headrest/seat
+    g.rect(cabL + 6, bodyTop - 7, 6, 3, "#d9985b", "wood");
+    g.rect(cabL + 16, bodyTop - 7, 7, 7, "#9c5e2c", "wood");
+    // Driver head & sunglasses cruising in the open air!
+    g.ellipse(cabR - 9, bodyTop - 6, 3.2, 3.2, "#f2c49b", "skin");
+    g.rect(cabR - 12, bodyTop - 9, 6, 2, "#4a2c18", "hair");
+    g.rect(cabR - 8, bodyTop - 7, 3, 1, "#181a24", "dark");
+    // Swept low windshield frame
+    for (let r = 0; r < 8; r++) {
+      g.rect(cabR - 3 + Math.round(r * 0.7), bodyTop - 8 + r, 3, 1, "#8bd6fa", "glass");
+    }
+    g.rect(cabR - 4, bodyTop - 9, 3, 2, "#dce6f2", "chrome");
+    // Sporty twin dark racing stripes along side
+    g.rect(7, bodyTop + 4, cw - 15, 2, "#242b36", "dark");
+  } else {
+    // Roof crown & angled A-pillar / C-pillar slopes
+    for (let row = 0; row <= bodyTop - cabTop; row++) {
+      const t = row / Math.max(1, bodyTop - cabTop);
+      const slopeL = pal.isJeep ? 1 : pal.isVan ? 1.5 : pal.isRetro ? 8 : pal.isHatch ? 4 : pal.isSuv ? 2 : 6;
+      const slopeR = pal.isJeep ? 2 : pal.isRetro ? 8 : pal.isEv ? 9 : 7;
+      const xl = Math.round(cabL - t * slopeL);
+      const xr = Math.round(cabR + t * slopeR);
+      const col = pal.isRetro && row <= 3
+        ? (row === 0 ? "#ffffff" : "#f5eedc")
+        : pal.isEv && row <= 2
+          ? "#1a2b45" // panoramic dark glass EV roof!
+          : row === 0 ? pal.spec : row <= 2 ? pal.hi : pal.mid;
+      g.rect(xl, cabTop + row, xr - xl, 1, col, pal.isEv && row <= 2 ? "glass" : "paint");
+    }
+    // Tinted Cabin Greenhouse Windows with Sky Reflections & Driver Silhouette!
+    const winTop = cabTop + 3;
+    const winBot = bodyTop + 1;
+    const winH = winBot - winTop;
+    for (let r = 0; r < winH; r++) {
+      const fx0 = cabR - 4 + Math.round((r / winH) * 2);
+      const fx1 = cabR + Math.round((r / winH) * (pal.isJeep ? 2 : 6));
+      g.rect(fx0, winTop + r, Math.max(3, fx1 - fx0), 1, "#274463", "glass");
+      if (r < 3) g.rect(fx0 + 1, winTop + r, Math.max(2, fx1 - fx0 - 2), 1, "#8bd6fa", "glass");
+    }
+    const sideWinL = cabL + 1;
+    const sideWinR = cabR - 4;
+    g.rect(sideWinL, winTop, sideWinR - sideWinL, winH, pal.isVan ? "#17293d" : "#203852", "glass");
+    g.line(sideWinL + 2, winTop + 1, sideWinL + 6, winTop + winH - 2, "#8fdbfa", "glass");
+    g.line(sideWinL + 3, winTop + 1, sideWinL + 7, winTop + winH - 2, "#d8f5ff", "glass");
+    g.line(sideWinR - 9, winTop + 1, sideWinR - 5, winTop + winH - 2, "#74c2eb", "glass");
+    const drvX = sideWinR - 8;
+    g.ellipse(drvX, winTop + 3.5, 2.5, 2.5, "#3a4d63", "glass");
+    g.rect(drvX - 3, winTop + 5, 6, winH - 5, "#2f4157", "glass");
+    const bPillarX = Math.round((sideWinL + sideWinR) / 2);
+    g.rect(bPillarX, winTop, 2, winH, pal.isJeep ? "#1e2028" : pal.deep, "paint");
+
+    if (pal.isJeep) {
+      // Boxy Jeep roll bar + mounted rear spare tire on tailgate!
+      g.rect(sideWinL + 6, winTop, 2, winH, "#1e2028", "dark");
+      g.rect(1, bodyTop - 5, 5, 11, "#1a1d26", "tire"); // rear spare tire!
+      g.rect(2, bodyTop - 3, 3, 7, "#363c4d", "tire");
+      g.rect(cabL, cabTop - 1, cabR - cabL, 2, "#242834", "dark"); // black hardtop roof!
+    } else if (pal.isSuv && !pal.isVan) {
+      g.rect(sideWinL + 7, winTop, 2, winH, pal.deep, "paint");
+      g.rect(cabL + 2, cabTop - 2, cabR - cabL - 4, 2, "#2a303d", "chrome");
+      g.rect(cabL + 3, cabTop - 2, cabR - cabL - 6, 1, "#9aa5b5", "chrome");
+      g.rect(cabL + 5, cabTop, 2, 1, "#2a303d", "chrome");
+      g.rect(cabR - 7, cabTop, 2, 1, "#2a303d", "chrome");
+    } else if (pal.isVan) {
+      // Minivan 3-row pillars + sliding door track!
+      g.rect(sideWinL + 10, winTop, 2, winH, pal.deep, "paint");
+      g.rect(sideWinL + 22, winTop, 2, winH, pal.deep, "paint");
+      g.rect(sideWinL + 2, bodyTop + 4, 18, 1, "#687485", "chrome");
+    } else if (pal.isHatch) {
+      // Sporty rear hatchback wing spoiler!
+      g.rect(cabL - 4, cabTop, 6, 2, "#1c202b", "dark");
+    }
+    // Door seam & handles
+    g.rect(cabR - 1, bodyTop - 1, 4, 3, pal.shade, "paint");
+    g.rect(cabR, bodyTop - 1, 2, 1, pal.spec, "paint");
+    g.line(bPillarX, bodyTop + 1, bPillarX, bodyBot - 3, pal.deep, "paint");
+    const hCol = pal.isEv ? "#161a24" : "#e6edf5";
+    g.rect(bPillarX - 6, bodyTop + 3, 4, 1, hCol, "chrome");
+    g.rect(bPillarX + 3, bodyTop + 3, 4, 1, hCol, "chrome");
   }
-  // Tinted Cabin Greenhouse Windows with Sky Reflections & Driver Silhouette!
-  const winTop = cabTop + 3;
-  const winBot = bodyTop + 1;
-  const winH = winBot - winTop;
-  // Front windshield glass (sloped)
-  for (let r = 0; r < winH; r++) {
-    const fx0 = cabR - 4 + Math.round((r / winH) * 2);
-    const fx1 = cabR + Math.round((r / winH) * 6);
-    g.rect(fx0, winTop + r, Math.max(3, fx1 - fx0), 1, "#274463", "glass");
-    if (r < 3) g.rect(fx0 + 1, winTop + r, Math.max(2, fx1 - fx0 - 2), 1, "#8bd6fa", "glass");
-  }
-  // Side cabin windows + B-pillar divider + driver head silhouette inside!
-  const sideWinL = cabL + 1;
-  const sideWinR = cabR - 4;
-  g.rect(sideWinL, winTop, sideWinR - sideWinL, winH, "#203852", "glass");
-  // Crisp diagonal sky glare reflection across glass
-  g.line(sideWinL + 2, winTop + 1, sideWinL + 6, winTop + winH - 2, "#8fdbfa", "glass");
-  g.line(sideWinL + 3, winTop + 1, sideWinL + 7, winTop + winH - 2, "#d8f5ff", "glass");
-  g.line(sideWinR - 9, winTop + 1, sideWinR - 5, winTop + winH - 2, "#74c2eb", "glass");
-  // Subtle driver silhouette inside front side window!
-  const drvX = sideWinR - 8;
-  g.ellipse(drvX, winTop + 3.5, 2.5, 2.5, "#3a4d63", "glass");
-  g.rect(drvX - 3, winTop + 5, 6, winH - 5, "#2f4157", "glass");
-  // Crisp B-pillar & C-pillar framing
-  const bPillarX = Math.round((sideWinL + sideWinR) / 2);
-  g.rect(bPillarX, winTop, 2, winH, pal.deep, "paint");
-  if (pal.isSuv) {
-    // Rear SUV cargo quarter-window pillar + roof luggage rack rails!
-    g.rect(sideWinL + 7, winTop, 2, winH, pal.deep, "paint");
-    g.rect(cabL + 2, cabTop - 2, cabR - cabL - 4, 2, "#2a303d", "chrome");
-    g.rect(cabL + 3, cabTop - 2, cabR - cabL - 6, 1, "#9aa5b5", "chrome");
-    g.rect(cabL + 5, cabTop, 2, 1, "#2a303d", "chrome");
-    g.rect(cabR - 7, cabTop, 2, 1, "#2a303d", "chrome");
-  }
-  // Sculpted side-view mirror + door seam + chrome door handles!
-  g.rect(cabR - 1, bodyTop - 1, 4, 3, pal.shade, "paint");
-  g.rect(cabR, bodyTop - 1, 2, 1, pal.spec, "paint");
-  g.line(bPillarX, bodyTop + 1, bPillarX, bodyBot - 3, pal.deep, "paint");
-  g.rect(bPillarX - 6, bodyTop + 3, 4, 1, "#e6edf5", "chrome");
-  g.rect(bPillarX + 3, bodyTop + 3, 4, 1, "#e6edf5", "chrome");
 
   if (pal.isTaxi) {
     // Illuminated TAXI roof topper sign + crisp checkered cab stripe!
@@ -363,26 +478,27 @@ function bake32BitCarSideEast(pal) {
   }
 
   // 3. Chrome Front/Rear Bumpers, Grille, Glowing Headlights & Ruby Taillights!
-  g.rect(2, bodyBot - 4, 4, 4, "#cbd5e1", "chrome");
-  g.rect(2, bodyBot - 4, 3, 1, "#ffffff", "chrome");
-  g.rect(cw - 6, bodyBot - 4, 5, 4, "#cbd5e1", "chrome");
-  g.rect(cw - 5, bodyBot - 4, 4, 1, "#ffffff", "chrome");
-  // Exhaust pipe peeking beneath rear bumper
-  g.rect(1, bodyBot - 1, 3, 2, "#8f99a8", "chrome");
-  // Multi-tone glowing headlight lens + amber turn corner
-  g.rect(cw - 7, bodyTop + 2, 4, 4, "#fff49e", "light");
+  const bumpCol = pal.isJeep || pal.isEv ? "#2c3140" : "#cbd5e1";
+  g.rect(2, bodyBot - 4, 4, 4, bumpCol, "chrome");
+  g.rect(cw - 6, bodyBot - 4, 5, 4, bumpCol, "chrome");
+  if (!pal.isEv) {
+    g.rect(1, bodyBot - 1, 3, 2, "#8f99a8", "chrome"); // exhaust pipe (EVs have zero tailpipe!)
+  }
+  // Multi-tone glowing headlight lens (cyan-white LED bar on EVs, warm halogen on gas cars!)
+  g.rect(cw - 7, bodyTop + 2, 4, 4, pal.isEv ? "#b8f4ff" : "#fff49e", "light");
   g.rect(cw - 5, bodyTop + 3, 2, 2, "#ffffff", "light");
-  g.rect(cw - 7, bodyTop + 5, 2, 1, "#ff9e2c", "light");
+  if (!pal.isEv) g.rect(cw - 7, bodyTop + 5, 2, 1, "#ff9e2c", "light");
   // Ruby brake taillight + bright center reflector
   g.rect(3, bodyTop + 2, 4, 4, "#e62420", "light");
   g.rect(3, bodyTop + 3, 2, 2, "#ff786b", "light");
 
-  // 4. Sculpted Dark Wheel Arches + 32-Bit Alloy Wheels!
-  const w1 = 15;
-  const w2 = cw - 15;
+  // 4. Sculpted Dark Wheel Arches + 32-Bit Alloy Wheels (chunkier tires on Jeep!)
+  const w1 = pal.isRetro ? 14 : 15;
+  const w2 = cw - (pal.isRetro ? 14 : 15);
+  const wheelR = pal.isJeep ? 6.0 : 5.2;
   for (const wx of [w1, w2]) {
-    g.ellipse(wx, wheelY, 6.8, 6.2, "#151720", "tire");
-    draw32BitWheel(g, wx, wheelY, 5.2, pal.caliper);
+    g.ellipse(wx, wheelY, wheelR + 1.5, wheelR + 0.9, "#151720", "tire");
+    draw32BitWheel(g, wx, wheelY, wheelR, pal.caliper);
   }
 
   g.applySelOut({ ...BASE_SELOUT, paint: pal.outline });
@@ -451,18 +567,35 @@ function bake32BitCarVertical(pal, isSouth) {
   g.rect(9, rearGlassY, cw - 18, 7, "#1e344d", "glass");
   g.rect(11, rearGlassY + 1, cw - 22, 2, "#6ab3d9", "glass");
 
-  // Sculpted metallic roof panel
-  g.rect(8, roofTopY, cw - 16, roofH, pal.hi, "paint");
-  g.rect(10, roofTopY + 1, 6, roofH - 2, pal.spec, "paint");
-  g.rect(cw - 13, roofTopY + 1, 4, roofH - 2, pal.mid, "paint");
-  if (pal.hasSunroof) {
-    g.rect(12, roofTopY + 3, cw - 24, Math.max(6, roofH - 8), "#223b57", "glass");
-    g.rect(13, roofTopY + 4, cw - 28, 2, "#94dcf7", "glass");
+  // Sculpted metallic roof panel (or open convertible cockpit / panoramic EV glass / Jeep hardtop!)
+  if (pal.isConvertible) {
+    g.rect(8, roofTopY, cw - 16, roofH, "#8c5429", "wood"); // tan leather interior!
+    g.rect(10, roofTopY + 3, 6, 7, "#b5743c", "wood");
+    g.rect(cw - 16, roofTopY + 3, 6, 7, "#b5743c", "wood");
+    g.ellipse(13, roofTopY + 6, 2.5, 2.5, "#f2c49b", "skin"); // driver head!
+  } else if (pal.isEv) {
+    g.rect(8, roofTopY, cw - 16, roofH, "#1a2b45", "glass"); // full panoramic EV glass roof!
+    g.line(10, roofTopY + 2, 17, roofTopY + roofH - 3, "#8bd6fa", "glass");
+  } else if (pal.isRetro) {
+    g.rect(8, roofTopY, cw - 16, roofH, "#f5eedc", "paint"); // vintage cream two-tone roof!
+    g.rect(10, roofTopY + 1, 6, roofH - 2, "#ffffff", "paint");
+  } else {
+    g.rect(8, roofTopY, cw - 16, roofH, pal.isJeep ? "#262a36" : pal.hi, "paint");
+    g.rect(10, roofTopY + 1, 6, roofH - 2, pal.isJeep ? "#3c4354" : pal.spec, "paint");
+    g.rect(cw - 13, roofTopY + 1, 4, roofH - 2, pal.isJeep ? "#1a1d26" : pal.mid, "paint");
+    if (pal.hasSunroof) {
+      g.rect(12, roofTopY + 3, cw - 24, Math.max(6, roofH - 8), "#223b57", "glass");
+      g.rect(13, roofTopY + 4, cw - 28, 2, "#94dcf7", "glass");
+    }
+    if (pal.isSuv && !pal.isVan && !pal.isJeep) {
+      g.rect(9, roofTopY + 1, 2, roofH - 2, "#252a36", "chrome");
+      g.rect(cw - 11, roofTopY + 1, 2, roofH - 2, "#252a36", "chrome");
+    }
   }
-  if (pal.isSuv) {
-    // Sleek black & silver SUV roof rails
-    g.rect(9, roofTopY + 1, 2, roofH - 2, "#252a36", "chrome");
-    g.rect(cw - 11, roofTopY + 1, 2, roofH - 2, "#252a36", "chrome");
+  if (pal.isJeep) {
+    // Mounted spare tire on rear tailgate in vertical view!
+    const spY = isSouth ? 1 : ch - 5;
+    g.rect(cx - 5, spY, 10, 4, "#1a1d26", "tire");
   }
   if (pal.isTaxi) {
     const ty = roofTopY + Math.floor(roofH / 2) - 2;

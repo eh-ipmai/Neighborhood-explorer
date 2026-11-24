@@ -310,6 +310,20 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
     ctx.textAlign = "center";
     ctx.fillStyle = "#2c1e10";
     ctx.fillText("N", rx, ry - 9);
+
+    // 9. Easy / GPS Mode Sheikah Fast-Travel Banner right on the map!
+    if (gpsAssist) {
+      const pulseGlow = 0.78 + Math.sin(timeSec * 5) * 0.22;
+      ctx.fillStyle = "rgba(12, 32, 48, 0.86)";
+      ctx.fillRect(18, MAP_PX - 17, MAP_PX - 36, 13);
+      ctx.strokeStyle = `rgba(92, 232, 255, ${pulseGlow.toFixed(2)})`;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(18.5, MAP_PX - 16.5, MAP_PX - 37, 12);
+      ctx.font = "bold 7px monospace";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#8ef6ff";
+      ctx.fillText("✨ TAP ANYWHERE TO FAST-TRAVEL!", MAP_PX / 2, MAP_PX - 8);
+    }
   }
 
   /**

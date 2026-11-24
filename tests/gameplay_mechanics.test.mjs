@@ -42,7 +42,11 @@ import {
   playSquirrelChitter,
   playCatMeow,
   playDogBark,
+  playBotwTeleportOutSfx,
+  playBotwTeleportInSfx,
+  playSnackTossSfx,
 } from "../src/audio.js";
+import { CAR_MODEL_COUNT } from "../src/vehicles32bit.js";
 import { createHomeInteriorSystem, bake32BitInteriorCanvas } from "../src/house_interior.js";
 import { validateAndCleanCrosswalks, TILE_IDS } from "../scripts/build_map.mjs";
 
@@ -315,6 +319,20 @@ test("Game starts with Polo/Kippah/Tzitzit only, earns other outfits from quests
       "traffic_car_0_e",
       "traffic_car_1_n",
       "traffic_car_2_s",
+      "traffic_car_4_e",
+      "traffic_car_5_w",
+      "traffic_car_6_n",
+      "traffic_car_7_s",
+      "traffic_car_8_e",
+      "traffic_car_9_w",
+      "jogger_0_right_0",
+      "jogger_1_left_1",
+      "jogger_2_right_1",
+      "bubble_jogger_0",
+      "bubble_jogger_1",
+      "bubble_jogger_2",
+      "bubble_animal_yum",
+      "bubble_too_bright",
       "traffic_truck_0_e",
       "traffic_truck_1_w",
       "traffic_truck_2_n",
@@ -1001,6 +1019,23 @@ test("Home Base interior lets Liam go inside 565 Boylston St, restock snacks, di
   playSquirrelChitter();
   playCatMeow();
   playDogBark();
+  playBotwTeleportOutSfx();
+  playBotwTeleportInSfx();
+  playSnackTossSfx();
+
+  // Verify 10 distinct 32-bit car makes & models and questSystem.hasLantern() gating!
+  assert.equal(CAR_MODEL_COUNT, 10, "expected 10 distinct 32-bit car makes & models");
+  const { worldMap: wm2, landmarks: lm2, quests: q2 } = loadLiveData();
+  const qsLantern = createQuestSystem({ landmarks: lm2, quests: q2, worldMap: wm2 });
+  assert.equal(qsLantern.hasLantern(), false, "fresh save in Signpost mode should not have lantern yet");
+  qsLantern.state.inventory.add("spooky_lantern");
+  assert.equal(qsLantern.hasLantern(), true, "holding spooky_lantern must enable ghost-repelling lantern");
+  qsLantern.state.inventory.delete("spooky_lantern");
+  qsLantern.state.inventory.add("ghost_lantern_cloak");
+  assert.equal(qsLantern.hasLantern(), true, "holding ghost_lantern_cloak must enable ghost-repelling lantern");
+  qsLantern.state.inventory.delete("ghost_lantern_cloak");
+  qsLantern.setNavMode("gps");
+  assert.equal(qsLantern.hasLantern(), true, "Easy / GPS mode unlocks ghost-repelling lantern");
 
   // Headless 2x HD 32-bit interior room & 4-frame animated overlay baking check for all 3 Home Base rooms!
   const prevDoc = global.document;

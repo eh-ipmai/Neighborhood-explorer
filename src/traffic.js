@@ -24,6 +24,7 @@ const DIRS = [
 ];
 
 export const BIKER_CHANT_COUNT = 5;
+export const CAR_VARIANT_COUNT = 10;
 
 function hash2(x, y, seed = 41) {
   let n = (x * 374761393 + y * 668265263 + seed * 1442695041) | 0;
@@ -127,7 +128,7 @@ export function buildRoadTraffic(worldMap, { spawnTile = null } = {}) {
       }
     }
 
-    const variant = kind === "truck" ? h % 3 : kind === "bike" ? h % 2 : h % 4;
+    const variant = kind === "truck" ? h % 3 : kind === "bike" ? h % 2 : h % CAR_VARIANT_COUNT;
     vehicles.push({
       id: `${kind}_${vehicles.length}`,
       kind, // "car" | "truck" | "bike"

@@ -16,6 +16,7 @@ import {
 import {
   createQuestSystem,
   getItemMeta,
+  snapToWalkableTile,
 } from "./quests.js";
 import { createStreetSignSystem, normalizeStreetKey } from "./streetsigns.js";
 import { createPaperMapRenderer } from "./papermap.js";
@@ -54,6 +55,9 @@ import {
   playDoorChime,
   playSecretRevealSfx,
   playDiceRollSfx,
+  playBotwTeleportOutSfx,
+  playBotwTeleportInSfx,
+  playSnackTossSfx,
 } from "./audio.js";
 import { createHomeInteriorSystem } from "./house_interior.js";
 import {
@@ -71,6 +75,8 @@ import {
   isBlockedByStreetLife,
   findNearbyStreetLife,
   findNearbyHungryProtestor,
+  findNearbySnackTarget,
+  tossSnackAtAnimal,
   interactWithStreetLife,
   performSwordAttack,
   performSiddurDispel,
@@ -174,10 +180,18 @@ function buildNeighborhoodProps(worldMap, parkOccupiedGrid = null, graveyardGrid
       const cur = base[idx];
       if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) continue;
 
-      if (cur === 8 && base[(ty - 1) * width + tx] !== 8 && base[(ty + 1) * width + tx] === 8) {
-        const h = ((tx * 37 + ty * 91) >>> 0) % 5;
-        if (h === 0 || h === 2) {
-          parkedCars.push({ tx, ty, sprite: carSprites[(tx + ty) % carSprites.length] });
+      if (cur === 8 && base[(ty + 1) * width + tx] === 8) {
+        const isTopParkingRow = base[(ty - 1) * width + tx] !== 8;
+        const isInteriorParkingRow =
+          !isTopParkingRow &&
+          ty % 3 === 0 &&
+          base[ty * width + (tx - 1)] === 8 &&
+          base[ty * width + (tx + 1)] === 8;
+        if (isTopParkingRow || isInteriorParkingRow) {
+          const h = ((tx * 37 + ty * 91) >>> 0) % 5;
+          if (h === 0 || h === 2) {
+            parkedCars.push({ tx, ty, sprite: carSprites[(tx + ty) % carSprites.length] });
+          }
         }
       }
 
@@ -562,6 +576,8 @@ async function boot() {
   };
 
   let roadHitCutscene = null; // { phase, timer, hitX, hitY, ambX, ambY, ambDir, sirenTimer, vehicleKind }
+  let botwTeleport = null; // { phase: "out"|"glide"|"in", timer, duration, fromX, fromY, toX, toY, toTx, toTy, ribbons, runes }
+  let isInGraveyardNow = false;
 
   // Overhead Item Fanfare queue & active timer
   const fanfareQueue = [];
@@ -569,6 +585,7 @@ async function boot() {
 
   const dustPuffs = [];
   const leafParticles = [];
+  const tossedSnacks = [];
   const groundDrops = [];
   let dustCooldown = 0;
   let leafTrailCooldown = 0;
@@ -906,11 +923,14 @@ async function boot() {
       elapsedTime: playerState.elapsedTime,
       tileSize,
     });
-    if (res.hitCount > 0) {
-      questSystem.state.safetyXP += res.hitCount * 10;
-      questSystem.state.coins += res.hitCount;
+    const scaredList = res.scaredAnimals || [];
+    if (res.hitCount > 0 || scaredList.length > 0) {
+      questSystem.state.safetyXP += res.hitCount * 10 + scaredList.length * 5;
+      if (res.hitCount > 0) {
+        questSystem.state.coins += res.hitCount;
+        playCoinPickup();
+      }
       questSystem.save();
-      playCoinPickup();
       for (const foe of res.defeated) {
         for (let i = 0; i < 10; i++) {
           const ang = (i / 10) * Math.PI * 2;
@@ -924,6 +944,21 @@ async function boot() {
             w: 3,
             h: 3,
           });
+        }
+      }
+      for (const animal of scaredList) {
+        if (animal.kind === "turkey") {
+          playTurkeyGobble();
+          spawnFeatherBurst(animal.x, animal.y);
+        } else if (animal.kind === "squirrel") {
+          playSquirrelChitter();
+          spawnAutumnLeafBurst(animal.x, animal.y, 7, 42);
+        } else if (animal.kind === "cat") {
+          playCatMeow();
+          spawnAutumnLeafBurst(animal.x, animal.y, 7, 42);
+        } else if (animal.kind === "dog") {
+          playDogBark();
+          spawnAutumnLeafBurst(animal.x, animal.y, 8, 46);
         }
       }
       ui?.showSafetyToast(res.toast, 2400);
@@ -965,18 +1000,58 @@ async function boot() {
   }
 
   function triggerGiveSnack() {
-    if (roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
+    if (botwTeleport || roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
     if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
     if (homeInterior.state.active) {
-      ui?.showSafetyToast("🥨 Grab snacks from the Kitchen Snack Jar inside, then share them with marchers outside!", 2500);
+      ui?.showSafetyToast("🥨 Grab snacks from the Kitchen Snack Jar inside, then share with marchers or toss to wild animals outside!", 2600);
       return;
     }
-    const nearHungry = findNearbyHungryProtestor(streetLife, playerState.x, playerState.y, 44);
-    if (nearHungry) {
-      shareSnackWithProtestor(nearHungry);
+    const nearTarget = findNearbySnackTarget(streetLife, playerState.x, playerState.y, 56);
+    if (nearTarget?.kind === "protestor") {
+      shareSnackWithProtestor(nearTarget);
+    } else if (nearTarget) {
+      const res = tossSnackAtAnimal(nearTarget, playerState.x, playerState.y, {
+        hasSnack: questSystem.hasSnack(),
+        consumeSnack: () => questSystem.useSnack(),
+        isEasyMode: Boolean(questSystem.state.gpsAssist),
+      });
+      if (res?.tossed) {
+        playSnackTossSfx();
+        tossedSnacks.push({
+          startX: playerState.x,
+          startY: playerState.y - 10,
+          targetX: res.targetX,
+          targetY: res.targetY - 6,
+          x: playerState.x,
+          y: playerState.y - 10,
+          t: 0,
+          duration: 0.36,
+        });
+        if (res.xpReward) {
+          questSystem.state.safetyXP += res.xpReward;
+          questSystem.save();
+        }
+        for (let i = 0; i < 8; i++) {
+          const ang = (i / 8) * Math.PI * 2;
+          leafParticles.push({
+            x: res.targetX,
+            y: res.targetY - 8,
+            vx: Math.cos(ang) * 26,
+            vy: Math.sin(ang) * 18 - 18,
+            life: 0.44,
+            shade: i % 2 === 0 ? [255, 214, 96] : [114, 236, 158],
+            w: 3,
+            h: 3,
+          });
+        }
+        ui?.showSafetyToast(res.toast, 2600);
+      } else if (res?.toast) {
+        playCurbStopBoop();
+        ui?.showSafetyToast(res.toast, 2600);
+      }
     } else if (questSystem.hasSnack()) {
       const countLabel = questSystem.state.gpsAssist ? "∞" : questSystem.state.snacks;
-      ui?.showSafetyToast(`🥨 You have ${countLabel} snacks ready! Walk up to any sidewalk marcher and press N or Space to share!`, 2500);
+      ui?.showSafetyToast(`🥨 You have ${countLabel} snacks ready! Walk near marchers or wild animals and press N to share or toss!`, 2600);
     } else {
       ui?.showSafetyToast("🥨 Out of snacks! Visit Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's Bagels to restock!", 2600);
     }
@@ -1388,6 +1463,73 @@ async function boot() {
     performLookBothWays();
   }
 
+  function startMapTeleport(normX, normY) {
+    if (!questSystem.state.gpsAssist) {
+      playCurbStopBoop();
+      ui?.showSafetyToast(
+        "📡 Switch to Easy / GPS Mode (G) to Fast-Travel by tapping anywhere on the map!",
+        2600
+      );
+      return false;
+    }
+    if (botwTeleport || roadHitCutscene || playerState.koRespawnTimer > 0) return false;
+
+    const rawTx = Math.max(4, Math.min(mapW - 5, Math.floor(normX * mapW)));
+    const rawTy = Math.max(4, Math.min(mapH - 5, Math.floor(normY * mapH)));
+    const snapped = snapToWalkableTile(worldMap, rawTx, rawTy, 18);
+    const destTx = Math.max(2, Math.min(mapW - 3, snapped.x));
+    const destTy = Math.max(2, Math.min(mapH - 3, snapped.y));
+
+    ui?.setMapModalOpen(false);
+    if (homeInterior.state.active) {
+      homeInterior.exitHouse();
+    }
+
+    const ribbons = [];
+    for (let i = 0; i < 16; i++) {
+      ribbons.push({
+        angle: (i / 16) * Math.PI * 2,
+        radius: 7 + (i % 4) * 3.5,
+        speed: 4.5 + (i % 3) * 1.4,
+        heightOff: (i % 5) * 6,
+        hue: i % 3, // 0 = bright Sheikah cyan, 1 = electric sky, 2 = pure ice-white
+      });
+    }
+    const runes = [];
+    for (let i = 0; i < 10; i++) {
+      const ang = (i / 10) * Math.PI * 2;
+      runes.push({
+        ox: Math.cos(ang) * (15 + (i % 2) * 5),
+        oy: Math.sin(ang) * (8 + (i % 2) * 3),
+        phase: i * 0.7,
+      });
+    }
+
+    botwTeleport = {
+      phase: "out",
+      timer: 0,
+      duration: 0.95,
+      fromX: playerState.x,
+      fromY: playerState.y,
+      toX: destTx * tileSize + tileSize / 2,
+      toY: destTy * tileSize + tileSize / 2,
+      toTx: destTx,
+      toTy: destTy,
+      ribbons,
+      runes,
+    };
+
+    playerState.moving = false;
+    playerState.lookTimer = 0;
+    playerState.safeCrossingTimer = 0;
+    playerState.headingDeg = 0;
+    playerState.targetHeadingDeg = 0;
+    k.setCamRot(0);
+    playBotwTeleportOutSfx();
+    ui?.showSafetyToast("✨ Sheikah Fast-Travel engaged!", 1900);
+    return true;
+  }
+
   function togglePaperMap() {
     if (ui?.isDialogueOpen() || ui?.isPaintOpen() || ui?.isSignOpen()) return;
     const nextOpen = !ui?.isMapOpen();
@@ -1423,8 +1565,8 @@ async function boot() {
       playerState.targetHeadingDeg = 0;
       k.setCamRot(0);
       ui?.showSafetyToast(
-        "📡 Easy / GPS Mode ON — All Outfits (O), Sword (J), Siddur (K), Water Wading & Top Speed unlocked!",
-        3000
+        "📡 Easy / GPS Mode ON — Tap anywhere on the Map (M) to Fast-Travel! All Outfits, Sword, Siddur & Top Speed unlocked!",
+        3200
       );
     } else {
       playerState.headingDeg = 0;
@@ -1534,6 +1676,7 @@ async function boot() {
     onToggleMute: () => toggleMute(),
     onOpenPaint: openPaintForNearbyHouse,
     onToggleMap: togglePaperMap,
+    onMapTeleport: startMapTeleport,
     onToggleGpsAssist: cycleNavModeAction,
     onToggleOutfit: toggleHeroOutfitMode,
     onToggleInside: toggleHouseInside,
@@ -2008,6 +2151,151 @@ async function boot() {
       return;
     }
 
+    // Legend of Zelda: BotW Sheikah Fast-Travel Sequence (Dematerialize -> High-Speed Glide -> Rematerialize!)
+    if (botwTeleport) {
+      const bt = botwTeleport;
+      bt.timer += dt;
+
+      for (let i = leafParticles.length - 1; i >= 0; i--) {
+        const p = leafParticles[i];
+        p.life -= dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        if (!p.noGravity) p.vy += 65 * dt;
+        if (p.life <= 0) leafParticles.splice(i, 1);
+      }
+
+      if (bt.phase === "out") {
+        const p = Math.min(1, bt.timer / bt.duration);
+        if (Math.random() < 0.85) {
+          const ang = Math.random() * Math.PI * 2;
+          const r = 4 + Math.random() * 14;
+          leafParticles.push({
+            x: bt.fromX + Math.cos(ang) * r,
+            y: bt.fromY - Math.random() * 18,
+            vx: Math.cos(ang) * 8,
+            vy: -58 - p * 95,
+            life: 0.34 + Math.random() * 0.22,
+            shade: Math.random() < 0.35 ? [232, 252, 255] : [48, 224, 255],
+            w: 2,
+            h: 4,
+            noGravity: true,
+          });
+        }
+        const shake = p > 0.65 ? Math.round(Math.sin(playerState.elapsedTime * 75) * 1.5) : 0;
+        const cPos = clampCamera(bt.fromX, bt.fromY);
+        cam = { x: cPos.x + shake, y: cPos.y };
+        k.setCamPos(cam.x, cam.y);
+        k.setCamRot(0);
+
+        if (bt.timer >= bt.duration) {
+          bt.phase = "glide";
+          bt.timer = 0;
+          bt.duration = 0.48;
+          // Burst of departing blue-cyan Sheikah pixels
+          for (let i = 0; i < 16; i++) {
+            const ang = (i / 16) * Math.PI * 2;
+            leafParticles.push({
+              x: bt.fromX,
+              y: bt.fromY - 12,
+              vx: Math.cos(ang) * 44,
+              vy: Math.sin(ang) * 24 - 60,
+              life: 0.42,
+              shade: i % 2 === 0 ? [62, 232, 255] : [220, 252, 255],
+              w: 2,
+              h: 3,
+              noGravity: true,
+            });
+          }
+        }
+      } else if (bt.phase === "glide") {
+        const t = Math.min(1, bt.timer / bt.duration);
+        const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        const gx = bt.fromX + (bt.toX - bt.fromX) * ease;
+        const gy = bt.fromY + (bt.toY - bt.fromY) * ease;
+        cam = clampCamera(gx, gy);
+        k.setCamPos(cam.x, cam.y);
+        k.setCamRot(0);
+
+        if (Math.random() < 0.9) {
+          leafParticles.push({
+            x: gx + (Math.random() * 14 - 7),
+            y: gy + (Math.random() * 14 - 7),
+            vx: (bt.fromX - bt.toX) * 0.08,
+            vy: (bt.fromY - bt.toY) * 0.08,
+            life: 0.25,
+            shade: Math.random() < 0.4 ? [225, 252, 255] : [40, 214, 255],
+            w: 3,
+            h: 2,
+            noGravity: true,
+          });
+        }
+
+        if (bt.timer >= bt.duration) {
+          playerState.x = bt.toX;
+          playerState.y = bt.toY;
+          playerState.facing = "down";
+          playerState.moving = false;
+          playerState.isWading = false;
+          playerState.safeCrossingTimer = 0;
+          playerState.hasEnteredRoadSinceLook = false;
+          questSystem.revealFogAtTile(bt.toTx, bt.toTy, 3);
+          playBotwTeleportInSfx();
+          for (let i = 0; i < 18; i++) {
+            const ang = (i / 18) * Math.PI * 2;
+            leafParticles.push({
+              x: bt.toX + Math.cos(ang) * 26,
+              y: bt.toY - 26 + Math.sin(ang) * 14,
+              vx: -Math.cos(ang) * 32,
+              vy: 28 - Math.sin(ang) * 12,
+              life: 0.45,
+              shade: i % 2 === 0 ? [58, 230, 255] : [225, 252, 255],
+              w: 2,
+              h: 4,
+              noGravity: true,
+            });
+          }
+          bt.phase = "in";
+          bt.timer = 0;
+          bt.duration = 0.85;
+        }
+      } else if (bt.phase === "in") {
+        const p = Math.min(1, bt.timer / bt.duration);
+        cam = clampCamera(bt.toX, bt.toY);
+        k.setCamPos(cam.x, cam.y);
+        k.setCamRot(0);
+
+        if (p < 0.72 && Math.random() < 0.75) {
+          const ang = Math.random() * Math.PI * 2;
+          const r = (1 - p) * 20 + 3;
+          leafParticles.push({
+            x: bt.toX + Math.cos(ang) * r,
+            y: bt.toY - 46 + p * 34,
+            vx: -Math.cos(ang) * 14,
+            vy: 34,
+            life: 0.3,
+            shade: Math.random() < 0.35 ? [242, 252, 255] : [48, 224, 255],
+            w: 2,
+            h: 3,
+            noGravity: true,
+          });
+        }
+
+        if (bt.timer >= bt.duration) {
+          const destZone = safety.getStreetZoneAt(bt.toTx, bt.toTy);
+          refreshPocketDirections(bt.toTx, bt.toTy, destZone?.name || "Fast-Travel");
+          botwTeleport = null;
+          ui.showSafetyToast(
+            destZone?.name
+              ? `✨ Arrived near ${destZone.name} via Sheikah Fast-Travel!`
+              : "✨ Arrived via Sheikah Fast-Travel!",
+            2200
+          );
+        }
+      }
+      return;
+    }
+
     // Animate Folded Paper Map pulsing marker while map modal is open
     if (ui.isMapOpen()) {
       const tx = Math.floor(playerState.x / tileSize);
@@ -2087,8 +2375,19 @@ async function boot() {
       p.life -= dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      p.vy += 65 * dt;
+      if (!p.noGravity) p.vy += 65 * dt;
       if (p.life <= 0) leafParticles.splice(i, 1);
+    }
+
+    for (let i = tossedSnacks.length - 1; i >= 0; i--) {
+      const s = tossedSnacks[i];
+      s.t += dt;
+      const frac = Math.min(1, s.t / s.duration);
+      s.x = s.startX + (s.targetX - s.startX) * frac;
+      s.y = s.startY + (s.targetY - s.startY) * frac - Math.sin(frac * Math.PI) * 18;
+      if (s.t >= s.duration) {
+        tossedSnacks.splice(i, 1);
+      }
     }
 
     for (let i = groundDrops.length - 1; i >= 0; i--) {
@@ -2502,6 +2801,7 @@ async function boot() {
       tileSize,
       graveyardGhosts: graveyardFeatures.ghosts,
       elapsedTime: playerState.elapsedTime,
+      hasLantern: questSystem.hasLantern(),
       onTurkeyGobble: () => playTurkeyGobble(),
       onCritterSound: (cr) => {
         if (cr.kind === "squirrel") playSquirrelChitter();
@@ -2639,6 +2939,7 @@ async function boot() {
     const graveZoneCode =
       tx >= 0 && ty >= 0 && tx < mapW && ty < mapH ? graveyardFeatures.graveyardGrid[ty * mapW + tx] : 0;
     const activeGraveyard = graveZoneCode > 0 ? graveyardFeatures.zones[graveZoneCode - 1] : null;
+    isInGraveyardNow = Boolean(activeGraveyard);
     const effectiveStreetZone = activeGraveyard
       ? { name: `🪦 ${activeGraveyard.name}`, type: "graveyard" }
       : streetZone;
@@ -2683,6 +2984,7 @@ async function boot() {
     const nearbyInteract = actionIntent.mode === "interact" ? actionIntent.interaction : null;
     const signBanner = resolveSignBanner(tx, ty, streetZone, activeGraveyard);
 
+    const nearSnackTarget = findNearbySnackTarget(streetLife, playerState.x, playerState.y, 56);
     ui.updateHUD({
       tileX: tx,
       tileY: ty,
@@ -2717,7 +3019,8 @@ async function boot() {
       hasSiddur: questSystem.hasSiddur(),
       canEnterHouse: canEnterNearbyHouse(tx, ty),
       isInsideHouse: false,
-      canGiveSnack: Boolean(findNearbyHungryProtestor(streetLife, playerState.x, playerState.y, 44)),
+      canGiveSnack: Boolean(nearSnackTarget),
+      snackTargetKind: nearSnackTarget?.kind || null,
       isFasterActive: isFasterNow,
       isWading: playerState.isWading,
       isFastWading: isFastWadingNow,
@@ -3056,6 +3359,26 @@ async function boot() {
       });
     }
 
+    // Protective warm golden-amber Lantern Halo whenever Liam holds a lantern in spooky areas!
+    if (questSystem.hasLantern() && isInGraveyardNow && !botwTeleport) {
+      const flick = 0.85 + Math.sin(playerState.elapsedTime * 11) * 0.15;
+      k.drawRect({
+        pos: k.vec2(pxPos - 26, pyPos - 22),
+        width: 52,
+        height: 36,
+        color: k.rgb(255, 220, 118),
+        opacity: 0.13 * flick,
+        outline: { width: 1, color: k.rgb(255, 236, 152), opacity: 0.34 * flick },
+      });
+      k.drawRect({
+        pos: k.vec2(pxPos - 15, pyPos - 14),
+        width: 30,
+        height: 22,
+        color: k.rgb(255, 240, 168),
+        opacity: 0.18 * flick,
+      });
+    }
+
     // Expanding radiant golden-blue Pocket Siddur blessing ring!
     if (playerState.siddurAuraTimer > 0) {
       const p = 1 - playerState.siddurAuraTimer / 0.78;
@@ -3133,8 +3456,29 @@ async function boot() {
       });
     }
 
-    if (!hurtBlinkHide) {
-      k.drawSprite(sprName, pxPos - 12, pyPos - 23 - hopOffset + wadeSink, 1, heroAngle, pxPos, pyPos);
+    // BotW Sheikah Fast-Travel vertical levitation & pixel-dissolve phase
+    let teleportLift = 0;
+    let teleportHide = false;
+    if (botwTeleport) {
+      const bt = botwTeleport;
+      const p = Math.min(1, bt.timer / Math.max(0.01, bt.duration));
+      if (bt.phase === "glide") {
+        teleportHide = true;
+      } else if (bt.phase === "out") {
+        teleportLift = Math.round(p * 10);
+        if (p > 0.72 || (p > 0.42 && Math.floor(playerState.elapsedTime * 28) % 2 === 0)) {
+          teleportHide = true;
+        }
+      } else if (bt.phase === "in") {
+        teleportLift = Math.round((1 - p) * 9);
+        if (p < 0.24 || (p < 0.54 && Math.floor(playerState.elapsedTime * 28) % 2 === 0)) {
+          teleportHide = true;
+        }
+      }
+    }
+
+    if (!hurtBlinkHide && !teleportHide) {
+      k.drawSprite(sprName, pxPos - 12, pyPos - 23 - hopOffset - teleportLift + wadeSink, 1, heroAngle, pxPos, pyPos);
     }
 
     if (isWading && heroAngle === 0 && !hurtBlinkHide) {
@@ -3922,8 +4266,8 @@ async function boot() {
     for (const g of propIndices.graveGhosts.query(startX - 3, startY - 3, endX + 3, endY + 3)) {
       if ((g.defeatedTimer || 0) > 0) continue;
       const gp = getGraveyardGhostPos(g, tSec, tileSize);
-      const gx = gp.x;
-      const gy = gp.y;
+      const gx = gp.x + Math.round(g.repelX || 0);
+      const gy = gp.y + Math.round(g.repelY || 0);
       const gFrame = (animFrame + g.variant) % 2;
       drawables.push({
         sortY: depthOf(gx + 7, gy + 18),
@@ -3936,6 +4280,12 @@ async function boot() {
             opacity: 0.32,
           });
           k.drawSprite(`grave_ghost_${gFrame}`, gx, gy, 1, bbAngle, gx + 7, gy + 18);
+          if ((g.lanternScaredTimer || 0) > 0) {
+            const bSpr = atlas.bubble_too_bright;
+            const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 34;
+            const bob = Math.round(Math.sin(tSec * 12 + gx) * 1.2);
+            k.drawSprite("bubble_too_bright", Math.round(gx + 7 - bwLog / 2), gy - 11 + bob, 1, bbAngle, gx + 7, gy + 18);
+          }
         },
       });
     }
@@ -4498,9 +4848,10 @@ async function boot() {
           k.drawSprite(spr, txPx, tyPx, 1, bbAngle, footX, footY);
           if (tk.gobbleBubbleTimer > 0) {
             const bob = Math.round(Math.sin(tSec * 10 + tk.x) * 1.2);
-            const bSpr = atlas.bubble_gobble;
+            const bKey = tk.bubbleSprite || "bubble_gobble";
+            const bSpr = atlas[bKey];
             const bwLog = bSpr ? (bSpr.width * (bSpr.__pixelScale || 0.5)) : 20;
-            k.drawSprite("bubble_gobble", Math.round(footX - bwLog / 2), tyPx - 11 + bob, 1, bbAngle, footX, footY);
+            k.drawSprite(bKey, Math.round(footX - bwLog / 2), tyPx - 11 + bob, 1, bbAngle, footX, footY);
           }
         },
       });
@@ -4546,6 +4897,32 @@ async function boot() {
             const bSpr = atlas[bKey];
             const bwLog = bSpr ? (bSpr.width * (bSpr.__pixelScale || 0.5)) : 24;
             k.drawSprite(bKey, Math.round(footX - bwLog / 2), drawY - 10 + bob, 1, bbAngle, footX, footY);
+          }
+        },
+      });
+    }
+
+    // Friendly 32-Bit Sidewalk Joggers cruising along sidewalks & Commonwealth Ave's Carriage Lane Mall!
+    for (const jg of streetLife.joggers || []) {
+      const jgTx = jg.x / tileSize;
+      const jgTy = jg.y / tileSize;
+      if (jgTx < startX - 2 || jgTx > endX + 2 || jgTy < startY - 2 || jgTy > endY + 2) continue;
+      const runFrame = Math.floor(jg.animTimer) % 2;
+      const spr = `jogger_${jg.variant}_${jg.facing}_${runFrame}`;
+      const jxDraw = Math.round(jg.x - 11);
+      const jyDraw = Math.round(jg.y - 25);
+      const footX = Math.round(jg.x);
+      const footY = Math.round(jg.y + 3);
+      drawables.push({
+        sortY: depthOf(footX, footY),
+        draw: () => {
+          k.drawSprite(spr, jxDraw, jyDraw, 1, bbAngle, footX, footY);
+          if (jg.bubbleTimer > 0) {
+            const bob = Math.round(Math.sin(tSec * 10 + jg.x) * 1.2);
+            const bKey = jg.bubbleSprite || "bubble_jogger_0";
+            const bSpr = atlas[bKey];
+            const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 34;
+            k.drawSprite(bKey, Math.round(footX - bwLog / 2), jyDraw - 10 + bob, 1, bbAngle, footX, footY);
           }
         },
       });
@@ -4651,6 +5028,135 @@ async function boot() {
       });
     }
 
+    // Flying tossed pretzel snacks arcing cleanly toward wild neighborhood animals!
+    for (const sn of tossedSnacks) {
+      const sx = Math.round(sn.x);
+      const sy = Math.round(sn.y);
+      const spin = Math.floor(sn.t * 18) % 2;
+      // Dark outline + warm golden-brown baked pretzel knot + salt crystal sparkles
+      k.drawRect({ pos: k.vec2(sx - 4, sy - 3), width: 8, height: 6, color: k.rgb(66, 36, 14) });
+      k.drawRect({ pos: k.vec2(sx - 3, sy - 2), width: 6, height: 4, color: k.rgb(214, 138, 52) });
+      k.drawRect({ pos: k.vec2(sx - 2 + spin, sy - 1), width: 2, height: 1, color: k.rgb(255, 246, 212) });
+      k.drawRect({ pos: k.vec2(sx + 1 - spin, sy), width: 2, height: 1, color: k.rgb(255, 246, 212) });
+    }
+
+    // Legend of Zelda: Breath of the Wild Sheikah Fast-Travel Blue/Cyan Energy Teleport VFX!
+    if (botwTeleport) {
+      const bt = botwTeleport;
+      const p = Math.min(1, bt.timer / Math.max(0.01, bt.duration));
+      if (bt.phase === "glide") {
+        // Luminous Sheikah cyan energy comet streaking across Newton's overworld!
+        const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+        const cx = Math.round(bt.fromX + (bt.toX - bt.fromX) * ease);
+        const cy = Math.round(bt.fromY + (bt.toY - bt.fromY) * ease);
+        const vx = bt.toX - bt.fromX;
+        const vy = bt.toY - bt.fromY;
+        const dist = Math.hypot(vx, vy) || 1;
+        const ux = vx / dist;
+        const uy = vy / dist;
+        for (let i = 7; i >= 0; i--) {
+          const txP = Math.round(cx - ux * i * 6);
+          const tyP = Math.round(cy - uy * i * 6);
+          const sz = Math.max(2, 10 - i);
+          k.drawRect({
+            pos: k.vec2(txP - Math.floor(sz / 2), tyP - Math.floor(sz / 2)),
+            width: sz,
+            height: sz,
+            color: i < 2 ? k.rgb(236, 254, 255) : k.rgb(42, 220, 255),
+            opacity: Math.max(0.14, 1 - i * 0.11),
+          });
+        }
+      } else {
+        const isOut = bt.phase === "out";
+        const anchorX = Math.round(isOut ? bt.fromX : bt.toX);
+        const anchorY = Math.round(isOut ? bt.fromY : bt.toY);
+        const intensity = isOut ? Math.sin(p * Math.PI * 0.85) : Math.sin((1 - p) * Math.PI * 0.9);
+        const ringExpand = isOut ? p : 1 - p;
+
+        // 1. Ancient glowing Sheikah ground sigil & concentric cyan/turquoise rune rings
+        const ringW = Math.round(24 + ringExpand * 22);
+        const ringH = Math.round(12 + ringExpand * 11);
+        k.drawRect({
+          pos: k.vec2(anchorX - Math.floor(ringW / 2), anchorY - Math.floor(ringH / 2) + 2),
+          width: ringW,
+          height: ringH,
+          color: k.rgb(20, 168, 224),
+          opacity: Math.max(0.08, intensity * 0.28),
+          outline: { width: 2, color: k.rgb(72, 238, 255), opacity: Math.max(0.15, intensity * 0.92) },
+        });
+        const innerW = Math.max(8, ringW - 10);
+        const innerH = Math.max(4, ringH - 5);
+        k.drawRect({
+          pos: k.vec2(anchorX - Math.floor(innerW / 2), anchorY - Math.floor(innerH / 2) + 2),
+          width: innerW,
+          height: innerH,
+          fill: false,
+          outline: { width: 1, color: k.rgb(228, 252, 255), opacity: Math.max(0.12, intensity * 0.85) },
+        });
+
+        // Orbiting ancient Sheikah diamond rune sigils around the circle
+        for (const r of bt.runes) {
+          const rot = tSec * 3.4 + r.phase;
+          const rx = Math.round(anchorX + Math.cos(rot) * (15 + ringExpand * 9));
+          const ry = Math.round(anchorY + 2 + Math.sin(rot) * (7 + ringExpand * 4));
+          k.drawRect({ pos: k.vec2(rx - 2, ry - 2), width: 4, height: 4, color: k.rgb(42, 220, 255), opacity: intensity * 0.9 });
+          k.drawRect({ pos: k.vec2(rx - 1, ry - 1), width: 2, height: 2, color: k.rgb(240, 254, 255), opacity: intensity });
+        }
+
+        // 2. Skyward glowing Sheikah cyan energy beam column
+        const beamH = Math.round(28 + (isOut ? p * 125 : (1 - p) * 125));
+        const beamW = Math.max(4, Math.round(20 * intensity));
+        k.drawRect({
+          pos: k.vec2(anchorX - Math.floor(beamW / 2), anchorY - beamH),
+          width: beamW,
+          height: beamH + 4,
+          color: k.rgb(36, 206, 255),
+          opacity: Math.max(0.06, intensity * 0.38),
+        });
+        const coreW = Math.max(2, Math.round(beamW * 0.42));
+        k.drawRect({
+          pos: k.vec2(anchorX - Math.floor(coreW / 2), anchorY - beamH),
+          width: coreW,
+          height: beamH + 2,
+          color: k.rgb(232, 254, 255),
+          opacity: Math.max(0.08, intensity * 0.65),
+        });
+
+        // 3. 16 swirling helical BotW Sheikah blue/cyan energy ribbon strands!
+        for (const rib of bt.ribbons) {
+          const swirlPhase = isOut ? p : 1 - p;
+          const ang = rib.angle + tSec * rib.speed * (isOut ? 1 : -1) + swirlPhase * 6.5;
+          const rad = Math.max(2, rib.radius * (1 - swirlPhase * 0.55));
+          const riseY = anchorY - rib.heightOff - swirlPhase * 96;
+          const sx = Math.round(anchorX + Math.cos(ang) * rad);
+          const sy = Math.round(riseY + Math.sin(ang) * 3);
+          const col =
+            rib.hue === 2
+              ? k.rgb(236, 254, 255)
+              : rib.hue === 1
+                ? k.rgb(88, 240, 255)
+                : k.rgb(28, 188, 252);
+          // Elongated glowing streak ribbon (3 stacked pixel segments)
+          k.drawRect({ pos: k.vec2(sx - 1, sy), width: 3, height: 9, color: col, opacity: Math.max(0.15, intensity * 0.95) });
+          k.drawRect({ pos: k.vec2(sx, sy - 6), width: 2, height: 6, color: k.rgb(230, 254, 255), opacity: Math.max(0.1, intensity * 0.72) });
+        }
+
+        // 4. Arrival / Departure bright cyan shockwave flash burst!
+        const flashPeak = isOut ? Math.max(0, (p - 0.68) / 0.32) : Math.max(0, (0.34 - p) / 0.34);
+        if (flashPeak > 0.02) {
+          const fw = Math.round(14 + (1 - flashPeak) * 36);
+          const fh = Math.round(18 + (1 - flashPeak) * 28);
+          k.drawRect({
+            pos: k.vec2(anchorX - Math.floor(fw / 2), anchorY - Math.floor(fh / 2) - 8),
+            width: fw,
+            height: fh,
+            color: k.rgb(218, 252, 255),
+            opacity: flashPeak * 0.62,
+          });
+        }
+      }
+    }
+
     // Overhead Spooky Graveyard Atmosphere: flapping pixel bats, glowing will-o'-the-wisps & drifting silver mist!
     for (const w of propIndices.graveWisps.query(startX - 2, startY - 2, endX + 2, endY + 2)) {
       const wx = Math.round(w.tx * tileSize + 4 + Math.sin(tSec * w.speed + w.phase) * 7);
@@ -4754,6 +5260,7 @@ async function boot() {
     triggerSiddurDispel,
     triggerGiveSnack,
     toggleHouseInside,
+    startMapTeleport,
     startRoadHitCutscene,
     resetToSalzberg,
   };

@@ -480,3 +480,44 @@ export function playDiceRollSfx(isCrit = false) {
     }, idx * 55);
   });
 }
+
+/** Breath of the Wild Sheikah-style crystalline dematerialize teleport SFX! */
+export function playBotwTeleportOutSfx() {
+  // Shimmering ascending pentatonic blue-energy chimes + airy upward harmonic whoosh
+  const notes = [523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98, 2093.0];
+  notes.forEach((freq, idx) => {
+    setTimeout(() => {
+      playTone({ freq, endFreq: freq * 1.12, duration: 0.14, type: "sine", volume: 0.048 });
+      playTone({ freq: freq * 0.5, duration: 0.12, type: "triangle", volume: 0.03 });
+    }, idx * 72);
+  });
+  setTimeout(() => {
+    zzfx(0.06, 0.04, 880, 0.04, 0.14, 0.22, 0, 1.3, 4.8, 0.2);
+  }, 360);
+}
+
+/** Breath of the Wild Sheikah-style crystalline arrival rematerialize SFX! */
+export function playBotwTeleportInSfx() {
+  const notes = [1567.98, 1318.51, 1046.5, 783.99, 1046.5];
+  notes.forEach((freq, idx) => {
+    setTimeout(() => {
+      playTone({
+        freq,
+        duration: idx === 4 ? 0.34 : 0.11,
+        type: idx === 4 ? "triangle" : "sine",
+        volume: idx === 4 ? 0.065 : 0.048,
+      });
+    }, idx * 75);
+  });
+  setTimeout(() => {
+    playTone({ freq: 523.25, duration: 0.32, type: "sine", volume: 0.05 });
+  }, 300);
+}
+
+/** Playful snack-toss arc whoosh + cheerful munch chime when tossing a snack to a wild animal! */
+export function playSnackTossSfx() {
+  playTone({ freq: 420, endFreq: 760, duration: 0.1, type: "triangle", volume: 0.05 });
+  setTimeout(() => {
+    playTone({ freq: 880, endFreq: 1174.66, duration: 0.11, type: "sine", volume: 0.055 });
+  }, 140);
+}

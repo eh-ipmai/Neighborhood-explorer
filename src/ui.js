@@ -68,6 +68,7 @@ export function createUI({
   onToggleMute,
   onOpenPaint,
   onToggleMap,
+  onMapTeleport,
   onToggleGpsAssist,
   onToggleOutfit,
   onToggleInside,
@@ -267,6 +268,11 @@ export function createUI({
       btnMapGps.classList.toggle("secondary", navMode === "signs");
     }
 
+    if (mapCanvasEl) {
+      mapCanvasEl.style.cursor = gpsOn ? "crosshair" : "default";
+      mapCanvasEl.title = gpsOn ? "Tap anywhere on the map to Fast-Travel!" : "Folded Paper Map";
+    }
+
     if (mapLegendEl) {
       const buildingKey =
         `<span style="display:inline-flex;align-items:center;gap:3px;"><i style="display:inline-block;width:8px;height:8px;background:#2358b8;border:1px solid #2b2112;"></i>School</span>` +
@@ -276,7 +282,7 @@ export function createUI({
         `<span style="display:inline-flex;align-items:center;gap:3px;"><i style="display:inline-block;width:8px;height:8px;background:#d92b24;border:1px solid #2b2112;"></i>Fire</span>` +
         `<span style="display:inline-flex;align-items:center;gap:3px;"><i style="display:inline-block;width:8px;height:8px;background:#e07124;border:1px solid #2b2112;"></i>Shops</span>`;
       mapLegendEl.innerHTML = gpsOn
-        ? `<span>🔴 You</span><span>🟨 Home / Quest</span><span>🟩 Discovered</span>${buildingKey}`
+        ? `<span style="color:#0c7b93;font-weight:800;">✨ Tap map to Fast-Travel!</span><span>🔴 You</span><span>🟨 Home / Quest</span><span>🟩 Discovered</span>${buildingKey}`
         : hardOn
           ? `<span>📍 Last Sign</span><span>🟩 Checked Sign</span>${buildingKey}`
           : `<span>📍 Last Sign</span><span>🟩 Checked Sign</span><span>🟨 Home</span>${buildingKey}`;
@@ -470,6 +476,13 @@ export function createUI({
   btnMapClose?.addEventListener("click", () => setMapModalOpen(false));
   mapModalEl?.addEventListener("click", (e) => {
     if (e.target === mapModalEl) setMapModalOpen(false);
+  });
+  mapCanvasEl?.addEventListener("click", (e) => {
+    const rect = mapCanvasEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const ny = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    onMapTeleport?.(nx, ny);
   });
   btnResetProgress?.addEventListener("click", () => {
     onResetProgress?.();
@@ -785,6 +798,7 @@ export function createUI({
     canEnterHouse = false,
     isInsideHouse = false,
     canGiveSnack = false,
+    snackTargetKind = null,
     isFasterActive = false,
     isWading = false,
     isFastWading = false,
@@ -800,10 +814,11 @@ export function createUI({
     setText(btnInside, "insideTxt", isInsideHouse ? "🚪 Outside (I)" : "🏠 Inside (I)");
     setClass(btnInside, "insideAct", "active", isInsideHouse || canEnterHouse);
     setDisplay(btnSnack, "snackDisp", canGiveSnack ? "inline-flex" : "none");
+    const snackActionVerb = snackTargetKind && snackTargetKind !== "protestor" ? "Toss Snack" : "Give Snack";
     setText(
       btnSnack,
       "snackTxt",
-      hasSnack ? `🥨 Give Snack (${gpsAssist ? "∞" : snacks}) [N]` : "🥨 Need Snacks [N]"
+      hasSnack ? `🥨 ${snackActionVerb} (${gpsAssist ? "∞" : snacks}) [N]` : "🥨 Need Snacks [N]"
     );
     setClass(btnSnack, "snackAct", "active", canGiveSnack && hasSnack);
     setDisplay(btnSword, "swordDisp", hasSword ? "inline-flex" : "none");
@@ -991,13 +1006,13 @@ export function createUI({
             ? `🥨 Tap Give Snack (N) or Space — Share a snack with the marchers ("${nearbyInteraction.target.chantText}")!`
             : `🥨 Marching makes them hungry! Grab snacks at Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's!`;
         } else if (nearbyInteraction.kind === "turkey") {
-          label = "🦃 Tap SHOO / Space — Bold Wild Newton Turkey!";
+          label = "🦃 Wild Turkey! Press N to Toss Snack, J to Swing Sword, or Space to Shoo!";
         } else if (nearbyInteraction.kind === "squirrel") {
-          label = "🐿️ Tap SHOO / Space — Feisty Wild Newton Squirrel!";
+          label = "🐿️ Wild Squirrel! Press N to Toss Snack, J to Swing Sword, or Space to Shoo!";
         } else if (nearbyInteraction.kind === "cat") {
-          label = "🐱 Tap SHOO / Space — Sassy Prowling Cat!";
+          label = "🐱 Prowling Cat! Press N to Toss Snack, J to Swing Sword, or Space to Shoo!";
         } else if (nearbyInteraction.kind === "dog") {
-          label = "🐕 Tap SHOO / Space — Runaway Dog with Trailing Leash!";
+          label = "🐕 Runaway Dog! Press N to Toss Snack, J to Swing Sword, or Space to Shoo!";
         } else if (nearbyInteraction.kind === "spooky") {
           label = `👻 Tap SPOOK BACK / Space — ${nearbyInteraction.target?.name || "Spooky Graveyard Character"}!`;
         } else {

@@ -2341,7 +2341,141 @@ export function bake32BitStreetLifeSprites(chants = []) {
   out.road_flare_0 = bake32BitRoadFlare(0);
   out.road_flare_1 = bake32BitRoadFlare(1);
 
+  // 32-Bit Hero-Grade Animated Sidewalk Joggers (3 athletic Boston/Newton outfits x 2 running frames x left/right!)
+  const JOGGER_STYLES = [
+    {
+      // 0: Coral Tank & Navy Shorts with Sweatband (classic Newton runner!)
+      skin: ["#ffe0bd", "#f2bc91", "#c98b63"],
+      hair: ["#5c361c", "#8c542d", "#2e180c"],
+      top: ["#ff6b57", "#e03e31", "#9c1f19"],
+      shorts: ["#2b4878", "#1b2e52"],
+      shoe: ["#42d9a8", "#ffffff"],
+      band: "#fff275",
+      ponytail: true,
+    },
+    {
+      // 1: Boston Marathon Royal-Blue & Gold Singlet (#26 bib!)
+      skin: ["#e3b084", "#c48a5e", "#8f5b38"],
+      hair: ["#241c1a", "#3d302c", "#140f0e"],
+      top: ["#4ca0f5", "#246bc2", "#144282"],
+      shorts: ["#1e2430", "#11151f"],
+      shoe: ["#ffd242", "#ffffff"],
+      band: "#ff5c47",
+      ponytail: false,
+    },
+    {
+      // 2: Mint-Teal Track Jacket & Charcoal Leggings (autumn Comm Ave jogger!)
+      skin: ["#f7cfb0", "#deb08a", "#b07f5b"],
+      hair: ["#c78936", "#ebad54", "#7d4f16"],
+      top: ["#5ce0c4", "#28a891", "#166b5c"],
+      shorts: ["#343b4d", "#1e2330"],
+      shoe: ["#ff78a8", "#ffffff"],
+      band: "#ffffff",
+      ponytail: true,
+    },
+  ];
+  const bake32BitJoggerRight = (style, frame) => {
+    const w = 44;
+    const h = 56;
+    const g = new PixelGrid(w, h);
+    const cx = 22;
+    const bob = frame === 1 ? -3 : 0;
+    const stride = frame === 1 ? 6 : -5;
+    const backStride = -stride;
+
+    // 1. Dynamic mid-stride running legs & cushioned neon running sneakers!
+    // Back leg
+    g.rect(cx - 2 + backStride, 35 + bob, 4, 8, style.skin[1], "skin");
+    g.rect(cx - 4 + backStride, 42 + bob, 8, 4, style.shoe[0], "shoe");
+    g.rect(cx - 4 + backStride, 45 + bob, 8, 2, style.shoe[1], "shoe");
+    // Athletic running shorts
+    g.rect(cx - 5, 30 + bob, 11, 7, style.shorts[0], "shorts");
+    g.rect(cx - 5, 34 + bob, 11, 3, style.shorts[1], "shorts");
+    // Front driving knee & sneaker!
+    g.rect(cx - 1 + stride, 34 + bob, 5, 8, style.skin[0], "skin");
+    g.rect(cx - 1 + stride, 41 + bob, 9, 4, style.shoe[0], "shoe");
+    g.rect(cx - 1 + stride, 44 + bob, 9, 2, style.shoe[1], "shoe");
+
+    // 2. Athletic Torso (forward-leaning runner's posture!)
+    g.rect(cx - 5, 19 + bob, 11, 12, style.top[1], "top");
+    g.rect(cx - 3, 19 + bob, 7, 10, style.top[0], "top");
+    g.rect(cx - 5, 28 + bob, 11, 3, style.top[2], "top");
+    // Tiny white marathon runner's bib pinned to chest!
+    g.rect(cx - 1, 22 + bob, 6, 5, "#ffffff", "bib");
+    g.rect(cx, 24 + bob, 4, 1, "#263859", "bib");
+
+    // 3. Pumping bent running arms!
+    const armFwd = frame === 1 ? -4 : 5;
+    g.rect(cx - 8 - Math.round(armFwd * 0.5), 21 + bob, 4, 6, style.skin[1], "skin");
+    g.rect(cx + 4 + Math.round(armFwd * 0.5), 20 + bob, 5, 5, style.skin[0], "skin");
+    g.rect(cx + 7 + Math.round(armFwd * 0.5), 18 + bob, 4, 4, style.skin[0], "skin");
+
+    // 4. Expressive 32-bit Head, Hair, Ponytail & Athletic Sweatband!
+    g.ellipse(cx + 1, 12 + bob, 6.2, 6.0, style.skin[0], "skin");
+    g.ellipse(cx - 1, 14 + bob, 4.5, 3.2, style.skin[1], "skin");
+    // Sculpted hair cap + flowing bouncy ponytail!
+    g.ellipse(cx, 8 + bob, 6.4, 4.2, style.hair[0], "hair");
+    g.ellipse(cx + 1, 7 + bob, 4.2, 2.2, style.hair[1], "hair");
+    if (style.ponytail) {
+      g.ellipse(cx - 8, 10 + bob + (frame === 1 ? -1 : 1), 3.6, 2.6, style.hair[0], "hair");
+      g.ellipse(cx - 10, 12 + bob + (frame === 1 ? -1 : 1), 2.5, 2.0, style.hair[1], "hair");
+    }
+    // Crisp athletic sweatband across forehead!
+    g.rect(cx - 5, 9 + bob, 12, 2, style.band, "band");
+    // Bright smiling face facing right!
+    g.rect(cx + 3, 12 + bob, 2, 2, "#1c202b", "eye");
+    g.set(cx + 3, 12 + bob, "#ffffff", "eye");
+    g.rect(cx + 3, 15 + bob, 3, 1, "#b85c48", "skin"); // cheerful runner smile!
+
+    g.applySelOut({
+      skin: "#6e3d24",
+      hair: style.hair[2],
+      top: style.top[2],
+      shorts: "#121624",
+      shoe: "#1a2030",
+      band: "#544214",
+      bib: "#4d5970",
+      eye: "#14161f",
+    });
+    return {
+      right: g.toCanvas(0.5, { cx, cy: 50, rx: 9, ry: 2.8 }),
+      left: g.flipHorizontal().toCanvas(0.5, { cx, cy: 50, rx: 9, ry: 2.8 }),
+    };
+  };
+  JOGGER_STYLES.forEach((st, idx) => {
+    for (let frame = 0; frame < 2; frame++) {
+      const pair = bake32BitJoggerRight(st, frame);
+      out[`jogger_${idx}_right_${frame}`] = pair.right;
+      out[`jogger_${idx}_left_${frame}`] = pair.left;
+    }
+  });
+
   // Crisp 32-bit pixel speech bubbles!
+  out.bubble_jogger_0 = bakePixelSpeechBubble("ON YOUR LEFT!", {
+    bg: "#e8fff4",
+    accent: "#229c68",
+    textColor: "#113d29",
+  });
+  out.bubble_jogger_1 = bakePixelSpeechBubble("GREAT RUN!", {
+    bg: "#eaf5ff",
+    accent: "#2874d6",
+    textColor: "#122b4f",
+  });
+  out.bubble_jogger_2 = bakePixelSpeechBubble("MARATHON PREP!", {
+    bg: "#fff6de",
+    accent: "#e07a24",
+    textColor: "#42240c",
+  });
+  out.bubble_animal_yum = bakePixelSpeechBubble("YUM! *MUNCH*", {
+    bg: "#ebfff0",
+    accent: "#289c52",
+    textColor: "#123b20",
+  });
+  out.bubble_too_bright = bakePixelSpeechBubble("TOO BRIGHT!!", {
+    bg: "#e6fbff",
+    accent: "#26a8d9",
+    textColor: "#10394f",
+  });
   out.bubble_gobble = bakePixelSpeechBubble("GOBBLE!", {
     bg: "#fff6db",
     accent: "#cf2b26",

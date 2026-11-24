@@ -699,7 +699,107 @@ export function buildStreetLife(
     }
   });
 
-  return { turkeys, squirrels, cats, dogs, critters, protestors, mobs, spookyChars, graveyardGrid: effectiveGraveGrid };
+  return { turkeys, squirrels, cats, dogs, critters, protestors, mobs, spookyChars, joggers: buildSidewalkJoggers(worldMap, spawnTile), graveyardGrid: effectiveGraveGrid };
+}
+
+/**
+ * Spawn friendly 32-bit Newton Sidewalk Joggers cruising along sidewalks and Commonwealth Avenue's
+ * grassy Carriage Lane Mall (non-hostile neighbors who wave as they jog past!).
+ */
+function buildSidewalkJoggers(worldMap, spawnTile = null) {
+  const { width, height } = worldMap.dimensions;
+  const base = worldMap.layers.base;
+  const collision = worldMap.layers.collision;
+  const tileSize = worldMap.tileSize || 16;
+  const home = spawnTile || worldMap.origin?.spawnTile || { x: Math.floor(width / 2), y: Math.floor(height / 2) };
+
+  const joggers = [];
+  const used = new Set();
+  const isJogTile = (tx, ty) => {
+    if (tx < 3 || ty < 3 || tx >= width - 3 || ty >= height - 3) return false;
+    const idx = ty * width + tx;
+    if (collision && collision[idx] === 1) return false;
+    const t = base[idx];
+    return t === 1 || t === 11 || t === 9; // sidewalks, Comm Ave grassy park mall, dirt trails!
+  };
+
+  const addJogger = (tx, ty) => {
+    if (used.has(`${tx},${ty}`) || !isJogTile(tx, ty)) return false;
+    const h = hash2(tx, ty, 617 + joggers.length);
+    const dirs = [
+      { dx: 1, dy: 0 },
+      { dx: -1, dy: 0 },
+      { dx: 0, dy: 1 },
+      { dx: 0, dy: -1 },
+    ].filter((d) => isJogTile(tx + d.dx, ty + d.dy));
+    if (dirs.length === 0) return false;
+    const d0 = dirs[h % dirs.length];
+    joggers.push({
+      id: `jogger_${joggers.length}`,
+      variant: joggers.length % 3,
+      x: tx * tileSize + tileSize / 2,
+      y: ty * tileSize + tileSize / 2,
+      dx: d0.dx,
+      dy: d0.dy,
+      speed: 36 + (h % 10),
+      facing: d0.dx < 0 ? "left" : "right",
+      animTimer: (h % 10) * 0.25,
+      bubbleTimer: 0,
+      bubbleSprite: `bubble_jogger_${joggers.length % 3}`,
+      greetCooldown: 0,
+    });
+    for (let oy = -4; oy <= 4; oy++) {
+      for (let ox = -4; ox <= 4; ox++) used.add(`${tx + ox},${ty + oy}`);
+    }
+    return true;
+  };
+
+  // 1. Guarantee 2 joggers near Home Base so kids spot runners right away!
+  let nearHome = 0;
+  for (let r = 6; r <= 20 && nearHome < 2; r++) {
+    for (let dy = -r; dy <= r && nearHome < 2; dy++) {
+      for (let dx = -r; dx <= r && nearHome < 2; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        if (base[(home.y + dy) * width + (home.x + dx)] === 1 && addJogger(home.x + dx, home.y + dy)) {
+          nearHome++;
+        }
+      }
+    }
+  }
+
+  // 2. Extra runners along Commonwealth Avenue's Boston Marathon Carriage Lane corridor!
+  if (width >= 200) {
+    for (let tx = 18; tx < width - 18; tx += 36) {
+      for (let ty = 78; ty <= 136; ty++) {
+        if ((base[ty * width + tx] === 11 || base[ty * width + tx] === 1) && addJogger(tx, ty)) {
+          break;
+        }
+      }
+    }
+  }
+
+  // 3. Distribute joggers across all sectors of Newton
+  const cell = width >= 200 ? 44 : 24;
+  for (let cy0 = 8; cy0 < height - 8; cy0 += cell) {
+    for (let cx0 = 8; cx0 < width - 8; cx0 += cell) {
+      const sx = cx0 + (hash2(cx0, cy0, 919) % Math.min(cell, width - 8 - cx0));
+      const sy = cy0 + (hash2(cx0, cy0, 937) % Math.min(cell, height - 8 - cy0));
+      let placed = false;
+      for (let r = 0; r <= 12 && !placed; r++) {
+        for (let dy = -r; dy <= r && !placed; dy++) {
+          for (let dx = -r; dx <= r && !placed; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+            const tx = sx + dx;
+            const ty = sy + dy;
+            if (tx >= 4 && ty >= 4 && tx < width - 4 && ty < height - 4 && base[ty * width + tx] === 1) {
+              if (addJogger(tx, ty)) placed = true;
+            }
+          }
+        }
+      }
+    }
+  }
+  return joggers;
 }
 
 /**
@@ -784,6 +884,86 @@ export function findNearbyHungryProtestor(streetLife, px, py, maxDistPx = 44) {
     }
   }
   return best;
+}
+
+/**
+ * Find the closest snackable neighbor OR wild animal (protestor, turkey, squirrel, cat, or leash-dog)
+ * within generous snack-tossing reach for the physical Give/Toss Snack (N) button & hotkey!
+ */
+export function findNearbySnackTarget(streetLife, px, py, maxDistPx = 56) {
+  if (!streetLife) return null;
+  const nearPr = findNearbyHungryProtestor(streetLife, px, py, Math.min(48, maxDistPx));
+  let best = nearPr;
+  for (const tk of streetLife.turkeys || []) {
+    if (tk.fleeTimer > 0) continue;
+    const d = Math.hypot(px - tk.x, py - tk.y);
+    if (d <= maxDistPx && (!best || d < best.dist)) {
+      best = { kind: "turkey", target: tk, dist: d };
+    }
+  }
+  for (const cr of streetLife.critters || []) {
+    if (cr.fleeTimer > 0) continue;
+    const d = Math.hypot(px - cr.x, py - cr.y);
+    if (d <= maxDistPx && (!best || d < best.dist)) {
+      best = { kind: cr.kind, target: cr, dist: d };
+    }
+  }
+  return best;
+}
+
+/**
+ * Toss a snack to a wild neighborhood animal (turkey, squirrel, cat, or runaway dog) so it
+ * happily snatches the treat and scampers away peacefully instead of chasing Liam!
+ */
+export function tossSnackAtAnimal(entry, playerX, playerY, options = {}) {
+  if (!entry || !entry.target) return null;
+  const kind = entry.kind;
+  if (kind !== "turkey" && kind !== "squirrel" && kind !== "cat" && kind !== "dog") return null;
+  const { hasSnack = false, consumeSnack = null, isEasyMode = false } = options || {};
+  const canToss = Boolean(isEasyMode || hasSnack);
+  if (!canToss) {
+    return {
+      kind,
+      tossed: false,
+      needsSnack: true,
+      toast: "🥨 Out of snacks to toss! Grab snacks at Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's — or swing your Sword (J)!",
+    };
+  }
+  if (!isEasyMode && typeof consumeSnack === "function") {
+    consumeSnack();
+  }
+  const target = entry.target;
+  const dx = target.x - playerX;
+  const dy = target.y - playerY;
+  const len = Math.hypot(dx, dy) || 1;
+  const fleeSpeed = kind === "dog" ? 72 : kind === "squirrel" ? 68 : 62;
+  target.vx = (dx / len) * fleeSpeed;
+  target.vy = (dy / len) * fleeSpeed;
+  target.facing = target.vx >= 0 ? "right" : "left";
+  target.fleeTimer = 8.0;
+  if (kind === "turkey") {
+    target.puffedTimer = 0;
+    target.gobbleBubbleTimer = 2.6;
+    target.bubbleSprite = "bubble_animal_yum";
+  } else {
+    target.alertTimer = 0;
+    target.bubbleTimer = 2.6;
+    target.bubbleSprite = "bubble_animal_yum";
+  }
+  const names = {
+    turkey: "wild turkey",
+    squirrel: "wild squirrel",
+    cat: "prowling cat",
+    dog: "runaway dog",
+  };
+  return {
+    kind,
+    tossed: true,
+    xpReward: 5,
+    targetX: target.x,
+    targetY: target.y,
+    toast: `🥨 Tossed a snack! The ${names[kind]} happily munched it and scampered away! (+5 XP)`,
+  };
 }
 
 /**
@@ -931,7 +1111,7 @@ export function interactWithStreetLife(streetLife, entry, playerX, playerY, opti
 export function checkStreetLifeContact(
   streetLife,
   playerState,
-  { graveyardGhosts = null, elapsedTime = 0, tileSize = 16 } = {}
+  { graveyardGhosts = null, elapsedTime = 0, tileSize = 16, hasLantern = false } = {}
 ) {
   if (!streetLife || !playerState) return null;
   if ((playerState.hurtTimer || 0) > 0) return null;
@@ -998,6 +1178,8 @@ export function checkStreetLifeContact(
 
   for (const sp of streetLife.spookyChars || []) {
     if ((sp.defeatedTimer || 0) > 0 || sp.spookTimer > 0) continue;
+    // Carrying a glowing Lantern keeps ghosts & phantoms safely away from Liam!
+    if (hasLantern && sp.kind === "phantom") continue;
     const dx = px - sp.x;
     const dy = py - sp.y;
     const dist = Math.hypot(dx, dy);
@@ -1020,12 +1202,12 @@ export function checkStreetLifeContact(
     }
   }
 
-  if (Array.isArray(graveyardGhosts)) {
+  if (Array.isArray(graveyardGhosts) && !hasLantern) {
     for (const g of graveyardGhosts) {
       if ((g.defeatedTimer || 0) > 0) continue;
       const gp = getGraveyardGhostPos(g, elapsedTime, tileSize);
-      const dx = px - gp.cx;
-      const dy = py - gp.cy;
+      const dx = px - (gp.cx + (g.repelX || 0));
+      const dy = py - (gp.cy + (g.repelY || 0));
       const dist = Math.hypot(dx, dy);
       if (dist < 13.5) {
         const fb = fallbackDir();
@@ -1060,6 +1242,7 @@ export function updateStreetLife(
   worldMap,
   {
     isFasterNow = false,
+    hasLantern = false,
     tileSize = 16,
     graveyardGhosts = null,
     elapsedTime = 0,
@@ -1083,6 +1266,7 @@ export function updateStreetLife(
     graveyardGhosts,
     elapsedTime,
     tileSize,
+    hasLantern,
   });
   if (bump) {
     playerState.hurtTimer = 0.95;
@@ -1358,12 +1542,29 @@ export function updateStreetLife(
     }
   }
 
-  // --- 3. Update Spooky Graveyard Characters (stay strictly inside their graveyard area!) ---
+  // --- 3. Update Spooky Graveyard Characters & Floating Ghosts (Lantern repels ghosts cleanly!) ---
   const graveGrid = streetLife.graveyardGrid;
   if (Array.isArray(graveyardGhosts)) {
     for (const g of graveyardGhosts) {
       if ((g.defeatedTimer || 0) > 0) {
         g.defeatedTimer = Math.max(0, g.defeatedTimer - dt);
+      }
+      const gp = getGraveyardGhostPos(g, elapsedTime, tileSize);
+      const gx = gp.cx + (g.repelX || 0);
+      const gy = gp.cy + (g.repelY || 0);
+      const distG = Math.hypot(gx - px, gy - py);
+      if (hasLantern && distG < 64) {
+        // Lantern light actively pushes floating ghosts back to a safe halo distance!
+        const len = distG || 1;
+        const push = (64 - distG) * Math.min(1, dt * 7);
+        g.repelX = Math.max(-48, Math.min(48, (g.repelX || 0) + ((gx - px) / len) * push));
+        g.repelY = Math.max(-48, Math.min(48, (g.repelY || 0) + ((gy - py) / len) * push));
+        g.lanternScaredTimer = 1.4;
+      } else {
+        // Gently drift back toward original orbit once Liam walks away
+        g.repelX = (g.repelX || 0) * Math.max(0, 1 - dt * 1.8);
+        g.repelY = (g.repelY || 0) * Math.max(0, 1 - dt * 1.8);
+        if ((g.lanternScaredTimer || 0) > 0) g.lanternScaredTimer = Math.max(0, g.lanternScaredTimer - dt);
       }
     }
   }
@@ -1386,7 +1587,19 @@ export function updateStreetLife(
     if (sp.bubbleTimer > 0) sp.bubbleTimer = Math.max(0, sp.bubbleTimer - dt);
     if (sp.soundCooldown > 0) sp.soundCooldown = Math.max(0, sp.soundCooldown - dt);
 
-    if (sp.spookTimer <= 0) {
+    if (hasLantern && sp.kind === "phantom" && dist < 74) {
+      // Glowing Lantern light scares Graveyard Phantoms away — they stay back and shout "TOO BRIGHT!!"
+      const len = dist || 1;
+      sp.chasing = false;
+      sp.vx = ((sp.x - px) / len) * 44;
+      sp.vy = ((sp.y - py) / len) * 44;
+      sp.bubbleSprite = "bubble_too_bright";
+      sp.bubbleTimer = 1.6;
+      if (sp.soundCooldown <= 0) {
+        sp.soundCooldown = 4.0;
+        onSpookyChime?.(sp);
+      }
+    } else if (sp.spookTimer <= 0) {
       if (dist < 88) {
         // Spooky graveyard character spots Liam and drifts/stalks toward him inside the graveyard!
         sp.chasing = true;
@@ -1445,18 +1658,67 @@ export function updateStreetLife(
       sp.facing = sp.vx >= 0 ? "right" : "left";
     }
   }
+
+  // --- 4. Update Friendly Newton Sidewalk Joggers (stay on sidewalks, Comm Ave mall & trails!) ---
+  const isJogTile = (tx, ty) => {
+    if (tx < 2 || ty < 2 || tx >= width - 2 || ty >= height - 2) return false;
+    const idx = ty * width + tx;
+    if (collision && collision[idx] === 1) return false;
+    const t = base[idx];
+    return t === 1 || t === 4 || t === 11 || t === 9;
+  };
+  for (const jg of streetLife.joggers || []) {
+    const dist = Math.hypot(px - jg.x, py - jg.y);
+    if (dist > 440) continue;
+    jg.animTimer += dt * 11;
+    if (jg.bubbleTimer > 0) jg.bubbleTimer = Math.max(0, jg.bubbleTimer - dt);
+    if (jg.greetCooldown > 0) jg.greetCooldown = Math.max(0, jg.greetCooldown - dt);
+
+    if (dist < 46 && jg.greetCooldown <= 0) {
+      jg.bubbleTimer = 2.0;
+      jg.greetCooldown = 7.0;
+    }
+
+    const nx = jg.x + jg.dx * jg.speed * dt;
+    const ny = jg.y + jg.dy * jg.speed * dt;
+    const ntx = Math.floor((nx + jg.dx * 5) / tileSize);
+    const nty = Math.floor((ny + jg.dy * 5) / tileSize);
+    if (isJogTile(ntx, nty)) {
+      jg.x = nx;
+      jg.y = ny;
+    } else {
+      // Pick a clean continuing sidewalk turn (prefer turning 90°, else reverse)
+      const curTx = Math.floor(jg.x / tileSize);
+      const curTy = Math.floor(jg.y / tileSize);
+      const turns = [
+        { dx: -jg.dy, dy: jg.dx },
+        { dx: jg.dy, dy: -jg.dx },
+        { dx: -jg.dx, dy: -jg.dy },
+      ].filter((d) => isJogTile(curTx + d.dx, curTy + d.dy));
+      if (turns.length > 0) {
+        const chosen = turns[Math.floor(jg.animTimer) % turns.length];
+        jg.dx = chosen.dx;
+        jg.dy = chosen.dy;
+      } else {
+        jg.dx = -jg.dx;
+        jg.dy = -jg.dy;
+      }
+    }
+    if (jg.dx !== 0) jg.facing = jg.dx > 0 ? "right" : "left";
+  }
 }
 
 /**
  * Swing the Explorer's Graveyard Sword (earned at the Salzberg House!) in Liam's facing arc
- * to defeat nearby graveyard skeletons, phantoms, pumpkin ghouls, and floating ghosts!
+ * to defeat nearby graveyard enemies AND startle wild animals (turkeys, squirrels, cats, dogs)
+ * so they bolt away harmlessly!
  */
 export function performSwordAttack(
   streetLife,
   playerState,
   { graveyardGhosts = null, elapsedTime = 0, tileSize = 16, reachPx = 38 } = {}
 ) {
-  if (!streetLife || !playerState) return { hitCount: 0, defeated: [], toast: "" };
+  if (!streetLife || !playerState) return { hitCount: 0, defeated: [], scaredAnimals: [], toast: "" };
   const px = playerState.x;
   const py = playerState.y;
   const fx =
@@ -1468,6 +1730,7 @@ export function performSwordAttack(
   const arcY = py + fy * 14;
 
   const defeated = [];
+  const scaredAnimals = [];
   for (const sp of streetLife.spookyChars || []) {
     if ((sp.defeatedTimer || 0) > 0) continue;
     const dArc = Math.hypot(sp.x - arcX, sp.y - arcY);
@@ -1492,13 +1755,58 @@ export function performSwordAttack(
     }
   }
 
+  // Swinging the sword also harmlessly startles wild turkeys, squirrels, cats & dogs into bolting away!
+  const animalReach = Math.max(reachPx + 8, 46);
+  for (const tk of streetLife.turkeys || []) {
+    const dArc = Math.hypot(tk.x - arcX, tk.y - arcY);
+    const dSelf = Math.hypot(tk.x - px, tk.y - py);
+    if (dArc <= animalReach || dSelf <= 30) {
+      const dx = tk.x - px;
+      const dy = tk.y - py;
+      const len = Math.hypot(dx, dy) || 1;
+      tk.vx = (dx / len) * 74;
+      tk.vy = (dy / len) * 74;
+      tk.facing = tk.vx >= 0 ? "right" : "left";
+      tk.fleeTimer = 5.5;
+      tk.puffedTimer = 0.8;
+      tk.gobbleBubbleTimer = 2.0;
+      tk.bubbleSprite = "bubble_gobble";
+      scaredAnimals.push({ kind: "turkey", x: tk.x, y: tk.y });
+    }
+  }
+  for (const cr of streetLife.critters || []) {
+    const dArc = Math.hypot(cr.x - arcX, cr.y - arcY);
+    const dSelf = Math.hypot(cr.x - px, cr.y - py);
+    if (dArc <= animalReach || dSelf <= 30) {
+      const dx = cr.x - px;
+      const dy = cr.y - py;
+      const len = Math.hypot(dx, dy) || 1;
+      cr.vx = (dx / len) * 78;
+      cr.vy = (dy / len) * 78;
+      cr.facing = cr.vx >= 0 ? "right" : "left";
+      cr.fleeTimer = 5.5;
+      cr.alertTimer = 0.9;
+      cr.bubbleTimer = 2.0;
+      scaredAnimals.push({ kind: cr.kind, x: cr.x, y: cr.y });
+    }
+  }
+
+  const totalHits = defeated.length + scaredAnimals.length;
+  let toast = "";
+  if (defeated.length > 0 && scaredAnimals.length > 0) {
+    toast = `⚔️ SWISH! Defeated ${defeated.length} graveyard foes & shooed ${scaredAnimals.length} wild critters!`;
+  } else if (defeated.length > 0) {
+    toast = `⚔️ SWISH! Defeated ${defeated.length} graveyard ${defeated.length === 1 ? "enemy" : "enemies"}! (+${defeated.length * 10} XP)`;
+  } else if (scaredAnimals.length > 0) {
+    toast = `⚔️ SWISH! Your sword flourish startled ${scaredAnimals.length} wild ${scaredAnimals.length === 1 ? "animal" : "animals"} into running away! (+${scaredAnimals.length * 5} XP)`;
+  }
+
   return {
-    hitCount: defeated.length,
+    hitCount: totalHits,
+    defeatedCount: defeated.length,
     defeated,
-    toast:
-      defeated.length > 0
-        ? `⚔️ SWISH! Defeated ${defeated.length} graveyard ${defeated.length === 1 ? "enemy" : "enemies"}! (+${defeated.length * 10} XP)`
-        : "",
+    scaredAnimals,
+    toast,
   };
 }
 

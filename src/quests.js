@@ -40,9 +40,9 @@ export const ITEM_CATALOG = {
   pretzel_bag: { name: "Chestnut Hill Pretzel", icon: "🥨", sprite: "item_challah", desc: "Crispy snack from The Mall at Chestnut Hill!" },
   bc_eagle_pennant: { name: "BC Eagle Pennant", icon: "🦅", sprite: "item_pennant", desc: "Maroon & gold Boston College banner from Stuart Hall!" },
   bc_gold_notebook: { name: "BC Gold Notebook", icon: "📒", sprite: "item_book", desc: "Collegiate explorer journal from BC Messina Campus!" },
-  spooky_lantern: { name: "Spooky Graveyard Lantern", icon: "🎃", sprite: "item_lantern", desc: "Glowing teal lantern from Newton's 1660 East Parish Burying Ground!" },
+  spooky_lantern: { name: "Spooky Graveyard Lantern", icon: "🎃", sprite: "item_lantern", desc: "Glowing lantern from East Parish Burying Ground — keeps graveyard ghosts away from you!" },
   ghost_charm: { name: "Friendly Ghost Charm", icon: "👻", sprite: "item_ghost", desc: "Shimmering spirit keepsake from Newton Cemetery & Arboretum!" },
-  ghost_lantern_cloak: { name: "Haunted Lantern Cloak", icon: "🕯️", sprite: "item_lantern", desc: "Master Explorer reward from touring BC & Newton's spooky graveyards!" },
+  ghost_lantern_cloak: { name: "Haunted Lantern Cloak", icon: "🕯️", sprite: "item_lantern", desc: "Master Explorer lantern cloak — glows warmly & keeps graveyard ghosts away!" },
   graveyard_sword: { name: "Graveyard Explorer Sword", icon: "⚔️", sprite: "item_sword", desc: "Gleaming hero sword from the Salzberg family — press J to fight graveyard enemies!" },
   pocket_siddur: { name: "Pocket Siddur", icon: "📖", sprite: "item_siddur", desc: "Peaceful synagogue prayerbook — press K to dispel spooky foes & neighborhood bad guys!" },
   outfit_baseball: { name: "Little League Uniform", icon: "⚾", sprite: "item_glove", desc: "Quest-earned Team Giants baseball outfit — press O to wear it!" },
@@ -906,6 +906,14 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     return state.gpsAssist || state.inventory.has("pocket_siddur");
   }
 
+  function hasLantern() {
+    return (
+      state.gpsAssist ||
+      state.inventory.has("spooky_lantern") ||
+      state.inventory.has("ghost_lantern_cloak")
+    );
+  }
+
   function unlockOutfit(outfitId) {
     if (!ALL_OUTFIT_ORDER.includes(outfitId)) return false;
     state.unlockedOutfits.add(outfitId);
@@ -964,6 +972,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     canWadeWater,
     hasSword,
     hasSiddur,
+    hasLantern,
     getMaxSnacks,
     hasSnack,
     addSnacks,
