@@ -249,6 +249,10 @@ export function checkTrafficCollision(traffic, playerState) {
   const py = playerState.y;
 
   for (const v of traffic.vehicles) {
+    const adx = Math.abs(px - v.x);
+    if (adx > 20) continue;
+    const ady = Math.abs(py - v.y);
+    if (ady > 20) continue;
     const horiz = v.dir === "e" || v.dir === "w";
     let halfW;
     let halfH;
@@ -262,7 +266,7 @@ export function checkTrafficCollision(traffic, playerState) {
       halfW = horiz ? 13 : 8;
       halfH = horiz ? 7 : 12;
     }
-    if (Math.abs(px - v.x) < halfW + 3 && Math.abs(py - v.y) < halfH + 3) {
+    if (adx < halfW + 3 && ady < halfH + 3) {
       return { vehicle: v, kind: v.kind };
     }
   }
@@ -286,7 +290,11 @@ export function updateRoadTraffic(
   const py = playerState.y;
 
   for (const v of traffic.vehicles) {
-    const distToPlayer = Math.hypot(px - v.x, py - v.y);
+    const adx = Math.abs(px - v.x);
+    if (adx > 460) continue;
+    const ady = Math.abs(py - v.y);
+    if (ady > 460) continue;
+    const distToPlayer = Math.hypot(adx, ady);
     if (distToPlayer > 460) continue;
 
     if (v.kind === "bike") {

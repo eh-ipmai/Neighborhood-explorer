@@ -19,6 +19,21 @@ export function isWebGLSupported() {
   }
 }
 
+/**
+ * Detect iPadOS / iOS touch devices (including modern iPads that report "MacIntel"
+ * with maxTouchPoints > 1). On iPad Safari, our 640x360 HTML5 2D Canvas renderer
+ * blits offscreen chunk & house canvases directly via CoreGraphics/Metal with zero
+ * PNG toDataURL encoding stalls or WebGL texture-bind overhead — running at a
+ * locked 60 FPS compared to Kaplay's per-sprite WebGL textures!
+ */
+export function isIPadOrIOSDevice() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  if (/iPad|iPhone|iPod/i.test(ua)) return true;
+  if (navigator.platform === "MacIntel" && (navigator.maxTouchPoints || 0) > 1) return true;
+  return false;
+}
+
 function normalizeKey(key) {
   const lower = String(key).toLowerCase();
   if (lower === "arrowleft") return "left";
@@ -46,6 +61,17 @@ function createCanvas2DRenderer({ canvas, width, height, background }) {
   ctx.imageSmoothingEnabled = false;
 
   const bgCss = `rgb(${background[0]}, ${background[1]}, ${background[2]})`;
+  const sunGrad = ctx.createRadialGradient(
+    canvas.width * 0.5,
+    -canvas.height * 0.1,
+    canvas.width * 0.05,
+    canvas.width * 0.5,
+    canvas.height * 0.12,
+    canvas.width * 0.65
+  );
+  sunGrad.addColorStop(0, "rgba(255, 196, 98, 0.22)");
+  sunGrad.addColorStop(0.45, "rgba(255, 148, 68, 0.08)");
+  sunGrad.addColorStop(1, "rgba(255, 130, 56, 0)");
   const keysDown = new Set();
   const keyPressHandlers = new Map();
   const updateHandlers = [];
@@ -116,22 +142,11 @@ function createCanvas2DRenderer({ canvas, width, height, background }) {
     for (const fn of drawHandlers) fn();
     ctx.restore();
 
-    // Subtle Golden-Hour Autumn Sunlight Wash radiating gently from top-center (zero blur on sprites!)
+    // Subtle Golden-Hour Autumn Sunlight Wash radiating gently from top-center (pre-built gradient, zero per-frame alloc!)
     ctx.save();
     ctx.globalCompositeOperation = "screen";
-    const sunGrad = ctx.createRadialGradient(
-      canvas.width * 0.5,
-      -canvas.height * 0.1,
-      canvas.width * 0.05,
-      canvas.width * 0.5,
-      canvas.height * 0.12,
-      canvas.width * 0.65
-    );
-    sunGrad.addColorStop(0, "rgba(255, 196, 98, 0.24)");
-    sunGrad.addColorStop(0.45, "rgba(255, 148, 68, 0.09)");
-    sunGrad.addColorStop(1, "rgba(255, 130, 56, 0)");
     ctx.fillStyle = sunGrad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvas.width, Math.round(canvas.height * 0.65));
     ctx.restore();
 
     requestAnimationFrame(frame);
@@ -238,7 +253,7 @@ export function createRenderer({
   height = 180,
   background = [20, 28, 24],
 }) {
-  if (isWebGLSupported()) {
+  if (!isIPadOrIOSDevice() && isWebGLSupported()) {
     try {
       const HD = 2;
       const k = kaplay({

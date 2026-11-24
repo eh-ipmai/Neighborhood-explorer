@@ -699,6 +699,43 @@ export function createUI({
   });
 
   let lastStreetKey = "";
+  const domCache = new Map();
+  function setText(el, key, value) {
+    if (!el) return;
+    if (domCache.get(key) !== value) {
+      domCache.set(key, value);
+      el.textContent = value;
+    }
+  }
+  function setHtml(el, key, value) {
+    if (!el) return;
+    if (domCache.get(key) !== value) {
+      domCache.set(key, value);
+      el.innerHTML = value;
+    }
+  }
+  function setClass(el, key, className, flag) {
+    if (!el) return;
+    const b = Boolean(flag);
+    if (domCache.get(key) !== b) {
+      domCache.set(key, b);
+      el.classList.toggle(className, b);
+    }
+  }
+  function setDisplay(el, key, value) {
+    if (!el) return;
+    if (domCache.get(key) !== value) {
+      domCache.set(key, value);
+      el.style.display = value;
+    }
+  }
+  function setTitle(el, key, value) {
+    if (!el) return;
+    if (domCache.get(key) !== value) {
+      domCache.set(key, value);
+      el.title = value;
+    }
+  }
 
   function updateHUD({
     tileX,
@@ -736,115 +773,112 @@ export function createUI({
   }) {
     if (heartsEl) {
       const clamped = Math.max(0, Math.min(maxHearts, hearts));
-      heartsEl.textContent = "❤️".repeat(clamped) + "🖤".repeat(Math.max(0, maxHearts - clamped));
-      heartsEl.classList.toggle("low", clamped <= 2);
+      setText(heartsEl, "hearts", "❤️".repeat(clamped) + "🖤".repeat(Math.max(0, maxHearts - clamped)));
+      setClass(heartsEl, "heartsLow", "low", clamped <= 2);
     }
-    if (btnSword) {
-      btnSword.style.display = hasSword ? "inline-flex" : "none";
-    }
-    if (btnSiddur) {
-      btnSiddur.style.display = hasSiddur ? "inline-flex" : "none";
-    }
-    if (xpEl) {
-      xpEl.textContent = safeCrossingActive
-        ? `Safety XP: ${safetyXP} • Safe to Cross ✓`
-        : `Safety XP: ${safetyXP}`;
-    }
-    if (bagEl) {
-      bagEl.textContent = `🪙 ${coins} • 🌰 ${acorns}`;
-    }
-    if (coordsEl) {
-      coordsEl.textContent = debugEnabled ? `Tile ${tileX}, ${tileY}` : `🪧 Signs: ${checkedSignsCount}`;
-    }
+    setDisplay(btnSword, "swordDisp", hasSword ? "inline-flex" : "none");
+    setDisplay(btnSiddur, "siddurDisp", hasSiddur ? "inline-flex" : "none");
+    setText(
+      xpEl,
+      "xp",
+      safeCrossingActive ? `Safety XP: ${safetyXP} • Safe to Cross ✓` : `Safety XP: ${safetyXP}`
+    );
+    setText(bagEl, "bag", `🪙 ${coins} • 🌰 ${acorns}`);
+    setText(coordsEl, "coords", debugEnabled ? `Tile ${tileX}, ${tileY}` : `🪧 Signs: ${checkedSignsCount}`);
     const prettyTile = TILE_DISPLAY_LABELS[tileType] || tileType;
-    if (tileEl) {
-      tileEl.textContent = isFasterActive ? `${prettyTile} • ${gearLabel}` : prettyTile;
-    }
-    if (btnDebug) btnDebug.classList.toggle("active", Boolean(debugEnabled));
-    if (btnGps) {
-      btnGps.textContent =
-        navMode === "hard" ? "🔥 Hard (G)" : navMode === "gps" ? "📡 GPS (G)" : "🧭 Signs (G)";
-      btnGps.classList.toggle("active", navMode !== "signs");
-    }
+    setText(tileEl, "tile", isFasterActive ? `${prettyTile} • ${gearLabel}` : prettyTile);
+    setClass(btnDebug, "debugAct", "active", debugEnabled);
+    setText(
+      btnGps,
+      "gpsTxt",
+      navMode === "hard" ? "🔥 Hard (G)" : navMode === "gps" ? "📡 GPS (G)" : "🧭 Signs (G)"
+    );
+    setClass(btnGps, "gpsAct", "active", navMode !== "signs");
     if (btnOutfit) {
       if (unlockedOutfitsCount <= 1) {
-        btnOutfit.textContent = "👕 Polo (🔒)";
-        btnOutfit.title = "Complete quests to unlock Baseball, Wetsuit & Link outfits!";
+        setText(btnOutfit, "outfitTxt", "👕 Polo (🔒)");
+        setTitle(btnOutfit, "outfitTitle", "Complete quests to unlock Baseball, Wetsuit & Link outfits!");
       } else {
-        btnOutfit.textContent =
+        setText(
+          btnOutfit,
+          "outfitTxt",
           heroOutfit === "link"
             ? "🗡️ Link (O)"
             : heroOutfit === "wetsuit"
               ? "🤿 Wetsuit (O)"
               : heroOutfit === "baseball"
                 ? "⚾ Uniform (O)"
-                : "👕 Polo (O)";
-        btnOutfit.title = `Switch between ${unlockedOutfitsCount} unlocked outfits (O)`;
+                : "👕 Polo (O)"
+        );
+        setTitle(btnOutfit, "outfitTitle", `Switch between ${unlockedOutfitsCount} unlocked outfits (O)`);
       }
-      btnOutfit.classList.toggle("active", heroOutfit !== "polo");
+      setClass(btnOutfit, "outfitAct", "active", heroOutfit !== "polo");
     }
-    if (miniMapLabelEl) {
-      miniMapLabelEl.textContent =
-        navMode === "hard"
-          ? "HARD COMPASS (M)"
-          : navMode === "gps"
-            ? "RADAR • MAP (M)"
-            : "COMPASS • MAP (M)";
-    }
-    if (btnMute) {
-      btnMute.textContent = muted ? "🔇 Muted" : "🔊 SFX";
-      btnMute.classList.toggle("active", Boolean(muted));
-    }
-    if (btnFaster) btnFaster.classList.toggle("active", Boolean(fasterHeld || isFasterActive));
+    setText(
+      miniMapLabelEl,
+      "miniLbl",
+      navMode === "hard"
+        ? "HARD COMPASS (M)"
+        : navMode === "gps"
+          ? "RADAR • MAP (M)"
+          : "COMPASS • MAP (M)"
+    );
+    setText(btnMute, "muteTxt", muted ? "🔇 Muted" : "🔊 SFX");
+    setClass(btnMute, "muteAct", "active", muted);
+    setClass(btnFaster, "fasterAct", "active", fasterHeld || isFasterActive);
 
     // Context-aware Look Both Ways / Read Sign / Talk / Open Chest button label
     if (btnLook && btnLookIcon && btnLookLabel) {
       if (nearbyInteraction) {
-        btnLook.classList.add("talk-ready");
-        btnLook.classList.remove("need-look");
+        setClass(btnLook, "lookTalk", "talk-ready", true);
+        setClass(btnLook, "lookNeed", "need-look", false);
         if (nearbyInteraction.kind === "sign") {
-          btnLookIcon.textContent = "🪧";
-          btnLookLabel.innerHTML = "READ<br/>SIGN";
+          setText(btnLookIcon, "lookIcon", "🪧");
+          setHtml(btnLookLabel, "lookLbl", "READ<br/>SIGN");
         } else if (nearbyInteraction.kind === "chest") {
-          btnLookIcon.textContent = "📦";
-          btnLookLabel.innerHTML = "OPEN<br/>CHEST";
+          setText(btnLookIcon, "lookIcon", "📦");
+          setHtml(btnLookLabel, "lookLbl", "OPEN<br/>CHEST");
         } else if (nearbyInteraction.kind === "protestor") {
-          btnLookIcon.textContent = "📢";
-          btnLookLabel.innerHTML = nearbyInteraction.target?.isMob
-            ? "DETOUR<br/>MOB!"
-            : "EXCUSE<br/>ME!";
+          setText(btnLookIcon, "lookIcon", "📢");
+          setHtml(
+            btnLookLabel,
+            "lookLbl",
+            nearbyInteraction.target?.isMob ? "DETOUR<br/>MOB!" : "EXCUSE<br/>ME!"
+          );
         } else if (nearbyInteraction.kind === "turkey") {
-          btnLookIcon.textContent = "🦃";
-          btnLookLabel.innerHTML = "SHOO<br/>TURKEY";
+          setText(btnLookIcon, "lookIcon", "🦃");
+          setHtml(btnLookLabel, "lookLbl", "SHOO<br/>TURKEY");
         } else if (nearbyInteraction.kind === "spooky") {
-          btnLookIcon.textContent = "🔦";
-          btnLookLabel.innerHTML = "SPOOK<br/>BACK!";
+          setText(btnLookIcon, "lookIcon", "🔦");
+          setHtml(btnLookLabel, "lookLbl", "SPOOK<br/>BACK!");
         } else {
-          btnLookIcon.textContent = "💬";
-          btnLookLabel.innerHTML = "TALK /<br/>LOOK";
+          setText(btnLookIcon, "lookIcon", "💬");
+          setHtml(btnLookLabel, "lookLbl", "TALK /<br/>LOOK");
         }
       } else {
-        btnLook.classList.remove("talk-ready");
-        btnLook.classList.toggle("need-look", Boolean(needsLookAtCurb));
-        btnLookIcon.textContent = needsLookAtCurb ? "🛑" : "👀";
-        btnLookLabel.innerHTML = "LOOK<br/>BOTH WAYS";
+        setClass(btnLook, "lookTalk", "talk-ready", false);
+        setClass(btnLook, "lookNeed", "need-look", needsLookAtCurb);
+        setText(btnLookIcon, "lookIcon", needsLookAtCurb ? "🛑" : "👀");
+        setHtml(btnLookLabel, "lookLbl", "LOOK<br/>BOTH WAYS");
       }
     }
 
     // Active Quest Directions Strip (Signpost Mode = Street Directions; GPS Assist = Compass & Meters)
     if (questTrackerEl) {
+      let trackerText;
       if (!questHint) {
-        questTrackerEl.textContent = "🏆 All Quests Complete! Free Explore";
+        trackerText = "🏆 All Quests Complete! Free Explore";
       } else if (gpsAssist) {
         const shortLabel = questHint.label.replace(/\s*\(.*\)/, "");
-        questTrackerEl.textContent = `🎯 ${shortLabel} • ${questHint.compass}`;
+        trackerText = `🎯 ${shortLabel} • ${questHint.compass}`;
       } else if (pocketDirections && pocketDirections.summary) {
         const shortDest = questHint.label.replace(/\s*\(.*\)/, "");
-        questTrackerEl.textContent = `🧭 ${shortDest}: ${pocketDirections.summary}`;
+        trackerText = `🧭 ${shortDest}: ${pocketDirections.summary}`;
       } else {
         const shortLabel = questHint.label.replace(/\s*\(.*\)/, "");
-        questTrackerEl.textContent = `🎯 ${shortLabel} • Check a Street Sign!`;
+        trackerText = `🎯 ${shortLabel} • Check a Street Sign!`;
       }
+      setText(questTrackerEl, "questTrk", trackerText);
     }
 
     // Top-left Street Banner:
@@ -864,8 +898,8 @@ export function createUI({
     const key = `${displayName}|${displayTag}|${isUnknownBanner}`;
     if (key !== lastStreetKey) {
       lastStreetKey = key;
-      if (streetNameEl) streetNameEl.textContent = displayName;
-      if (streetZoneEl) streetZoneEl.textContent = displayTag;
+      setText(streetNameEl, "stName", displayName);
+      setText(streetZoneEl, "stZone", displayTag);
       if (bannerEl) {
         bannerEl.classList.toggle("unknown", isUnknownBanner);
         bannerEl.classList.add("slide-pop");
@@ -877,7 +911,7 @@ export function createUI({
     // Bottom proximity pill (hides cleanly when dialogue or sign modal is open)
     if (landmarkPillEl) {
       if (dialogueState || signModalEl?.classList.contains("open")) {
-        landmarkPillEl.classList.remove("visible");
+        setClass(landmarkPillEl, "pillVis", "visible", false);
       } else if (facingUncheckedRoad && !nearbyInteraction) {
         const altNote =
           alternateInteraction?.kind === "npc"
@@ -885,8 +919,8 @@ export function createUI({
             : alternateInteraction?.kind === "sign"
               ? " • Turn toward sign to read"
               : "";
-        landmarkPillEl.textContent = `👀 Facing Road — Tap LOOK BOTH WAYS / Space to cross${altNote}`;
-        landmarkPillEl.classList.add("visible");
+        setText(landmarkPillEl, "pillTxt", `👀 Facing Road — Tap LOOK BOTH WAYS / Space to cross${altNote}`);
+        setClass(landmarkPillEl, "pillVis", "visible", true);
       } else if (nearbyInteraction) {
         let label = "";
         if (nearbyInteraction.kind === "sign") {
@@ -911,13 +945,13 @@ export function createUI({
         if (needsLookAtCurb) {
           label += " • (Press L to Look Both Ways)";
         }
-        landmarkPillEl.textContent = label;
-        landmarkPillEl.classList.add("visible");
+        setText(landmarkPillEl, "pillTxt", label);
+        setClass(landmarkPillEl, "pillVis", "visible", true);
       } else if (nearestLandmark && nearestLandmark.distTiles <= (gpsAssist ? 10 : 5.5)) {
         const meters = Math.round(nearestLandmark.distTiles * 6);
         const distNote = nearestLandmark.distTiles <= 4 || !gpsAssist ? "" : ` (${meters}m away)`;
-        landmarkPillEl.textContent = `★ ${nearestLandmark.landmark.name}${distNote}`;
-        landmarkPillEl.classList.add("visible");
+        setText(landmarkPillEl, "pillTxt", `★ ${nearestLandmark.landmark.name}${distNote}`);
+        setClass(landmarkPillEl, "pillVis", "visible", true);
       } else if (nearestBuilding && nearestBuilding.distTiles <= 2.2) {
         const b = nearestBuilding.building;
         const icon = BUILDING_KIND_ICONS[b.kind] || "🏠";
@@ -942,7 +976,6 @@ export function createUI({
                   ? `${icon} ${b.name}`
                   : "";
         } else {
-          // Signpost Mode: show building type + porch number like real life without spoiling the unchecked street name!
           const kindLabel = BUILDING_KIND_LABELS[b.kind] || "House";
           label =
             b.name && houseNum
@@ -959,13 +992,13 @@ export function createUI({
         }
 
         if (label) {
-          landmarkPillEl.textContent = label;
-          landmarkPillEl.classList.add("visible");
+          setText(landmarkPillEl, "pillTxt", label);
+          setClass(landmarkPillEl, "pillVis", "visible", true);
         } else {
-          landmarkPillEl.classList.remove("visible");
+          setClass(landmarkPillEl, "pillVis", "visible", false);
         }
       } else {
-        landmarkPillEl.classList.remove("visible");
+        setClass(landmarkPillEl, "pillVis", "visible", false);
       }
     }
   }

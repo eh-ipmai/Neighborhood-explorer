@@ -373,6 +373,61 @@ async function boot() {
   const buildingIndex = buildBuildingSpatialIndex(buildings);
   let lastGraveyardId = "";
 
+  // Fast 16x16-tile spatial grid for all static neighborhood props so onDraw()
+  // only touches the ~4 visible chunks instead of scanning 15,000+ items every frame!
+  const PROP_CHUNK = 16;
+  function createTileSpatialIndex(items) {
+    const buckets = new Map();
+    for (const item of items || []) {
+      const cx = Math.floor(item.tx / PROP_CHUNK);
+      const cy = Math.floor(item.ty / PROP_CHUNK);
+      const key = `${cx},${cy}`;
+      let list = buckets.get(key);
+      if (!list) {
+        list = [];
+        buckets.set(key, list);
+      }
+      list.push(item);
+    }
+    return {
+      query(minX, minY, maxX, maxY) {
+        const cx0 = Math.floor(minX / PROP_CHUNK);
+        const cy0 = Math.floor(minY / PROP_CHUNK);
+        const cx1 = Math.floor(maxX / PROP_CHUNK);
+        const cy1 = Math.floor(maxY / PROP_CHUNK);
+        const out = [];
+        for (let cy = cy0; cy <= cy1; cy++) {
+          for (let cx = cx0; cx <= cx1; cx++) {
+            const list = buckets.get(`${cx},${cy}`);
+            if (!list) continue;
+            for (let i = 0; i < list.length; i++) {
+              const it = list[i];
+              if (it.tx >= minX && it.tx <= maxX && it.ty >= minY && it.ty <= maxY) {
+                out.push(it);
+              }
+            }
+          }
+        }
+        return out;
+      },
+    };
+  }
+
+  const propIndices = {
+    benches: createTileSpatialIndex(parkBenches),
+    parkProps: createTileSpatialIndex(parkFeatures.props),
+    graveProps: createTileSpatialIndex(graveyardFeatures.props),
+    graveGhosts: createTileSpatialIndex(graveyardFeatures.ghosts),
+    graveWisps: createTileSpatialIndex(graveyardFeatures.wisps),
+    graveBats: createTileSpatialIndex(graveyardFeatures.bats),
+    reeds: createTileSpatialIndex(shoreReeds),
+    hydrants: createTileSpatialIndex(hydrants),
+    leafPiles: createTileSpatialIndex(leafPiles),
+    shrubs: createTileSpatialIndex(gardenShrubs),
+    lamps: createTileSpatialIndex(streetLamps),
+    parkedCars: createTileSpatialIndex(parkedCars),
+  };
+
   const bakedFieldCache = new Map();
   function getBakedField(field) {
     let canvas = bakedFieldCache.get(field.id);
@@ -386,30 +441,47 @@ async function boot() {
 
   const hasPerAddressBuildings = buildings.length > 0;
 
+  const MAX_BAKED_HOUSES = 160;
+  const MAX_BAKED_STACKS = 80;
   const bakedHouseCache = new Map();
   const bakedStackCache = new Map();
   let paintRevision = 1;
   function getBakedHouse(building) {
     let entry = bakedHouseCache.get(building.id);
-    if (!entry) {
-      const baked = bakeSnesBuildingCanvas(building, tileSize * 2, normalizedColorMap);
-      baked.canvas.__pixelScale = 0.5;
-      entry = {
-        canvas: baked.canvas,
-        offsetX: baked.offsetX / 2,
-        offsetY: baked.offsetY / 2,
-        version: paintRevision,
-      };
+    if (entry) {
+      // Refresh LRU order
+      bakedHouseCache.delete(building.id);
       bakedHouseCache.set(building.id, entry);
+      return entry;
+    }
+    const baked = bakeSnesBuildingCanvas(building, tileSize * 2, normalizedColorMap);
+    baked.canvas.__pixelScale = 0.5;
+    entry = {
+      canvas: baked.canvas,
+      offsetX: baked.offsetX / 2,
+      offsetY: baked.offsetY / 2,
+      version: paintRevision,
+    };
+    bakedHouseCache.set(building.id, entry);
+    if (bakedHouseCache.size > MAX_BAKED_HOUSES) {
+      const oldestKey = bakedHouseCache.keys().next().value;
+      bakedHouseCache.delete(oldestKey);
     }
     return entry;
   }
   function getBakedHouseStack(building) {
     let entry = bakedStackCache.get(building.id);
-    if (!entry) {
-      const stack = bake32BitHouseStack(building, tileSize, normalizedColorMap);
-      entry = { ...stack, version: paintRevision };
+    if (entry) {
+      bakedStackCache.delete(building.id);
       bakedStackCache.set(building.id, entry);
+      return entry;
+    }
+    const stack = bake32BitHouseStack(building, tileSize, normalizedColorMap);
+    entry = { ...stack, version: paintRevision };
+    bakedStackCache.set(building.id, entry);
+    if (bakedStackCache.size > MAX_BAKED_STACKS) {
+      const oldestKey = bakedStackCache.keys().next().value;
+      bakedStackCache.delete(oldestKey);
     }
     return entry;
   }
@@ -1352,6 +1424,19 @@ async function boot() {
   k.setCamPos(cam.x, cam.y);
 
   let isFasterNow = false;
+  let lastHudTileKey = "";
+  let cachedNearbyHouses = [];
+  let cachedNearestBuilding = null;
+  let cachedNearestLandmark = null;
+  let cachedCurbContext = { context: "clear" };
+  let lastActionIntent = {
+    mode: "look_both_ways",
+    interaction: null,
+    alternateInteraction: null,
+    facingUncheckedRoad: false,
+  };
+  let lastNearestPromptSign = null;
+  let lastPromptSignTileKey = "";
 
   k.onUpdate(() => {
     const dt = Math.min(k.dt(), 0.05);
@@ -2099,17 +2184,28 @@ async function boot() {
       if (!activeGraveyard) playStreetBannerChime();
     }
 
-    const nearbyHouses = buildingIndex.queryBounds(tx - 5, ty - 5, tx + 5, ty + 5);
-    const curbContext = safety.inspectCrossingContext(tx, ty);
+    const hudTileKey = `${tx},${ty}`;
+    if (hudTileKey !== lastHudTileKey) {
+      lastHudTileKey = hudTileKey;
+      cachedNearbyHouses = buildingIndex.queryBounds(tx - 5, ty - 5, tx + 5, ty + 5);
+      cachedNearestBuilding = findNearestBuilding(cachedNearbyHouses, tx, ty);
+      cachedNearestLandmark = findNearestLandmark(tx, ty);
+      cachedCurbContext = safety.inspectCrossingContext(tx, ty);
+    }
     const nearUncheckedRoad =
       playerState.safeCrossingTimer <= 0 &&
       !safety.isBoxOnRoad(playerState.x, playerState.y, DEFAULT_HITBOX) &&
-      (curbContext.context === "crosswalk" ||
-        curbContext.context === "highway" ||
-        curbContext.context === "main_road" ||
-        curbContext.context === "residential");
+      (cachedCurbContext.context === "crosswalk" ||
+        cachedCurbContext.context === "highway" ||
+        cachedCurbContext.context === "main_road" ||
+        cachedCurbContext.context === "residential");
 
     const actionIntent = getCurrentActionIntent(tx, ty);
+    lastActionIntent = actionIntent;
+    if (hudTileKey !== lastPromptSignTileKey) {
+      lastPromptSignTileKey = hudTileKey;
+      lastNearestPromptSign = streetSignSystem.findNearbySign(tx, ty, 1.85);
+    }
     const nearbyInteract = actionIntent.mode === "interact" ? actionIntent.interaction : null;
     const signBanner = resolveSignBanner(tx, ty, streetZone, activeGraveyard);
 
@@ -2119,8 +2215,8 @@ async function boot() {
       tileType,
       streetZone: effectiveStreetZone,
       originName: worldMap.origin?.name,
-      nearestLandmark: findNearestLandmark(tx, ty),
-      nearestBuilding: findNearestBuilding(nearbyHouses, tx, ty),
+      nearestLandmark: cachedNearestLandmark,
+      nearestBuilding: cachedNearestBuilding,
       nearbyInteraction: nearbyInteract,
       alternateInteraction: actionIntent.alternateInteraction,
       facingUncheckedRoad: actionIntent.facingUncheckedRoad,
@@ -2634,6 +2730,296 @@ async function boot() {
     }
   }
 
+  // --- 16x16-tile Offscreen Ground Chunk Cache (300x fewer draw calls for 60 FPS on iPad!) ---
+  const GROUND_CHUNK_TILES = 16;
+  const MAX_GROUND_CHUNKS = 56;
+  const groundChunkCache = new Map();
+
+  function blitAtlasToCtx(ctx, name, xLog, yLog) {
+    const spr = atlas[name];
+    if (!spr) return;
+    const ps = spr.__pixelScale || 1;
+    ctx.drawImage(spr, xLog * 2, yLog * 2, spr.width * ps * 2, spr.height * ps * 2);
+  }
+
+  function fillRectHD(ctx, xLog, yLog, wLog, hLog, css, alpha = 1) {
+    if (alpha < 1) ctx.globalAlpha = alpha;
+    ctx.fillStyle = css;
+    ctx.fillRect(xLog * 2, yLog * 2, wLog * 2, hLog * 2);
+    if (alpha < 1) ctx.globalAlpha = 1;
+  }
+
+  function bakeGroundChunk(cx, cy) {
+    const tx0 = cx * GROUND_CHUNK_TILES;
+    const ty0 = cy * GROUND_CHUNK_TILES;
+    const tx1 = Math.min(mapW - 1, tx0 + GROUND_CHUNK_TILES - 1);
+    const ty1 = Math.min(mapH - 1, ty0 + GROUND_CHUNK_TILES - 1);
+    const tilesW = Math.max(1, tx1 - tx0 + 1);
+    const tilesH = Math.max(1, ty1 - ty0 + 1);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = tilesW * tileSize * 2;
+    canvas.height = tilesH * tileSize * 2;
+    canvas.__pixelScale = 0.5;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = "#3e2a24";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const animatedTiles = [];
+    const graveGrid = graveyardFeatures.graveyardGrid;
+
+    for (let ty = ty0; ty <= ty1; ty++) {
+      const rowOff = ty * mapW;
+      const ly = (ty - ty0) * tileSize;
+      for (let tx = tx0; tx <= tx1; tx++) {
+        const lx = (tx - tx0) * tileSize;
+        const tileId = baseLayer[rowOff + tx];
+        const pattern = (tx * 7 + ty * 13) & 15;
+        const inGraveyard = graveGrid[rowOff + tx] !== 0;
+
+        if (inGraveyard && (tileId === 0 || tileId === 11 || tileId === 7 || (tileId === 5 && hasPerAddressBuildings))) {
+          if (tileId !== 5 && pattern === 0) {
+            blitAtlasToCtx(ctx, "grave_flower_0", lx, ly);
+            animatedTiles.push({ tx, ty, tileId });
+          } else {
+            blitAtlasToCtx(ctx, ((tx + ty) & 1) === 0 ? "grave_grass_0" : "grave_grass_1", lx, ly);
+          }
+          continue;
+        }
+
+        if (tileId === 0 || (tileId === 5 && hasPerAddressBuildings)) {
+          if (tileId === 0 && pattern === 0) {
+            blitAtlasToCtx(ctx, "grass_flower_0", lx, ly);
+            animatedTiles.push({ tx, ty, tileId });
+          } else {
+            blitAtlasToCtx(ctx, `grass_${pattern % 3}`, lx, ly);
+          }
+          continue;
+        }
+
+        if (tileId === 11) {
+          if (pattern === 1 && ((tx + ty) & 3) === 0) {
+            blitAtlasToCtx(ctx, "park_flower_0", lx, ly);
+            animatedTiles.push({ tx, ty, tileId });
+          } else {
+            blitAtlasToCtx(ctx, ((tx >> 1) & 1) === 0 ? "park_0" : "park_1", lx, ly);
+          }
+          continue;
+        }
+
+        if (tileId === 7) {
+          blitAtlasToCtx(ctx, "tall_grass_0", lx, ly);
+          animatedTiles.push({ tx, ty, tileId });
+          continue;
+        }
+
+        const n = tileAt(tx, ty - 1);
+        const s = tileAt(tx, ty + 1);
+        const w = tileAt(tx - 1, ty);
+        const e = tileAt(tx + 1, ty);
+
+        if (tileId === 9) {
+          const spr = pattern === 2 ? "dirt_pebble" : pattern % 2 === 0 ? "dirt_0" : "dirt_1";
+          blitAtlasToCtx(ctx, spr, lx, ly);
+          if (isGreenGround(n)) {
+            fillRectHD(ctx, lx, ly, 16, 1, "rgb(186,118,38)");
+            fillRectHD(ctx, lx + (tx % 2) * 3, ly + 1, 6, 1, "rgb(186,118,38)", 0.75);
+          }
+          if (isGreenGround(s)) {
+            fillRectHD(ctx, lx, ly + 15, 16, 1, "rgb(186,118,38)");
+            fillRectHD(ctx, lx + ((tx + 1) % 2) * 4, ly + 14, 5, 1, "rgb(122,68,28)", 0.55);
+          }
+          if (isGreenGround(w)) {
+            fillRectHD(ctx, lx, ly, 1, 16, "rgb(186,118,38)");
+            fillRectHD(ctx, lx + 1, ly + (ty % 2) * 4, 1, 6, "rgb(186,118,38)", 0.75);
+          }
+          if (isGreenGround(e)) {
+            fillRectHD(ctx, lx + 15, ly, 1, 16, "rgb(186,118,38)");
+            fillRectHD(ctx, lx + 14, ly + ((ty + 1) % 2) * 4, 1, 6, "rgb(122,68,28)", 0.55);
+          }
+          continue;
+        }
+
+        if (tileId === 10) {
+          const spr = pattern === 3 ? "sand_shell" : pattern % 2 === 0 ? "sand_0" : "sand_1";
+          blitAtlasToCtx(ctx, spr, lx, ly);
+          if (n === 6) fillRectHD(ctx, lx, ly, 16, 2, "rgb(181,145,83)", 0.8);
+          if (s === 6) fillRectHD(ctx, lx, ly + 14, 16, 2, "rgb(181,145,83)", 0.8);
+          if (w === 6) fillRectHD(ctx, lx, ly, 2, 16, "rgb(181,145,83)", 0.8);
+          if (e === 6) fillRectHD(ctx, lx + 14, ly, 2, 16, "rgb(181,145,83)", 0.8);
+          if (isGreenGround(n)) fillRectHD(ctx, lx, ly, 16, 1, "rgb(194,126,42)", 0.7);
+          if (isGreenGround(s)) fillRectHD(ctx, lx, ly + 15, 16, 1, "rgb(194,126,42)", 0.7);
+          if (isGreenGround(w)) fillRectHD(ctx, lx, ly, 1, 16, "rgb(194,126,42)", 0.7);
+          if (isGreenGround(e)) fillRectHD(ctx, lx + 15, ly, 1, 16, "rgb(194,126,42)", 0.7);
+          continue;
+        }
+
+        if (tileId === 6) {
+          const isShore = n !== 6 || s !== 6 || w !== 6 || e !== 6;
+          blitAtlasToCtx(ctx, isShore ? "water_shallow_0" : "water_deep_0", lx, ly);
+          animatedTiles.push({ tx, ty, tileId });
+          continue;
+        }
+
+        if (tileId === 8) {
+          blitAtlasToCtx(ctx, n !== 8 ? "parking_0" : "parking_1", lx, ly);
+          continue;
+        }
+
+        if (tileId === 1) {
+          blitAtlasToCtx(ctx, (tx + ty) % 2 === 0 ? "sidewalk_0" : "sidewalk_1", lx, ly);
+          const isEarth = (id) => id === 9 || id === 10;
+          if (isRoadTile(s)) {
+            fillRectHD(ctx, lx, ly + 13, 16, 1, "rgb(223,208,200)");
+            fillRectHD(ctx, lx, ly + 14, 16, 1, "rgb(107,89,91)");
+            fillRectHD(ctx, lx, ly + 15, 16, 1, "rgb(66,52,54)");
+          } else if (isGreenGround(s)) {
+            fillRectHD(ctx, lx, ly + 15, 16, 1, "rgb(148,82,26)", 0.45);
+          } else if (isEarth(s)) {
+            fillRectHD(ctx, lx, ly + 15, 16, 1, "rgb(142,108,72)", 0.4);
+          }
+          if (isRoadTile(n)) {
+            fillRectHD(ctx, lx, ly, 16, 1, "rgb(66,52,54)");
+            fillRectHD(ctx, lx, ly + 1, 16, 1, "rgb(107,89,91)");
+            fillRectHD(ctx, lx, ly + 2, 16, 1, "rgb(223,208,200)");
+          } else if (isGreenGround(n)) {
+            fillRectHD(ctx, lx, ly, 16, 1, "rgb(148,82,26)", 0.45);
+          } else if (isEarth(n)) {
+            fillRectHD(ctx, lx, ly, 16, 1, "rgb(142,108,72)", 0.4);
+          }
+          if (isRoadTile(e)) {
+            fillRectHD(ctx, lx + 13, ly, 1, 16, "rgb(223,208,200)");
+            fillRectHD(ctx, lx + 14, ly, 1, 16, "rgb(107,89,91)");
+            fillRectHD(ctx, lx + 15, ly, 1, 16, "rgb(66,52,54)");
+          } else if (isGreenGround(e)) {
+            fillRectHD(ctx, lx + 15, ly, 1, 16, "rgb(148,82,26)", 0.45);
+          } else if (isEarth(e)) {
+            fillRectHD(ctx, lx + 15, ly, 1, 16, "rgb(142,108,72)", 0.4);
+          }
+          if (isRoadTile(w)) {
+            fillRectHD(ctx, lx, ly, 1, 16, "rgb(66,52,54)");
+            fillRectHD(ctx, lx + 1, ly, 1, 16, "rgb(107,89,91)");
+            fillRectHD(ctx, lx + 2, ly, 1, 16, "rgb(223,208,200)");
+          } else if (isGreenGround(w)) {
+            fillRectHD(ctx, lx, ly, 1, 16, "rgb(148,82,26)", 0.45);
+          } else if (isEarth(w)) {
+            fillRectHD(ctx, lx, ly, 1, 16, "rgb(142,108,72)", 0.4);
+          }
+          continue;
+        }
+
+        if (tileId === 4) {
+          let ewTraffic = 0;
+          let nsTraffic = 0;
+          for (let d = 1; d <= 3; d++) {
+            const tw = tileAt(tx - d, ty);
+            const te = tileAt(tx + d, ty);
+            const tn = tileAt(tx, ty - d);
+            const ts = tileAt(tx, ty + d);
+            if (tw === 2 || tw === 3 || tw === 12) ewTraffic++;
+            if (te === 2 || te === 3 || te === 12) ewTraffic++;
+            if (tn === 2 || tn === 3 || tn === 12) nsTraffic++;
+            if (ts === 2 || ts === 3 || ts === 12) nsTraffic++;
+          }
+          blitAtlasToCtx(ctx, ewTraffic >= nsTraffic ? "crosswalk_h" : "crosswalk_v", lx, ly);
+          continue;
+        }
+
+        if (tileId === 13) {
+          const isVertical = (n === 13 || s === 13) && !(w === 13 || e === 13);
+          blitAtlasToCtx(ctx, isVertical ? "highway_median_v" : "highway_median_h", lx, ly);
+          if (!isVertical) {
+            if (w !== 13) {
+              fillRectHD(ctx, lx, ly + 3, 3, 9, "rgb(29,34,40)");
+              fillRectHD(ctx, lx + 1, ly + 4, 2, 2, "rgb(244,211,68)");
+              fillRectHD(ctx, lx + 1, ly + 8, 2, 2, "rgb(244,211,68)");
+            }
+            if (e !== 13) {
+              fillRectHD(ctx, lx + 13, ly + 3, 3, 9, "rgb(29,34,40)");
+              fillRectHD(ctx, lx + 13, ly + 4, 2, 2, "rgb(244,211,68)");
+              fillRectHD(ctx, lx + 13, ly + 8, 2, 2, "rgb(244,211,68)");
+            }
+          } else {
+            if (n !== 13) {
+              fillRectHD(ctx, lx + 3, ly, 9, 3, "rgb(29,34,40)");
+              fillRectHD(ctx, lx + 4, ly + 1, 2, 2, "rgb(244,211,68)");
+              fillRectHD(ctx, lx + 8, ly + 1, 2, 2, "rgb(244,211,68)");
+            }
+            if (s !== 13) {
+              fillRectHD(ctx, lx + 3, ly + 13, 9, 3, "rgb(29,34,40)");
+              fillRectHD(ctx, lx + 4, ly + 13, 2, 2, "rgb(244,211,68)");
+              fillRectHD(ctx, lx + 8, ly + 13, 2, 2, "rgb(244,211,68)");
+            }
+          }
+          continue;
+        }
+
+        if (tileId === 12 || tileId === 2 || tileId === 3) {
+          if (tileId === 12) {
+            blitAtlasToCtx(ctx, (tx + ty) % 2 === 0 ? "highway_base_0" : "highway_base_1", lx, ly);
+          } else if (tileId === 3) {
+            blitAtlasToCtx(ctx, "road_main_base", lx, ly);
+          } else {
+            blitAtlasToCtx(ctx, (tx + ty) % 2 === 0 ? "road_res_base_0" : "road_res_base_1", lx, ly);
+          }
+          const marks = computeRoadTileMarkings(tileAt, tx, ty);
+          for (const m of marks) {
+            let css;
+            let alpha = 1;
+            if (m.kind === "curb") {
+              css = "rgb(42,46,54)";
+              alpha = tileId === 2 ? 0.72 : 0.92;
+            } else if (m.kind === "shoulder") {
+              css = "rgb(242,246,250)";
+              alpha = tileId === 12 ? 0.92 : 0.82;
+            } else if (m.kind === "white_dash") {
+              css = "rgb(246,249,252)";
+              alpha = 0.94;
+            } else if (m.kind === "yellow_dash") {
+              css = "rgb(245,197,59)";
+              alpha = 0.92;
+            } else {
+              css = "rgb(245,197,59)";
+              alpha = 0.96;
+            }
+            fillRectHD(ctx, lx + m.x, ly + m.y, m.w, m.h, css, alpha);
+          }
+          continue;
+        }
+
+        if (tileId === 5) {
+          fillRectHD(ctx, lx, ly, tileSize, tileSize, "rgb(140,109,98)");
+        }
+      }
+    }
+
+    return {
+      key: `gchunk_${cx}_${cy}`,
+      canvas,
+      pxX: tx0 * tileSize,
+      pxY: ty0 * tileSize,
+      animatedTiles,
+    };
+  }
+
+  function getGroundChunk(cx, cy) {
+    const key = `${cx},${cy}`;
+    let chunk = groundChunkCache.get(key);
+    if (chunk) {
+      groundChunkCache.delete(key);
+      groundChunkCache.set(key, chunk);
+      return chunk;
+    }
+    chunk = bakeGroundChunk(cx, cy);
+    groundChunkCache.set(key, chunk);
+    if (groundChunkCache.size > MAX_GROUND_CHUNKS) {
+      const oldest = groundChunkCache.keys().next().value;
+      groundChunkCache.delete(oldest);
+    }
+    return chunk;
+  }
+
   k.onDraw(() => {
     const animFrame = Math.floor(playerState.elapsedTime * 2) % 2;
 
@@ -2645,11 +3031,23 @@ async function boot() {
     const startY = Math.max(0, Math.floor((cam.y - cullHalfH) / tileSize));
     const endY = Math.min(mapH - 1, Math.ceil((cam.y + cullHalfH) / tileSize));
 
-    // 1. Auto-tiled ground layer
-    for (let ty = startY; ty <= endY; ty++) {
-      const rowOffset = ty * mapW;
-      for (let tx = startX; tx <= endX; tx++) {
-        drawGroundTile(tx, ty, baseLayer[rowOffset + tx], animFrame);
+    // 1. Pre-baked 16x16-tile Ground Chunks (2-4 blits per frame!) + only animate water/flowers/tall-grass!
+    const gcx0 = Math.floor(startX / GROUND_CHUNK_TILES);
+    const gcy0 = Math.floor(startY / GROUND_CHUNK_TILES);
+    const gcx1 = Math.floor(endX / GROUND_CHUNK_TILES);
+    const gcy1 = Math.floor(endY / GROUND_CHUNK_TILES);
+    for (let cy = gcy0; cy <= gcy1; cy++) {
+      for (let cx = gcx0; cx <= gcx1; cx++) {
+        const chunk = getGroundChunk(cx, cy);
+        k.drawCanvas(chunk.key, chunk.canvas, chunk.pxX, chunk.pxY);
+        const animList = chunk.animatedTiles;
+        for (let i = 0; i < animList.length; i++) {
+          const at = animList[i];
+          if (at.tx < startX || at.tx > endX || at.ty < startY || at.ty > endY) continue;
+          if (at.tileId === 6 || animFrame === 1) {
+            drawGroundTile(at.tx, at.ty, at.tileId, animFrame);
+          }
+        }
       }
     }
 
@@ -2764,8 +3162,7 @@ async function boot() {
       }
     }
 
-    for (const bench of parkBenches) {
-      if (bench.tx < startX - 1 || bench.tx > endX + 1 || bench.ty < startY - 1 || bench.ty > endY + 1) continue;
+    for (const bench of propIndices.benches.query(startX - 1, startY - 1, endX + 1, endY + 1)) {
       const bx = bench.tx * tileSize;
       const by = bench.ty * tileSize + 3;
       const footX = bx + 8;
@@ -2777,8 +3174,7 @@ async function boot() {
     }
 
     // Standing park athletic props (basketball hoops, soccer goals, baseball backstops, swing sets & slides)
-    for (const prop of parkFeatures.props) {
-      if (prop.tx < startX - 2 || prop.tx > endX + 2 || prop.ty < startY - 2 || prop.ty > endY + 2) continue;
+    for (const prop of propIndices.parkProps.query(startX - 2, startY - 2, endX + 2, endY + 2)) {
       const pxPos = prop.tx * tileSize + (prop.offsetX || 0);
       const pyPos = prop.ty * tileSize + (prop.offsetY || 0);
       const footX = prop.tx * tileSize + 8;
@@ -2790,8 +3186,7 @@ async function boot() {
     }
 
     // Spooky Graveyard Props (tombstones, obelisks, crypts, gnarled trees, iron gates, pumpkins & black cats!)
-    for (const prop of graveyardFeatures.props) {
-      if (prop.tx < startX - 2 || prop.tx > endX + 2 || prop.ty < startY - 2 || prop.ty > endY + 2) continue;
+    for (const prop of propIndices.graveProps.query(startX - 2, startY - 2, endX + 2, endY + 2)) {
       const pxPos = prop.tx * tileSize + (prop.offsetX || 0);
       const pyPos = prop.ty * tileSize + (prop.offsetY || 0);
       const spr = prop.animated ? `${prop.sprite}_${animFrame}` : prop.sprite;
@@ -2806,9 +3201,8 @@ async function boot() {
     // Spooky Floating Ghosts drifting & bobbing around graveyard tombstones & crypts!
     const tSec = playerState.elapsedTime;
     const fastFlapFrame = Math.floor(tSec * 6) % 2;
-    for (const g of graveyardFeatures.ghosts) {
+    for (const g of propIndices.graveGhosts.query(startX - 3, startY - 3, endX + 3, endY + 3)) {
       if ((g.defeatedTimer || 0) > 0) continue;
-      if (g.tx < startX - 3 || g.tx > endX + 3 || g.ty < startY - 3 || g.ty > endY + 3) continue;
       const gp = getGraveyardGhostPos(g, tSec, tileSize);
       const gx = gp.x;
       const gy = gp.y;
@@ -2828,8 +3222,7 @@ async function boot() {
       });
     }
 
-    for (const reed of shoreReeds) {
-      if (reed.tx < startX - 1 || reed.tx > endX + 1 || reed.ty < startY - 1 || reed.ty > endY + 1) continue;
+    for (const reed of propIndices.reeds.query(startX - 1, startY - 1, endX + 1, endY + 1)) {
       const rx = reed.tx * tileSize + 2;
       const ry = reed.ty * tileSize - 1;
       const footX = rx + 6;
@@ -2840,8 +3233,7 @@ async function boot() {
       });
     }
 
-    for (const hy of hydrants) {
-      if (hy.tx < startX - 1 || hy.tx > endX + 1 || hy.ty < startY - 1 || hy.ty > endY + 1) continue;
+    for (const hy of propIndices.hydrants.query(startX - 1, startY - 1, endX + 1, endY + 1)) {
       const hx = hy.tx * tileSize + 3;
       const hyY = hy.ty * tileSize + 1;
       const footX = hx + 5;
@@ -2853,8 +3245,7 @@ async function boot() {
     }
 
     // Crunchy Golden-Hour Autumn Leaf Piles along curbs & sidewalks!
-    for (const pile of leafPiles) {
-      if (pile.tx < startX - 1 || pile.tx > endX + 1 || pile.ty < startY - 1 || pile.ty > endY + 1) continue;
+    for (const pile of propIndices.leafPiles.query(startX - 1, startY - 1, endX + 1, endY + 1)) {
       const lx = pile.tx * tileSize - 1;
       const ly = pile.ty * tileSize + 2;
       const footX = pile.tx * tileSize + 8;
@@ -2866,8 +3257,7 @@ async function boot() {
     }
 
     // Lush Green Boxwood Garden Shrubs tucked beside neighborhood homes
-    for (const sh of gardenShrubs) {
-      if (sh.tx < startX - 1 || sh.tx > endX + 1 || sh.ty < startY - 1 || sh.ty > endY + 1) continue;
+    for (const sh of propIndices.shrubs.query(startX - 1, startY - 1, endX + 1, endY + 1)) {
       const sx = sh.tx * tileSize + 2;
       const sy = sh.ty * tileSize + 4;
       const footX = sh.tx * tileSize + 8;
@@ -2879,8 +3269,7 @@ async function boot() {
     }
 
     // Vintage Curved-Arm Glowing Street Lamps casting warm golden lantern pools
-    for (const lamp of streetLamps) {
-      if (lamp.tx < startX - 2 || lamp.tx > endX + 2 || lamp.ty < startY - 2 || lamp.ty > endY + 2) continue;
+    for (const lamp of propIndices.lamps.query(startX - 2, startY - 2, endX + 2, endY + 2)) {
       const lx = lamp.tx * tileSize + 3;
       const ly = lamp.ty * tileSize - 10;
       const footX = lamp.tx * tileSize + 8;
@@ -2891,12 +3280,10 @@ async function boot() {
       });
     }
 
-    // Active Street Signs (upright billboarded in Hard Mode + tight bobbing prompt bubble only when right beside sign!)
-    const playerTileXNow = Math.floor(playerState.x / tileSize);
-    const playerTileYNow = Math.floor(playerState.y / tileSize);
-    const activeDrawIntent = getCurrentActionIntent(playerTileXNow, playerTileYNow);
+    // Active Street Signs (reuse action intent & prompt sign computed in onUpdate — zero duplicate queries!)
+    const activeDrawIntent = lastActionIntent;
     const activeTargetInteract = activeDrawIntent.mode === "interact" ? activeDrawIntent.interaction : null;
-    const nearestPromptSign = streetSignSystem.findNearbySign(playerTileXNow, playerTileYNow, 1.85);
+    const nearestPromptSign = lastNearestPromptSign;
     const visibleSigns = streetSignSystem.queryVisibleSigns(startX - 1, startY - 1, endX + 1, endY + 1);
     const signPromptBob = Math.round(Math.sin(tSec * 6) * 1.5);
 
@@ -2961,8 +3348,7 @@ async function boot() {
       }
     }
 
-    for (const car of parkedCars) {
-      if (car.tx < startX - 1 || car.tx > endX + 1 || car.ty < startY - 1 || car.ty > endY + 1) continue;
+    for (const car of propIndices.parkedCars.query(startX - 1, startY - 1, endX + 1, endY + 1)) {
       const cx = car.tx * tileSize + 1;
       const cy = car.ty * tileSize - 1;
       drawables.push({
@@ -3462,14 +3848,12 @@ async function boot() {
     }
 
     // Overhead Spooky Graveyard Atmosphere: flapping pixel bats, glowing will-o'-the-wisps & drifting silver mist!
-    for (const w of graveyardFeatures.wisps) {
-      if (w.tx < startX - 2 || w.tx > endX + 2 || w.ty < startY - 2 || w.ty > endY + 2) continue;
+    for (const w of propIndices.graveWisps.query(startX - 2, startY - 2, endX + 2, endY + 2)) {
       const wx = Math.round(w.tx * tileSize + 4 + Math.sin(tSec * w.speed + w.phase) * 7);
       const wy = Math.round(w.ty * tileSize + Math.cos(tSec * w.speed * 1.3 + w.phase) * 5 - 3);
       k.drawSprite(`grave_wisp_${animFrame}`, wx, wy);
     }
-    for (const b of graveyardFeatures.bats) {
-      if (b.tx < startX - 3 || b.tx > endX + 3 || b.ty < startY - 3 || b.ty > endY + 3) continue;
+    for (const b of propIndices.graveBats.query(startX - 3, startY - 3, endX + 3, endY + 3)) {
       const bx = Math.round(b.tx * tileSize + Math.cos(tSec * b.speed + b.phase) * b.radiusX);
       const by = Math.round(b.ty * tileSize - 12 + Math.sin(tSec * b.speed * 1.4 + b.phase) * b.radiusY);
       k.drawSprite(`grave_bat_${fastFlapFrame}`, bx, by);
