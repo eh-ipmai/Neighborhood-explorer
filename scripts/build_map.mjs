@@ -4416,18 +4416,17 @@ export function enrichWorldMap(worldMap) {
       next.kind = inferredKind;
     }
 
-    // Enrich untagged buildings right inside Newton's real village commercial centers & park-edge conservatories!
-    if (next.bounds && (next.kind === "house" || next.kind === "commercial" || next.kind === "garage")) {
+    // Keep residential homes strictly residential! Only refine buildings already tagged commercial
+    // (or real village-square storefronts) so residential streets never get fake cafes or office plazas.
+    if (next.bounds && (next.kind === "commercial" || next.kind === "garage")) {
       const bCx = Math.floor((next.bounds.minX + next.bounds.maxX) / 2);
       const bCy = Math.floor((next.bounds.minY + next.bounds.maxY) / 2);
       const bHash = hashString(next.id || next.address || `${bCx}_${bCy}`);
 
-      if (next.kind === "house" || next.kind === "commercial") {
+      if (next.kind === "commercial") {
         const inVillage = villageCenters.some((vc) => Math.hypot(bCx - vc.cx, bCy - vc.cy) <= vc.r);
-        if (inVillage && (next.kind === "commercial" || bHash % 3 !== 0)) {
+        if (inVillage) {
           next.kind = villageShopKinds[bHash % villageShopKinds.length];
-        } else if (next.kind === "house" && lowerAddr.includes("boylston") && bHash % 4 === 0) {
-          next.kind = bHash % 8 === 0 ? "bakery_cafe" : "office_plaza";
         }
       } else if (next.kind === "garage" && bHash % 7 === 0) {
         // Turn occasional sunny yard/park-edge outbuildings into charming glass greenhouses!

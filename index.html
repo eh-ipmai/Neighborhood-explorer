@@ -935,6 +935,100 @@
         color: #174a2e;
       }
 
+      /* Giant 16-Bit SNES GAME OVER Overlay (Zelda / Ganondorf Defeat Style!) */
+      #gameover-overlay {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at center, rgba(68, 8, 14, 0.92) 0%, rgba(12, 4, 8, 0.98) 75%);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 90;
+        text-align: center;
+        animation: gameOverFade 0.55s ease-out;
+      }
+
+      #gameover-overlay.open {
+        display: flex;
+      }
+
+      @keyframes gameOverFade {
+        from { opacity: 0; transform: scale(1.06); }
+        to { opacity: 1; transform: scale(1); }
+      }
+
+      @keyframes gameOverPulse {
+        0%, 100% { transform: scale(1); text-shadow: 0 6px 0 #4a090d, 0 0 24px rgba(255, 64, 56, 0.85); }
+        50% { transform: scale(1.03); text-shadow: 0 6px 0 #4a090d, 0 0 40px rgba(255, 210, 82, 0.95); }
+      }
+
+      .gameover-banner {
+        font-size: clamp(46px, 12vw, 102px);
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        color: #ff4b3e;
+        -webkit-text-stroke: 3px #2b0608;
+        margin: 0 0 10px;
+        line-height: 1.02;
+        animation: gameOverPulse 1.8s ease-in-out infinite;
+      }
+
+      .gameover-grounded {
+        display: inline-block;
+        background: #2b090e;
+        border: 3px solid var(--snes-gold);
+        border-radius: 8px;
+        padding: 6px 18px;
+        font-size: clamp(14px, 3vw, 22px);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+        margin-bottom: 14px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.65);
+      }
+
+      .gameover-sub {
+        max-width: 480px;
+        font-size: 13px;
+        line-height: 1.55;
+        color: #f5dede;
+        margin: 0 0 22px;
+      }
+
+      .gameover-retry-btn {
+        padding: 12px 28px;
+        border-radius: 999px;
+        border: 3px solid var(--snes-gold);
+        background: linear-gradient(180deg, #b82924 0%, #781512 100%);
+        color: #fff8e0;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65);
+      }
+
+      .gameover-retry-btn:hover {
+        filter: brightness(1.12);
+      }
+
+      .mini-btn.combat-btn {
+        border-color: #f4d35e;
+        background: rgba(58, 28, 18, 0.9);
+        color: #fff2b2;
+        font-weight: 700;
+      }
+
+      .mini-btn.siddur-btn {
+        border-color: #6cc4ff;
+        background: rgba(18, 36, 72, 0.9);
+        color: #dff4ff;
+        font-weight: 700;
+      }
+
       @media (hover: hover) and (pointer: fine) {
         .dpad {
           opacity: 0.5;
@@ -967,7 +1061,7 @@
     </div>
 
     <div id="hud-status">
-      <div id="hud-hearts" class="hearts" aria-label="Health">❤️❤️❤️</div>
+      <div id="hud-hearts" class="hearts" aria-label="Health">❤️❤️❤️❤️❤️</div>
       <div id="hud-xp" class="xp">Safety XP: 0</div>
       <div id="hud-bag" class="bag">🪙 0 • 🌰 0</div>
       <div id="hud-coords">🪧 Signs: 0</div>
@@ -998,6 +1092,8 @@
 
       <div class="action-cluster">
         <div class="utility-row">
+          <button id="btn-sword" class="mini-btn combat-btn" type="button" style="display:none;" aria-label="Swing Graveyard Sword">⚔️ Sword (J)</button>
+          <button id="btn-siddur" class="mini-btn siddur-btn" type="button" style="display:none;" aria-label="Raise Pocket Siddur">📖 Siddur (K)</button>
           <button id="btn-map" class="mini-btn" type="button" aria-label="Open Folded Paper Map">🗺️ Map (M)</button>
           <button id="btn-gps" class="mini-btn" type="button" aria-label="Toggle Signpost Mode or GPS Assist">🧭 Signs (G)</button>
           <button id="btn-outfit" class="mini-btn" type="button" aria-label="Switch Liam's Outfit">👕 Polo (O)</button>
@@ -1005,6 +1101,7 @@
           <button id="btn-mute" class="mini-btn" type="button" aria-label="Toggle Sound">🔊 SFX</button>
           <button id="btn-debug" class="mini-btn" type="button">Grid (C)</button>
           <button id="btn-home" class="mini-btn" type="button">Home (H)</button>
+          <button id="btn-salzberg" class="mini-btn" type="button">Salzberg (S)</button>
         </div>
         <div class="action-row">
           <button id="btn-faster" class="touch-btn btn-faster" type="button" aria-label="Go Faster">
@@ -1105,6 +1202,17 @@
           <button id="btn-paint-reset" class="mini-btn" type="button">Reset House</button>
         </div>
       </div>
+    </div>
+
+    <!-- Giant 16-Bit SNES GAME OVER Overlay (Road-Hit Ambulance Cutscene Finale!) -->
+    <div id="gameover-overlay" role="dialog" aria-modal="true" aria-label="Game Over">
+      <div style="font-size: 38px; margin-bottom: 6px;">🚑 💔 🏠</div>
+      <h1 class="gameover-banner">GAME OVER</h1>
+      <div class="gameover-grounded">GROUNDED FOREVER!!</div>
+      <p id="gameover-sub" class="gameover-sub">
+        Mom is SO happy you're alive... but you got hit on the road! Always watch carefully for cars and bikes!
+      </p>
+      <button id="btn-gameover-retry" class="gameover-retry-btn" type="button">🔄 Try Again (5 Hearts ❤️❤️❤️❤️❤️)</button>
     </div>
 
     <script type="module" src="/src/main.js"></script>

@@ -469,6 +469,7 @@ export function buildStreetLife(
       shooToast: arch.shooToast,
       soundCooldown: 0,
       chasing: false,
+      defeatedTimer: 0,
     });
     markSpookySpot(tx, ty, 3);
   };
@@ -602,6 +603,7 @@ export function findNearbyStreetLife(streetLife, px, py, maxDistPx = 28) {
     }
   }
   for (const sp of streetLife.spookyChars || []) {
+    if ((sp.defeatedTimer || 0) > 0) continue;
     const d = Math.hypot(px - sp.x, py - sp.y);
     if (d <= maxDistPx && (!best || d < best.dist)) {
       best = { kind: "spooky", target: sp, dist: d };
@@ -765,7 +767,7 @@ export function checkStreetLifeContact(
   }
 
   for (const sp of streetLife.spookyChars || []) {
-    if (sp.spookTimer > 0) continue;
+    if ((sp.defeatedTimer || 0) > 0 || sp.spookTimer > 0) continue;
     const dx = px - sp.x;
     const dy = py - sp.y;
     const dist = Math.hypot(dx, dy);
@@ -790,6 +792,7 @@ export function checkStreetLifeContact(
 
   if (Array.isArray(graveyardGhosts)) {
     for (const g of graveyardGhosts) {
+      if ((g.defeatedTimer || 0) > 0) continue;
       const gp = getGraveyardGhostPos(g, elapsedTime, tileSize);
       const dx = px - gp.cx;
       const dy = py - gp.cy;
@@ -858,10 +861,9 @@ export function updateStreetLife(
     playerState.hurtShakeTimer = 0.24;
     playerState.ouchBubbleTimer = 0.95;
     playerState.ouchBubbleSprite = bump.bubbleSprite;
-    playerState.maxHearts = playerState.maxHearts || 3;
+    playerState.maxHearts = playerState.maxHearts || 5;
     const curHearts = playerState.hearts ?? playerState.maxHearts;
-    playerState.hearts = curHearts > 1 ? curHearts - 1 : 0;
-    playerState.heartRefillTimer = 4.2;
+    playerState.hearts = Math.max(0, curHearts - 1);
     playerState.lastBumpKind = bump.kind;
 
     if (bump.kind === "turkey") {
@@ -1092,7 +1094,24 @@ export function updateStreetLife(
 
   // --- 3. Update Spooky Graveyard Characters (stay strictly inside their graveyard area!) ---
   const graveGrid = streetLife.graveyardGrid;
+  if (Array.isArray(graveyardGhosts)) {
+    for (const g of graveyardGhosts) {
+      if ((g.defeatedTimer || 0) > 0) {
+        g.defeatedTimer = Math.max(0, g.defeatedTimer - dt);
+      }
+    }
+  }
   for (const sp of streetLife.spookyChars || []) {
+    if ((sp.defeatedTimer || 0) > 0) {
+      sp.defeatedTimer = Math.max(0, sp.defeatedTimer - dt);
+      if (sp.defeatedTimer <= 0) {
+        sp.x = sp.homeX;
+        sp.y = sp.homeY;
+        sp.spookTimer = 0;
+        sp.chasing = false;
+      }
+      continue;
+    }
     const dist = Math.hypot(px - sp.x, py - sp.y);
     if (dist > 420) continue;
 
@@ -1160,4 +1179,153 @@ export function updateStreetLife(
       sp.facing = sp.vx >= 0 ? "right" : "left";
     }
   }
+}
+
+/**
+ * Swing the Explorer's Graveyard Sword (earned at the Salzberg House!) in Liam's facing arc
+ * to defeat nearby graveyard skeletons, phantoms, pumpkin ghouls, and floating ghosts!
+ */
+export function performSwordAttack(
+  streetLife,
+  playerState,
+  { graveyardGhosts = null, elapsedTime = 0, tileSize = 16, reachPx = 38 } = {}
+) {
+  if (!streetLife || !playerState) return { hitCount: 0, defeated: [], toast: "" };
+  const px = playerState.x;
+  const py = playerState.y;
+  const fx =
+    playerState.facing === "right" ? 1 : playerState.facing === "left" ? -1 : 0;
+  const fy =
+    playerState.facing === "down" ? 1 : playerState.facing === "up" ? -1 : 0;
+  // Sword arc center sits slightly in front of Liam while still catching very close foes
+  const arcX = px + fx * 14;
+  const arcY = py + fy * 14;
+
+  const defeated = [];
+  for (const sp of streetLife.spookyChars || []) {
+    if ((sp.defeatedTimer || 0) > 0) continue;
+    const dArc = Math.hypot(sp.x - arcX, sp.y - arcY);
+    const dSelf = Math.hypot(sp.x - px, sp.y - py);
+    if (dArc <= reachPx || dSelf <= 24) {
+      sp.defeatedTimer = 18;
+      sp.spookTimer = 0;
+      sp.chasing = false;
+      defeated.push({ kind: "spooky", name: sp.name, x: sp.x, y: sp.y });
+    }
+  }
+  if (Array.isArray(graveyardGhosts)) {
+    for (const g of graveyardGhosts) {
+      if ((g.defeatedTimer || 0) > 0) continue;
+      const gp = getGraveyardGhostPos(g, elapsedTime, tileSize);
+      const dArc = Math.hypot(gp.cx - arcX, gp.cy - arcY);
+      const dSelf = Math.hypot(gp.cx - px, gp.cy - py);
+      if (dArc <= reachPx || dSelf <= 24) {
+        g.defeatedTimer = 18;
+        defeated.push({ kind: "ghost", name: "Graveyard Ghost", x: gp.cx, y: gp.cy });
+      }
+    }
+  }
+
+  return {
+    hitCount: defeated.length,
+    defeated,
+    toast:
+      defeated.length > 0
+        ? `⚔️ SWISH! Defeated ${defeated.length} graveyard ${defeated.length === 1 ? "enemy" : "enemies"}! (+${defeated.length * 10} XP)`
+        : "",
+  };
+}
+
+/**
+ * Raise the Pocket Siddur (earned at Beth El, Shaarei Tefillah, Temple Emanuel, or Chabad!)
+ * to shine a peaceful golden-blue blessing aura that dispels graveyard enemies, ghosts,
+ * stubborn protestors (even mobs!), and bold wild turkeys!
+ */
+export function performSiddurDispel(
+  streetLife,
+  playerState,
+  { graveyardGhosts = null, elapsedTime = 0, tileSize = 16, radiusPx = 68 } = {}
+) {
+  if (!streetLife || !playerState) {
+    return { dispelledCount: 0, dispelledSpooky: 0, dispelledProtestors: 0, dispelledTurkeys: 0, positions: [], toast: "" };
+  }
+  const px = playerState.x;
+  const py = playerState.y;
+  let dispelledSpooky = 0;
+  let dispelledProtestors = 0;
+  let dispelledTurkeys = 0;
+  const positions = [];
+
+  for (const sp of streetLife.spookyChars || []) {
+    if ((sp.defeatedTimer || 0) > 0) continue;
+    if (Math.hypot(sp.x - px, sp.y - py) <= radiusPx) {
+      sp.defeatedTimer = 22;
+      sp.chasing = false;
+      dispelledSpooky++;
+      positions.push({ x: sp.x, y: sp.y });
+    }
+  }
+
+  if (Array.isArray(graveyardGhosts)) {
+    for (const g of graveyardGhosts) {
+      if ((g.defeatedTimer || 0) > 0) continue;
+      const gp = getGraveyardGhostPos(g, elapsedTime, tileSize);
+      if (Math.hypot(gp.cx - px, gp.cy - py) <= radiusPx) {
+        g.defeatedTimer = 22;
+        dispelledSpooky++;
+        positions.push({ x: gp.cx, y: gp.cy });
+      }
+    }
+  }
+
+  for (const pr of streetLife.protestors || []) {
+    if (pr.yieldTimer > 0) continue;
+    if (Math.hypot(pr.x - px, pr.y - py) <= radiusPx) {
+      pr.yieldTimer = 14;
+      pr.pushTimer = 0;
+      pr.bubbleSprite = "bubble_watch_sign";
+      pr.bubbleTimer = 2.0;
+      const dx = pr.x - px;
+      const dy = pr.y - py;
+      if (pr.axis === "h") {
+        pr.yieldOffsetY = dy >= 0 ? 14 : -14;
+        pr.yieldOffsetX = 0;
+      } else {
+        pr.yieldOffsetX = dx >= 0 ? 14 : -14;
+        pr.yieldOffsetY = 0;
+      }
+      dispelledProtestors++;
+      positions.push({ x: pr.x, y: pr.y });
+    }
+  }
+
+  for (const tk of streetLife.turkeys || []) {
+    if (tk.fleeTimer > 0) continue;
+    const dx = tk.x - px;
+    const dy = tk.y - py;
+    const dist = Math.hypot(dx, dy);
+    if (dist <= radiusPx) {
+      const len = dist || 1;
+      tk.vx = (dx / len) * 62;
+      tk.vy = (dy / len) * 62;
+      tk.facing = tk.vx >= 0 ? "right" : "left";
+      tk.fleeTimer = 3.5;
+      tk.puffedTimer = 0.6;
+      dispelledTurkeys++;
+      positions.push({ x: tk.x, y: tk.y });
+    }
+  }
+
+  const dispelledCount = dispelledSpooky + dispelledProtestors + dispelledTurkeys;
+  return {
+    dispelledCount,
+    dispelledSpooky,
+    dispelledProtestors,
+    dispelledTurkeys,
+    positions,
+    toast:
+      dispelledCount > 0
+        ? `📖 Shalom! Your Pocket Siddur dispelled ${dispelledCount} ${dispelledCount === 1 ? "bad guy" : "bad guys"} in a wave of light!`
+        : "📖 Shalom! A warm golden blessing shimmered around you!",
+  };
 }

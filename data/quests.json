@@ -21,7 +21,8 @@
     "rewards": {
       "xp": 120,
       "coins": 40,
-      "item": "running_shoes"
+      "item": "running_shoes",
+      "outfit": "baseball"
     }
   },
   {
@@ -46,7 +47,8 @@
     "rewards": {
       "xp": 100,
       "coins": 25,
-      "item": "running_shoes"
+      "item": "running_shoes",
+      "outfit": "wetsuit"
     }
   },
   {
@@ -65,7 +67,8 @@
     "rewards": {
       "xp": 150,
       "coins": 35,
-      "item": "rare_book_stamp"
+      "item": "rare_book_stamp",
+      "outfit": "link"
     }
   },
   {

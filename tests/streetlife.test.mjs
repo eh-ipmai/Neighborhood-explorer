@@ -297,10 +297,10 @@ test("spooky graveyard characters spawn strictly inside graveyard areas, stay in
 
   // 5. Pressing interact near a spooky character startles it back cleanly!
   const sp2 = sl.spookyChars[1];
-  sp2.spookTimer = 0;
-  const nearSp = findNearbyStreetLife(sl, sp2.x - 16, sp2.y, 26);
+  for (const s of sl.spookyChars) s.spookTimer = 0;
+  const nearSp = findNearbyStreetLife(sl, sp2.x - 6, sp2.y, 26);
   assert.equal(nearSp?.kind, "spooky");
-  const spRes = interactWithStreetLife(sl, nearSp, sp2.x - 16, sp2.y);
+  const spRes = interactWithStreetLife(sl, nearSp, sp2.x - 6, sp2.y);
   assert.equal(spRes?.kind, "spooky");
-  assert.ok(sp2.spookTimer > 1.5, "interacting with a spooky character should startle it back");
+  assert.ok(nearSp.target.spookTimer > 1.5, "interacting with a spooky character should startle it back");
 });

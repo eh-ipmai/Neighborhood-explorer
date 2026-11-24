@@ -9,6 +9,7 @@ import {
 import {
   createSafetySystem,
   findNearestBuilding,
+  resolveActionIntent,
   LOOK_DURATION_SEC,
   SAFE_CROSSING_DURATION_SEC,
 } from "./safety.js";
@@ -38,6 +39,14 @@ import {
   playTurkeyGobble,
   playProtestorShout,
   playBumpHurtSfx,
+  playSwordSlashSfx,
+  playSiddurDispelSfx,
+  playHealHeartSfx,
+  playCarCrashSfx,
+  playAmbulanceSirenSfx,
+  playGameOverDirge,
+  playAnnoyingBikerSfx,
+  playEmtRadioBeepSfx,
 } from "./audio.js";
 import {
   buildSnesSpriteAtlas,
@@ -54,7 +63,11 @@ import {
   isBlockedByStreetLife,
   findNearbyStreetLife,
   interactWithStreetLife,
+  performSwordAttack,
+  performSiddurDispel,
 } from "./streetlife.js";
+import { buildRoadTraffic, updateRoadTraffic } from "./traffic.js";
+import { computeRoadTileMarkings } from "./road_markings.js";
 
 const VIEW_W = 320;
 const VIEW_H = 180;
@@ -319,7 +332,7 @@ async function boot() {
     worldMap,
     storage: typeof localStorage !== "undefined" ? localStorage : null,
   });
-  const paperMap = createPaperMapRenderer(worldMap);
+  const paperMap = createPaperMapRenderer(worldMap, normalizedColorMap);
   const graveyardFeatures = buildGraveyardFeatures(worldMap);
   const parkFeatures = buildParkFeatures(worldMap, graveyardFeatures.graveyardGrid);
   const combinedOccupied = new Uint8Array(mapW * mapH);
@@ -353,6 +366,9 @@ async function boot() {
     graveyardZones: graveyardFeatures.zones,
     spawnTile: worldMap.origin?.spawnTile,
     landmarks: questSystem.landmarks,
+  });
+  const roadTraffic = buildRoadTraffic(worldMap, {
+    spawnTile: worldMap.origin?.spawnTile,
   });
   const buildingIndex = buildBuildingSpatialIndex(buildings);
   let lastGraveyardId = "";
@@ -441,11 +457,17 @@ async function boot() {
     hurtShakeTimer: 0,
     ouchBubbleTimer: 0,
     ouchBubbleSprite: "bubble_ouch",
-    hearts: 3,
-    maxHearts: 3,
-    heartRefillTimer: 0,
+    hearts: 5,
+    maxHearts: 5,
     lastBumpKind: "",
+    koRespawnTimer: 0,
+    swordSwingTimer: 0,
+    swordCooldown: 0,
+    siddurAuraTimer: 0,
+    siddurCooldown: 0,
   };
+
+  let roadHitCutscene = null; // { phase, timer, hitX, hitY, ambX, ambY, ambDir, sirenTimer, vehicleKind }
 
   // Overhead Item Fanfare queue & active timer
   const fanfareQueue = [];
@@ -490,11 +512,12 @@ async function boot() {
   }
 
   function findCombinedInteraction(tx, ty) {
-    const questNear = questSystem.findNearbyInteraction(tx, ty);
-    const signNear = streetSignSystem.findNearbySign(tx, ty, 2.6);
+    // Tight, precise interaction radii so NPCs & street signs never hijack crossing a nearby road!
+    const questNear = questSystem.findNearbyInteraction(tx, ty, 1.45);
+    const signNear = streetSignSystem.findNearbySign(tx, ty, 1.45);
     if (questNear && signNear) {
-      // Favor NPCs/chests slightly if standing right next to both
-      if (questNear.dist <= signNear.dist + 0.5) return questNear;
+      // Favor whichever one Liam is standing closer to (slight edge to NPC/chest if tied)
+      if (questNear.dist <= signNear.dist + 0.25) return questNear;
       return {
         kind: "sign",
         target: signNear.sign,
@@ -511,14 +534,35 @@ async function boot() {
         alreadyChecked: questSystem.state.checkedSigns.has(signNear.sign.id),
       };
     }
-    const streetNear = findNearbyStreetLife(streetLife, playerState.x, playerState.y, 26);
+    const streetNear = findNearbyStreetLife(streetLife, playerState.x, playerState.y, 19);
     if (streetNear) return streetNear;
     return null;
+  }
+
+  function getCurrentActionIntent(tx, ty) {
+    const rawNear = findCombinedInteraction(tx, ty);
+    return resolveActionIntent({
+      playerTileX: tx,
+      playerTileY: ty,
+      facing: playerState.facing,
+      headingDeg: playerState.headingDeg,
+      hardMode: questSystem.state.navMode === "hard",
+      isOnRoad: safety.isBoxOnRoad(playerState.x, playerState.y, DEFAULT_HITBOX),
+      safeCrossingActive: playerState.safeCrossingTimer > 0,
+      curbStopCueTimer: playerState.curbStopCueTimer,
+      nearbyInteraction: rawNear,
+      isRoadTileFn: safety.isRoadTile,
+      tileSize,
+    });
   }
 
   function resolveSignBanner(tx, ty, streetZone, activeGraveyard) {
     if (activeGraveyard) {
       return { title: `🪦 ${activeGraveyard.name}`, tag: "graveyard", unknown: false };
+    }
+    const salzNpc = questSystem.npcs.find((n) => n.id === "salzberg_house");
+    if (salzNpc && Math.hypot(tx - salzNpc.walkTileX, ty - salzNpc.walkTileY) <= 6) {
+      return { title: "SALZBERG HOUSE", tag: "200 Cotton St", unknown: false };
     }
     if (Math.hypot(tx - spawnTile.x, ty - spawnTile.y) <= 7) {
       return { title: "HOME BASE", tag: "565 Boylston St", unknown: false };
@@ -566,6 +610,35 @@ async function boot() {
     playerState.safeCrossingTimer = 0;
     playerState.hasEnteredRoadSinceLook = false;
     playerState.curbStopCueTimer = 0;
+  }
+
+  function resetToSalzberg() {
+    const salz = questSystem.npcs.find((n) => n.id === "salzberg_house");
+    if (!salz) return;
+    if (roadHitCutscene || ui?.isGameOverOpen()) {
+      ui?.closeGameOver();
+      roadHitCutscene = null;
+      playerState.koRespawnTimer = 0;
+      playerState.hearts = playerState.maxHearts;
+      playerState.hurtTimer = 0;
+      playerState.knockbackTimer = 0;
+    }
+    playerState.x = salz.walkTileX * tileSize + tileSize / 2;
+    playerState.y = salz.walkTileY * tileSize + tileSize / 2;
+    playerState.facing = questSystem.state.navMode === "hard" ? "up" : "down";
+    playerState.headingDeg = 0;
+    playerState.targetHeadingDeg = 0;
+    playerState.turnHoldDir = 0;
+    playerState.turnRepeatTimer = 0;
+    k.setCamRot(0);
+    playerState.lookTimer = 0;
+    playerState.safeCrossingTimer = 0;
+    playerState.hasEnteredRoadSinceLook = false;
+    playerState.curbStopCueTimer = 0;
+    questSystem.revealFogAtTile(salz.walkTileX, salz.walkTileY, 2);
+    refreshPocketDirections(salz.walkTileX, salz.walkTileY, "Salzberg House");
+    playCoinPickup();
+    ui?.showSafetyToast("🏡 Starting at the Salzberg House (200 Cotton St)!", 2200);
   }
 
   let ui;
@@ -660,7 +733,224 @@ async function boot() {
     });
   }
 
+  function healPlayerHearts(amount, reason = "") {
+    if (!amount || amount <= 0) return 0;
+    const prev = playerState.hearts;
+    playerState.hearts = Math.min(playerState.maxHearts, prev + amount);
+    const gained = playerState.hearts - prev;
+    if (gained > 0) {
+      playHealHeartSfx();
+      const heartColors = [
+        [255, 86, 114],
+        [255, 198, 120],
+        [255, 240, 248],
+      ];
+      for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2;
+        leafParticles.push({
+          x: playerState.x + Math.cos(ang) * 6,
+          y: playerState.y - 10 + Math.sin(ang) * 4,
+          vx: Math.cos(ang) * 20,
+          vy: -24 - Math.random() * 14,
+          life: 0.45,
+          shade: heartColors[i % heartColors.length],
+          w: 3,
+          h: 3,
+        });
+      }
+      const suffix = reason ? ` (${reason})` : "";
+      ui?.showSafetyToast(
+        `❤️ Restored +${gained} ${gained === 1 ? "Heart" : "Hearts"}! (${playerState.hearts}/${playerState.maxHearts})${suffix}`,
+        2400
+      );
+    }
+    return gained;
+  }
+
+  function triggerSwordSlash() {
+    if (roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
+    if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
+    if (!questSystem.state.inventory.has("graveyard_sword")) {
+      ui?.showSafetyToast("⚔️ Visit the Salzberg Family Home (200 Cotton St) to get the Graveyard Sword!", 2400);
+      return;
+    }
+    if (playerState.swordCooldown > 0) return;
+
+    playerState.swordSwingTimer = 0.24;
+    playerState.swordCooldown = 0.32;
+    playSwordSlashSfx();
+
+    const res = performSwordAttack(streetLife, playerState, {
+      graveyardGhosts: graveyardFeatures.ghosts,
+      elapsedTime: playerState.elapsedTime,
+      tileSize,
+    });
+    if (res.hitCount > 0) {
+      questSystem.state.safetyXP += res.hitCount * 10;
+      questSystem.state.coins += res.hitCount;
+      questSystem.save();
+      playCoinPickup();
+      for (const foe of res.defeated) {
+        for (let i = 0; i < 10; i++) {
+          const ang = (i / 10) * Math.PI * 2;
+          leafParticles.push({
+            x: foe.x,
+            y: foe.y - 6,
+            vx: Math.cos(ang) * (28 + Math.random() * 24),
+            vy: Math.sin(ang) * 24 - 18,
+            life: 0.42,
+            shade: i % 2 === 0 ? [255, 230, 102] : [132, 232, 255],
+            w: 3,
+            h: 3,
+          });
+        }
+      }
+      ui?.showSafetyToast(res.toast, 2400);
+    }
+  }
+
+  function triggerSiddurDispel() {
+    if (roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
+    if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
+    if (!questSystem.state.inventory.has("pocket_siddur")) {
+      ui?.showSafetyToast("📖 Visit Beth El, Shaarei Tefillah, Temple Emanuel, or Chabad for a Pocket Siddur!", 2600);
+      return;
+    }
+    if (playerState.siddurCooldown > 0) return;
+
+    playerState.siddurAuraTimer = 0.78;
+    playerState.siddurCooldown = 1.0;
+    playSiddurDispelSfx();
+
+    const res = performSiddurDispel(streetLife, playerState, {
+      graveyardGhosts: graveyardFeatures.ghosts,
+      elapsedTime: playerState.elapsedTime,
+      tileSize,
+    });
+    if (res.dispelledCount > 0) {
+      questSystem.state.safetyXP += res.dispelledCount * 5;
+      questSystem.save();
+      for (const pos of res.positions) {
+        for (let i = 0; i < 8; i++) {
+          const ang = (i / 8) * Math.PI * 2;
+          leafParticles.push({
+            x: pos.x,
+            y: pos.y - 6,
+            vx: Math.cos(ang) * 32,
+            vy: Math.sin(ang) * 22 - 22,
+            life: 0.48,
+            shade: i % 2 === 0 ? [120, 198, 255] : [255, 236, 132],
+            w: 3,
+            h: 3,
+          });
+        }
+      }
+    }
+    ui?.showSafetyToast(res.toast, 2500);
+  }
+
+  function startRoadHitCutscene(hit) {
+    if (roadHitCutscene) return;
+    const vehicleKind = hit?.kind || "car";
+    playerState.hearts = 0;
+    playerState.moving = false;
+    playerState.hurtTimer = 1.2;
+    playerState.hurtShakeTimer = 0.55;
+    playerState.ouchBubbleTimer = 0.9;
+    playerState.ouchBubbleSprite = "bubble_bonk";
+    playerState.safeCrossingTimer = 0;
+    playCarCrashSfx();
+
+    // Dramatic crash spark burst
+    for (let i = 0; i < 16; i++) {
+      const ang = (i / 16) * Math.PI * 2;
+      const spd = 34 + Math.random() * 44;
+      leafParticles.push({
+        x: playerState.x,
+        y: playerState.y - 6,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd - 18,
+        life: 0.55,
+        shade: i % 2 === 0 ? [255, 58, 52] : [255, 224, 92],
+        w: 3,
+        h: 3,
+      });
+    }
+
+    const ambDir = hit?.vehicle?.dx < 0 ? "w" : "e";
+    const dirSign = ambDir === "e" ? 1 : -1;
+    const startAmbX = playerState.x - dirSign * 195;
+    const stopAmbX = playerState.x + dirSign * 44;
+    const doorX = stopAmbX - dirSign * 26;
+    const polDir = ambDir === "e" ? "w" : "e";
+    const polStartX = playerState.x + dirSign * 215;
+    const polStopX = playerState.x - dirSign * 64;
+    // Newton Fire Rescue Pumper ALSO arrives as full-scene backup on an offset perimeter lane!
+    const fireDir = ambDir;
+    const fireStartX = playerState.x - dirSign * 245;
+    const fireStopX = playerState.x - dirSign * 18;
+    const tapeLeftX = playerState.x - 54;
+    const tapeRightX = playerState.x + 56;
+    roadHitCutscene = {
+      phase: "hit",
+      timer: 0.68,
+      hitX: playerState.x,
+      hitY: playerState.y,
+      ambX: startAmbX,
+      ambY: playerState.y,
+      stopAmbX,
+      doorX,
+      ambDir,
+      polDir,
+      polX: polStartX,
+      polY: playerState.y + 4,
+      polStopX,
+      polArrived: false,
+      fireDir,
+      fireX: fireStartX,
+      fireY: playerState.y - 30,
+      fireStopX,
+      fireArrived: false,
+      tapeLeftX,
+      tapeRightX,
+      tapeProgress: 0, // 0 -> 1 as officers roll out top & bottom CAUTION tape + drop cones & flares!
+      sirenTimer: 0,
+      dustTimer: 0,
+      emtProgress: 0,
+      vehicleKind,
+    };
+    const hitToast =
+      vehicleKind === "bike"
+        ? "💥 CRASH! An annoying spandex biker nailed you! Full Newton EMS, Police & Fire response!"
+        : vehicleKind === "truck"
+          ? "💥 CRASH! A giant truck hit you! Full Newton EMS, Police & Fire response!"
+          : "💥 CRASH! A car hit you! Full Newton EMS, Police & Fire response!";
+    ui?.showSafetyToast(hitToast, 2600);
+  }
+
+  function retryAfterGameOver() {
+    ui?.closeGameOver();
+    roadHitCutscene = null;
+    playerState.koRespawnTimer = 0;
+    playerState.hearts = playerState.maxHearts;
+    playerState.hurtTimer = 0;
+    playerState.knockbackTimer = 0;
+    resetToHome();
+    ui?.showSafetyToast("🏠 Back at Home Base with all 5 hearts! Watch closely for cars & bikes!", 2600);
+  }
+
   function triggerLookOrInteract() {
+    if (ui?.isGameOverOpen()) {
+      retryAfterGameOver();
+      return;
+    }
+    if (roadHitCutscene) {
+      if (roadHitCutscene.phase === "mom_yelling" && ui?.isDialogueOpen()) {
+        ui.advanceDialogue();
+      }
+      return;
+    }
+    if (playerState.koRespawnTimer > 0) return;
     if (ui?.isMapOpen() || ui?.isPaintOpen()) return;
 
     // Close active street-sign overlay cleanly on Space/Enter/E
@@ -684,17 +974,22 @@ async function boot() {
     const tx = Math.floor(playerState.x / tileSize);
     const ty = Math.floor(playerState.y / tileSize);
 
-    // If the player just bumped an unchecked road curb, prioritize Look Both Ways immediately!
-    if (playerState.curbStopCueTimer > 0) {
+    // Smart facing-aware disambiguation: Look Both Ways when facing an unchecked road,
+    // or interact cleanly with the highlighted NPC / Street Sign / Chest within tight reach!
+    const intent = getCurrentActionIntent(tx, ty);
+    if (intent.mode === "look_both_ways") {
       performLookBothWays();
       return;
     }
 
-    // 1. Check if standing right next to a Landmark NPC, Wooden Chest, Street Sign, Protestor, or Wild Turkey!
-    const nearby = findCombinedInteraction(tx, ty);
+    const nearby = intent.interaction;
     if (nearby) {
       if (nearby.kind === "sign") {
         openStreetSign(nearby.target);
+        return;
+      }
+      if (nearby.kind === "spooky" && questSystem.state.inventory.has("graveyard_sword")) {
+        triggerSwordSlash();
         return;
       }
       if (nearby.kind === "protestor" || nearby.kind === "turkey" || nearby.kind === "spooky") {
@@ -724,6 +1019,9 @@ async function boot() {
           speaker: outcome.speaker,
           lines: outcome.lines,
           onComplete: () => {
+            if (outcome.healHearts > 0) {
+              healPlayerHearts(outcome.healHearts, outcome.questEvent?.type === "quest_completed" ? "Quest Complete" : nearby.target.name?.replace(/\s*\(.*\)/, ""));
+            }
             if (outcome.fanfareQueue.length > 0) {
               enqueueFanfare(outcome.fanfareQueue);
             }
@@ -784,13 +1082,26 @@ async function boot() {
   }
 
   function toggleHeroOutfitMode() {
+    const unlocked = questSystem.getUnlockedOutfits();
+    if (unlocked.length <= 1) {
+      playCurbStopBoop();
+      ui?.showSafetyToast(
+        "👕 Only Polo, Kippah & Tzitzit unlocked! Complete quests to earn ⚾ Little League, 🤿 Wetsuit & 🗡️ Link!",
+        2800
+      );
+      return;
+    }
     const next = questSystem.toggleHeroOutfit();
     playCoinPickup();
     ui?.showSafetyToast(
-      next === "baseball"
-        ? "⚾ Play Ball! Liam put on his Little League Uniform!"
-        : "👕 Liam switched to his Polo, Kippah & Tzitzit!",
-      2200
+      next === "link"
+        ? "🗡️ Hyah! Liam put on his Legend of Zelda Link Tunic, Hylian Cap & Shield!"
+        : next === "wetsuit"
+          ? "🤿 Splash! Liam put on his Summer Wetsuit & Snorkel!"
+          : next === "baseball"
+            ? "⚾ Play Ball! Liam put on his Little League Uniform!"
+            : "👕 Liam switched to his Polo, Kippah & Tzitzit!",
+      2400
     );
   }
 
@@ -862,12 +1173,16 @@ async function boot() {
       return showDebug;
     },
     onResetHome: resetToHome,
+    onResetSalzberg: resetToSalzberg,
     onLookOrInteract: triggerLookOrInteract,
     onToggleMute: () => toggleMute(),
     onOpenPaint: openPaintForNearbyHouse,
     onToggleMap: togglePaperMap,
     onToggleGpsAssist: cycleNavModeAction,
     onToggleOutfit: toggleHeroOutfitMode,
+    onUseSword: triggerSwordSlash,
+    onUseSiddur: triggerSiddurDispel,
+    onGameOverRetry: retryAfterGameOver,
     onSelectQuest: (questId) => {
       const chosen = questSystem.setActiveQuest(questId);
       if (!chosen) return;
@@ -919,6 +1234,7 @@ async function boot() {
   k.onKeyPress("g", cycleNavModeAction);
   k.onKeyPress("o", toggleHeroOutfitMode);
   k.onKeyPress("h", resetToHome);
+  k.onKeyPress("s", resetToSalzberg);
   k.onKeyPress("m", togglePaperMap);
   k.onKeyPress("tab", togglePaperMap);
   k.onKeyPress("p", openPaintForNearbyHouse);
@@ -926,6 +1242,12 @@ async function boot() {
   k.onKeyPress("e", triggerLookOrInteract);
   k.onKeyPress("enter", triggerLookOrInteract);
   k.onKeyPress("l", performLookBothWays);
+  k.onKeyPress("j", triggerSwordSlash);
+  k.onKeyPress("f", triggerSwordSlash);
+  k.onKeyPress("x", triggerSwordSlash);
+  k.onKeyPress("k", triggerSiddurDispel);
+  k.onKeyPress("r", triggerSiddurDispel);
+  k.onKeyPress("z", triggerSiddurDispel);
 
   function readInput() {
     let dx = 0;
@@ -934,7 +1256,7 @@ async function boot() {
     if (k.isKeyDown("left") || k.isKeyDown("a")) dx -= 1;
     if (k.isKeyDown("right") || k.isKeyDown("d")) dx += 1;
     if (k.isKeyDown("up") || k.isKeyDown("w")) dy -= 1;
-    if (k.isKeyDown("down") || k.isKeyDown("s")) dy += 1;
+    if (k.isKeyDown("down")) dy += 1;
 
     const touch = ui.getTouchInput();
     if (dx === 0 && dy === 0) {
@@ -1038,6 +1360,259 @@ async function boot() {
     // Typewriter update when dialogue is open
     ui.updateDialogueTypewriter(dt);
 
+    // Road-Hit Ambulance -> Home Base Mom Yelling -> Giant GAME OVER Cutscene!
+    if (roadHitCutscene) {
+      if (playerState.hurtShakeTimer > 0) {
+        playerState.hurtShakeTimer = Math.max(0, playerState.hurtShakeTimer - dt);
+      }
+      if (playerState.ouchBubbleTimer > 0) {
+        playerState.ouchBubbleTimer = Math.max(0, playerState.ouchBubbleTimer - dt);
+      }
+      for (let i = leafParticles.length - 1; i >= 0; i--) {
+        const p = leafParticles[i];
+        p.life -= dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 65 * dt;
+        if (p.life <= 0) leafParticles.splice(i, 1);
+      }
+
+      const cs = roadHitCutscene;
+      const dirSign = cs.ambDir === "e" ? 1 : -1;
+      // Full Emergency Convoy: Police Cruiser + Newton Fire Engine roll in to lock down the entire block!
+      if (cs.phase === "ambulance_in" || cs.phase === "emt_exit" || cs.phase === "emt_treat" || cs.phase === "emt_load") {
+        if (!cs.polArrived) {
+          cs.polX -= dirSign * 145 * dt;
+          if ((dirSign > 0 && cs.polX <= cs.polStopX) || (dirSign < 0 && cs.polX >= cs.polStopX)) {
+            cs.polX = cs.polStopX;
+            cs.polArrived = true;
+            playEmtRadioBeepSfx();
+            for (let i = 0; i < 6; i++) {
+              leafParticles.push({
+                x: cs.polX + (Math.random() * 14 - 7),
+                y: cs.polY + 6,
+                vx: -dirSign * (12 + Math.random() * 18),
+                vy: -8 - Math.random() * 12,
+                life: 0.36,
+                shade: [224, 230, 238],
+                w: 3,
+                h: 3,
+              });
+            }
+          }
+        }
+        if (!cs.fireArrived) {
+          cs.fireX += dirSign * 125 * dt;
+          if ((dirSign > 0 && cs.fireX >= cs.fireStopX) || (dirSign < 0 && cs.fireX <= cs.fireStopX)) {
+            cs.fireX = cs.fireStopX;
+            cs.fireArrived = true;
+            for (let i = 0; i < 8; i++) {
+              leafParticles.push({
+                x: cs.fireX + (Math.random() * 20 - 10),
+                y: cs.fireY + 7,
+                vx: dirSign * (10 + Math.random() * 16),
+                vy: -8 - Math.random() * 12,
+                life: 0.38,
+                shade: [232, 236, 242],
+                w: 3,
+                h: 3,
+              });
+            }
+          }
+        }
+        // Once Police arrive, officers sprint out and unroll CAUTION tape + drop cones & road flares!
+        if (cs.polArrived && cs.tapeProgress < 1) {
+          cs.tapeProgress = Math.min(1, cs.tapeProgress + dt * 0.72);
+        }
+      }
+
+      if (cs.phase === "hit") {
+        cs.timer -= dt;
+        if (cs.timer <= 0) {
+          cs.phase = "ambulance_in";
+          cs.sirenTimer = 0;
+          playAmbulanceSirenSfx();
+        }
+      } else if (cs.phase === "ambulance_in") {
+        cs.sirenTimer -= dt;
+        if (cs.sirenTimer <= 0) {
+          playAmbulanceSirenSfx();
+          cs.sirenTimer = 0.58;
+        }
+        cs.dustTimer = (cs.dustTimer || 0) - dt;
+        if (cs.dustTimer <= 0) {
+          cs.dustTimer = 0.06;
+          leafParticles.push({
+            x: cs.ambX - dirSign * 22,
+            y: cs.ambY + 6,
+            vx: -dirSign * (14 + Math.random() * 16),
+            vy: -10 - Math.random() * 8,
+            life: 0.32,
+            shade: [228, 232, 240],
+            w: 3,
+            h: 3,
+          });
+        }
+        cs.ambX += dirSign * 145 * dt;
+        if ((dirSign > 0 && cs.ambX >= cs.stopAmbX) || (dirSign < 0 && cs.ambX <= cs.stopAmbX)) {
+          cs.ambX = cs.stopAmbX;
+          cs.phase = "emt_exit";
+          cs.timer = 1.25;
+          cs.emtProgress = 0;
+          playEmtRadioBeepSfx();
+          for (let i = 0; i < 8; i++) {
+            leafParticles.push({
+              x: cs.ambX + (Math.random() * 24 - 12),
+              y: cs.ambY + 7,
+              vx: dirSign * (10 + Math.random() * 20),
+              vy: -10 - Math.random() * 12,
+              life: 0.38,
+              shade: [232, 236, 242],
+              w: 3,
+              h: 3,
+            });
+          }
+          ui.showSafetyToast("🚧 Police rolling out CAUTION tape & cones while EMTs rush out!", 2000);
+        }
+      } else if (cs.phase === "emt_exit") {
+        cs.timer -= dt;
+        cs.emtProgress = Math.min(1, 1 - cs.timer / 1.25);
+        if (cs.timer <= 0) {
+          cs.phase = "emt_treat";
+          cs.timer = 1.1;
+          cs.emtProgress = 0;
+          cs.dustTimer = 0;
+          playEmtRadioBeepSfx();
+          ui.showSafetyToast("🩺 Paramedics tending Liam inside the CAUTION tape perimeter!", 1800);
+        }
+      } else if (cs.phase === "emt_treat") {
+        cs.timer -= dt;
+        cs.emtProgress = Math.min(1, 1 - cs.timer / 1.1);
+        cs.dustTimer = (cs.dustTimer || 0) - dt;
+        if (cs.dustTimer <= 0) {
+          cs.dustTimer = 0.14;
+          leafParticles.push({
+            x: cs.hitX + (Math.random() * 16 - 8),
+            y: cs.hitY - 8,
+            vx: (Math.random() - 0.5) * 14,
+            vy: -22 - Math.random() * 12,
+            life: 0.42,
+            shade: Math.random() < 0.5 ? [92, 245, 148] : [255, 255, 255],
+            w: 3,
+            h: 3,
+          });
+        }
+        if (cs.timer <= 0) {
+          cs.phase = "emt_load";
+          cs.timer = 1.4;
+          cs.emtProgress = 0;
+          playEmtRadioBeepSfx();
+          ui.showSafetyToast("🚑 Wheeling Liam onto the ambulance ramp!", 1800);
+        }
+      } else if (cs.phase === "emt_load") {
+        cs.timer -= dt;
+        cs.emtProgress = Math.min(1, 1 - cs.timer / 1.4);
+        if (cs.timer <= 0) {
+          cs.phase = "ambulance_out";
+          cs.timer = 1.5;
+          cs.sirenTimer = 0;
+          playAmbulanceSirenSfx();
+        }
+      } else if (cs.phase === "ambulance_out") {
+        cs.sirenTimer -= dt;
+        if (cs.sirenTimer <= 0) {
+          playAmbulanceSirenSfx();
+          cs.sirenTimer = 0.54;
+        }
+        cs.dustTimer = (cs.dustTimer || 0) - dt;
+        if (cs.dustTimer <= 0) {
+          cs.dustTimer = 0.05;
+          leafParticles.push({
+            x: cs.ambX - dirSign * 22,
+            y: cs.ambY + 7,
+            vx: -dirSign * (18 + Math.random() * 16),
+            vy: -10 - Math.random() * 10,
+            life: 0.34,
+            shade: [228, 232, 240],
+            w: 3,
+            h: 3,
+          });
+        }
+        cs.ambX += dirSign * 172 * dt;
+        cs.polX += dirSign * 125 * dt;
+        cs.fireX += dirSign * 135 * dt;
+        cs.timer -= dt;
+        if (cs.timer <= 0) {
+          // Cut to Home Base with Mom yelling that she's SO happy you're alive — AND YOU'RE GROUNDED FOREVER!
+          cs.phase = "mom_yelling";
+          resetToHome();
+          const momNpc = questSystem.npcs.find((n) => n.id === "home_base");
+          if (momNpc) {
+            playerState.x = momNpc.walkTileX * tileSize + tileSize / 2;
+            playerState.y = (momNpc.walkTileY + 1) * tileSize + tileSize / 2;
+            playerState.facing = "up";
+          }
+          cam = clampCamera(playerState.x, playerState.y);
+          k.setCamPos(cam.x, cam.y);
+          k.setCamRot(0);
+          playCurbStopBoop();
+          const culprit =
+            cs.vehicleKind === "bike"
+              ? "an annoying spandex biker"
+              : cs.vehicleKind === "truck"
+                ? "a giant truck"
+                : "a car";
+          ui.openDialogue({
+            speaker: "Mom • 565 Boylston St",
+            lines: [
+              "LIAM!! OH MY GOODNESS, I AM SO HAPPY YOU'RE ALIVE!!",
+              `The Newton EMS paramedics brought you all the way home after you got hit by ${culprit} — you ALWAYS have to watch out for traffic on the road!!`,
+              "Thank goodness you're okay... AND YOU ARE GROUNDED FOREVER!!",
+            ],
+            onComplete: () => {
+              if (!roadHitCutscene) return;
+              roadHitCutscene.phase = "game_over";
+              playGameOverDirge();
+              ui.openGameOver(roadHitCutscene.vehicleKind);
+            },
+          });
+        }
+      }
+
+      // Keep camera locked on accident site until cut to Home Base
+      if (cs.phase !== "mom_yelling" && cs.phase !== "game_over") {
+        let cPos = clampCamera(cs.hitX, cs.hitY);
+        if (playerState.hurtShakeTimer > 0) {
+          const mag = Math.ceil((playerState.hurtShakeTimer / 0.55) * 4);
+          cPos = {
+            x: cPos.x + Math.round(Math.sin(playerState.elapsedTime * 80) * mag),
+            y: cPos.y + Math.round(Math.cos(playerState.elapsedTime * 68) * mag),
+          };
+        }
+        cam = cPos;
+        k.setCamPos(cam.x, cam.y);
+        k.setCamRot(0);
+      }
+      return;
+    }
+
+    // Brief 0-Heart KO freeze (from losing all 5 hearts to bad guys) -> send Liam back to Home Base!
+    if (playerState.koRespawnTimer > 0) {
+      playerState.koRespawnTimer = Math.max(0, playerState.koRespawnTimer - dt);
+      if (playerState.hurtShakeTimer > 0) {
+        playerState.hurtShakeTimer = Math.max(0, playerState.hurtShakeTimer - dt);
+      }
+      if (playerState.koRespawnTimer <= 0) {
+        playerState.hearts = playerState.maxHearts;
+        playerState.hurtTimer = 0;
+        playerState.knockbackTimer = 0;
+        resetToHome();
+        playHealHeartSfx();
+        ui.showSafetyToast("🏠 Out of hearts! Mom patched you up back at Home Base! ❤️❤️❤️❤️❤️", 3000);
+      }
+      return;
+    }
+
     // Animate Folded Paper Map pulsing marker while map modal is open
     if (ui.isMapOpen()) {
       const tx = Math.floor(playerState.x / tileSize);
@@ -1090,11 +1665,17 @@ async function boot() {
     if (playerState.ouchBubbleTimer > 0) {
       playerState.ouchBubbleTimer = Math.max(0, playerState.ouchBubbleTimer - dt);
     }
-    if (playerState.heartRefillTimer > 0) {
-      playerState.heartRefillTimer = Math.max(0, playerState.heartRefillTimer - dt);
-      if (playerState.heartRefillTimer <= 0 && playerState.hearts < playerState.maxHearts) {
-        playerState.hearts = playerState.maxHearts;
-      }
+    if (playerState.swordSwingTimer > 0) {
+      playerState.swordSwingTimer = Math.max(0, playerState.swordSwingTimer - dt);
+    }
+    if (playerState.swordCooldown > 0) {
+      playerState.swordCooldown = Math.max(0, playerState.swordCooldown - dt);
+    }
+    if (playerState.siddurAuraTimer > 0) {
+      playerState.siddurAuraTimer = Math.max(0, playerState.siddurAuraTimer - dt);
+    }
+    if (playerState.siddurCooldown > 0) {
+      playerState.siddurCooldown = Math.max(0, playerState.siddurCooldown - dt);
     }
 
     for (let i = dustPuffs.length - 1; i >= 0; i--) {
@@ -1413,11 +1994,24 @@ async function boot() {
         }
         const msg =
           playerState.hearts === 0
-            ? `${bump.toast} (0/${playerState.maxHearts} ❤️ — catch your breath!)`
-            : bump.toast;
+            ? "💔 You lost all 5 hearts! Heading back to Home Base..."
+            : `${bump.toast} (${playerState.hearts}/${playerState.maxHearts} ❤️)`;
         ui.showSafetyToast(msg, 2400);
+        if (playerState.hearts === 0 && playerState.koRespawnTimer <= 0) {
+          playerState.koRespawnTimer = 1.15;
+          playerState.moving = false;
+        }
       },
     });
+
+    // Update moving cars, trucks & annoying bikers on Newton's roads! Getting hit triggers the Ambulance -> EMT -> Mom -> GAME OVER cutscene!
+    updateRoadTraffic(roadTraffic, dt, playerState, worldMap, {
+      tileSize,
+      safeCrossingActive: playerState.safeCrossingTimer > 0,
+      onHitPlayer: (hit) => startRoadHitCutscene(hit),
+      onBikerAnnoy: () => playAnnoyingBikerSfx(),
+    });
+    if (roadHitCutscene) return;
 
     const isHardNow = questSystem.state.navMode === "hard";
     cam = isHardNow
@@ -1450,7 +2044,8 @@ async function boot() {
             2800
           );
         } else if (ev.type === "quest_completed") {
-          ui.showSafetyToast(`🏆 Quest Complete: ${ev.quest.title}!`, 2800);
+          healPlayerHearts(2, "Quest Complete");
+          ui.showSafetyToast(`🏆 Quest Complete: ${ev.quest.title}! (+Hearts!)`, 2800);
           refreshPocketDirections(tx, ty, "Here");
           if (ev.rewardItem) {
             enqueueFanfare([
@@ -1514,7 +2109,8 @@ async function boot() {
         curbContext.context === "main_road" ||
         curbContext.context === "residential");
 
-    const nearbyInteract = playerState.curbStopCueTimer > 0 ? null : findCombinedInteraction(tx, ty);
+    const actionIntent = getCurrentActionIntent(tx, ty);
+    const nearbyInteract = actionIntent.mode === "interact" ? actionIntent.interaction : null;
     const signBanner = resolveSignBanner(tx, ty, streetZone, activeGraveyard);
 
     ui.updateHUD({
@@ -1526,12 +2122,15 @@ async function boot() {
       nearestLandmark: findNearestLandmark(tx, ty),
       nearestBuilding: findNearestBuilding(nearbyHouses, tx, ty),
       nearbyInteraction: nearbyInteract,
+      alternateInteraction: actionIntent.alternateInteraction,
+      facingUncheckedRoad: actionIntent.facingUncheckedRoad,
       questHint: questSystem.formatTargetHint(tx, ty),
       pocketDirections,
       signBanner,
       navMode: questSystem.state.navMode,
       gpsAssist,
       heroOutfit: questSystem.state.heroOutfit,
+      unlockedOutfitsCount: questSystem.getUnlockedOutfits().length,
       checkedSignsCount: questSystem.state.checkedSigns.size,
       checkedStreets: questSystem.state.checkedStreets,
       gearLabel: gear.label,
@@ -1542,9 +2141,11 @@ async function boot() {
       acorns: questSystem.state.acorns,
       hearts: playerState.hearts,
       maxHearts: playerState.maxHearts,
+      hasSword: questSystem.state.inventory.has("graveyard_sword"),
+      hasSiddur: questSystem.state.inventory.has("pocket_siddur"),
       isFasterActive: isFasterNow,
       safeCrossingActive: playerState.safeCrossingTimer > 0,
-      needsLookAtCurb: playerState.curbStopCueTimer > 0 || nearUncheckedRoad,
+      needsLookAtCurb: playerState.curbStopCueTimer > 0 || actionIntent.facingUncheckedRoad || nearUncheckedRoad,
     });
 
     // Update corner widget: live-spinning Brass Compass in Hard Mode, Compass in Signpost Mode, Radar in GPS Assist!
@@ -1807,144 +2408,46 @@ async function boot() {
       return;
     }
 
-    if (tileId === 12) {
-      // Major Highway (Route 9 / Boylston St, Hammond Pond Pkwy): deep heavy asphalt, bright shoulder lines, multi-lane dashes & double-yellow median!
-      k.drawSprite((tx + ty) % 2 === 0 ? "highway_base_0" : "highway_base_1", pxPos, pyPos);
-
-      const nRoad = isRoadTile(n);
-      const sRoad = isRoadTile(s);
-      const wRoad = isRoadTile(w);
-      const eRoad = isRoadTile(e);
-
-      // Bold warm-cream highway shoulders
-      if (!nRoad) {
-        k.drawRect({ pos: k.vec2(pxPos, pyPos), width: 16, height: 1, color: k.rgb(54, 42, 45) });
-        k.drawRect({ pos: k.vec2(pxPos, pyPos + 2), width: 16, height: 2, color: k.rgb(242, 229, 216), opacity: 0.92 });
-      }
-      if (!sRoad) {
-        k.drawRect({ pos: k.vec2(pxPos, pyPos + 15), width: 16, height: 1, color: k.rgb(54, 42, 45) });
-        k.drawRect({ pos: k.vec2(pxPos, pyPos + 12), width: 16, height: 2, color: k.rgb(242, 229, 216), opacity: 0.92 });
-      }
-      if (!wRoad) {
-        k.drawRect({ pos: k.vec2(pxPos, pyPos), width: 1, height: 16, color: k.rgb(54, 42, 45) });
-        k.drawRect({ pos: k.vec2(pxPos + 2, pyPos), width: 2, height: 16, color: k.rgb(242, 229, 216), opacity: 0.92 });
-      }
-      if (!eRoad) {
-        k.drawRect({ pos: k.vec2(pxPos + 15, pyPos), width: 1, height: 16, color: k.rgb(54, 42, 45) });
-        k.drawRect({ pos: k.vec2(pxPos + 12, pyPos), width: 2, height: 16, color: k.rgb(242, 229, 216), opacity: 0.92 });
-      }
-
-      const nHw = n === 12;
-      const sHw = s === 12;
-      const wHw = w === 12;
-      const eHw = e === 12;
-      const n2Hw = tileAt(tx, ty - 2) === 12;
-      const w2Hw = tileAt(tx - 2, ty) === 12;
-
-      if (wHw && eHw && nHw && sHw && !n2Hw) {
-        // Bold E-W Highway Golden-Amber Double-Yellow Median!
-        k.drawRect({ pos: k.vec2(pxPos, pyPos + 5), width: 16, height: 2, color: k.rgb(235, 184, 77) });
-        k.drawRect({ pos: k.vec2(pxPos, pyPos + 7), width: 16, height: 2, color: k.rgb(166, 148, 144), opacity: 0.55 });
-        k.drawRect({ pos: k.vec2(pxPos, pyPos + 9), width: 16, height: 2, color: k.rgb(235, 184, 77) });
-      } else if (nHw && sHw && wHw && eHw && !w2Hw && n2Hw) {
-        // Bold N-S Highway Golden-Amber Double-Yellow Median
-        k.drawRect({ pos: k.vec2(pxPos + 5, pyPos), width: 2, height: 16, color: k.rgb(235, 184, 77) });
-        k.drawRect({ pos: k.vec2(pxPos + 7, pyPos), width: 2, height: 16, color: k.rgb(166, 148, 144), opacity: 0.55 });
-        k.drawRect({ pos: k.vec2(pxPos + 9, pyPos), width: 2, height: 16, color: k.rgb(235, 184, 77) });
-      } else if (wHw && eHw && !nHw && sHw && tx % 2 === 0) {
-        k.drawRect({ pos: k.vec2(pxPos + 3, pyPos + 13), width: 10, height: 1, color: k.rgb(242, 229, 216), opacity: 0.82 });
-      } else if (wHw && eHw && nHw && !sHw && tx % 2 === 0) {
-        k.drawRect({ pos: k.vec2(pxPos + 3, pyPos + 2), width: 10, height: 1, color: k.rgb(242, 229, 216), opacity: 0.82 });
-      } else if (nHw && sHw && !wHw && eHw && ty % 2 === 0) {
-        k.drawRect({ pos: k.vec2(pxPos + 13, pyPos + 3), width: 1, height: 10, color: k.rgb(242, 229, 216), opacity: 0.82 });
-      } else if (nHw && sHw && wHw && !eHw && ty % 2 === 0) {
-        k.drawRect({ pos: k.vec2(pxPos + 2, pyPos + 3), width: 1, height: 10, color: k.rgb(242, 229, 216), opacity: 0.82 });
-      }
-      return;
-    }
-
-    if (tileId === 2 || tileId === 3) {
-      k.drawSprite(
-        tileId === 3 ? "road_main_base" : ((tx + ty) % 3 === 0 ? "road_res_base_1" : "road_res_base_0"),
-        pxPos,
-        pyPos
-      );
-
-      const nRoad = isRoadTile(n);
-      const sRoad = isRoadTile(s);
-      const wRoad = isRoadTile(w);
-      const eRoad = isRoadTile(e);
-
-      // Warm dusk-charcoal gutters & warm cream shoulders on Town Avenues
-      const isMainAv = tileId === 3;
-      if (!nRoad) {
-        k.drawRect({ pos: k.vec2(pxPos, pyPos), width: 16, height: 1, color: k.rgb(62, 48, 50), opacity: isMainAv ? 1 : 0.6 });
-        if (isMainAv) k.drawRect({ pos: k.vec2(pxPos, pyPos + 2), width: 16, height: 1, color: k.rgb(242, 229, 216), opacity: 0.8 });
-      }
-      if (!sRoad) {
-        k.drawRect({ pos: k.vec2(pxPos, pyPos + 15), width: 16, height: 1, color: k.rgb(62, 48, 50), opacity: isMainAv ? 1 : 0.6 });
-        if (isMainAv) k.drawRect({ pos: k.vec2(pxPos, pyPos + 13), width: 16, height: 1, color: k.rgb(242, 229, 216), opacity: 0.8 });
-      }
-      if (!wRoad) {
-        k.drawRect({ pos: k.vec2(pxPos, pyPos), width: 1, height: 16, color: k.rgb(62, 48, 50), opacity: isMainAv ? 1 : 0.6 });
-        if (isMainAv) k.drawRect({ pos: k.vec2(pxPos + 2, pyPos), width: 1, height: 16, color: k.rgb(242, 229, 216), opacity: 0.8 });
-      }
-      if (!eRoad) {
-        k.drawRect({ pos: k.vec2(pxPos + 15, pyPos), width: 1, height: 16, color: k.rgb(62, 48, 50), opacity: isMainAv ? 1 : 0.6 });
-        if (isMainAv) k.drawRect({ pos: k.vec2(pxPos + 13, pyPos), width: 1, height: 16, color: k.rgb(242, 229, 216), opacity: 0.8 });
-      }
-
-      if (tileId === 2) {
-        // Crisp warm golden-amber lane dividers on both 2-tile-wide AND 1-tile residential streets!
-        const nRes = n === 2;
-        const sRes = s === 2;
-        const wRes = w === 2;
-        const eRes = e === 2;
-        if (wRes && eRes && !nRes && sRes && tx % 2 === 0) {
-          // Top lane of a 2-tile horizontal residential street -> golden dash along center seam
-          k.drawRect({ pos: k.vec2(pxPos + 3, pyPos + 15), width: 10, height: 1, color: k.rgb(235, 184, 77), opacity: 0.8 });
-        } else if (wRes && eRes && nRes && !sRes && tx % 2 === 0) {
-          // Bottom lane of a 2-tile horizontal residential street -> golden dash along center seam
-          k.drawRect({ pos: k.vec2(pxPos + 3, pyPos), width: 10, height: 1, color: k.rgb(235, 184, 77), opacity: 0.8 });
-        } else if (nRes && sRes && !wRes && eRes && ty % 2 === 0) {
-          // Left lane of a 2-tile vertical residential street -> golden dash along center seam
-          k.drawRect({ pos: k.vec2(pxPos + 15, pyPos + 3), width: 1, height: 10, color: k.rgb(235, 184, 77), opacity: 0.8 });
-        } else if (nRes && sRes && wRes && !eRes && ty % 2 === 0) {
-          // Right lane of a 2-tile vertical residential street -> golden dash along center seam
-          k.drawRect({ pos: k.vec2(pxPos, pyPos + 3), width: 1, height: 10, color: k.rgb(235, 184, 77), opacity: 0.8 });
-        } else if (wRoad && eRoad && !nRoad && !sRoad && tx % 2 === 0) {
-          k.drawRect({ pos: k.vec2(pxPos + 3, pyPos + 7), width: 10, height: 2, color: k.rgb(235, 184, 77), opacity: 0.68 });
-        } else if (nRoad && sRoad && !wRoad && !eRoad && ty % 2 === 0) {
-          k.drawRect({ pos: k.vec2(pxPos + 7, pyPos + 3), width: 2, height: 10, color: k.rgb(235, 184, 77), opacity: 0.68 });
-        }
+    if (tileId === 12 || tileId === 2 || tileId === 3) {
+      // Crisp, clean Newton roads: Highway (2 lanes each side of barrier w/ white separators),
+      // Town Avenues (mostly 1 lane each way, 2 lanes each way on select wide Newton Centre roads),
+      // and Side Streets (single crisp yellow centerline, dotted or solid)!
+      if (tileId === 12) {
+        k.drawSprite((tx + ty) % 2 === 0 ? "highway_base_0" : "highway_base_1", pxPos, pyPos);
+      } else if (tileId === 3) {
+        k.drawSprite("road_main_base", pxPos, pyPos);
       } else {
-        // Town Avenue (Centre St, Beacon St, Langley Rd, Cypress St, Parker St): crisp golden-amber centerlines
-        const nMain = n === 3;
-        const sMain = s === 3;
-        const wMain = w === 3;
-        const eMain = e === 3;
-        const n2Main = tileAt(tx, ty - 2) === 3;
-        const w2Main = tileAt(tx - 2, ty) === 3;
+        k.drawSprite((tx + ty) % 2 === 0 ? "road_res_base_0" : "road_res_base_1", pxPos, pyPos);
+      }
 
-        if (wMain && eMain && nMain && sMain && !n2Main) {
-          k.drawRect({ pos: k.vec2(pxPos, pyPos + 6), width: 16, height: 1, color: k.rgb(235, 184, 77) });
-          k.drawRect({ pos: k.vec2(pxPos, pyPos + 9), width: 16, height: 1, color: k.rgb(235, 184, 77) });
-        } else if (nMain && sMain && wMain && eMain && !w2Main && n2Main) {
-          k.drawRect({ pos: k.vec2(pxPos + 6, pyPos), width: 1, height: 16, color: k.rgb(235, 184, 77) });
-          k.drawRect({ pos: k.vec2(pxPos + 9, pyPos), width: 1, height: 16, color: k.rgb(235, 184, 77) });
-        } else if (wMain && eMain && !nMain && sMain) {
-          // Top lane of a 2-tile-wide E-W town avenue -> crisp golden centerline along bottom seam
-          k.drawRect({ pos: k.vec2(pxPos, pyPos + 14), width: 16, height: 1, color: k.rgb(235, 184, 77), opacity: 0.9 });
-        } else if (wMain && eMain && nMain && !sMain) {
-          // Bottom lane of a 2-tile-wide E-W town avenue -> crisp golden centerline along top seam
-          k.drawRect({ pos: k.vec2(pxPos, pyPos + 1), width: 16, height: 1, color: k.rgb(235, 184, 77), opacity: 0.9 });
-        } else if (nMain && sMain && !wMain && eMain) {
-          // West lane of a 2-tile-wide N-S town avenue -> crisp golden centerline along right seam
-          k.drawRect({ pos: k.vec2(pxPos + 14, pyPos), width: 1, height: 16, color: k.rgb(235, 184, 77), opacity: 0.9 });
-        } else if (nMain && sMain && wMain && !eMain) {
-          // East lane of a 2-tile-wide N-S town avenue -> crisp golden centerline along left seam
-          k.drawRect({ pos: k.vec2(pxPos + 1, pyPos), width: 1, height: 16, color: k.rgb(235, 184, 77), opacity: 0.9 });
+      const marks = computeRoadTileMarkings(tileAt, tx, ty);
+      for (const m of marks) {
+        let color;
+        let opacity = 1;
+        if (m.kind === "curb") {
+          color = k.rgb(42, 46, 54);
+          opacity = tileId === 2 ? 0.72 : 0.92;
+        } else if (m.kind === "shoulder") {
+          color = k.rgb(242, 246, 250);
+          opacity = tileId === 12 ? 0.92 : 0.82;
+        } else if (m.kind === "white_dash") {
+          color = k.rgb(246, 249, 252);
+          opacity = 0.94;
+        } else if (m.kind === "yellow_dash") {
+          color = k.rgb(245, 197, 59);
+          opacity = 0.92;
+        } else {
+          // yellow_solid
+          color = k.rgb(245, 197, 59);
+          opacity = 0.96;
         }
+        k.drawRect({
+          pos: k.vec2(pxPos + m.x, pyPos + m.y),
+          width: m.w,
+          height: m.h,
+          color,
+          opacity,
+        });
       }
       return;
     }
@@ -1955,6 +2458,14 @@ async function boot() {
   }
 
   function drawHero() {
+    if (
+      roadHitCutscene &&
+      (roadHitCutscene.phase === "emt_load" ||
+        roadHitCutscene.phase === "ambulance_out" ||
+        roadHitCutscene.phase === "game_over")
+    ) {
+      return;
+    }
     const pxPos = Math.round(playerState.x);
     const pyPos = Math.round(playerState.y);
 
@@ -1968,7 +2479,29 @@ async function boot() {
       });
     }
 
-    const outfit = questSystem.state.heroOutfit === "baseball" ? "baseball" : "polo";
+    // Expanding radiant golden-blue Pocket Siddur blessing ring!
+    if (playerState.siddurAuraTimer > 0) {
+      const p = 1 - playerState.siddurAuraTimer / 0.78;
+      const rad = Math.round(10 + p * 54);
+      const alpha = Math.max(0.08, (1 - p) * 0.75);
+      k.drawRect({
+        pos: k.vec2(pxPos - rad, pyPos - Math.round(rad * 0.7)),
+        width: rad * 2,
+        height: Math.round(rad * 1.4),
+        fill: false,
+        outline: { width: 2, color: k.rgb(120, 206, 255), opacity: alpha },
+      });
+      k.drawRect({
+        pos: k.vec2(pxPos - rad + 3, pyPos - Math.round(rad * 0.7) + 3),
+        width: Math.max(2, rad * 2 - 6),
+        height: Math.max(2, Math.round(rad * 1.4) - 6),
+        fill: false,
+        outline: { width: 1, color: k.rgb(255, 232, 118), opacity: alpha },
+      });
+    }
+
+    const rawOutfit = questSystem.state.heroOutfit;
+    const outfit = atlas[`hero_${rawOutfit}_down_0`] ? rawOutfit : "polo";
     let sprName;
     if (activeFanfare) {
       sprName = `hero_${outfit}_fanfare`;
@@ -1993,6 +2526,20 @@ async function boot() {
     const heroAngle = questSystem.state.navMode === "hard" ? playerState.headingDeg : 0;
     if (!hurtBlinkHide) {
       k.drawSprite(sprName, pxPos - 12, pyPos - 23 - hopOffset, 1, heroAngle, pxPos, pyPos);
+    }
+
+    // Gleaming 16-Bit Graveyard Explorer Sword Slash Arc!
+    if (playerState.swordSwingTimer > 0) {
+      const f = playerState.facing;
+      const sx = f === "right" ? pxPos + 5 : f === "left" ? pxPos - 22 : pxPos - 10;
+      const sy = f === "down" ? pyPos - 2 : f === "up" ? pyPos - 28 : pyPos - 16;
+      k.drawSprite(`sword_slash_${f}`, sx, sy, 1, heroAngle, pxPos, pyPos);
+    }
+
+    // Overhead glowing Pocket Siddur held aloft during dispel wave!
+    if (playerState.siddurAuraTimer > 0) {
+      const lift = Math.round(Math.sin((1 - playerState.siddurAuraTimer / 0.78) * Math.PI) * 5);
+      k.drawSprite("item_siddur", pxPos - 6, pyPos - 35 - lift, 1, heroAngle, pxPos, pyPos);
     }
 
     // Classic SNES red/white hit-flash silhouette + spinning dizzy stars + floating OUCH/BONK & hearts!
@@ -2260,6 +2807,7 @@ async function boot() {
     const tSec = playerState.elapsedTime;
     const fastFlapFrame = Math.floor(tSec * 6) % 2;
     for (const g of graveyardFeatures.ghosts) {
+      if ((g.defeatedTimer || 0) > 0) continue;
       if (g.tx < startX - 3 || g.tx > endX + 3 || g.ty < startY - 3 || g.ty > endY + 3) continue;
       const gp = getGraveyardGhostPos(g, tSec, tileSize);
       const gx = gp.x;
@@ -2343,10 +2891,12 @@ async function boot() {
       });
     }
 
-    // Active Street Signs (upright billboarded in Hard Mode + bobbing prompt bubble when player approaches!)
+    // Active Street Signs (upright billboarded in Hard Mode + tight bobbing prompt bubble only when right beside sign!)
     const playerTileXNow = Math.floor(playerState.x / tileSize);
     const playerTileYNow = Math.floor(playerState.y / tileSize);
-    const nearestPromptSign = streetSignSystem.findNearbySign(playerTileXNow, playerTileYNow, 3.6);
+    const activeDrawIntent = getCurrentActionIntent(playerTileXNow, playerTileYNow);
+    const activeTargetInteract = activeDrawIntent.mode === "interact" ? activeDrawIntent.interaction : null;
+    const nearestPromptSign = streetSignSystem.findNearbySign(playerTileXNow, playerTileYNow, 1.85);
     const visibleSigns = streetSignSystem.queryVisibleSigns(startX - 1, startY - 1, endX + 1, endY + 1);
     const signPromptBob = Math.round(Math.sin(tSec * 6) * 1.5);
 
@@ -2356,10 +2906,23 @@ async function boot() {
       const footX = sx + 6;
       const footY = (ss.ty + 1) * tileSize;
       const isChecked = questSystem.state.checkedSigns.has(ss.id);
-      const isNearestPrompt = nearestPromptSign && nearestPromptSign.sign.id === ss.id;
+      const isActiveSign = activeTargetInteract?.kind === "sign" && activeTargetInteract.target?.id === ss.id;
+      const isNearestPrompt = isActiveSign || (nearestPromptSign && nearestPromptSign.sign.id === ss.id && !activeDrawIntent.facingUncheckedRoad);
       drawables.push({
         sortY: depthOf(footX, footY),
         draw: () => {
+          if (isActiveSign) {
+            // Crisp pulsing golden ground ring showing Space will READ THIS SIGN!
+            const pulse = 0.55 + Math.sin(tSec * 8) * 0.25;
+            k.drawRect({
+              pos: k.vec2(ss.tx * tileSize + 1, ss.ty * tileSize + 8),
+              width: 14,
+              height: 7,
+              color: k.rgb(244, 211, 94),
+              opacity: pulse * 0.45,
+              outline: { width: 1, color: k.rgb(255, 240, 140), opacity: pulse },
+            });
+          }
           k.drawSprite(isChecked ? "street_sign_checked" : "street_sign", sx, sy, 1, bbAngle, footX, footY);
           if (isNearestPrompt) {
             k.drawSprite("street_sign_prompt", sx + 1, sy - 11 + signPromptBob, 1, bbAngle, footX, footY);
@@ -2408,6 +2971,291 @@ async function boot() {
       });
     }
 
+    // Moving Road Traffic: Bigger Cars, SUVs, Pickup & Box Trucks & Annoying Spandex Bikers!
+    for (const v of roadTraffic.vehicles || []) {
+      const vtx = v.x / tileSize;
+      const vty = v.y / tileSize;
+      if (vtx < startX - 4 || vtx > endX + 4 || vty < startY - 4 || vty > endY + 4) continue;
+      const bikeFrame = Math.floor(v.animTimer || tSec * 8) % 2;
+      const spr =
+        v.kind === "bike"
+          ? `traffic_bike_${bikeFrame}_${v.dir}`
+          : v.kind === "truck"
+            ? `traffic_truck_${v.variant}_${v.dir}`
+            : `traffic_car_${v.variant}_${v.dir}`;
+      const sprCanvas = atlas[spr];
+      const sprScale = sprCanvas?.__pixelScale || 0.5;
+      const halfW = sprCanvas ? (sprCanvas.width * sprScale) / 2 : 14;
+      const halfH = sprCanvas ? (sprCanvas.height * sprScale) / 2 : 10;
+      const drawX = Math.round(v.x - halfW);
+      const drawY = Math.round(v.y - halfH);
+      drawables.push({
+        sortY: depthOf(v.x, v.y + halfH * 0.65),
+        draw: () => {
+          k.drawSprite(spr, drawX, drawY);
+          if (v.kind === "bike" && v.bubbleTimer > 0) {
+            const bKey = `bubble_biker_${v.chantIndex % 5}`;
+            const bSpr = atlas[bKey];
+            const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 34;
+            const bob = Math.round(Math.sin(tSec * 12 + v.x) * 1.4);
+            k.drawSprite(bKey, Math.round(v.x - bwLog / 2), drawY - 12 + bob);
+          }
+        },
+      });
+    }
+
+    // FULL-SCALE 32-BIT NEWTON EMERGENCY SCENE:
+    // Ambulance + Police Cruiser + Fire Pumper + Rolling Yellow/Black CAUTION Tape + Cones + Sizzling Flares + EMTs + Officers!
+    if (
+      roadHitCutscene &&
+      (roadHitCutscene.phase === "ambulance_in" ||
+        roadHitCutscene.phase === "emt_exit" ||
+        roadHitCutscene.phase === "emt_treat" ||
+        roadHitCutscene.phase === "emt_load" ||
+        roadHitCutscene.phase === "ambulance_out")
+    ) {
+      const cs = roadHitCutscene;
+      const flash = Math.floor(tSec * 12) % 2;
+      const flareFrame = Math.floor(tSec * 14) % 2;
+      const doorsOpen = cs.phase === "emt_exit" || cs.phase === "emt_treat" || cs.phase === "emt_load";
+      const strobeA = flash === 0 ? k.rgb(255, 52, 52) : k.rgb(52, 148, 255);
+      const strobeB = flash === 0 ? k.rgb(52, 148, 255) : k.rgb(255, 52, 52);
+
+      // Helper to render crisp yellow-and-black striped CAUTION tape between two cones!
+      const drawCautionTapeBand = (x0, x1, yTape) => {
+        const minX = Math.round(Math.min(x0, x1));
+        const maxX = Math.round(Math.max(x0, x1));
+        const span = maxX - minX;
+        if (span < 3) return;
+        // Subtle shadow on asphalt below tape
+        k.drawRect({ pos: k.vec2(minX, yTape + 4), width: span, height: 1, color: k.rgb(18, 20, 28), opacity: 0.35 });
+        // Crisp dark border + bright yellow tape strip
+        k.drawRect({ pos: k.vec2(minX, yTape - 1), width: span, height: 4, color: k.rgb(24, 22, 16) });
+        k.drawRect({ pos: k.vec2(minX, yTape), width: span, height: 2, color: k.rgb(255, 218, 42) });
+        // Diagonal-look black CAUTION warning hash marks along the tape!
+        for (let tx = minX + 2; tx < maxX - 2; tx += 6) {
+          k.drawRect({ pos: k.vec2(tx, yTape), width: 2, height: 1, color: k.rgb(22, 22, 26) });
+          k.drawRect({ pos: k.vec2(tx + 1, yTape + 1), width: 2, height: 1, color: k.rgb(22, 22, 26) });
+        }
+      };
+
+      // 1. Newton EMS Type-III Rescue Ambulance + Pulsing Red/Blue Asphalt Strobe Reflections!
+      const ambSpr = doorsOpen
+        ? `ambulance_${cs.ambDir}_open_${flash}`
+        : `ambulance_${cs.ambDir}_${flash}`;
+      const ambCanvas = atlas[ambSpr];
+      const ambW = ambCanvas ? ambCanvas.width * (ambCanvas.__pixelScale || 0.5) : 49;
+      const ambH = ambCanvas ? ambCanvas.height * (ambCanvas.__pixelScale || 0.5) : 26;
+      const ax = Math.round(cs.ambX - ambW / 2);
+      const ay = Math.round(cs.ambY - ambH * 0.62);
+      drawables.push({
+        sortY: depthOf(cs.ambX, cs.ambY + 8),
+        draw: () => {
+          k.drawRect({
+            pos: k.vec2(ax - 8, ay + ambH - 12),
+            width: Math.round(ambW * 0.55),
+            height: 16,
+            color: strobeA,
+            opacity: 0.24,
+          });
+          k.drawRect({
+            pos: k.vec2(ax + Math.round(ambW * 0.45), ay + ambH - 12),
+            width: Math.round(ambW * 0.62),
+            height: 16,
+            color: strobeB,
+            opacity: 0.24,
+          });
+          k.drawSprite(ambSpr, ax, ay);
+        },
+      });
+
+      // 2. Newton Police Interceptor Cruiser blocking traffic!
+      const polSpr = `police_car_${cs.polDir}_${flash}`;
+      const polCanvas = atlas[polSpr];
+      const polW = polCanvas ? polCanvas.width * (polCanvas.__pixelScale || 0.5) : 34;
+      const polH = polCanvas ? polCanvas.height * (polCanvas.__pixelScale || 0.5) : 20;
+      const pxC = Math.round(cs.polX - polW / 2);
+      const pyC = Math.round(cs.polY - polH * 0.62);
+      drawables.push({
+        sortY: depthOf(cs.polX, cs.polY + 8),
+        draw: () => {
+          k.drawRect({
+            pos: k.vec2(pxC - 8, pyC + polH - 10),
+            width: Math.round(polW + 16),
+            height: 15,
+            color: strobeB,
+            opacity: 0.24,
+          });
+          k.drawSprite(polSpr, pxC, pyC);
+          if (cs.polArrived && cs.phase !== "ambulance_out") {
+            const bSpr = atlas.bubble_police_stop;
+            const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 36;
+            const bob = Math.round(Math.sin(tSec * 9 + 1) * 1.2);
+            k.drawSprite("bubble_police_stop", Math.round(cs.polX - bwLog / 2), pyC - 12 + bob);
+          }
+        },
+      });
+
+      // 3. Newton Fire Dept. Rescue Pumper Engine backing up the perimeter on upper lane!
+      const fireSpr = `fire_truck_${cs.fireDir}_${flash}`;
+      const fireCanvas = atlas[fireSpr];
+      const fireW = fireCanvas ? fireCanvas.width * (fireCanvas.__pixelScale || 0.5) : 53;
+      const fireH = fireCanvas ? fireCanvas.height * (fireCanvas.__pixelScale || 0.5) : 26;
+      const fxC = Math.round(cs.fireX - fireW / 2);
+      const fyC = Math.round(cs.fireY - fireH * 0.62);
+      drawables.push({
+        sortY: depthOf(cs.fireX, cs.fireY + 8),
+        draw: () => {
+          k.drawRect({
+            pos: k.vec2(fxC - 8, fyC + fireH - 11),
+            width: Math.round(fireW + 16),
+            height: 16,
+            color: flash === 0 ? k.rgb(255, 58, 42) : k.rgb(255, 224, 120),
+            opacity: 0.22,
+          });
+          k.drawSprite(fireSpr, fxC, fyC);
+          if (cs.fireArrived && cs.phase !== "ambulance_out") {
+            const bSpr = atlas.bubble_fire_clear;
+            const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 40;
+            const bob = Math.round(Math.sin(tSec * 8 + 2) * 1.2);
+            k.drawSprite("bubble_fire_clear", Math.round(cs.fireX - bwLog / 2), fyC - 12 + bob);
+          }
+        },
+      });
+
+      // 4. Police Officers Rolling Out Yellow/Black CAUTION Tape + Bright Orange Cones + Sizzling Road Flares!
+      if (cs.tapeProgress > 0.02) {
+        const tp = cs.tapeProgress;
+        const topTapeY = Math.round(cs.hitY - 19);
+        const botTapeY = Math.round(cs.hitY + 19);
+        const curTapeX = cs.tapeLeftX + (cs.tapeRightX - cs.tapeLeftX) * tp;
+        const offStep = tp < 0.99 ? Math.floor(tSec * 10) % 2 : 0;
+
+        // Top CAUTION tape perimeter + cones + Police Officer #1 rolling it out!
+        drawables.push({
+          sortY: depthOf(cs.hitX, topTapeY + 2),
+          draw: () => {
+            k.drawSprite("traffic_cone", Math.round(cs.tapeLeftX - 4), topTapeY - 7);
+            if (tp > 0.5) {
+              k.drawSprite("traffic_cone", Math.round((cs.tapeLeftX + cs.tapeRightX) / 2 - 4), topTapeY - 7);
+            }
+            if (tp >= 0.98) {
+              k.drawSprite("traffic_cone", Math.round(cs.tapeRightX - 4), topTapeY - 7);
+            }
+            drawCautionTapeBand(cs.tapeLeftX, curTapeX, topTapeY - 2);
+            if (cs.phase !== "ambulance_out") {
+              k.drawSprite(
+                `police_officer_${tp < 0.99 ? "right" : "left"}_${offStep}`,
+                Math.round(curTapeX - 10),
+                topTapeY - 22
+              );
+            }
+          },
+        });
+
+        // Bottom CAUTION tape perimeter + cones + sizzling red flares + Police Officer #2!
+        drawables.push({
+          sortY: depthOf(cs.hitX, botTapeY + 4),
+          draw: () => {
+            // Sizzling red highway road flares with warm crimson glow on asphalt!
+            const flareXs = [cs.tapeLeftX - 10, cs.tapeLeftX + 18, cs.tapeRightX + 10];
+            for (const flx of flareXs) {
+              if (flx <= curTapeX + 14) {
+                k.drawRect({
+                  pos: k.vec2(Math.round(flx - 6), botTapeY - 2),
+                  width: 14,
+                  height: 8,
+                  color: k.rgb(255, 68, 42),
+                  opacity: flareFrame === 0 ? 0.28 : 0.18,
+                });
+                k.drawSprite(`road_flare_${flareFrame}`, Math.round(flx - 4), botTapeY - 3);
+              }
+            }
+            k.drawSprite("traffic_cone", Math.round(cs.tapeLeftX - 4), botTapeY - 7);
+            if (tp > 0.5) {
+              k.drawSprite("traffic_cone", Math.round((cs.tapeLeftX + cs.tapeRightX) / 2 - 4), botTapeY - 7);
+            }
+            if (tp >= 0.98) {
+              k.drawSprite("traffic_cone", Math.round(cs.tapeRightX - 4), botTapeY - 7);
+            }
+            drawCautionTapeBand(cs.tapeLeftX, curTapeX, botTapeY - 2);
+            if (cs.phase !== "ambulance_out") {
+              const offX = Math.round(curTapeX - 10);
+              const offY = botTapeY - 22;
+              k.drawSprite(`police_officer_${tp < 0.99 ? "right" : "left"}_${(offStep + 1) % 2}`, offX, offY);
+              const bSpr = atlas.bubble_police_tape;
+              const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 44;
+              const bob = Math.round(Math.sin(tSec * 10 + 3) * 1.2);
+              k.drawSprite("bubble_police_tape", Math.round(curTapeX - bwLog / 2), offY - 12 + bob);
+            }
+          },
+        });
+      }
+
+      // 5. EMT Paramedics Exiting, Kneeling Triage & Wheeling Stretcher Into Open Ambulance Bay!
+      if (doorsOpen) {
+        const dirSign = cs.ambDir === "e" ? 1 : -1;
+        const step = Math.floor(tSec * 10) % 2;
+
+        if (cs.phase === "emt_treat") {
+          const sy = Math.round(cs.hitY - 9);
+          const emtY = Math.round(cs.hitY - 21);
+          drawables.push({
+            sortY: depthOf(cs.hitX, cs.hitY + 12),
+            draw: () => {
+              k.drawSprite("emt_stretcher_empty", Math.round(cs.hitX - 15), sy - 9);
+              k.drawSprite("emt_kneel_right", Math.round(cs.hitX - 20), emtY + 1);
+              k.drawSprite("emt_kneel_1_left", Math.round(cs.hitX + 2), emtY + 2);
+              const bSpr = atlas.bubble_emt_lift;
+              const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 38;
+              const bob = Math.round(Math.sin(tSec * 10) * 1.2);
+              k.drawSprite("bubble_emt_lift", Math.round(cs.hitX - bwLog / 2), emtY - 12 + bob);
+            },
+          });
+        } else {
+          let stretcherX;
+          let hasPatient = false;
+          let emtFacing;
+
+          if (cs.phase === "emt_exit") {
+            stretcherX = cs.doorX + (cs.hitX - cs.doorX) * cs.emtProgress;
+            hasPatient = false;
+            emtFacing = dirSign > 0 ? "left" : "right";
+          } else {
+            hasPatient = true;
+            const carryT = Math.max(0, (cs.emtProgress - 0.16) / 0.84);
+            stretcherX = cs.hitX + (cs.doorX - cs.hitX) * carryT;
+            emtFacing = dirSign > 0 ? "right" : "left";
+          }
+
+          const emtWalkStep = cs.phase === "emt_load" && cs.emtProgress < 0.16 ? 0 : step;
+          const emt1Spr = `emt_${emtFacing}_${emtWalkStep}`;
+          const emt2Spr = `emt_1_${emtFacing}_${(emtWalkStep + 1) % 2}`;
+          const stretcherSpr = hasPatient ? "emt_stretcher_patient" : "emt_stretcher_empty";
+          const rollBounce = emtWalkStep === 1 ? -1 : 0;
+          const sy = Math.round(cs.hitY - 11 + rollBounce);
+          const emt1X = Math.round(stretcherX - 20);
+          const emt2X = Math.round(stretcherX + 3);
+          const emtY = Math.round(cs.hitY - 21);
+
+          drawables.push({
+            sortY: depthOf(stretcherX, cs.hitY + 12),
+            draw: () => {
+              k.drawSprite(emt1Spr, emt1X, emtY - 2);
+              k.drawSprite(stretcherSpr, Math.round(stretcherX - 15), sy);
+              k.drawSprite(emt2Spr, emt2X, emtY + 1);
+              if (cs.phase === "emt_exit") {
+                const bSpr = atlas.bubble_emt_help;
+                const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 34;
+                const bob = Math.round(Math.sin(tSec * 10) * 1.2);
+                k.drawSprite("bubble_emt_help", Math.round(stretcherX - bwLog / 2), emtY - 12 + bob);
+              }
+            },
+          });
+        }
+      }
+    }
+
     // Phase 3: Landmark NPCs with idle bounce + floating '!' quest objective bubble
     const activeTarget = questSystem.getActiveObjectiveTarget();
     for (const npc of questSystem.npcs) {
@@ -2421,16 +3269,40 @@ async function boot() {
       }
       const nx = npc.walkTileX * tileSize + tileSize / 2;
       const ny = npc.walkTileY * tileSize + tileSize / 2;
-      const idleBob = Math.sin(playerState.elapsedTime * 3 + npc.walkTileX) > 0.6 ? -1 : 0;
+      const isMomYelling = npc.id === "home_base" && roadHitCutscene?.phase === "mom_yelling";
+      const idleBob = isMomYelling
+        ? Math.round(Math.abs(Math.sin(playerState.elapsedTime * 16)) * -4)
+        : Math.sin(playerState.elapsedTime * 3 + npc.walkTileX) > 0.6
+          ? -1
+          : 0;
       const isQuestTarget = activeTarget && activeTarget.landmarkId === npc.id;
+      const isActiveTalkNpc = activeTargetInteract?.kind === "npc" && activeTargetInteract.target?.id === npc.id;
       const bubbleBob = Math.sin(playerState.elapsedTime * 6) * 2;
 
       drawables.push({
         sortY: depthOf(nx, ny + 4),
         draw: () => {
+          if (isActiveTalkNpc) {
+            // Crisp pulsing golden selection ring under the NPC so you know Space will TALK to them!
+            const pulse = 0.6 + Math.sin(tSec * 8) * 0.25;
+            k.drawRect({
+              pos: k.vec2(nx - 9, ny),
+              width: 18,
+              height: 8,
+              color: k.rgb(244, 211, 94),
+              opacity: pulse * 0.42,
+              outline: { width: 1, color: k.rgb(255, 240, 140), opacity: pulse },
+            });
+          }
           k.drawSprite("landmark_sign", nx + 7, ny - 12, 1, bbAngle, nx + 14, ny + 4);
           k.drawSprite(npc.npcSprite, nx - 11, ny - 21 + idleBob, 1, bbAngle, nx, ny + 4);
-          if (isQuestTarget) {
+          if (isMomYelling) {
+            // Bold angry red exclamation mark above Mom while yelling!
+            k.drawRect({ pos: k.vec2(nx - 4, ny - 35 + idleBob), width: 9, height: 10, color: k.rgb(34, 10, 12) });
+            k.drawRect({ pos: k.vec2(nx - 3, ny - 34 + idleBob), width: 7, height: 8, color: k.rgb(235, 44, 40) });
+            k.drawRect({ pos: k.vec2(nx - 1, ny - 33 + idleBob), width: 3, height: 4, color: k.rgb(255, 245, 190) });
+            k.drawRect({ pos: k.vec2(nx - 1, ny - 28 + idleBob), width: 3, height: 1, color: k.rgb(255, 245, 190) });
+          } else if (isQuestTarget) {
             k.drawSprite("quest_bubble", nx - 5, ny - 34 + bubbleBob, 1, bbAngle, nx, ny + 4);
           }
         },
@@ -2530,6 +3402,7 @@ async function boot() {
 
     // Spooky Graveyard Characters (Rattling Skeletons, Graveyard Phantoms & Pumpkin Ghouls!)
     for (const sp of streetLife.spookyChars || []) {
+      if ((sp.defeatedTimer || 0) > 0) continue;
       const spTx = sp.x / tileSize;
       const spTy = sp.y / tileSize;
       if (spTx < startX - 2 || spTx > endX + 2 || spTy < startY - 2 || spTy > endY + 2) continue;
@@ -2685,7 +3558,12 @@ async function boot() {
     questSystem,
     streetSignSystem,
     streetLife,
+    roadTraffic,
     playerState,
+    triggerSwordSlash,
+    triggerSiddurDispel,
+    startRoadHitCutscene,
+    resetToSalzberg,
   };
 }
 

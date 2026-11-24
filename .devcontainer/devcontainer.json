@@ -5,7 +5,7 @@
   "portsAttributes": {
     "5173": {
       "label": "Game Preview (Vite)",
-      "onAutoForward": "openPreview"
+      "onAutoForward": "openBrowser"
     }
   },
   "postCreateCommand": {

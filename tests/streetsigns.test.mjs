@@ -141,12 +141,19 @@ test("quest system records checked street signs, awards first-visit XP, anchors 
   assert.ok(qsHardReload.setActiveQuest("quest_01_first_steps"));
   assert.equal(qsHardReload.getActiveQuest().id, "quest_01_first_steps");
 
-  // Liam's outfits: defaults to Polo & Kippah, toggles cleanly to Little League Baseball uniform & persists!
-  assert.ok(HERO_OUTFITS.polo && HERO_OUTFITS.baseball);
+  // Liam's outfits: starts with ONLY Polo & Kippah unlocked; earns Little League, Wetsuit & Link via quests & persists!
+  assert.ok(HERO_OUTFITS.polo && HERO_OUTFITS.baseball && HERO_OUTFITS.wetsuit && HERO_OUTFITS.link);
+  assert.deepEqual(qsReloaded.getUnlockedOutfits(), ["polo"]);
   assert.equal(qsReloaded.state.heroOutfit, "polo");
+  assert.equal(qsReloaded.toggleHeroOutfit(), "polo");
+  qsReloaded.unlockOutfit("baseball");
+  qsReloaded.unlockOutfit("wetsuit");
+  qsReloaded.unlockOutfit("link");
   assert.equal(qsReloaded.toggleHeroOutfit(), "baseball");
   const qsOutfitReload = createQuestSystem({ landmarks, quests, worldMap, storage });
   assert.equal(qsOutfitReload.state.heroOutfit, "baseball");
+  assert.equal(qsOutfitReload.toggleHeroOutfit(), "wetsuit");
+  assert.equal(qsOutfitReload.toggleHeroOutfit(), "link");
   assert.equal(qsOutfitReload.toggleHeroOutfit(), "polo");
 });
 

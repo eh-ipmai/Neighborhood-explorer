@@ -301,3 +301,92 @@ export function playSpookyBooSfx() {
     playTone({ freq: 466.16, endFreq: 220.0, duration: 0.18, type: "triangle", volume: 0.06 });
   }, 75);
 }
+
+/** Crisp 16-bit Link-to-the-Past style sword swing swoosh! */
+export function playSwordSlashSfx() {
+  zzfx(0.09, 0.05, 620, 0.002, 0.015, 0.09, 3, 1.0, -4.5, 0.45);
+  playTone({ freq: 880, endFreq: 260, duration: 0.09, type: "sawtooth", volume: 0.045 });
+}
+
+/** Radiant ascending harp/chime harmonic chord when raising the Pocket Siddur to dispel bad guys! */
+export function playSiddurDispelSfx() {
+  const chord = [523.25, 659.25, 783.99, 1046.5, 1318.51]; // C5 E5 G5 C6 E6
+  chord.forEach((freq, idx) => {
+    setTimeout(() => {
+      playTone({ freq, duration: idx === 4 ? 0.34 : 0.16, type: "triangle", volume: 0.055 });
+    }, idx * 55);
+  });
+}
+
+/** Joyful heart-heal chime when getting a band-aid, treat, or completing a quest! */
+export function playHealHeartSfx() {
+  const notes = [587.33, 783.99, 1174.66]; // D5 -> G5 -> D6
+  notes.forEach((freq, idx) => {
+    setTimeout(() => {
+      playTone({ freq, duration: idx === 2 ? 0.22 : 0.09, type: "sine", volume: 0.06 });
+    }, idx * 75);
+  });
+}
+
+/** Dramatic tire-screech + crash impact when hit by a car or bike on the road! */
+export function playCarCrashSfx() {
+  zzfx(0.11, 0.05, 960, 0.005, 0.08, 0.16, 2, 1.4, -3.2, 0.35);
+  setTimeout(() => {
+    zzfx(0.14, 0.08, 120, 0.002, 0.05, 0.28, 3, 1.0, -1.8, 0.85);
+    playTone({ freq: 180, endFreq: 55, duration: 0.28, type: "sawtooth", volume: 0.08 });
+  }, 110);
+}
+
+/** Classic two-tone retro EMS ambulance wee-woo siren! */
+export function playAmbulanceSirenSfx() {
+  playTone({ freq: 784.0, endFreq: 840.0, duration: 0.24, type: "square", volume: 0.04 });
+  setTimeout(() => {
+    playTone({ freq: 587.33, endFreq: 560.0, duration: 0.26, type: "square", volume: 0.04 });
+  }, 245);
+}
+
+/**
+ * Mournful 16-bit SNES dark-boss Game Over dirge (solemn minor arpeggio + descending tragic cadence,
+ * inspired by classic Link vs Ganondorf defeat themes).
+ */
+export function playGameOverDirge() {
+  // Solemn D-minor descending melody + low ominous bass organ
+  const melody = [
+    { t: 0, freq: 440.0, dur: 0.26, type: "triangle", vol: 0.065 },    // A4
+    { t: 260, freq: 392.0, dur: 0.26, type: "triangle", vol: 0.065 },  // G4
+    { t: 520, freq: 349.23, dur: 0.28, type: "triangle", vol: 0.065 }, // F4
+    { t: 820, freq: 329.63, dur: 0.32, type: "triangle", vol: 0.065 }, // E4
+    { t: 1180, freq: 349.23, dur: 0.22, type: "triangle", vol: 0.06 }, // F4
+    { t: 1420, freq: 311.13, dur: 0.28, type: "triangle", vol: 0.06 }, // Eb4 (dark Neapolitan!)
+    { t: 1740, freq: 293.66, dur: 0.72, type: "triangle", vol: 0.07 }, // D4 (final solemn rest)
+    // Low somber bass accompaniment
+    { t: 0, freq: 146.83, dur: 0.75, type: "sawtooth", vol: 0.035 },   // D3
+    { t: 820, freq: 130.81, dur: 0.55, type: "sawtooth", vol: 0.035 }, // C3
+    { t: 1420, freq: 116.54, dur: 0.30, type: "sawtooth", vol: 0.035 },// Bb2
+    { t: 1740, freq: 110.0, dur: 0.45, type: "sawtooth", vol: 0.035 }, // A2
+    { t: 1740, freq: 73.42, dur: 0.85, type: "triangle", vol: 0.06 },  // D2 deep pedal
+  ];
+  for (const n of melody) {
+    setTimeout(() => {
+      playTone({ freq: n.freq, duration: n.dur, type: n.type, volume: n.vol });
+    }, n.t);
+  }
+}
+
+/** Obnoxious rapid brass bicycle bell ("DING-DING-DING!!") + pompous cyclist squawk! */
+export function playAnnoyingBikerSfx() {
+  [0, 85, 170].forEach((delay, idx) => {
+    setTimeout(() => {
+      playTone({ freq: idx === 2 ? 2093.0 : 1760.0, duration: 0.08, type: "sine", volume: 0.055 });
+      playTone({ freq: 2637.0, duration: 0.06, type: "triangle", volume: 0.03 });
+    }, delay);
+  });
+}
+
+/** Crisp two-beep EMS paramedic radio dispatch chirp when EMTs hop out of the ambulance! */
+export function playEmtRadioBeepSfx() {
+  playTone({ freq: 1174.66, duration: 0.05, type: "square", volume: 0.04 });
+  setTimeout(() => {
+    playTone({ freq: 1567.98, duration: 0.07, type: "square", volume: 0.04 });
+  }, 65);
+}

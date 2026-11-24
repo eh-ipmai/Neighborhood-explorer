@@ -19,6 +19,7 @@ import {
 } from "./characters.js";
 import { PROTEST_CHANTS } from "./streetlife.js";
 import { upgradeAtlasTo32Bit } from "./world32bit.js";
+import { bake32BitVehicleSprites } from "./vehicles32bit.js";
 
 export { HERO_OUTFITS };
 
@@ -59,28 +60,28 @@ export const PALETTES = {
     sidewalkCurbTop: "#dfd0c8",
     sidewalkCurbFace: "#6b595b",
     sidewalkCurbShadow: "#332528",
-    // Warm dusk-brownish-slate twilight asphalt streets!
-    roadRes: "#665759",
-    roadResDark: "#544749",
-    roadResLight: "#78686a",
-    roadMain: "#5e5052",
-    roadMainDark: "#4c4043",
-    roadMainLight: "#706062",
-    highway: "#4d4144",
-    highwayBase: "#4d4144",
-    highwayDark: "#3b3134",
-    highwayLight: "#5e5054",
-    highwayTrack: "#594b4e",
-    highwayYellow: "#f2c14e",
-    highwayMedian: "#a89b96",
-    parkingBase: "#5c4f52",
-    parkingLight: "#6e6063",
-    parkingDark: "#473c3f",
-    roadShoulder: "#e8dbd2",
-    roadDashWhite: "#ede0d4",
-    roadYellow: "#ebb84d",
-    crosswalkWhite: "#f2e5d8",
-    crosswalkEdge: "#c4b2a5",
+    // Clean, high-clarity Newton asphalt roads (clearly distinct from warm cobblestone sidewalks!)
+    roadRes: "#5a5e68",
+    roadResDark: "#4e525c",
+    roadResLight: "#666b75",
+    roadMain: "#4b505a",
+    roadMainDark: "#3f444e",
+    roadMainLight: "#575d68",
+    highway: "#3b404b",
+    highwayBase: "#3b404b",
+    highwayDark: "#303540",
+    highwayLight: "#464c58",
+    highwayTrack: "#424854",
+    highwayYellow: "#f5c53b",
+    highwayMedian: "#b4bac4",
+    parkingBase: "#545862",
+    parkingLight: "#616670",
+    parkingDark: "#434750",
+    roadShoulder: "#f2f5f8",
+    roadDashWhite: "#f5f8fc",
+    roadYellow: "#f5c53b",
+    crosswalkWhite: "#f5f8fc",
+    crosswalkEdge: "#b8c0cc",
     waterBase: "#32648f",
     waterDeep: "#254c73",
     waterMid: "#3b76a3",
@@ -624,6 +625,7 @@ export function resolveHouseStyle(building, colorOverrideMap = {}) {
     if (override.trim) baseStyle.trim = override.trim;
     if (override.kind) baseStyle.overrideKind = override.kind;
     if (override.arch) baseStyle.arch = override.arch;
+    if (override.label) baseStyle.overrideLabel = override.label;
   }
 
   // Warm golden-hour glowing interior windows on every neighborhood home & civic building
@@ -632,8 +634,84 @@ export function resolveHouseStyle(building, colorOverrideMap = {}) {
   return baseStyle;
 }
 
-// Tiny crisp 3x5 pixel font for house address numbers (e.g. 565)
-const MINI_DIGITS = {
+/**
+ * Classify a building into its specific visual architectural category so schools,
+ * BC Gothic halls, libraries, synagogues, churches, firehouses, shops, cafés,
+ * offices, apartments, and greenhouses render completely distinct from homes.
+ */
+export function getBuildingVisualCategory(building, colorOverrideMap = {}) {
+  const normAddr = normalizeAddress(building?.address);
+  const override =
+    (normAddr && colorOverrideMap[normAddr]) ||
+    (building?.id && colorOverrideMap[building.id]) ||
+    null;
+  const kind = override?.kind || building?.kind || "house";
+  const label = `${override?.label || ""} ${building?.name || ""} ${building?.address || ""}`.toLowerCase();
+
+  if (kind === "school") {
+    return building?.bcCampus ? "bc_school" : "school";
+  }
+  if (kind === "library") {
+    return "library";
+  }
+  if (kind === "civic") {
+    if (building?.gothicCrypt) return "gothic_chapel";
+    if (/temple|beth\s*el|synagogue|chabad|congregation|israel|tefillah|shul/.test(label)) {
+      return "synagogue";
+    }
+    if (/church|chapel|parish|baptist|episcopal|st\.?\s*paul|trinity/.test(label)) {
+      return "church";
+    }
+    return "civic";
+  }
+  return kind;
+}
+
+/**
+ * Resolve crisp uppercase pixel-signage text for non-residential buildings.
+ */
+export function getBuildingSignText(building, category, style = {}) {
+  const label = `${style.overrideLabel || ""} ${building?.name || ""}`.toLowerCase();
+  switch (category) {
+    case "bc_school":
+      return /law/.test(label) ? "BC LAW" : "BC";
+    case "school":
+      return "SCHOOL";
+    case "library":
+      return "LIBRARY";
+    case "synagogue":
+      return /temple/.test(label) ? "TEMPLE" : "SHUL";
+    case "church":
+      return /chapel/.test(label) ? "CHAPEL" : "CHURCH";
+    case "gothic_chapel":
+      return "CHAPEL";
+    case "civic":
+      return "CIVIC";
+    case "fire_station":
+      return "FIRE";
+    case "bakery_cafe":
+      if (/bagel|rosenfeld/.test(label)) return "BAGELS";
+      if (/licks|cream/.test(label)) return "CREAM";
+      if (/dunkin|donut/.test(label)) return "DONUTS";
+      return "CAFE";
+    case "corner_market":
+      if (/book/.test(label)) return "BOOKS";
+      if (/taqueria|taco/.test(label)) return "TACOS";
+      return "MARKET";
+    case "commercial":
+      if (/medical|clinic|dental/.test(label)) return "CLINIC";
+      return "SHOP";
+    case "office_plaza":
+      if (/bank/.test(label)) return "BANK";
+      if (/medical|clinic/.test(label)) return "CLINIC";
+      return "OFFICE";
+    default:
+      return "";
+  }
+}
+
+// Tiny crisp 3x5 pixel font for house numbers & architectural signboards (SCHOOL, LIBRARY, CAFE, etc.)
+const MINI_GLYPHS = {
   "0": ["111", "101", "101", "101", "111"],
   "1": ["010", "110", "010", "010", "111"],
   "2": ["111", "001", "111", "100", "111"],
@@ -644,6 +722,33 @@ const MINI_DIGITS = {
   "7": ["111", "001", "001", "010", "010"],
   "8": ["111", "101", "111", "101", "111"],
   "9": ["111", "101", "111", "001", "111"],
+  A: ["010", "101", "111", "101", "101"],
+  B: ["110", "101", "110", "101", "110"],
+  C: ["011", "100", "100", "100", "011"],
+  D: ["110", "101", "101", "101", "110"],
+  E: ["111", "100", "110", "100", "111"],
+  F: ["111", "100", "110", "100", "100"],
+  G: ["011", "100", "101", "101", "011"],
+  H: ["101", "101", "111", "101", "101"],
+  I: ["111", "010", "010", "010", "111"],
+  J: ["001", "001", "001", "101", "010"],
+  K: ["101", "101", "110", "101", "101"],
+  L: ["100", "100", "100", "100", "111"],
+  M: ["101", "111", "111", "101", "101"],
+  N: ["101", "111", "111", "111", "101"],
+  O: ["010", "101", "101", "101", "010"],
+  P: ["110", "101", "110", "100", "100"],
+  Q: ["010", "101", "101", "111", "011"],
+  R: ["110", "101", "110", "101", "101"],
+  S: ["011", "100", "010", "001", "110"],
+  T: ["111", "010", "010", "010", "010"],
+  U: ["101", "101", "101", "101", "111"],
+  V: ["101", "101", "101", "101", "010"],
+  W: ["101", "101", "111", "111", "101"],
+  X: ["101", "101", "010", "101", "101"],
+  Y: ["101", "101", "010", "010", "010"],
+  Z: ["111", "001", "010", "100", "111"],
+  " ": ["000", "000", "000", "000", "000"],
 };
 
 function makeCanvas(w, h) {
@@ -660,24 +765,222 @@ function px(ctx, x, y, w, h, color) {
   ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
 }
 
-function drawMiniNumber(ctx, str, centerX, y, color) {
-  const digits = String(str).replace(/[^0-9]/g, "").slice(0, 4);
-  if (!digits) return;
-  const totalW = digits.length * 4 - 1;
+function drawMiniText(ctx, str, centerX, y, color, scale = 1) {
+  const chars = String(str || "")
+    .toUpperCase()
+    .split("")
+    .filter((ch) => MINI_GLYPHS[ch]);
+  if (chars.length === 0) return;
+  const step = 4 * scale;
+  const totalW = chars.length * step - scale;
   let sx = Math.floor(centerX - totalW / 2);
   ctx.fillStyle = color;
-  for (const ch of digits) {
-    const glyph = MINI_DIGITS[ch];
-    if (!glyph) continue;
+  for (const ch of chars) {
+    const glyph = MINI_GLYPHS[ch];
     for (let gy = 0; gy < 5; gy++) {
       for (let gx = 0; gx < 3; gx++) {
         if (glyph[gy][gx] === "1") {
-          ctx.fillRect(sx + gx, y + gy, 1, 1);
+          ctx.fillRect(sx + gx * scale, Math.floor(y) + gy * scale, scale, scale);
         }
       }
     }
-    sx += 4;
+    sx += step;
   }
+}
+
+function drawMiniNumber(ctx, str, centerX, y, color) {
+  const digits = String(str).replace(/[^0-9]/g, "").slice(0, 4);
+  if (!digits) return;
+  drawMiniText(ctx, digits, centerX, y, color, 1);
+}
+
+/**
+ * Draw a crisp 16-bit architectural signboard marquee (e.g. SCHOOL, LIBRARY, CAFE, FIRE, SHOP)
+ * centered at midX, auto-scaling letters to stay razor sharp within maxW.
+ */
+function drawSignMarquee(
+  ctx,
+  text,
+  midX,
+  y,
+  maxW,
+  { bg = "#1c365c", trim = "#f4d35e", fg = "#fff8dc", hd = 2, O = "#291a18" } = {}
+) {
+  const clean = String(text || "").toUpperCase().trim();
+  if (!clean) return 0;
+  const wantScale = hd >= 2 && clean.length * 8 + 10 <= maxW ? 2 : 1;
+  const textW = clean.length * 4 * wantScale - wantScale;
+  const padX = wantScale >= 2 ? 6 : 4;
+  const padY = wantScale >= 2 ? 3 : 2;
+  const signW = Math.min(maxW, textW + padX * 2);
+  const signH = 5 * wantScale + padY * 2;
+  const sx = Math.floor(midX - signW / 2);
+  const sy = Math.floor(y);
+
+  px(ctx, sx - 2, sy - 2, signW + 4, signH + 4, O);
+  px(ctx, sx - 1, sy - 1, signW + 2, signH + 2, trim);
+  px(ctx, sx, sy, signW, signH, bg);
+  px(ctx, sx, sy, signW, 1, shadeHex(bg, 22));
+  // Subtle corner brass rivets
+  px(ctx, sx + 1, sy + 1, 1, 1, trim);
+  px(ctx, sx + signW - 2, sy + 1, 1, 1, trim);
+  px(ctx, sx + 1, sy + signH - 2, 1, 1, trim);
+  px(ctx, sx + signW - 2, sy + signH - 2, 1, 1, trim);
+  drawMiniText(ctx, clean, midX, sy + padY, fg, wantScale);
+  return signH + 2;
+}
+
+/**
+ * Draw a tall metallic institutional flagpole with golden ball finial & waving flag (Schools & Civic Halls!).
+ */
+function drawFlagpole(
+  ctx,
+  x,
+  baseY,
+  poleH,
+  {
+    flagA = "#d9362e",
+    flagB = "#f7f3e8",
+    canton = "#244c8a",
+    hd = 2,
+    O = "#291a18",
+  } = {}
+) {
+  const pxX = Math.floor(x);
+  const topY = Math.floor(baseY - poleH);
+  // Stone pedestal base
+  px(ctx, pxX - 2 * hd, baseY - 2 * hd, 5 * hd, 3 * hd, O);
+  px(ctx, pxX - hd, baseY - hd, 3 * hd, 2 * hd, "#cfc4b8");
+  // Crisp silver flagpole shaft
+  px(ctx, pxX - 1, topY, hd + 2, poleH - hd, O);
+  px(ctx, pxX, topY, hd, poleH - hd, "#e6ecf2");
+  // Golden finial orb on top
+  px(ctx, pxX - 1, topY - 2 * hd, hd + 2, 2 * hd, O);
+  px(ctx, pxX, topY - 2 * hd + 1, hd, 2 * hd - 1, "#f4d35e");
+  // Waving striped banner flying to the right
+  const fw = 9 * hd;
+  const fh = 6 * hd;
+  const fx = pxX + hd;
+  const fy = topY + hd;
+  px(ctx, fx, fy - 1, fw + 1, fh + 2, O);
+  for (let row = 0; row < fh; row++) {
+    const wave = row >= Math.floor(fh / 2) ? 1 : 0;
+    const col = Math.floor(row / Math.max(1, hd)) % 2 === 0 ? flagA : flagB;
+    px(ctx, fx, fy + row, fw - wave, 1, col);
+  }
+  px(ctx, fx, fy, Math.floor(fw * 0.45), Math.floor(fh * 0.52), canton);
+  px(ctx, fx + hd, fy + hd, hd, hd, "#fff8dc");
+}
+
+/**
+ * Draw a charming projecting wrought-iron sidewalk blade sign off a shop/cafe/market wall.
+ */
+function drawBladeSign(ctx, wallRightX, y, { bg = "#244c8a", trim = "#f4d35e", accent = "#ffe680", hd = 2, O = "#291a18" } = {}) {
+  const bx = Math.floor(wallRightX);
+  const by = Math.floor(y);
+  // Iron bracket bar
+  px(ctx, bx, by, 7 * hd, hd + 1, O);
+  px(ctx, bx, by + 1, 6 * hd, 1, "#6c7380");
+  // Hanging rectangular blade plaque
+  const sw = 6 * hd;
+  const sh = 7 * hd;
+  px(ctx, bx + hd, by + hd, sw, sh, O);
+  px(ctx, bx + hd + 1, by + hd + 1, sw - 2, sh - 2, trim);
+  px(ctx, bx + hd + 2, by + hd + 2, sw - 4, sh - 4, bg);
+  px(ctx, bx + 2 * hd + 1, by + 2 * hd + 1, Math.max(2, sw - 4 * hd), Math.max(2, sh - 4 * hd), accent);
+}
+
+/**
+ * Draw a luminous stained-glass rose window (synagogues, churches & gothic chapels).
+ */
+function drawStainedGlassRose(ctx, cx, cy, r, { palette = "church", O = "#291a18" } = {}) {
+  const x0 = Math.floor(cx);
+  const y0 = Math.floor(cy);
+  const rad = Math.max(4, Math.floor(r));
+  // Outer carved stone ring
+  px(ctx, x0 - rad - 1, y0 - rad + 2, (rad + 1) * 2, (rad - 2) * 2, O);
+  px(ctx, x0 - rad + 2, y0 - rad - 1, (rad - 2) * 2, (rad + 1) * 2, O);
+  px(ctx, x0 - rad, y0 - rad, rad * 2, rad * 2, O);
+  px(ctx, x0 - rad + 1, y0 - rad + 1, (rad - 1) * 2, (rad - 1) * 2, "#e0d4c3");
+
+  const inner = Math.max(2, rad - 2);
+  if (palette === "synagogue") {
+    px(ctx, x0 - inner, y0 - inner, inner * 2, inner * 2, "#1c4a91");
+    px(ctx, x0 - inner + 1, y0 - inner + 1, (inner - 1) * 2, (inner - 1) * 2, "#3578d4");
+    // Radiant golden geometric star emblem inside blue stained glass
+    px(ctx, x0 - inner + 2, y0 - 1, (inner - 2) * 2, 2, "#ffd95c");
+    px(ctx, x0 - 1, y0 - inner + 2, 2, (inner - 2) * 2, "#ffd95c");
+    px(ctx, x0 - Math.floor(inner * 0.55), y0 - Math.floor(inner * 0.55), Math.max(2, Math.floor(inner * 1.1)), Math.max(2, Math.floor(inner * 1.1)), "#fff2a6");
+    px(ctx, x0 - 1, y0 - 1, 2, 2, "#245ca8");
+  } else if (palette === "gothic") {
+    px(ctx, x0 - inner, y0 - inner, inner * 2, inner * 2, "#3d2a66");
+    px(ctx, x0 - inner + 1, y0 - inner + 1, (inner - 1) * 2, (inner - 1) * 2, "#4fd4c4");
+    px(ctx, x0 - 1, y0 - inner + 1, 2, (inner - 1) * 2, "#2a1d3d");
+    px(ctx, x0 - inner + 1, y0 - 1, (inner - 1) * 2, 2, "#2a1d3d");
+    px(ctx, x0 - 2, y0 - 2, 4, 4, "#c99cff");
+  } else {
+    // Classic multicolor cathedral stained glass (ruby, sapphire, amber, emerald)
+    px(ctx, x0 - inner, y0 - inner, inner, inner, "#d93b48");
+    px(ctx, x0, y0 - inner, inner, inner, "#3478c9");
+    px(ctx, x0 - inner, y0, inner, inner, "#3ca364");
+    px(ctx, x0, y0, inner, inner, "#f0a832");
+    px(ctx, x0 - 1, y0 - inner, 2, inner * 2, O);
+    px(ctx, x0 - inner, y0 - 1, inner * 2, 2, O);
+    px(ctx, x0 - 2, y0 - 2, 4, 4, "#fff2a6");
+  }
+}
+
+/**
+ * Draw a wide institutional multi-pane school classroom window (bright daylight sky-blue + cream mullions).
+ */
+function drawClassroomWindow(ctx, wx, wy, winW, winH, O = "#291a18") {
+  px(ctx, wx - 1, wy - 2, winW + 2, 2, O);
+  px(ctx, wx, wy - 1, winW, 1, "#ebe2d4");
+  px(ctx, wx, wy, winW, winH, O);
+  px(ctx, wx + 1, wy + 1, winW - 2, winH - 2, "#f4efe6");
+  const gx = wx + 2;
+  const gy = wy + 2;
+  const gw = Math.max(3, winW - 4);
+  const gh = Math.max(3, winH - 4);
+  // Bright cool daylight institutional glass + warm lit lower classroom interior
+  px(ctx, gx, gy, gw, gh, "#6cb2d6");
+  px(ctx, gx, gy, gw, Math.max(2, Math.floor(gh * 0.45)), "#a6dcf5");
+  px(ctx, gx + 1, gy + Math.floor(gh * 0.55), Math.max(1, gw - 2), Math.max(2, Math.floor(gh * 0.4)), "#ffe88a");
+  px(ctx, gx + 1, gy + 1, Math.max(2, Math.floor(gw * 0.35)), 1, "#ffffff");
+  // Crisp white institutional 3-column mullions & transom bar
+  px(ctx, gx + Math.floor(gw / 3), gy, 1, gh, "#f4efe6");
+  px(ctx, gx + Math.floor((gw * 2) / 3), gy, 1, gh, "#f4efe6");
+  px(ctx, gx, gy + Math.floor(gh * 0.42), gw, 1, "#d9cfc2");
+  // Molded limestone sill
+  px(ctx, wx - 1, wy + winH, winW + 2, 2, O);
+  px(ctx, wx, wy + winH, winW, 1, "#dfd6c7");
+}
+
+/**
+ * Draw a pointed Collegiate Gothic arched stone lancet window (for Boston College campus halls!).
+ */
+function drawGothicLancetWindow(ctx, wx, wy, winW, winH, O = "#291a18") {
+  const half = Math.floor(winW / 2);
+  // Pointed gothic stone arch apex
+  px(ctx, wx + half - 1, wy - 2, 2, 2, O);
+  px(ctx, wx + 1, wy, winW - 2, 2, O);
+  px(ctx, wx, wy + 2, winW, winH - 2, O);
+  px(ctx, wx + 2, wy + 1, Math.max(2, winW - 4), 2, "#ece5d5");
+  px(ctx, wx + 1, wy + 2, winW - 2, winH - 3, "#d8cfbe");
+  // Warm amber-leaded cathedral glass inside pointed lancet
+  const gx = wx + 2;
+  const gy = wy + 3;
+  const gw = Math.max(3, winW - 4);
+  const gh = Math.max(4, winH - 5);
+  px(ctx, gx + Math.floor(gw / 2) - 1, wy + 1, 2, 2, "#ffe680");
+  px(ctx, gx, gy, gw, gh, "#cf7c25");
+  px(ctx, gx + 1, gy + 1, Math.max(1, gw - 2), Math.max(2, gh - 2), "#ffd95c");
+  px(ctx, gx + 1, gy + 1, Math.max(1, gw - 2), Math.max(1, Math.floor(gh * 0.45)), "#fff4b8");
+  // Dark iron gothic tracery crossbars
+  px(ctx, gx + Math.floor(gw / 2), gy - 1, 1, gh + 1, "#3b2c26");
+  px(ctx, gx, gy + Math.floor(gh * 0.45), gw, 1, "#3b2c26");
+  px(ctx, wx - 1, wy + winH, winW + 2, 2, O);
+  px(ctx, wx, wy + winH, winW, 1, "#ece5d5");
 }
 
 /**
@@ -1098,13 +1401,15 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
 
   const style = resolveHouseStyle(building, colorOverrideMap);
   const effectiveKind = style.overrideKind || building.kind || "house";
+  const category = getBuildingVisualCategory(building, colorOverrideMap);
+  const signText = getBuildingSignText(building, category, style);
   const arch = style.arch || "colonial";
   const O = "#291a18";
   const bSeed = Math.abs((minX * 19 + minY * 37 + (building.styleIndex || 1) * 11) | 0);
 
   // Regularize visual building proportions so residential houses share a cohesive, handsome
-  // 32-bit New England neighborhood scale (no squished 1-tile pancakes or skinny towers!),
-  // while anchoring every building strictly to the SOUTH edge of its real map footprint!
+  // 32-bit New England neighborhood scale while schools, libraries, civic halls, firehouses,
+  // and commercial storefronts stand out at unmistakable institutional & village-center scale!
   let bw;
   let bh;
   if (effectiveKind === "house") {
@@ -1117,26 +1422,46 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
   } else if (effectiveKind === "garage") {
     bw = Math.max(24 * hd, Math.min(44 * hd, footW - 2 * hd));
     bh = Math.max(28 * hd, Math.min(36 * hd, footH + 4 * hd));
+  } else if (effectiveKind === "greenhouse") {
+    bw = Math.max(36 * hd, Math.min(64 * hd, footW - 2 * hd));
+    bh = Math.max(36 * hd, Math.min(48 * hd, footH + 8 * hd));
   } else if (effectiveKind === "library" || effectiveKind === "school" || effectiveKind === "civic") {
-    bw = Math.max(60 * hd, Math.min(116 * hd, footW - 2 * hd));
-    bh = Math.max(60 * hd, Math.min(76 * hd, footH + 12 * hd));
+    bw = Math.max(66 * hd, Math.min(124 * hd, footW - 2 * hd));
+    bh = Math.max(62 * hd, Math.min(78 * hd, footH + 14 * hd));
+  } else if (effectiveKind === "fire_station") {
+    bw = Math.max(58 * hd, Math.min(96 * hd, footW - 2 * hd));
+    bh = Math.max(56 * hd, Math.min(68 * hd, footH + 12 * hd));
   } else if (
     effectiveKind === "commercial" ||
     effectiveKind === "bakery_cafe" ||
     effectiveKind === "corner_market" ||
-    effectiveKind === "office_plaza" ||
-    effectiveKind === "fire_station"
+    effectiveKind === "office_plaza"
   ) {
-    bw = Math.max(48 * hd, Math.min(88 * hd, footW - 2 * hd));
-    bh = Math.max(48 * hd, Math.min(62 * hd, footH + 10 * hd));
+    bw = Math.max(52 * hd, Math.min(92 * hd, footW - 2 * hd));
+    bh = Math.max(52 * hd, Math.min(66 * hd, footH + 12 * hd));
+  } else if (effectiveKind === "apartments") {
+    bw = Math.max(54 * hd, Math.min(96 * hd, footW - 2 * hd));
+    bh = Math.max(60 * hd, Math.min(78 * hd, footH + 16 * hd));
   } else {
     bw = Math.max(20 * hd, footW - 2 * hd);
     bh = Math.max(24 * hd, footH + 6 * hd);
   }
 
+  const isTallLandmark =
+    effectiveKind === "school" ||
+    effectiveKind === "library" ||
+    effectiveKind === "civic" ||
+    effectiveKind === "fire_station";
+  const hasBladeOrFlag =
+    isTallLandmark ||
+    effectiveKind === "commercial" ||
+    effectiveKind === "bakery_cafe" ||
+    effectiveKind === "corner_market" ||
+    effectiveKind === "office_plaza";
   const insetBottom = 1 * hd;
-  const padSide = Math.max(4 * hd, Math.ceil(Math.max(0, bw - footW) / 2) + 4 * hd);
-  const padTop = Math.max(16 * hd, bh - footH + 14 * hd);
+  const extraTop = isTallLandmark ? 28 * hd : effectiveKind === "office_plaza" || effectiveKind === "apartments" ? 18 * hd : 14 * hd;
+  const padSide = Math.max(hasBladeOrFlag ? 12 * hd : 4 * hd, Math.ceil(Math.max(0, bw - footW) / 2) + (hasBladeOrFlag ? 10 * hd : 4 * hd));
+  const padTop = Math.max(extraTop, bh - footH + extraTop);
   const padBottom = 6 * hd;
   const canvasW = footW + padSide * 2;
   const canvasH = footH + padTop + padBottom;
@@ -1147,7 +1472,7 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
   const by = bottomY - bh;
   const midX = bx + Math.floor(bw / 2);
 
-  // Soft warm golden-hour dusk drop shadow grounded under the house (SE side)
+  // Soft warm golden-hour dusk drop shadow grounded under the building (SE side)
   px(ctx, bx + 3 * hd, by + Math.floor(bh * 0.25), bw + 2 * hd, Math.floor(bh * 0.78), "rgba(42, 20, 18, 0.34)");
 
   // =========================================================================
@@ -1188,197 +1513,300 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
   }
 
   // =========================================================================
-  // 1B. GLASS GREENHOUSE / GARDEN CONSERVATORY (Arched glass roof + lush interior plants!)
+  // 1B. GLASS GREENHOUSE / GARDEN CONSERVATORY (Crisp 2x HD Crystalline Arched Glass!)
   // =========================================================================
   if (effectiveKind === "greenhouse") {
-    const roofH = Math.max(10, Math.floor(bh * 0.5));
-    const wallH = Math.max(9, bh - roofH);
+    const roofH = Math.max(14 * hd, Math.floor(bh * 0.48));
+    const wallH = Math.max(14 * hd, bh - roofH);
     const wallY = by + roofH;
+    const kneeH = 5 * hd;
 
-    // Stone knee wall + bright glass upper walls
+    // Translucent icy-cyan glass walls over low stone knee wall
     px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
-    px(ctx, bx, wallY, bw, wallH, "#bfe8f5");
-    px(ctx, bx, wallY + wallH - 4, bw, 4, "#9c9689");
-    px(ctx, bx, wallY + wallH - 5, bw, 1, "#f7f8fa");
-    // Lush potted greenery & colorful blossoms visible through the glass!
-    for (let gx = bx + 3; gx < bx + bw - 5; gx += 6) {
-      px(ctx, gx, wallY + wallH - 9, 4, 4, "#3b8c3b");
-      px(ctx, gx + 1, wallY + wallH - 10, 2, 2, "#73cf57");
-      if ((gx % 12) < 6) px(ctx, gx + 1, wallY + wallH - 9, 1, 1, "#f56c82");
-      else px(ctx, gx + 2, wallY + wallH - 9, 1, 1, "#ffe066");
+    px(ctx, bx, wallY, bw, wallH, "#9de3f5");
+    px(ctx, bx, wallY, bw, Math.floor(wallH * 0.45), "#c9f2fc");
+    px(ctx, bx, wallY + wallH - kneeH, bw, kneeH, "#9c9488");
+    px(ctx, bx, wallY + wallH - kneeH - hd, bw, hd, "#f7fafc");
+    // Lush potted greenery & colorful garden blossoms visible inside the glass!
+    for (let gx = bx + 3 * hd; gx < bx + bw - 6 * hd; gx += 7 * hd) {
+      px(ctx, gx, wallY + wallH - kneeH - 5 * hd, 5 * hd, 4 * hd, "#2d6e32");
+      px(ctx, gx + hd, wallY + wallH - kneeH - 6 * hd, 3 * hd, 3 * hd, "#60bf4b");
+      px(ctx, gx + hd, wallY + wallH - kneeH - 5 * hd, 2 * hd, hd, (gx / hd) % 14 < 7 ? "#ff6b8a" : "#ffe066");
     }
-    // Arched glass conservatory roof with crisp white iron ribs
-    const insetMax = Math.min(Math.floor(bw * 0.24), 8);
+    // Arched glass conservatory dome roof with sunlit specular stripes
+    const insetMax = Math.min(Math.floor(bw * 0.26), 10 * hd);
     for (let row = 0; row < roofH; row++) {
       const t = row / Math.max(1, roofH - 1);
       const curve = Math.round((1 - Math.sqrt(t)) * insetMax);
-      const rx = bx - 1 + curve;
-      const rw = bw + 2 - curve * 2;
+      const rx = bx - hd + curve;
+      const rw = bw + 2 * hd - curve * 2;
       const ry = by + row;
       px(ctx, rx - 1, ry, 1, 1, O);
       px(ctx, rx + rw, ry, 1, 1, O);
       if (row === 0) px(ctx, rx, ry - 1, rw, 1, O);
-      px(ctx, rx, ry, rw, 1, row < roofH * 0.45 ? "#ddf5fc" : "#a8dcf0");
-      if (row % 4 === 0) px(ctx, rx + 1, ry, rw - 2, 1, "#ffffff");
+      px(ctx, rx, ry, rw, 1, row < roofH * 0.42 ? "#d9f7ff" : "#8dd9f0");
+      if (row % (4 * hd) === 0) px(ctx, rx + 1, ry, rw - 2, 1, "#ffffff");
     }
-    // Vertical white iron glass mullions
-    for (let mx = bx + 5; mx < bx + bw - 3; mx += 6) {
-      px(ctx, mx, by + 2, 1, roofH + wallH - 6, "#f7fafc");
+    // Raised glass ridge vent finial along conservatory peak
+    const ventW = Math.max(10 * hd, bw - insetMax * 2 - 4 * hd);
+    px(ctx, midX - Math.floor(ventW / 2) - 1, by - 3 * hd, ventW + 2, 3 * hd, O);
+    px(ctx, midX - Math.floor(ventW / 2), by - 2 * hd, ventW, 2 * hd, "#e8faff");
+    // Crisp white iron structural ribs across roof & walls
+    for (let mx = bx + 6 * hd; mx < bx + bw - 4 * hd; mx += 7 * hd) {
+      px(ctx, mx, by + 2 * hd, hd, roofH + wallH - kneeH - 2 * hd, "#f7fafc");
     }
-    // White conservatory ridge finial & wooden garden door
-    px(ctx, bx - 1, wallY - 1, bw + 2, 2, "#ffffff");
-    const doorW = 6;
-    const doorH = Math.min(wallH - 1, 10);
-    px(ctx, midX - 3, wallY + wallH - doorH, doorW, doorH + 1, O);
-    px(ctx, midX - 2, wallY + wallH - doorH + 1, doorW - 2, doorH - 1, "#f5f7fa");
-    px(ctx, midX - 1, wallY + wallH - doorH + 2, doorW - 4, Math.max(2, doorH - 4), "#8cd0eb");
+    px(ctx, bx - hd, wallY - hd, bw + 2 * hd, 2 * hd, "#ffffff");
+    px(ctx, bx - hd, wallY + hd, bw + 2 * hd, 1, "#5c9eb5");
+    // Conservatory white double glass door
+    const doorW = 8 * hd;
+    const doorH = Math.min(wallH - 2 * hd, 12 * hd);
+    px(ctx, midX - Math.floor(doorW / 2) - 1, wallY + wallH - doorH - 1, doorW + 2, doorH + 2, O);
+    px(ctx, midX - Math.floor(doorW / 2), wallY + wallH - doorH, doorW, doorH, "#f7fafc");
+    px(ctx, midX - Math.floor(doorW / 2) + hd, wallY + wallH - doorH + hd, doorW - 2 * hd, Math.max(3, doorH - 3 * hd), "#79c7e6");
+    px(ctx, midX, wallY + wallH - doorH, 1, doorH, O);
     return { canvas, offsetX: -padSide, offsetY: -padTop };
   }
 
   // =========================================================================
-  // 1C. FIRE STATION / NEW ENGLAND FIREHOUSE (32-bit HD Red Brick, Bell Tower & Engine Bays!)
+  // 1C. FIRE STATION / NEW ENGLAND FIREHOUSE (Flat Parapet, Hose Tower, Siren & Fire Trucks!)
   // =========================================================================
   if (effectiveKind === "fire_station") {
-    const roofH = Math.min(16 * hd, Math.max(9 * hd, Math.floor(bh * 0.28)));
-    const wallH = Math.max(20 * hd, bh - roofH);
+    const roofH = Math.min(14 * hd, Math.max(8 * hd, Math.floor(bh * 0.24)));
+    const wallH = Math.max(24 * hd, bh - roofH);
     const wallY = by + roofH;
 
+    // Flat red-brick firehouse parapet & gravel roof
     px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
-    px(ctx, bx, by, bw, roofH, "#5e504d");
-    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(4, roofH - 4 * hd), "#473b3a");
-    px(ctx, bx - 1, wallY - 3 * hd, bw + 2, 4 * hd, O);
-    px(ctx, bx, wallY - 2 * hd, bw, 2 * hd, "#e6d8ca");
-    px(ctx, bx, wallY, bw, hd, "#b8a496");
+    px(ctx, bx, by, bw, roofH, "#594846");
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(4, roofH - 4 * hd), "#403332");
+    // Bold crimson & limestone cornice trim
+    px(ctx, bx - 2 * hd, wallY - 4 * hd, bw + 4 * hd, 5 * hd, O);
+    px(ctx, bx - hd, wallY - 3 * hd, bw + 2 * hd, 2 * hd, "#f0e4d6");
+    px(ctx, bx - hd, wallY - hd, bw + 2 * hd, 2 * hd, "#c92b24");
 
     const brickStyle = { ...HOUSE_COLOR_PRESETS.brick };
     px(ctx, bx, wallY + hd, bw, wallH - hd, brickStyle.wallMain);
     drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, brickStyle, hd);
-    px(ctx, bx, wallY + hd, 2 * hd, wallH - hd, "#e6d8ca");
-    px(ctx, bx + bw - 2 * hd, wallY + hd, 2 * hd, wallH - hd, "#b8a496");
-
-    if (bw >= 30 * hd) {
-      const tw = 12 * hd;
-      const th = 14 * hd;
-      const tx = bx + 2 * hd;
-      const ty = by - 7 * hd;
-      px(ctx, tx - 1, ty - 1, tw + 2, th + 2, O);
-      px(ctx, tx, ty, tw, th, "#9e3a2e");
-      px(ctx, tx - 1, ty, tw + 2, 2 * hd, "#e6d8ca");
-      px(ctx, tx + 4 * hd, ty - 3 * hd, 4 * hd, 3 * hd, O);
-      px(ctx, tx + 5 * hd, ty - 2 * hd, 2 * hd, 2 * hd, "#ff4d42");
-      px(ctx, tx + 3 * hd, ty + 4 * hd, 6 * hd, 6 * hd, O);
-      px(ctx, tx + 4 * hd, ty + 5 * hd, 4 * hd, 4 * hd, "#2c2224");
-      px(ctx, tx + 5 * hd, ty + 6 * hd, 2 * hd, 2 * hd, "#ffe066");
+    // Alternating limestone corner quoins
+    for (let qy = wallY + 2 * hd; qy < wallY + wallH - 3 * hd; qy += 5 * hd) {
+      const qw = ((qy / hd) % 10 < 5) ? 3 * hd : 2 * hd;
+      px(ctx, bx, qy, qw, 3 * hd, "#f0e4d6");
+      px(ctx, bx + bw - qw, qy, qw, 3 * hd, "#cfc0b2");
     }
 
-    const bays = bw >= 44 * hd ? 2 : 1;
-    const bayW = bays === 2 ? Math.min(20 * hd, Math.floor((bw - 12 * hd) / 2)) : Math.min(22 * hd, bw - 10 * hd);
-    const bayH = Math.min(wallH - 8 * hd, 14 * hd);
+    // Tall brick hose & bell tower on the left rising high above parapet with flashing crimson beacon!
+    if (bw >= 34 * hd) {
+      const tw = 14 * hd;
+      const th = 22 * hd;
+      const tx = bx + 2 * hd;
+      const ty = by - 14 * hd;
+      px(ctx, tx - 1, ty - 1, tw + 2, th + 2, O);
+      px(ctx, tx, ty, tw, th, "#a83329");
+      px(ctx, tx + tw - 3 * hd, ty, 3 * hd, th, "#751f19");
+      px(ctx, tx - hd, ty, tw + 2 * hd, 2 * hd, "#f0e4d6");
+      // Flashing crimson rooftop siren beacon
+      px(ctx, tx + 4 * hd, ty - 5 * hd, 6 * hd, 5 * hd, O);
+      px(ctx, tx + 5 * hd, ty - 4 * hd, 4 * hd, 4 * hd, "#ff3b30");
+      px(ctx, tx + 6 * hd, ty - 3 * hd, 2 * hd, 2 * hd, "#ffe896");
+      // White Maltese/Fire shield emblem + glowing belfry window
+      px(ctx, tx + 3 * hd, ty + 4 * hd, 8 * hd, 7 * hd, O);
+      px(ctx, tx + 4 * hd, ty + 5 * hd, 6 * hd, 5 * hd, "#2a1f22");
+      px(ctx, tx + 5 * hd, ty + 6 * hd, 4 * hd, 3 * hd, "#ffe066");
+      px(ctx, tx + 6 * hd, ty + 13 * hd, 2 * hd, 5 * hd, "#ffffff");
+      px(ctx, tx + 4 * hd, ty + 14 * hd, 6 * hd, 2 * hd, "#ffffff");
+    }
+
+    // Bold crimson & gold "FIRE" marquee signboard right above engine bays!
+    const signCenterX = bw >= 34 * hd ? bx + 16 * hd + Math.floor((bw - 18 * hd) / 2) : midX;
+    const signMaxW = bw >= 34 * hd ? bw - 22 * hd : bw - 8 * hd;
+    drawSignMarquee(ctx, signText || "FIRE", signCenterX, wallY + 2 * hd, signMaxW, {
+      bg: "#b81d18",
+      trim: "#f4d35e",
+      fg: "#ffffff",
+      hd,
+      O,
+    });
+
+    // Wide arched Fire Engine Bays with visible shiny red fire trucks & glowing side beacons!
+    const bays = bw >= 48 * hd ? 2 : 1;
+    const bayW = bays === 2 ? Math.min(22 * hd, Math.floor((bw - 14 * hd) / 2)) : Math.min(26 * hd, bw - 12 * hd);
+    const bayH = Math.min(wallH - 12 * hd, 17 * hd);
     const bayY = wallY + wallH - bayH;
     for (let i = 0; i < bays; i++) {
       const dx = bays === 2
-        ? bx + Math.floor((bw - bayW * 2 - 4 * hd) / 2) + i * (bayW + 4 * hd)
+        ? bx + Math.floor((bw - bayW * 2 - 6 * hd) / 2) + i * (bayW + 6 * hd)
         : midX - Math.floor(bayW / 2);
-      px(ctx, dx - 1, bayY - 2 * hd, bayW + 2, bayH + 3 * hd, O);
-      px(ctx, dx, bayY - hd, bayW, bayH + hd, "#e6d8ca");
-      px(ctx, dx + hd, bayY + hd, bayW - 2 * hd, bayH - hd, "#291e20");
-      px(ctx, dx + 2 * hd, bayY + 2 * hd, bayW - 4 * hd, Math.max(4 * hd, bayH - 3 * hd), "#d9362e");
-      px(ctx, dx + 3 * hd, bayY + 3 * hd, bayW - 6 * hd, 3 * hd, "#ffe680");
-      px(ctx, dx + 2 * hd, bayY + bayH - 3 * hd, bayW - 4 * hd, 2 * hd, "#e6dcd5");
-      px(ctx, dx - 1, wallY + wallH + 1, bayW + 2, 2 * hd, "#cfc0b2");
+      // Stone arch surround
+      px(ctx, dx - 2, bayY - 2 * hd, bayW + 4, bayH + 3 * hd, O);
+      px(ctx, dx - 1, bayY - hd, bayW + 2, bayH + hd, "#f0e4d6");
+      // Dark open garage interior
+      px(ctx, dx + hd, bayY + hd, bayW - 2 * hd, bayH - hd, "#24191c");
+      // Red Fire Engine cab parked inside (windshield, red nose, chrome grille & glowing headlights!)
+      const tx0 = dx + 2 * hd;
+      const tw0 = bayW - 4 * hd;
+      const th0 = Math.max(8 * hd, bayH - 3 * hd);
+      const ty0 = bayY + bayH - th0;
+      px(ctx, tx0, ty0, tw0, th0, "#e02820");
+      px(ctx, tx0 + hd, ty0 + hd, tw0 - 2 * hd, Math.max(3 * hd, Math.floor(th0 * 0.36)), "#9ad9f5");
+      // Top fire truck siren bar
+      px(ctx, tx0 + Math.floor(tw0 * 0.25), ty0 - hd, Math.max(4, Math.floor(tw0 * 0.5)), hd, "#ff4d42");
+      // Chrome radiator grille + glowing headlights + silver bumper
+      px(ctx, tx0 + Math.floor(tw0 * 0.28), ty0 + Math.floor(th0 * 0.55), Math.max(4, Math.floor(tw0 * 0.44)), 3 * hd, "#e6ecf2");
+      px(ctx, tx0 + hd, ty0 + Math.floor(th0 * 0.58), 2 * hd, 2 * hd, "#fff39c");
+      px(ctx, tx0 + tw0 - 3 * hd, ty0 + Math.floor(th0 * 0.58), 2 * hd, 2 * hd, "#fff39c");
+      px(ctx, tx0, wallY + wallH - 2 * hd, tw0, 2 * hd, "#cfd6de");
+      // Concrete firehouse apron slab
+      px(ctx, dx - hd, wallY + wallH + 1, bayW + 2 * hd, 3 * hd, "#d4c8be");
+      // Glowing red wall emergency dome lamps beside bay
+      px(ctx, dx - 3 * hd, bayY + 2 * hd, 2 * hd, 3 * hd, O);
+      px(ctx, dx - 3 * hd + 1, bayY + 2 * hd + 1, Math.max(1, 2 * hd - 2), 2 * hd, "#ff453a");
+      px(ctx, dx + bayW + hd, bayY + 2 * hd, 2 * hd, 3 * hd, O);
+      px(ctx, dx + bayW + hd + 1, bayY + 2 * hd + 1, Math.max(1, 2 * hd - 2), 2 * hd, "#ff453a");
     }
-    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    drawAddressPlaque(ctx, building, signCenterX, by + 2 * hd, bw, O);
     return { canvas, offsetX: -padSide, offsetY: -padTop };
   }
 
   // =========================================================================
-  // 1D. COZY BAKERY / CAFÉ / ICE CREAM SHOPPE (32-bit HD Scalloped Awning + Glowing Windows!)
+  // 1D. VILLAGE BAKERY / CAFÉ / ICE CREAM SHOPPE (Flat Main-Street Parapet + Scalloped Awning + Blade Sign!)
+  //     (No residential pitched roof — 100% unmistakable downtown storefront!)
   // =========================================================================
   if (effectiveKind === "bakery_cafe") {
-    const roofH = Math.min(18 * hd, Math.max(10 * hd, Math.floor(bh * 0.34)));
-    const wallH = Math.max(18 * hd, bh - roofH);
+    const roofH = Math.min(13 * hd, Math.max(7 * hd, Math.floor(bh * 0.22)));
+    const wallH = Math.max(22 * hd, bh - roofH);
     const wallY = by + roofH;
 
-    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
-    px(ctx, bx, wallY, bw, wallH, style.wallMain);
-    drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd);
-    px(ctx, bx, wallY, 2 * hd, wallH, style.trim);
-    px(ctx, bx + bw - 2 * hd, wallY, 2 * hd, wallH, style.trimShade);
-    drawShingledRoof(ctx, bx, by, bw, roofH, wallY, style, 0.14, O, { hd, seed: bSeed });
+    // Flat commercial village parapet with decorative terracotta/cream cornice & rooftop cafe sign
+    px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
+    px(ctx, bx, by, bw, roofH, "#69554d");
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(3, roofH - 4 * hd), "#4f3f3a");
+    // Decorative scalloped cornice bar
+    px(ctx, bx - 2 * hd, wallY - 3 * hd, bw + 4 * hd, 4 * hd, O);
+    px(ctx, bx - hd, wallY - 2 * hd, bw + 2 * hd, 2 * hd, "#fff3db");
+    px(ctx, bx - hd, wallY, bw + 2 * hd, hd, "#c98b5b");
+
+    // Warm cream/brick cafe facade
+    px(ctx, bx, wallY + hd, bw, wallH - hd, style.wallMain);
+    drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, style, hd);
+    px(ctx, bx, wallY + hd, 2 * hd, wallH - hd, "#fff3db");
+    px(ctx, bx + bw - 2 * hd, wallY + hd, 2 * hd, wallH - hd, "#d4c3ab");
 
     const cafeAwnings = [
-      ["#d4474e", "#fff4df"],
-      ["#2f7d57", "#fff4df"],
-      ["#d97a2b", "#fff4df"],
+      { a: "#d93d4a", b: "#fff7e6", signBg: "#9e2431" },
+      { a: "#2a7d56", b: "#fff7e6", signBg: "#1b593c" },
+      { a: "#de7324", b: "#fff7e6", signBg: "#9e4914" },
     ];
-    const [sA, sB] = cafeAwnings[bSeed % cafeAwnings.length];
-    const awY = wallY + 2 * hd;
-    const awH = Math.min(7 * hd, Math.max(5 * hd, Math.floor(wallH * 0.28)));
-    px(ctx, bx + hd, awY - 1, bw - 2 * hd, awH + 2, O);
+    const pal = cafeAwnings[bSeed % cafeAwnings.length];
+
+    // Bold Café/Bakery/Ice Cream Signboard right above the striped awning!
+    const signH = drawSignMarquee(ctx, signText || "CAFE", midX, wallY + 2 * hd, bw - 6 * hd, {
+      bg: pal.signBg,
+      trim: "#ffe382",
+      fg: "#fffdf5",
+      hd,
+      O,
+    });
+
+    // Vibrant Scalloped Striped Canvas Awning
+    const awY = wallY + 2 * hd + signH + hd;
+    const awH = Math.min(7 * hd, Math.max(5 * hd, Math.floor(wallH * 0.22)));
+    px(ctx, bx, awY - 1, bw, awH + 2, O);
     const sW = 3 * hd;
-    for (let sx = bx + 2 * hd; sx < bx + bw - 2 * hd; sx += sW) {
-      const col = Math.floor((sx - bx) / sW) % 2 === 0 ? sA : sB;
-      const segW = Math.min(sW, bx + bw - 2 * hd - sx);
+    for (let sx = bx + hd; sx < bx + bw - hd; sx += sW) {
+      const col = Math.floor((sx - bx) / sW) % 2 === 0 ? pal.a : pal.b;
+      const segW = Math.min(sW, bx + bw - hd - sx);
       px(ctx, sx, awY, segW, awH, col);
       px(ctx, sx, awY + awH, Math.max(1, segW - 1), hd, col);
+      px(ctx, sx, awY + awH + hd, Math.max(1, segW - 1), 1, O);
     }
 
+    // Full-width glowing glass pastry/ice-cream display bays + recessed shop door
     const lowerY = awY + awH + 2 * hd;
-    const lowerH = Math.max(7 * hd, wallY + wallH - lowerY - hd);
-    const doorW = Math.min(10 * hd, Math.max(7 * hd, Math.floor(bw * 0.22)));
+    const lowerH = Math.max(9 * hd, wallY + wallH - lowerY - hd);
+    const doorW = Math.min(10 * hd, Math.max(7 * hd, Math.floor(bw * 0.2)));
     const doorX = midX - Math.floor(doorW / 2);
     px(ctx, doorX, lowerY, doorW, lowerH + hd, O);
-    px(ctx, doorX + 1, lowerY + 1, doorW - 2, lowerH - 1, "#6b3c22");
+    px(ctx, doorX + 1, lowerY + 1, doorW - 2, lowerH - 1, "#5c301a");
     px(ctx, doorX + 2 * hd, lowerY + 2 * hd, Math.max(2, doorW - 4 * hd), Math.max(3, lowerH - 4 * hd), "#ffe680");
 
     const drawCafeBay = (x0, w0) => {
       if (w0 < 6 * hd) return;
       px(ctx, x0, lowerY, w0, lowerH, O);
       px(ctx, x0 + 1, lowerY + 1, w0 - 2, lowerH - 2, "#eb8e24");
-      px(ctx, x0 + 2, lowerY + 2, Math.max(2, w0 - 4), Math.max(2, lowerH - 4), "#ffe470");
-      px(ctx, x0 + 3, lowerY + 2, Math.max(2, w0 - 6), Math.max(2, Math.floor(lowerH * 0.4)), "#fff8c7");
-      px(ctx, x0 + 2, lowerY + lowerH - 3 * hd, Math.max(2, w0 - 4), 2 * hd, "#b56c32");
+      px(ctx, x0 + 2, lowerY + 2, Math.max(2, w0 - 4), Math.max(2, lowerH - 4), "#ffe678");
+      px(ctx, x0 + 3, lowerY + 2, Math.max(2, w0 - 6), Math.max(2, Math.floor(lowerH * 0.35)), "#fffad4");
+      // Pastry/scoop display counter shelf with colorful treats inside window!
+      px(ctx, x0 + 2, lowerY + lowerH - 4 * hd, Math.max(2, w0 - 4), 3 * hd, "#9e5c2b");
+      for (let tx = x0 + 3 * hd; tx < x0 + w0 - 3 * hd; tx += 4 * hd) {
+        px(ctx, tx, lowerY + lowerH - 5 * hd, 2 * hd, 2 * hd, (tx / hd) % 8 < 4 ? "#ff7a90" : "#fff2cc");
+      }
     };
     drawCafeBay(bx + 3 * hd, doorX - (bx + 4 * hd));
     drawCafeBay(doorX + doorW + hd, bx + bw - 3 * hd - (doorX + doorW + hd));
 
+    // Sidewalk chalkboard A-frame menu board & hanging projecting blade sign!
+    px(ctx, bx + bw - 8 * hd, wallY + wallH - 3 * hd, 5 * hd, 6 * hd, O);
+    px(ctx, bx + bw - 8 * hd + 1, wallY + wallH - 3 * hd + 1, 5 * hd - 2, 6 * hd - 2, "#2b3036");
+    px(ctx, bx + bw - 7 * hd, wallY + wallH - 2 * hd, 3 * hd, hd, "#ffe680");
+    px(ctx, bx + bw - 7 * hd, wallY + wallH, 2 * hd, hd, "#ffffff");
+    drawBladeSign(ctx, bx + bw, wallY + 4 * hd, { bg: pal.signBg, trim: "#ffe382", accent: "#fff7e6", hd, O });
+
+    // Checkered cafe entry tile threshold
+    px(ctx, bx + hd, wallY + wallH, bw - 2 * hd, 2 * hd, "#dfd2c4");
+    for (let cx = doorX - hd; cx < doorX + doorW + hd; cx += 2 * hd) {
+      px(ctx, cx, wallY + wallH, hd, hd, "#362520");
+    }
     drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
     return { canvas, offsetX: -padSide, offsetY: -padTop };
   }
 
   // =========================================================================
-  // 1E. VILLAGE CORNER MARKET / BOOKSHOP (32-bit HD Stepped Parapet + Warm Glowing Bays!)
+  // 1E. VILLAGE CORNER MARKET / BOOKSHOP / TAQUERIA (Stepped Parapet + Blade Sign + Sidewalk Bins!)
   // =========================================================================
   if (effectiveKind === "corner_market") {
-    const roofH = Math.min(16 * hd, Math.max(8 * hd, Math.floor(bh * 0.26)));
-    const wallH = Math.max(18 * hd, bh - roofH);
+    const roofH = Math.min(13 * hd, Math.max(7 * hd, Math.floor(bh * 0.22)));
+    const wallH = Math.max(22 * hd, bh - roofH);
     const wallY = by + roofH;
 
     px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
     px(ctx, bx, by, bw, roofH, "#594c48");
-    const crestW = Math.min(bw - 8 * hd, 28 * hd);
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(3, roofH - 4 * hd), "#453a38");
+    // Stepped downtown village crest parapet
+    const crestW = Math.min(bw - 6 * hd, 38 * hd);
     const crestX = midX - Math.floor(crestW / 2);
-    px(ctx, crestX - 1, wallY - 7 * hd, crestW + 2, 7 * hd, O);
-    px(ctx, crestX, wallY - 6 * hd, crestW, 5 * hd, style.wallMain);
-    px(ctx, crestX, wallY - 6 * hd, crestW, 2 * hd, style.trim);
-    px(ctx, crestX + 3 * hd, wallY - 3 * hd, Math.max(4, crestW - 6 * hd), 2 * hd, "#ffe066");
+    px(ctx, crestX - 1, wallY - 8 * hd, crestW + 2, 8 * hd, O);
+    px(ctx, crestX, wallY - 7 * hd, crestW, 6 * hd, style.wallMain);
+    px(ctx, crestX, wallY - 7 * hd, crestW, 2 * hd, "#f0e6d5");
 
-    px(ctx, bx - 1, wallY - 2 * hd, bw + 2, 3 * hd, O);
-    px(ctx, bx, wallY - hd, bw, 2 * hd, style.trim);
+    px(ctx, bx - 2 * hd, wallY - 2 * hd, bw + 4 * hd, 3 * hd, O);
+    px(ctx, bx - hd, wallY - hd, bw + 2 * hd, 2 * hd, "#f0e6d5");
     px(ctx, bx, wallY + hd, bw, wallH - hd, style.wallMain);
     drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, style, hd);
 
-    const hasUpper = wallH >= 22 * hd;
-    const groundY = hasUpper ? wallY + Math.floor(wallH * 0.46) : wallY + 4 * hd;
-    if (hasUpper) {
-      for (let wx = bx + 5 * hd; wx + 6 * hd <= bx + bw - 5 * hd; wx += 11 * hd) {
-        drawColonialWindow(ctx, wx, wallY + 3 * hd, style, { shutters: false, winW: 6 * hd, winH: 7 * hd }, O);
-      }
-      px(ctx, bx + hd, groundY - 2 * hd, bw - 2 * hd, 2 * hd, style.trim);
+    // Bold Emerald & Gold Market/Books/Tacos Signboard
+    const signH = drawSignMarquee(ctx, signText || "MARKET", midX, wallY + 2 * hd, bw - 6 * hd, {
+      bg: "#1f5e3f",
+      trim: "#f4d35e",
+      fg: "#fff9e0",
+      hd,
+      O,
+    });
+
+    // Crisp green-and-cream striped market awning
+    const awY = wallY + 2 * hd + signH + hd;
+    const awH = 5 * hd;
+    px(ctx, bx + hd, awY - 1, bw - 2 * hd, awH + 2, O);
+    const sW = 4 * hd;
+    for (let sx = bx + 2 * hd; sx < bx + bw - 2 * hd; sx += sW) {
+      const col = Math.floor((sx - bx) / sW) % 2 === 0 ? "#24704a" : "#fff3d6";
+      const segW = Math.min(sW, bx + bw - 2 * hd - sx);
+      px(ctx, sx, awY, segW, awH, col);
+      px(ctx, sx, awY + awH - hd, segW, hd, shadeHex(col, -24));
     }
 
-    const groundH = Math.max(8 * hd, wallY + wallH - groundY - hd);
-    const doorW = 7 * hd;
+    const groundY = awY + awH + hd;
+    const groundH = Math.max(9 * hd, wallY + wallH - groundY - hd);
+    const doorW = 8 * hd;
     const doorX = midX - Math.floor(doorW / 2);
     px(ctx, doorX, groundY, doorW, groundH + hd, O);
     px(ctx, doorX + 1, groundY + 1, doorW - 2, groundH - 1, style.door);
@@ -1394,52 +1822,94 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
     paintBay(bx + 3 * hd, doorX - (bx + 4 * hd));
     paintBay(doorX + doorW + hd, bx + bw - 3 * hd - (doorX + doorW + hd));
 
+    // Colorful outdoor sidewalk display crates (books / produce!) flanking the front door
+    if (bw >= 38 * hd) {
+      for (const cx of [bx + 3 * hd, bx + bw - 13 * hd]) {
+        px(ctx, cx, wallY + wallH - 3 * hd, 10 * hd, 5 * hd, O);
+        px(ctx, cx + 1, wallY + wallH - 3 * hd + 1, 10 * hd - 2, 5 * hd - 2, "#9c6238");
+        px(ctx, cx + hd, wallY + wallH - 4 * hd, 2 * hd, 2 * hd, "#e6493e");
+        px(ctx, cx + 4 * hd, wallY + wallH - 4 * hd, 2 * hd, 2 * hd, "#f4c430");
+        px(ctx, cx + 7 * hd, wallY + wallH - 4 * hd, 2 * hd, 2 * hd, "#4fb85a");
+      }
+    }
+    drawBladeSign(ctx, bx + bw, wallY + 4 * hd, { bg: "#1f5e3f", trim: "#f4d35e", accent: "#fff3d6", hd, O });
     drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
     return { canvas, offsetX: -padSide, offsetY: -padTop };
   }
 
   // =========================================================================
-  // 1F. MODERN BRICK & GLASS OFFICE / MEDICAL PLAZA (32-bit HD Ribbon Glass!)
+  // 1F. MODERN STEEL & BLUE-GLASS OFFICE / MEDICAL PLAZA / BANK
+  //     (Cool reflective sky-blue curtain-wall glass + mechanical penthouse — ZERO home look!)
   // =========================================================================
   if (effectiveKind === "office_plaza") {
-    const roofH = Math.min(16 * hd, Math.max(8 * hd, Math.floor(bh * 0.26)));
-    const wallH = Math.max(20 * hd, bh - roofH);
+    const roofH = Math.min(14 * hd, Math.max(8 * hd, Math.floor(bh * 0.22)));
+    const wallH = Math.max(24 * hd, bh - roofH);
     const wallY = by + roofH;
 
+    // Concrete architectural flat roof + rooftop mechanical penthouse & antenna mast!
     px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
-    px(ctx, bx, by, bw, roofH, "#6b5d5a");
-    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(4, roofH - 4 * hd), "#524644");
-    px(ctx, bx - 1, wallY - 2 * hd, bw + 2, 3 * hd, O);
-    px(ctx, bx, wallY - hd, bw, 2 * hd, "#e6d8ca");
-    px(ctx, bx, wallY + hd, bw, wallH - hd, style.wallMain);
-    drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, style, hd);
+    px(ctx, bx, by, bw, roofH, "#7b8591");
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(3, roofH - 4 * hd), "#5d6673");
+    // Mechanical penthouse box + steel antenna
+    const phW = Math.min(20 * hd, Math.floor(bw * 0.34));
+    const phX = bx + 5 * hd;
+    px(ctx, phX - 1, by - 6 * hd, phW + 2, 8 * hd, O);
+    px(ctx, phX, by - 5 * hd, phW, 6 * hd, "#b8c2cc");
+    px(ctx, phX + 2 * hd, by - 3 * hd, Math.max(3, phW - 4 * hd), 2 * hd, "#525b66");
+    px(ctx, phX + phW - 3 * hd, by - 13 * hd, hd, 8 * hd, "#323840");
+    px(ctx, phX + phW - 3 * hd, by - 14 * hd, hd, hd, "#ff4d42");
 
-    const floors = wallH >= 26 * hd ? 3 : 2;
-    const flH = Math.floor((wallH - 4 * hd) / floors);
+    // Sleek steel-gray & limestone architectural facade
+    px(ctx, bx - 2 * hd, wallY - 2 * hd, bw + 4 * hd, 3 * hd, O);
+    px(ctx, bx - hd, wallY - hd, bw + 2 * hd, 2 * hd, "#dce4eb");
+    px(ctx, bx, wallY + hd, bw, wallH - hd, "#adb7c2");
+    px(ctx, bx, wallY + hd, 2 * hd, wallH - hd, "#d8e0e8");
+    px(ctx, bx + bw - 2 * hd, wallY + hd, 2 * hd, wallH - hd, "#808b96");
+
+    // Multi-story Cool Reflective Sky-Blue Ribbon Curtain-Wall Glass (totally distinct from warm home windows!)
+    const floors = wallH >= 30 * hd ? 3 : 2;
+    const flH = Math.floor((wallH - 3 * hd) / floors);
     for (let f = 0; f < floors; f++) {
       const fy = wallY + 2 * hd + f * flH;
-      px(ctx, bx, fy, bw, 2 * hd, "#dfd0c2");
+      px(ctx, bx, fy, bw, 2 * hd, "#d8e0e8");
       if (f < floors - 1) {
-        const winH = Math.max(4 * hd, flH - 3 * hd);
+        const winH = Math.max(5 * hd, flH - 3 * hd);
         px(ctx, bx + 2 * hd, fy + 2 * hd, bw - 4 * hd, winH, O);
-        px(ctx, bx + 3 * hd, fy + 2 * hd + 1, bw - 6 * hd, Math.max(2, winH - 2), "#f5b842");
-        px(ctx, bx + 3 * hd, fy + 2 * hd + 1, bw - 6 * hd, Math.max(1, Math.floor(winH * 0.45)), "#fff2b3");
+        px(ctx, bx + 3 * hd, fy + 2 * hd + 1, bw - 6 * hd, Math.max(2, winH - 2), "#3a7ca5");
+        px(ctx, bx + 3 * hd, fy + 2 * hd + 1, bw - 6 * hd, Math.max(2, Math.floor(winH * 0.5)), "#6bb8de");
+        // Crisp diagonal sky-reflection glints across the modern office glass
+        for (let gx = bx + 5 * hd; gx < bx + bw - 6 * hd; gx += 12 * hd) {
+          px(ctx, gx, fy + 2 * hd + 1, 3 * hd, 2 * hd, "#c7efff");
+          px(ctx, gx + hd, fy + 4 * hd, 2 * hd, Math.max(1, winH - 3 * hd), "#9ad9f5");
+        }
+        // Dark steel aluminum vertical mullions
         for (let mx = bx + 9 * hd; mx < bx + bw - 4 * hd; mx += 8 * hd) {
-          px(ctx, mx, fy + 2 * hd, hd, winH, O);
+          px(ctx, mx, fy + 2 * hd, hd, winH, "#23303d");
         }
       }
     }
 
-    const lobH = Math.max(8 * hd, Math.min(13 * hd, flH + 2 * hd));
+    // Modern cantilevered steel canopy + OFFICE/BANK/CLINIC chrome signboard + revolving/double glass lobby!
+    const lobH = Math.max(9 * hd, Math.min(14 * hd, flH + 2 * hd));
     const lobY = wallY + wallH - lobH;
-    const lobW = Math.min(bw - 8 * hd, 20 * hd);
+    const lobW = Math.min(bw - 10 * hd, 24 * hd);
     const lobX = midX - Math.floor(lobW / 2);
-    px(ctx, lobX - 2 * hd, lobY - 2 * hd, lobW + 4 * hd, 3 * hd, O);
-    px(ctx, lobX - hd, lobY - hd, lobW + 2 * hd, hd, "#b8a69c");
-    px(ctx, lobX, lobY + hd, lobW, lobH - hd, O);
-    px(ctx, lobX + 1, lobY + hd + 1, lobW - 2, lobH - hd - 2, "#ffe066");
-    px(ctx, midX, lobY + hd, hd, lobH - hd, O);
-    if (bw >= 34 * hd) {
+    drawSignMarquee(ctx, signText || "OFFICE", midX, Math.max(wallY + 2 * hd, lobY - 9 * hd), bw - 8 * hd, {
+      bg: "#1f3c5c",
+      trim: "#d8e4f0",
+      fg: "#e8f6ff",
+      hd,
+      O,
+    });
+    px(ctx, lobX - 2 * hd, lobY - hd, lobW + 4 * hd, 3 * hd, O);
+    px(ctx, lobX - hd, lobY, lobW + 2 * hd, hd, "#cfd9e3");
+    px(ctx, lobX, lobY + 2 * hd, lobW, lobH - 2 * hd, O);
+    px(ctx, lobX + 1, lobY + 2 * hd + 1, lobW - 2, lobH - 2 * hd - 2, "#7cc6e8");
+    px(ctx, lobX + 2, lobY + 2 * hd + 1, Math.max(2, lobW - 4), Math.max(2, Math.floor(lobH * 0.35)), "#d4f3ff");
+    px(ctx, midX, lobY + 2 * hd, hd, lobH - 2 * hd, "#23303d");
+    // Concrete plaza entry apron
+    px(ctx, bx + hd, wallY + wallH, bw - 2 * hd, 3 * hd, "#c7ced6");
+    if (bw >= 38 * hd) {
       drawShrub(ctx, bx + 2 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
       drawShrub(ctx, bx + bw - 10 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
     }
@@ -1448,40 +1918,51 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
   }
 
   // =========================================================================
-  // 2. COMMERCIAL STOREFRONT (Shops, Bakeries, Ice Cream, Medical Offices)
+  // 2. COMMERCIAL STOREFRONT (Downtown Shops, Retail & Plazas)
   // =========================================================================
   if (effectiveKind === "commercial") {
-    const roofH = Math.min(18 * hd, Math.max(8 * hd, Math.floor(bh * 0.34)));
-    const wallH = Math.max(16 * hd, bh - roofH);
+    const roofH = Math.min(14 * hd, Math.max(8 * hd, Math.floor(bh * 0.24)));
+    const wallH = Math.max(20 * hd, bh - roofH);
     const wallY = by + roofH;
 
-    // Flat commercial gravel/tar roof with brick parapet wall & warm stone coping
+    // Flat commercial gravel/tar roof with parapet wall, rooftop HVAC & skylight
     px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
     px(ctx, bx, by, bw, roofH, "#6b5d5a");
-    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(4, roofH - 4 * hd), "#544847");
-    if (bw >= 30 * hd && roofH >= 9 * hd) {
-      px(ctx, bx + 5 * hd, by + 3 * hd, 9 * hd, 5 * hd, O);
-      px(ctx, bx + 5 * hd + 1, by + 3 * hd + 1, 9 * hd - 2, 5 * hd - 2, "#b5a69c");
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(4, roofH - 4 * hd), "#524645");
+    if (bw >= 34 * hd && roofH >= 8 * hd) {
+      px(ctx, bx + 5 * hd, by + 2 * hd, 9 * hd, 5 * hd, O);
+      px(ctx, bx + 5 * hd + 1, by + 2 * hd + 1, 9 * hd - 2, 5 * hd - 2, "#b5a69c");
+      px(ctx, bx + bw - 16 * hd, by + 2 * hd, 10 * hd, 5 * hd, O);
+      px(ctx, bx + bw - 16 * hd + 1, by + 2 * hd + 1, 10 * hd - 2, 5 * hd - 2, "#7dc4e0");
     }
-    px(ctx, bx - 1, wallY - 3 * hd, bw + 2, 4 * hd, O);
-    px(ctx, bx, wallY - 2 * hd, bw, 2 * hd, style.trim);
-    px(ctx, bx, wallY, bw, hd, style.trimShade);
+    px(ctx, bx - 2 * hd, wallY - 3 * hd, bw + 4 * hd, 4 * hd, O);
+    px(ctx, bx - hd, wallY - 2 * hd, bw + 2 * hd, 2 * hd, style.trim);
+    px(ctx, bx - hd, wallY, bw + 2 * hd, hd, style.trimShade);
 
     px(ctx, bx, wallY + hd, bw, wallH - hd, style.wallMain);
     drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, style, hd);
     px(ctx, bx, wallY + hd, 2 * hd, wallH - hd, style.trim);
     px(ctx, bx + bw - 2 * hd, wallY + hd, 2 * hd, wallH - hd, style.trimShade);
 
+    // Bold Storefront Signboard (SHOP / CLINIC) right above striped awning!
+    const signH = drawSignMarquee(ctx, signText || "SHOP", midX, wallY + 2 * hd, bw - 6 * hd, {
+      bg: "#213c63",
+      trim: "#f4d35e",
+      fg: "#fff9e0",
+      hd,
+      O,
+    });
+
     // Striped Canvas Storefront Awning
     const awningPalettes = [
       ["#c93e34", "#f7ebd2"],
-      ["#326e49", "#f7ebd2"],
-      ["#3b5678", "#f7ebd2"],
-      ["#c96e32", "#fff0cc"],
+      ["#2e734c", "#f7ebd2"],
+      ["#2d588f", "#f7ebd2"],
+      ["#cf6c28", "#fff0cc"],
     ];
     const [stripeA, stripeB] = awningPalettes[bSeed % awningPalettes.length];
-    const awningY = wallY + Math.max(4 * hd, Math.floor(wallH * 0.28));
-    const awningH = Math.min(7 * hd, Math.max(4 * hd, Math.floor(wallH * 0.22)));
+    const awningY = wallY + 2 * hd + signH + hd;
+    const awningH = Math.min(6 * hd, Math.max(4 * hd, Math.floor(wallH * 0.2)));
     px(ctx, bx + hd, awningY - 1, bw - 2 * hd, awningH + 2, O);
     const stripeW = 4 * hd;
     for (let sx = bx + 2 * hd; sx < bx + bw - 2 * hd; sx += stripeW) {
@@ -1491,9 +1972,9 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
       px(ctx, sx, awningY + awningH - hd, segW, hd, shadeHex(col, -25));
     }
 
-    // Wide warm glowing display windows & central glass door beneath awning
+    // Wide warm glowing showcase windows & recessed double glass door beneath awning
     const lowerY = awningY + awningH + hd;
-    const lowerH = Math.max(7 * hd, wallY + wallH - lowerY - hd);
+    const lowerH = Math.max(8 * hd, wallY + wallH - lowerY - hd);
     const doorW = Math.min(12 * hd, Math.max(7 * hd, Math.floor(bw * 0.22)));
     const doorX = midX - Math.floor(doorW / 2);
 
@@ -1502,7 +1983,7 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
       px(ctx, x0, lowerY, w0, lowerH, O);
       px(ctx, x0 + 1, lowerY + 1, w0 - 2, lowerH - 2, "#eb9028");
       px(ctx, x0 + 2, lowerY + 2, Math.max(2, w0 - 4), Math.max(2, lowerH - 4), "#ffe066");
-      px(ctx, x0 + 3, lowerY + 2, Math.max(2, w0 - 6), Math.max(2, Math.floor(lowerH * 0.45)), "#fff7c4");
+      px(ctx, x0 + 3, lowerY + 2, Math.max(2, w0 - 6), Math.max(2, Math.floor(lowerH * 0.42)), "#fff7c4");
       px(ctx, x0 + 2, lowerY + lowerH - 3 * hd, Math.max(2, w0 - 4), 2 * hd, "#9c5c2b");
     };
     drawShopWindow(bx + 3 * hd, doorX - (bx + 5 * hd));
@@ -1513,29 +1994,37 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
     px(ctx, doorX + 2 * hd, lowerY + 2 * hd, Math.max(2, doorW - 4 * hd), Math.max(2, lowerH - 4 * hd), "#ffe680");
     if (doorW >= 8 * hd) px(ctx, midX, lowerY + 1, 1, lowerH - 1, O);
 
+    drawBladeSign(ctx, bx + bw, wallY + 4 * hd, { bg: stripeA, trim: "#f4d35e", accent: stripeB, hd, O });
     px(ctx, bx + hd, wallY + wallH, bw - 2 * hd, 2 * hd, "#cfc0b2");
     drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
     return { canvas, offsetX: -padSide, offsetY: -padTop };
   }
 
   // =========================================================================
-  // 3. APARTMENTS / MULTI-FAMILY CONDO BLOCK (Multi-story HD glowing grid!)
+  // 3. APARTMENTS / MULTI-FAMILY CONDO BLOCK (Flat Parapet, Roof Bulkhead, 3-Story Grid & Balconies!)
   // =========================================================================
   if (effectiveKind === "apartments") {
-    const roofH = Math.min(18 * hd, Math.max(8 * hd, Math.floor(bh * 0.26)));
-    const wallH = Math.max(20 * hd, bh - roofH);
+    const roofH = Math.min(14 * hd, Math.max(8 * hd, Math.floor(bh * 0.2)));
+    const wallH = Math.max(26 * hd, bh - roofH);
     const wallY = by + roofH;
 
     px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
     px(ctx, bx, by, bw, roofH, "#635552");
     px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(4, roofH - 4 * hd), "#4d4140");
-    px(ctx, bx - 1, wallY - 2 * hd, bw + 2, 3 * hd, O);
-    px(ctx, bx, wallY - hd, bw, 2 * hd, style.trim);
+    // Rooftop stairwell bulkhead & twin metal vents
+    const bulkW = Math.min(14 * hd, Math.floor(bw * 0.26));
+    px(ctx, bx + bw - bulkW - 4 * hd, by - 5 * hd, bulkW, 7 * hd, O);
+    px(ctx, bx + bw - bulkW - 4 * hd + 1, by - 5 * hd + 1, bulkW - 2, 7 * hd - 2, "#8f837c");
+    px(ctx, bx + 5 * hd, by - 2 * hd, 4 * hd, 4 * hd, O);
+    px(ctx, bx + 5 * hd + 1, by - 2 * hd + 1, 4 * hd - 2, 4 * hd - 2, "#b8afa8");
+
+    px(ctx, bx - 2 * hd, wallY - 2 * hd, bw + 4 * hd, 3 * hd, O);
+    px(ctx, bx - hd, wallY - hd, bw + 2 * hd, 2 * hd, style.trim);
 
     px(ctx, bx, wallY + hd, bw, wallH - hd, style.wallMain);
     drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, style, hd);
 
-    const stories = wallH >= 28 * hd ? 3 : 2;
+    const stories = wallH >= 30 * hd ? 3 : 2;
     const storyH = Math.floor((wallH - 5 * hd) / stories);
     const doorW = Math.min(12 * hd, Math.max(7 * hd, Math.floor(bw * 0.16)));
     const doorX = midX - Math.floor(doorW / 2);
@@ -1548,16 +2037,27 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
       for (let wx = bx + 4 * hd; wx + winW <= bx + bw - 4 * hd; wx += 10 * hd) {
         if (s === stories - 1 && wx + winW >= doorX - 2 * hd && wx <= doorX + doorW + 2 * hd) continue;
         drawColonialWindow(ctx, wx, rowY, style, { shutters: false, winW, winH }, O);
+        // Wrought-iron Juliet balcony rail on upper stories
+        if (s < stories - 1) {
+          const railY = rowY + winH - 2 * hd;
+          px(ctx, wx - hd, railY, winW + 2 * hd, hd, "#242830");
+          for (let rx = wx; rx <= wx + winW; rx += 2 * hd) {
+            px(ctx, rx, railY, 1, 3 * hd, "#242830");
+          }
+          px(ctx, wx - hd, railY + 2 * hd, winW + 2 * hd, 1, "#242830");
+        }
       }
     }
 
+    // Canopied recessed apartment lobby entrance + brass buzzer panel
     const lobbyH = Math.min(14 * hd, Math.max(8 * hd, storyH + 2 * hd));
     const lobbyY = wallY + wallH - lobbyH;
     px(ctx, doorX - 2 * hd, lobbyY - 2 * hd, doorW + 4 * hd, 3 * hd, O);
-    px(ctx, doorX - hd, lobbyY - hd, doorW + 2 * hd, 2 * hd, style.roofMain);
+    px(ctx, doorX - hd, lobbyY - hd, doorW + 2 * hd, 2 * hd, "#364559");
     px(ctx, doorX, lobbyY + hd, doorW, lobbyH - hd, O);
     px(ctx, doorX + 1, lobbyY + hd + 1, doorW - 2, lobbyH - hd - 2, "#593520");
     px(ctx, doorX + 2 * hd, lobbyY + 2 * hd, Math.max(2, doorW - 4 * hd), Math.max(2, lobbyH - 4 * hd), "#ffe066");
+    px(ctx, doorX + doorW + hd, lobbyY + 4 * hd, 2 * hd, 3 * hd, "#f4d35e");
     px(ctx, doorX - hd, wallY + wallH, doorW + 2 * hd, 3 * hd, "#d6c5b4");
 
     drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
@@ -1565,200 +2065,548 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
   }
 
   // =========================================================================
-  // 4. CIVIC LANDMARKS: SAMPLE-STYLE RED BRICK LIBRARY, SCHOOL, SYNAGOGUE/CHURCH
+  // 4A. BOSTON COLLEGE COLLEGIATE GOTHIC CAMPUS HALLS (Crenelated Battlements, Soaring Spire & Maroon Banners!)
   // =========================================================================
-  if (effectiveKind === "library" || effectiveKind === "school" || effectiveKind === "civic") {
-    const wallH = Math.min(36 * hd, Math.max(18 * hd, Math.floor(bh * 0.54)));
-    const roofH = Math.max(12 * hd, bh - wallH);
+  if (category === "bc_school") {
+    const roofH = Math.min(12 * hd, Math.max(7 * hd, Math.floor(bh * 0.18)));
+    const wallH = Math.max(28 * hd, bh - roofH);
+    const wallY = by + roofH;
+    const stoneStyle = { ...HOUSE_COLOR_PRESETS.bc_gothic, ...style };
+
+    // Collegiate Gothic flat-parapet ashlar stone body with crenelated battlements!
+    px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
+    px(ctx, bx, by, bw, roofH, "#464d5c");
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(3, roofH - 4 * hd), "#343945");
+    // Crenelated gothic stone battlements across the entire roofline!
+    for (let cx = bx - hd; cx < bx + bw; cx += 6 * hd) {
+      px(ctx, cx, wallY - 5 * hd, 4 * hd, 4 * hd, O);
+      px(ctx, cx + 1, wallY - 5 * hd + 1, 4 * hd - 2, 3 * hd, "#e3dbc9");
+    }
+    px(ctx, bx - hd, wallY - 2 * hd, bw + 2 * hd, 3 * hd, O);
+    px(ctx, bx, wallY - hd, bw, 2 * hd, "#dfd6c4");
+
+    // Coursed Collegiate Gothic ashlar limestone facade
+    px(ctx, bx, wallY + hd, bw, wallH - hd, stoneStyle.wallMain || "#c2b7a1");
+    const stoneTones = ["#d6ccb7", "#b5aa94", "#c9bfa8", "#9e937f"];
+    for (let sy = wallY + 2 * hd; sy < wallY + wallH - 3 * hd; sy += 4 * hd) {
+      px(ctx, bx + 1, sy, bw - 2, 1, "#6e6558");
+      const off = ((sy / (4 * hd)) % 2) * 4 * hd;
+      for (let sx = bx + 2 * hd + off; sx < bx + bw - 3 * hd; sx += 8 * hd) {
+        const sw = Math.min(7 * hd, bx + bw - 2 * hd - sx);
+        px(ctx, sx, sy + 1, sw, 4 * hd - 1, stoneTones[(sx + sy) % stoneTones.length]);
+      }
+    }
+    // Corner gothic buttress piers
+    px(ctx, bx - hd, wallY, 4 * hd, wallH, O);
+    px(ctx, bx, wallY + hd, 3 * hd, wallH - hd, "#dfd6c4");
+    px(ctx, bx + bw - 3 * hd, wallY, 4 * hd, wallH, O);
+    px(ctx, bx + bw - 3 * hd, wallY + hd, 3 * hd, wallH - hd, "#b5aa94");
+
+    // Soaring Gasson-inspired Central Gothic Bell Tower with 4 golden pinnacles, clock & Maroon/Gold spire!
+    const towerW = Math.min(24 * hd, Math.max(16 * hd, Math.floor(bw * 0.26)));
+    const towerH = 22 * hd;
+    const towerX = midX - Math.floor(towerW / 2);
+    const towerY = by - 14 * hd;
+    // Tall corner pinnacles & soaring central spire
+    px(ctx, towerX - hd, towerY - 5 * hd, 3 * hd, 6 * hd, O);
+    px(ctx, towerX, towerY - 4 * hd, hd, 5 * hd, "#f0c850");
+    px(ctx, towerX + towerW - 2 * hd, towerY - 5 * hd, 3 * hd, 6 * hd, O);
+    px(ctx, towerX + towerW - hd, towerY - 4 * hd, hd, 5 * hd, "#f0c850");
+    px(ctx, midX - 3 * hd, towerY - 8 * hd, 6 * hd, 8 * hd, O);
+    px(ctx, midX - 2 * hd, towerY - 7 * hd, 4 * hd, 7 * hd, "#8a2434");
+    px(ctx, midX - hd, towerY - 11 * hd, 2 * hd, 4 * hd, "#f4d35e");
+    // Stone tower shaft
+    px(ctx, towerX - 1, towerY, towerW + 2, towerH, O);
+    px(ctx, towerX, towerY + 1, towerW, towerH - 2, "#ded6c5");
+    px(ctx, towerX + towerW - 3 * hd, towerY + 1, 3 * hd, towerH - 2, "#aba18d");
+    // Illuminated Gothic clockface
+    px(ctx, midX - 4 * hd, towerY + 3 * hd, 8 * hd, 8 * hd, O);
+    px(ctx, midX - 3 * hd, towerY + 4 * hd, 6 * hd, 6 * hd, "#fff5c7");
+    px(ctx, midX, towerY + 5 * hd, hd, 3 * hd, O);
+    px(ctx, midX, towerY + 7 * hd, 2 * hd, hd, O);
+    // Pointed belfry arch louver below clock
+    px(ctx, midX - 3 * hd, towerY + 13 * hd, 6 * hd, 6 * hd, O);
+    px(ctx, midX - 2 * hd, towerY + 14 * hd, 4 * hd, 5 * hd, "#3b2e33");
+
+    // Central projecting Gothic stone portal + Maroon & Gold "BC" signboard + hanging campus banners!
+    const portW = Math.min(Math.floor(bw * 0.36), 30 * hd);
+    const portX = midX - Math.floor(portW / 2);
+    px(ctx, portX - 1, wallY, portW + 2, wallH, O);
+    px(ctx, portX, wallY + hd, portW, wallH - hd, "#e6dfd0");
+    drawSignMarquee(ctx, signText || "BC", midX, wallY + 2 * hd, portW - 2 * hd, {
+      bg: "#7d1d2e",
+      trim: "#f0c850",
+      fg: "#fff8dc",
+      hd,
+      O,
+    });
+    // Hanging BC Maroon & Gold campus banners flanking portal
+    if (bw >= 44 * hd) {
+      for (const bnx of [portX - 6 * hd, portX + portW + hd]) {
+        px(ctx, bnx - 1, wallY + 3 * hd, 5 * hd + 2, 13 * hd, O);
+        px(ctx, bnx, wallY + 4 * hd, 5 * hd, 11 * hd, "#7d1d2e");
+        px(ctx, bnx + hd, wallY + 5 * hd, 3 * hd, 7 * hd, "#f0c850");
+        px(ctx, bnx + 2 * hd, wallY + 6 * hd, hd, 5 * hd, "#7d1d2e");
+      }
+    }
+    // Pointed gothic arched oak entrance doors + stone steps
+    const doorW = Math.min(portW - 6 * hd, 12 * hd);
+    const doorH = Math.min(wallH - 13 * hd, 16 * hd);
+    const doorX = midX - Math.floor(doorW / 2);
+    const doorY = wallY + wallH - doorH - hd;
+    px(ctx, doorX - 2, doorY - 2 * hd, doorW + 4, doorH + 3 * hd, O);
+    px(ctx, doorX - 1, doorY - hd, doorW + 2, doorH + hd, "#b5aa94");
+    px(ctx, doorX, doorY, doorW, doorH, "#5c1420");
+    px(ctx, midX, doorY, 1, doorH, O);
+    px(ctx, portX - hd, wallY + wallH, portW + 2 * hd, 4 * hd, "#ded6c5");
+
+    // Tall Pointed Gothic Lancet Windows along left & right campus wings
+    const winW = hd >= 2 ? 10 : 5;
+    const winH = Math.min(wallH - 9 * hd, hd >= 2 ? 20 : 10);
+    if (winH >= 8) {
+      const winY = wallY + Math.max(4 * hd, Math.floor((wallH - winH) / 2));
+      const stepW = winW + 5 * hd;
+      const leftStop = bw >= 44 * hd ? portX - 8 * hd : portX - 3 * hd;
+      const rightStart = bw >= 44 * hd ? portX + portW + 8 * hd : portX + portW + 3 * hd;
+      for (let wx = bx + 5 * hd; wx + winW <= leftStop; wx += stepW) {
+        drawGothicLancetWindow(ctx, wx, winY, winW, winH, O);
+      }
+      for (let wx = rightStart; wx + winW <= bx + bw - 5 * hd; wx += stepW) {
+        drawGothicLancetWindow(ctx, wx, winY, winW, winH, O);
+      }
+    }
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 4B. PUBLIC SCHOOL / ELEMENTARY SCHOOL (Flat Limestone-Coped Institutional Brick,
+  //     Central Clock & Brass Bell Tower, "SCHOOL" Marquee, Classroom Window Banks & Flagpole!)
+  // =========================================================================
+  if (category === "school") {
+    const roofH = Math.min(12 * hd, Math.max(7 * hd, Math.floor(bh * 0.18)));
+    const wallH = Math.max(28 * hd, bh - roofH);
+    const wallY = by + roofH;
+    const brickStyle = { ...HOUSE_COLOR_PRESETS.brick };
+
+    // Flat institutional school parapet roof (NEVER a house-like pitched shingle roof!)
+    px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
+    px(ctx, bx, by, bw, roofH, "#596370");
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(3, roofH - 4 * hd), "#414954");
+    // Bold Limestone & School-Zone Cobalt Blue institutional parapet cornice
+    px(ctx, bx - 2 * hd, wallY - 4 * hd, bw + 4 * hd, 5 * hd, O);
+    px(ctx, bx - hd, wallY - 3 * hd, bw + 2 * hd, 2 * hd, "#f2eadc");
+    px(ctx, bx - hd, wallY - hd, bw + 2 * hd, 2 * hd, "#244c8a");
+
+    // Red-brick institutional facade with limestone pilasters & horizontal belt-course
+    px(ctx, bx, wallY + hd, bw, wallH - hd, brickStyle.wallMain);
+    drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, brickStyle, hd);
+    px(ctx, bx, wallY + hd, 3 * hd, wallH - hd, "#f2eadc");
+    px(ctx, bx + bw - 3 * hd, wallY + hd, 3 * hd, wallH - hd, "#cfc4b4");
+    // Mid-wall limestone floor divider separating 1st & 2nd floor classrooms!
+    const midFloorY = wallY + Math.floor(wallH * 0.48);
+    px(ctx, bx + hd, midFloorY, bw - 2 * hd, 2 * hd, "#e8decb");
+    px(ctx, bx + hd, midFloorY + 2 * hd, bw - 2 * hd, 1, O);
+
+    // Tall Central School Clock & Brass Bell Cupola Tower rising high above roof!
+    const cupW = 18 * hd;
+    const cupH = 16 * hd;
+    const cupX = midX - Math.floor(cupW / 2);
+    const cupY = by - 11 * hd;
+    // Copper/slate stepped bell dome + brass weathervane finial
+    px(ctx, midX - 6 * hd, cupY - 5 * hd, 12 * hd, 5 * hd, O);
+    px(ctx, midX - 5 * hd, cupY - 4 * hd, 10 * hd, 4 * hd, "#3f7d72");
+    px(ctx, midX - 3 * hd, cupY - 7 * hd, 6 * hd, 3 * hd, O);
+    px(ctx, midX - 2 * hd, cupY - 6 * hd, 4 * hd, 2 * hd, "#5ea89a");
+    px(ctx, midX - hd, cupY - 10 * hd, 2 * hd, 4 * hd, "#f4d35e");
+    // White wooden cupola body + big school clockface + brass bell niche
+    px(ctx, cupX - 1, cupY, cupW + 2, cupH, O);
+    px(ctx, cupX, cupY + 1, cupW, cupH - 2, "#f7f0e0");
+    px(ctx, cupX + cupW - 3 * hd, cupY + 1, 3 * hd, cupH - 2, "#d4c8b4");
+    px(ctx, midX - 4 * hd, cupY + 2 * hd, 8 * hd, 8 * hd, O);
+    px(ctx, midX - 3 * hd, cupY + 3 * hd, 6 * hd, 6 * hd, "#ffffff");
+    px(ctx, midX, cupY + 4 * hd, hd, 3 * hd, "#1c365c");
+    px(ctx, midX, cupY + 6 * hd, 2 * hd, hd, "#d9362e");
+    // Glowing golden school bell tucked beneath clock
+    px(ctx, midX - 3 * hd, cupY + 11 * hd, 6 * hd, 4 * hd, "#243447");
+    px(ctx, midX - 2 * hd, cupY + 12 * hd, 4 * hd, 2 * hd, "#f4d35e");
+
+    // Central Limestone School Entry Pavilion + Bold "SCHOOL" Marquee Signboard!
+    const portW = Math.min(Math.floor(bw * 0.40), 34 * hd);
+    const portX = midX - Math.floor(portW / 2);
+    px(ctx, portX - 1, wallY, portW + 2, wallH, O);
+    px(ctx, portX, wallY + hd, portW, wallH - hd, "#f2eadc");
+    drawSignMarquee(ctx, signText || "SCHOOL", midX, wallY + 2 * hd, portW + 8 * hd, {
+      bg: "#1c4382",
+      trim: "#f4d35e",
+      fg: "#fffdf0",
+      hd,
+      O,
+    });
+
+    // Double School Doors (Royal Blue with brass push-bars & transom glass!)
+    const doorW = Math.min(portW - 6 * hd, 14 * hd);
+    const doorH = Math.min(wallH - 13 * hd, 15 * hd);
+    const doorX = midX - Math.floor(doorW / 2);
+    const doorY = wallY + wallH - doorH - hd;
+    px(ctx, doorX - 2, doorY - 2, doorW + 4, doorH + 3, O);
+    px(ctx, doorX - 1, doorY - 1, doorW + 2, doorH + 1, "#d4c8b4");
+    px(ctx, doorX, doorY, doorW, doorH, "#244c8a");
+    px(ctx, doorX + 2, doorY + 2, Math.max(2, doorW - 4), 4 * hd, "#a6dcf5");
+    px(ctx, midX, doorY, 1, doorH, O);
+    // Brass push-bars across both school doors
+    px(ctx, doorX + 2, doorY + Math.floor(doorH * 0.62), Math.floor(doorW / 2) - 3, hd, "#f4d35e");
+    px(ctx, midX + 2, doorY + Math.floor(doorH * 0.62), Math.floor(doorW / 2) - 3, hd, "#f4d35e");
+
+    // Wide School Entry Plaza Steps with bright School-Zone Yellow safety curb stripe!
+    const plazaW = Math.min(bw - 4 * hd, portW + 10 * hd);
+    const plazaX = midX - Math.floor(plazaW / 2);
+    px(ctx, plazaX - 1, wallY + wallH, plazaW + 2, 5 * hd, O);
+    px(ctx, plazaX, wallY + wallH, plazaW, 3 * hd, "#e0d6c8");
+    px(ctx, plazaX, wallY + wallH + 3 * hd, plazaW, 2 * hd, "#f4c430");
+
+    // Two-Story Institutional Classroom Window Banks across BOTH wings!
+    const cwW = hd >= 2 ? 14 : 7;
+    const cwH = Math.min(Math.floor(wallH * 0.34), hd >= 2 ? 12 : 6);
+    const row1Y = wallY + 4 * hd;
+    const row2Y = midFloorY + 4 * hd;
+    const stepW = cwW + 4 * hd;
+    for (const wy of [row1Y, row2Y]) {
+      if (wy + cwH > wallY + wallH - 3 * hd) continue;
+      for (let wx = bx + 5 * hd; wx + cwW <= portX - 3 * hd; wx += stepW) {
+        drawClassroomWindow(ctx, wx, wy, cwW, cwH, O);
+      }
+      for (let wx = portX + portW + 3 * hd; wx + cwW <= bx + bw - 5 * hd; wx += stepW) {
+        drawClassroomWindow(ctx, wx, wy, cwW, cwH, O);
+      }
+    }
+
+    // Tall Institutional Flagpole proudly flying beside the school entrance!
+    drawFlagpole(ctx, bx + bw + 2 * hd, wallY + wallH + 2 * hd, wallH + roofH + 10 * hd, { hd, O });
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 4C. PUBLIC LIBRARY (Signature Oxidized Teal-Copper Roof & Skylight Dome,
+  //     Classical Marble Portico with Open-Book Pediment, "LIBRARY" Frieze & Blue Book-Drop!)
+  // =========================================================================
+  if (category === "library") {
+    const wallH = Math.min(38 * hd, Math.max(22 * hd, Math.floor(bh * 0.56)));
+    const roofH = Math.max(14 * hd, bh - wallH);
     const wallY = by + roofH;
 
-    // Rich red-brick / stone facade with warm limestone belt-courses & corner pilasters!
+    // Rich brick / stone library facade with classical white limestone pilasters & base plinth
     px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
     px(ctx, bx, wallY, bw, wallH, style.wallMain);
     drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd);
-    // Warm limestone corner pilasters & cornice trim
-    px(ctx, bx, wallY, 3 * hd, wallH, style.trim);
+    px(ctx, bx, wallY, 3 * hd, wallH, "#f2ebe0");
     px(ctx, bx + 3 * hd, wallY, 1, wallH, O);
-    px(ctx, bx + bw - 3 * hd, wallY, 3 * hd, wallH, style.trimShade);
+    px(ctx, bx + bw - 3 * hd, wallY, 3 * hd, wallH, "#d6cabd");
     px(ctx, bx + bw - 3 * hd - 1, wallY, 1, wallH, O);
-    // Molded horizontal stone sill belt-course across lower facade
     const baseH = 5 * hd;
-    px(ctx, bx, wallY + wallH - baseH, bw, baseH, "#a39186");
-    px(ctx, bx, wallY + wallH - baseH, bw, hd, "#e6d8ca");
+    px(ctx, bx, wallY + wallH - baseH, bw, baseH, "#b5a89d");
+    px(ctx, bx, wallY + wallH - baseH, bw, hd, "#f2ebe0");
     px(ctx, bx, wallY + wallH - baseH - 1, bw, 1, O);
 
-    // Dignified pitched shingled roof with individual alternating shingles
-    drawShingledRoof(ctx, bx, by, bw, roofH, wallY, style, 0.14, O, {
+    // Signature Oxidized Verdigris Teal-Copper Roof (unmistakable — zero residential homes use copper teal!)
+    const copperRoofStyle = {
+      ...style,
+      roofLight: "#78c4b5",
+      roofMain: "#4d998b",
+      roofDark: "#2d665c",
+      trim: "#f2ebe0",
+      trimShade: "#cfc4b6",
+    };
+    drawShingledRoof(ctx, bx, by, bw, roofH, wallY, copperRoofStyle, 0.16, O, {
       hd,
-      leafCluster: effectiveKind !== "school",
+      leafCluster: false,
       seed: bSeed,
     });
-
-    const portW = Math.min(Math.floor(bw * 0.44), 30 * hd);
-    const portX = midX - Math.floor(portW / 2);
-
-    if (effectiveKind === "library" || (effectiveKind === "civic" && !building.gothicCrypt)) {
-      // Sample-style Grand Pedimented Stone Portico with Gabled Shingled Peak + Carved Frieze + 4 Stone Columns!
-      const pedHalfW = Math.min(Math.floor(portW / 2) + 2 * hd, Math.floor(bw * 0.32));
-      const pedH = Math.min(Math.floor(roofH * 0.85), 16 * hd);
-      for (let gy = 0; gy < pedH; gy++) {
-        const span = Math.max(2, Math.round((gy / Math.max(1, pedH - 1)) * pedHalfW));
-        const ry = wallY - pedH + gy;
-        px(ctx, midX - span - 2, ry, span * 2 + 4, 1, O);
-        px(ctx, midX - span - 1, ry, span * 2 + 2, 1, style.trim);
-        if (gy > 2 && span > 3) {
-          px(ctx, midX - span + 2, ry, Math.max(2, (span - 2) * 2), 1, gy % 3 === 0 ? style.wallShade : style.wallMain);
-        }
-      }
-      // Carved stone frieze header banner (just like "LIBRARY" in the sample!)
-      const friezeH = 5 * hd;
-      px(ctx, portX - 2, wallY - 2, portW + 4, friezeH + 2, O);
-      px(ctx, portX - 1, wallY - 1, portW + 2, friezeH, "#d6c5b6");
-      px(ctx, portX, wallY, portW, hd, "#f2e8dc");
-      px(ctx, portX + 2 * hd, wallY + 2 * hd, Math.max(4, portW - 4 * hd), hd, "#594842");
-
-      // Fluted warm limestone portico columns
-      const colTop = wallY + friezeH;
-      const colH = Math.max(8, wallY + wallH - colTop);
-      const colW = 3 * hd;
-      for (const cx of [portX + hd, portX + portW - colW - hd]) {
-        px(ctx, cx - 1, colTop, colW + 2, colH, O);
-        px(ctx, cx, colTop, colW, colH, "#ded0c2");
-        px(ctx, cx, colTop, hd, colH, "#f7efe4");
-        px(ctx, cx + colW - hd, colTop, hd, colH, "#a8968a");
-      }
-
-      // Recessed dark-oak double entrance doors inside portico
-      const doorW = Math.min(portW - colW * 2 - 4 * hd, 14 * hd);
-      const doorH = Math.min(colH - hd, 18 * hd);
-      const doorX = midX - Math.floor(doorW / 2);
-      const doorY = wallY + wallH - doorH - hd;
-      px(ctx, doorX - 2, doorY - 2, doorW + 4, doorH + 3, O);
-      px(ctx, doorX - 1, doorY - 1, doorW + 2, doorH + 1, "#b8a496");
-      px(ctx, doorX, doorY, doorW, doorH, style.door);
-      px(ctx, doorX + 1, doorY + 1, doorW - 2, doorH - 2, "#874a2c");
-      // Recessed door panels + center seam + brass handles
-      px(ctx, midX, doorY, 1, doorH, O);
-      const pW = Math.max(2, Math.floor(doorW / 2) - 3);
-      px(ctx, doorX + 2, doorY + 2, pW, Math.max(3, Math.floor(doorH * 0.38)), "#5e301b");
-      px(ctx, midX + 2, doorY + 2, pW, Math.max(3, Math.floor(doorH * 0.38)), "#5e301b");
-      px(ctx, doorX + 2, doorY + Math.floor(doorH * 0.55), pW, Math.max(3, Math.floor(doorH * 0.34)), "#5e301b");
-      px(ctx, midX + 2, doorY + Math.floor(doorH * 0.55), pW, Math.max(3, Math.floor(doorH * 0.34)), "#5e301b");
-      px(ctx, midX - 2, doorY + Math.floor(doorH * 0.52), 1, 2, "#ffe066");
-      px(ctx, midX + 2, doorY + Math.floor(doorH * 0.52), 1, 2, "#ffe066");
-
-      // Wide stepped stone staircase with stone cheek walls!
-      const stepW = Math.min(bw - 8 * hd, portW + 2 * hd);
-      const stepX = midX - Math.floor(stepW / 2);
-      const stepY = wallY + wallH - hd;
-      px(ctx, stepX - 2, stepY, stepW + 4, 5 * hd, O);
-      for (let st = 0; st < 4; st++) {
-        const sy = stepY + st * hd;
-        px(ctx, stepX, sy, stepW, hd, st % 2 === 0 ? "#ded0c2" : "#bfa99c");
-      }
-      // Stone stair side walls
-      px(ctx, stepX - 2, stepY - hd, 3 * hd, 6 * hd, O);
-      px(ctx, stepX - 1, stepY - hd + 1, 2 * hd, 5 * hd, "#cfc0b2");
-      px(ctx, stepX + stepW - hd, stepY - hd, 3 * hd, 6 * hd, O);
-      px(ctx, stepX + stepW - hd + 1, stepY - hd + 1, 2 * hd, 5 * hd, "#b09e92");
-    } else if (effectiveKind === "school") {
-      if (building.bcCampus) {
-        // Boston College Collegiate Gothic Bell Tower (Gasson-inspired pinnacles, clock & Maroon/Gold banners!)
-        const towerW = Math.min(22 * hd, Math.max(14 * hd, Math.floor(bw * 0.24)));
-        const towerH = 16 * hd;
-        const towerX = midX - Math.floor(towerW / 2);
-        const towerY = by - 9 * hd;
-        px(ctx, towerX - 1, towerY - 3 * hd, 3 * hd, 4 * hd, O);
-        px(ctx, towerX, towerY - 2 * hd, hd, 3 * hd, "#e6be53");
-        px(ctx, towerX + towerW - 2 * hd, towerY - 3 * hd, 3 * hd, 4 * hd, O);
-        px(ctx, towerX + towerW - hd, towerY - 2 * hd, hd, 3 * hd, "#e6be53");
-        px(ctx, midX - 2 * hd, towerY - 5 * hd, 4 * hd, 5 * hd, O);
-        px(ctx, midX - hd, towerY - 4 * hd, 2 * hd, 4 * hd, "#8a2434");
-        px(ctx, midX - hd, towerY - 6 * hd, 2 * hd, 2 * hd, "#f4d35e");
-        px(ctx, towerX - 1, towerY, towerW + 2, towerH, O);
-        px(ctx, towerX, towerY + 1, towerW, towerH - 2, "#d4cbb8");
-        px(ctx, towerX + towerW - 2 * hd, towerY + 1, 2 * hd, towerH - 2, "#a69c88");
-        px(ctx, midX - 3 * hd, towerY + 3 * hd, 6 * hd, 6 * hd, O);
-        px(ctx, midX - 2 * hd, towerY + 4 * hd, 4 * hd, 4 * hd, "#fff4c2");
-        px(ctx, midX, towerY + 4 * hd, hd, 3 * hd, O);
-        px(ctx, midX, towerY + 6 * hd, 2 * hd, hd, O);
-        px(ctx, portX - 1, wallY, portW + 2, wallH, O);
-        px(ctx, portX, wallY + 1, portW, wallH - 1, "#dfd8c8");
-        px(ctx, portX - 1, wallY + wallH, portW + 2, 3 * hd, "#d4cdbc");
-        if (bw >= 34 * hd) {
-          for (const bxBanner of [portX - 5 * hd, portX + portW + 2 * hd]) {
-            px(ctx, bxBanner - 1, wallY + 2 * hd, 5 * hd, 10 * hd, O);
-            px(ctx, bxBanner, wallY + 3 * hd, 3 * hd, 8 * hd, "#7d1d2e");
-            px(ctx, bxBanner + hd, wallY + 4 * hd, hd, 5 * hd, "#f0c850");
-          }
-        }
-      } else {
-        // Classic New England Schoolhouse Clock & Bell Cupola Tower!
-        const cupW = 14 * hd;
-        const cupH = 12 * hd;
-        const cupX = midX - Math.floor(cupW / 2);
-        const cupY = by - 7 * hd;
-        px(ctx, midX - 4 * hd, cupY - 3 * hd, 8 * hd, 3 * hd, O);
-        px(ctx, midX - 3 * hd, cupY - 2 * hd, 6 * hd, 2 * hd, style.roofMain);
-        px(ctx, midX - hd, cupY - 5 * hd, 2 * hd, 3 * hd, "#f4d35e");
-        px(ctx, cupX - 1, cupY, cupW + 2, cupH, O);
-        px(ctx, cupX, cupY + 1, cupW, cupH - 2, "#f7ebd2");
-        px(ctx, midX - 3 * hd, cupY + 3 * hd, 6 * hd, 6 * hd, O);
-        px(ctx, midX - 2 * hd, cupY + 4 * hd, 4 * hd, 4 * hd, "#fff9dc");
-        px(ctx, midX, cupY + 4 * hd, hd, 3 * hd, O);
-        px(ctx, portX, wallY + 2 * hd, portW, wallH - 2 * hd, style.trim);
-        px(ctx, portX - 1, wallY + wallH, portW + 2, 3 * hd, "#ded0c2");
-      }
-      // Recessed school entry doors
-      const doorW = Math.min(portW - 6 * hd, 12 * hd);
-      const doorH = Math.min(wallH - 6 * hd, 16 * hd);
-      px(ctx, midX - Math.floor(doorW / 2) - 1, wallY + wallH - doorH - hd, doorW + 2, doorH + hd, O);
-      px(ctx, midX - Math.floor(doorW / 2), wallY + wallH - doorH, doorW, doorH, style.door);
-      px(ctx, midX, wallY + wallH - doorH, 1, doorH, O);
-    } else {
-      // Gothic Cemetery Chapel spire with glowing teal lantern window
-      px(ctx, midX - 2 * hd, by - 9 * hd, 4 * hd, 9 * hd, O);
-      px(ctx, midX - hd, by - 8 * hd, 2 * hd, 8 * hd, "#4c5463");
-      px(ctx, midX - 5 * hd, by - 3 * hd, 10 * hd, 8 * hd, O);
-      px(ctx, midX - 4 * hd, by - 2 * hd, 8 * hd, 6 * hd, "#666f7d");
-      px(ctx, midX - 2 * hd, by, 4 * hd, 3 * hd, "#6be6d2");
-      px(ctx, portX, wallY + wallH, portW, 4 * hd, O);
-      px(ctx, portX + 1, wallY + wallH + 1, portW - 2, 2 * hd, "#8b929e");
+    // Standing copper roof seams
+    for (let sx = bx + 8 * hd; sx < bx + bw - 8 * hd; sx += 8 * hd) {
+      px(ctx, sx, by + 3 * hd, 1, roofH - 4 * hd, "#2d665c");
     }
 
-    // Tall Arched Glowing Golden Windows along BOTH left & right wings (matching the sample Library!)
+    // Grand Central Verdigris Copper Skylight Dome / Lantern Cupola rising above roof!
+    const domeW = Math.min(24 * hd, Math.floor(bw * 0.34));
+    const domeH = 14 * hd;
+    const domeX = midX - Math.floor(domeW / 2);
+    const domeY = by - 10 * hd;
+    for (let r = 0; r < domeH; r++) {
+      const t = r / Math.max(1, domeH - 1);
+      const half = Math.max(2, Math.round(Math.sin(t * Math.PI * 0.5) * (domeW / 2)));
+      const ry = domeY + r;
+      px(ctx, midX - half - 1, ry, half * 2 + 2, 1, O);
+      px(ctx, midX - half, ry, half * 2, 1, r < domeH * 0.4 ? "#85d1c2" : r % 3 === 0 ? "#357065" : "#52a192");
+    }
+    px(ctx, midX - hd, domeY - 4 * hd, 2 * hd, 4 * hd, "#f4d35e");
+    // Glowing skylight clerestory drum beneath copper dome
+    px(ctx, domeX + 2 * hd, domeY + domeH - 4 * hd, domeW - 4 * hd, 5 * hd, O);
+    px(ctx, domeX + 3 * hd, domeY + domeH - 3 * hd, domeW - 6 * hd, 3 * hd, "#ffe88a");
+
+    // Monumental Classical Marble Portico with 4 fluted columns, Open-Book Pediment & "LIBRARY" Frieze!
+    const portW = Math.min(Math.floor(bw * 0.48), 38 * hd);
+    const portX = midX - Math.floor(portW / 2);
+    const pedHalfW = Math.min(Math.floor(portW / 2) + 2 * hd, Math.floor(bw * 0.34));
+    const pedH = Math.min(Math.floor(roofH * 0.85), 16 * hd);
+    for (let gy = 0; gy < pedH; gy++) {
+      const span = Math.max(2, Math.round((gy / Math.max(1, pedH - 1)) * pedHalfW));
+      const ry = wallY - pedH + gy;
+      px(ctx, midX - span - 2, ry, span * 2 + 4, 1, O);
+      px(ctx, midX - span - 1, ry, span * 2 + 2, 1, "#f5efe6");
+      if (gy > 2 && span > 4) {
+        px(ctx, midX - span + 2, ry, Math.max(2, (span - 2) * 2), 1, "#ded4c5");
+      }
+    }
+    // Crisp Open-Book Emblem carved inside the Library Pediment!
+    if (pedH >= 10 * hd) {
+      const bky = wallY - Math.floor(pedH * 0.55);
+      px(ctx, midX - 5 * hd, bky, 10 * hd, 5 * hd, O);
+      px(ctx, midX - 4 * hd, bky + hd, 4 * hd, 3 * hd, "#fffdf5");
+      px(ctx, midX + hd, bky + hd, 4 * hd - hd, 3 * hd, "#fff8dc");
+      px(ctx, midX, bky, 1, 5 * hd, "#2d665c");
+    }
+
+    // Readable carved "LIBRARY" Frieze Signboard across the portico entablature!
+    const friezeH = drawSignMarquee(ctx, signText || "LIBRARY", midX, wallY - hd, portW + 4 * hd, {
+      bg: "#26594f",
+      trim: "#f5efe6",
+      fg: "#fff8d6",
+      hd,
+      O,
+    });
+
+    // 4 Fluted White Marble Portico Columns
+    const colTop = wallY + friezeH;
+    const colH = Math.max(8, wallY + wallH - colTop);
+    const colW = 3 * hd;
+    const colXs = [portX + hd, portX + 6 * hd, portX + portW - 9 * hd, portX + portW - colW - hd];
+    for (const cx of colXs) {
+      px(ctx, cx - 1, colTop, colW + 2, colH, O);
+      px(ctx, cx, colTop, colW, colH, "#ede5da");
+      px(ctx, cx, colTop, hd, colH, "#ffffff");
+      px(ctx, cx + colW - hd, colTop, hd, colH, "#bfb3a4");
+    }
+
+    // Recessed double oak doors inside portico
+    const doorW = Math.min(portW - 18 * hd, 14 * hd);
+    const doorH = Math.min(colH - hd, 17 * hd);
+    const doorX = midX - Math.floor(doorW / 2);
+    const doorY = wallY + wallH - doorH - hd;
+    px(ctx, doorX - 2, doorY - 2, doorW + 4, doorH + 3, O);
+    px(ctx, doorX, doorY, doorW, doorH, "#703c22");
+    px(ctx, midX, doorY, 1, doorH, O);
+    px(ctx, doorX + 2, doorY + 2, Math.max(2, Math.floor(doorW / 2) - 3), Math.max(3, Math.floor(doorH * 0.4)), "#ffe066");
+    px(ctx, midX + 2, doorY + 2, Math.max(2, Math.floor(doorW / 2) - 3), Math.max(3, Math.floor(doorH * 0.4)), "#ffe066");
+
+    // Wide stepped marble library staircase
+    const stepW = Math.min(bw - 8 * hd, portW + 4 * hd);
+    const stepX = midX - Math.floor(stepW / 2);
+    const stepY = wallY + wallH - hd;
+    px(ctx, stepX - 2, stepY, stepW + 4, 5 * hd, O);
+    for (let st = 0; st < 4; st++) {
+      px(ctx, stepX, stepY + st * hd, stepW, hd, st % 2 === 0 ? "#ede5da" : "#cfc2b4");
+    }
+
+    // Tall Arched Glowing Reading-Room Windows along BOTH wings
     const winW = hd >= 2 ? 11 : 6;
     const winH = Math.min(wallH - baseH - 4 * hd, hd >= 2 ? 19 : 10);
     if (winH >= 8) {
       const winY = wallY + Math.max(3 * hd, Math.floor((wallH - baseH - winH) / 2));
-      const stepW = winW + 6 * hd;
-      // Left wing windows
+      const stepW2 = winW + 5 * hd;
+      for (let wx = bx + 5 * hd; wx + winW <= portX - 3 * hd; wx += stepW2) {
+        drawArchedCivicWindow(ctx, wx, winY, style, winW, winH, O);
+      }
+      for (let wx = portX + portW + 3 * hd; wx + winW <= bx + bw - 5 * hd; wx += stepW2) {
+        drawArchedCivicWindow(ctx, wx, winY, style, winW, winH, O);
+      }
+    }
+
+    // Royal-blue Library Book-Drop Return Box (left) & Wooden Notice Board (right)!
+    if (bw >= 44 * hd) {
+      const bdx = bx + 4 * hd;
+      const bdy = wallY + wallH - 6 * hd;
+      px(ctx, bdx - 1, bdy - 1, 7 * hd + 2, 9 * hd + 2, O);
+      px(ctx, bdx, bdy, 7 * hd, 9 * hd, "#245ca8");
+      px(ctx, bdx, bdy, 7 * hd, 2 * hd, "#4a8ad4");
+      px(ctx, bdx + hd, bdy + 3 * hd, 5 * hd, 2 * hd, "#ffffff");
+      const nbx = bx + bw - 13 * hd;
+      const nby = wallY + wallH - 5 * hd;
+      px(ctx, nbx + 2 * hd, nby + 5 * hd, 2 * hd, 5 * hd, O);
+      px(ctx, nbx + 7 * hd, nby + 5 * hd, 2 * hd, 5 * hd, O);
+      px(ctx, nbx, nby, 11 * hd, 7 * hd, O);
+      px(ctx, nbx + hd, nby + hd, 9 * hd, 5 * hd, "#d9b88c");
+      px(ctx, nbx + 2 * hd, nby + 2 * hd, 7 * hd, hd, "#593b24");
+      px(ctx, nbx + 2 * hd, nby + 4 * hd, 5 * hd, hd, "#593b24");
+    }
+
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 4D. HOUSES OF WORSHIP & CIVIC HALLS (Synagogues with Crowned Blue/Gold Dome,
+  //     Churches/Chapels with Tall Steeple & Rose Window, Gothic Crypt Chapel, Civic Hall!)
+  // =========================================================================
+  if (effectiveKind === "civic") {
+    const roofH = Math.min(13 * hd, Math.max(8 * hd, Math.floor(bh * 0.2)));
+    const wallH = Math.max(26 * hd, bh - roofH);
+    const wallY = by + roofH;
+    const isSynagogue = category === "synagogue";
+    const isChurch = category === "church";
+    const isGothic = category === "gothic_chapel";
+
+    // Distinct ashlar limestone / sandstone / charcoal stone facade (NOT clapboard siding!)
+    const facadeMain = isGothic
+      ? "#525866"
+      : isSynagogue
+        ? "#e6d8be"
+        : isChurch
+          ? style.wallMain
+          : "#d8cfc0";
+    const facadeLight = isGothic ? "#6b7385" : isSynagogue ? "#f5ebd8" : "#efe6d8";
+    const facadeShade = isGothic ? "#383d47" : isSynagogue ? "#c4b393" : "#b8ad9c";
+
+    px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
+    px(ctx, bx, by, bw, roofH, isGothic ? "#353a45" : isSynagogue ? "#4f627d" : "#565e6b");
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(3, roofH - 4 * hd), isGothic ? "#252930" : "#3b4759");
+    px(ctx, bx - 2 * hd, wallY - 3 * hd, bw + 4 * hd, 4 * hd, O);
+    px(ctx, bx - hd, wallY - 2 * hd, bw + 2 * hd, 2 * hd, facadeLight);
+
+    px(ctx, bx, wallY + hd, bw, wallH - hd, facadeMain);
+    // Coursed monumental stone ashlar masonry blocks
+    for (let sy = wallY + 4 * hd; sy < wallY + wallH - 3 * hd; sy += 4 * hd) {
+      px(ctx, bx + 1, sy, bw - 2, 1, shadeHex(facadeShade, -20));
+      const off = ((sy / (4 * hd)) % 2) * 5 * hd;
+      for (let sx = bx + 2 * hd + off; sx < bx + bw - 3 * hd; sx += 10 * hd) {
+        px(ctx, sx, sy + 1, 1, 4 * hd - 1, shadeHex(facadeShade, -16));
+      }
+    }
+    px(ctx, bx, wallY + hd, 3 * hd, wallH - hd, facadeLight);
+    px(ctx, bx + bw - 3 * hd, wallY + hd, 3 * hd, wallH - hd, facadeShade);
+
+    const portW = Math.min(Math.floor(bw * 0.42), 34 * hd);
+    const portX = midX - Math.floor(portW / 2);
+
+    if (isSynagogue) {
+      // Grand Crowned Royal-Blue & Gold Sanctuary Dome rising high above parapet!
+      const domeW = Math.min(30 * hd, Math.floor(bw * 0.44));
+      const domeH = 16 * hd;
+      const domeY = by - 12 * hd;
+      for (let r = 0; r < domeH; r++) {
+        const t = r / Math.max(1, domeH - 1);
+        const half = Math.max(2, Math.round(Math.sin(t * Math.PI * 0.5) * (domeW / 2)));
+        const ry = domeY + r;
+        px(ctx, midX - half - 1, ry, half * 2 + 2, 1, O);
+        px(ctx, midX - half, ry, half * 2, 1, r < domeH * 0.35 ? "#5c92d6" : r % 3 === 0 ? "#20447d" : "#2f64ad");
+      }
+      // Golden dome crown band & golden finial
+      px(ctx, midX - Math.floor(domeW / 2) - 1, domeY + domeH - 2 * hd, domeW + 2, 2 * hd, "#f4d35e");
+      px(ctx, midX - hd, domeY - 5 * hd, 2 * hd, 5 * hd, "#f4d35e");
+      px(ctx, midX - 2 * hd, domeY - 4 * hd, 4 * hd, hd, "#ffe896");
+
+      // Central sanctuary pavilion with glowing Blue & Gold Rose Window + TEMPLE/SHUL frieze!
+      px(ctx, portX - 1, wallY, portW + 2, wallH, O);
+      px(ctx, portX, wallY + hd, portW, wallH - hd, "#f5ebd8");
+      drawSignMarquee(ctx, signText || "TEMPLE", midX, wallY + hd, portW + 4 * hd, {
+        bg: "#1c4382",
+        trim: "#f4d35e",
+        fg: "#fff8d6",
+        hd,
+        O,
+      });
+      drawStainedGlassRose(ctx, midX, wallY + 13 * hd, 5 * hd, { palette: "synagogue", O });
+    } else if (isGothic) {
+      // Spooky Gothic Cemetery Chapel needle spire & glowing eerie teal/violet rose window!
+      px(ctx, midX - 2 * hd, by - 19 * hd, 4 * hd, 14 * hd, O);
+      px(ctx, midX - hd, by - 18 * hd, 2 * hd, 13 * hd, "#525b6e");
+      px(ctx, midX - 6 * hd, by - 7 * hd, 12 * hd, 10 * hd, O);
+      px(ctx, midX - 5 * hd, by - 6 * hd, 10 * hd, 8 * hd, "#687285");
+      drawStainedGlassRose(ctx, midX, wallY + 9 * hd, 4 * hd, { palette: "gothic", O });
+    } else if (isChurch) {
+      // Soaring Tall White & Slate Steeple Bell Tower rising 22*hd above parapet!
+      const stW = 14 * hd;
+      const stX = midX - Math.floor(stW / 2);
+      const stY = by - 10 * hd;
+      // Needle steeple spire above belfry
+      for (let sr = 0; sr < 13 * hd; sr++) {
+        const half = Math.max(1, Math.round((sr / (13 * hd)) * (stW / 2)));
+        const ry = stY - 13 * hd + sr;
+        px(ctx, midX - half - 1, ry, half * 2 + 2, 1, O);
+        px(ctx, midX - half, ry, half * 2, 1, sr % 3 === 0 ? "#4c5463" : "#6c768a");
+      }
+      px(ctx, midX - hd, stY - 16 * hd, 2 * hd, 4 * hd, "#f4d35e");
+      // White wooden belfry box with dark arched bell opening
+      px(ctx, stX - 1, stY, stW + 2, 12 * hd, O);
+      px(ctx, stX, stY + 1, stW, 10 * hd, "#f7f3eb");
+      px(ctx, midX - 3 * hd, stY + 3 * hd, 6 * hd, 6 * hd, O);
+      px(ctx, midX - 2 * hd, stY + 4 * hd, 4 * hd, 5 * hd, "#2a2e38");
+      px(ctx, midX - hd, stY + 6 * hd, 2 * hd, 2 * hd, "#f4d35e");
+
+      // Central portal with glowing Multicolor Stained-Glass Rose Window & CHAPEL/CHURCH header!
+      px(ctx, portX - 1, wallY, portW + 2, wallH, O);
+      px(ctx, portX, wallY + hd, portW, wallH - hd, facadeLight);
+      drawSignMarquee(ctx, signText || "CHAPEL", midX, wallY + hd, portW + 4 * hd, {
+        bg: "#4a2c59",
+        trim: "#f4d35e",
+        fg: "#fff8e0",
+        hd,
+        O,
+      });
+      drawStainedGlassRose(ctx, midX, wallY + 13 * hd, 5 * hd, { palette: "church", O });
+    } else {
+      // Civic / Community Hall with Domed Clock Cupola, Flagpole & "CIVIC" Marquee!
+      const cupW = 16 * hd;
+      const cupX = midX - Math.floor(cupW / 2);
+      const cupY = by - 11 * hd;
+      px(ctx, midX - 5 * hd, cupY - 5 * hd, 10 * hd, 5 * hd, O);
+      px(ctx, midX - 4 * hd, cupY - 4 * hd, 8 * hd, 4 * hd, "#d4a64a");
+      px(ctx, cupX - 1, cupY, cupW + 2, 13 * hd, O);
+      px(ctx, cupX, cupY + 1, cupW, 11 * hd, "#f2eadc");
+      px(ctx, midX - 3 * hd, cupY + 3 * hd, 6 * hd, 6 * hd, O);
+      px(ctx, midX - 2 * hd, cupY + 4 * hd, 4 * hd, 4 * hd, "#ffffff");
+      px(ctx, midX, cupY + 5 * hd, hd, 2 * hd, O);
+      px(ctx, portX - 1, wallY, portW + 2, wallH, O);
+      px(ctx, portX, wallY + hd, portW, wallH - hd, "#f2eadc");
+      drawSignMarquee(ctx, signText || "CIVIC", midX, wallY + 2 * hd, portW + 4 * hd, {
+        bg: "#3b2c59",
+        trim: "#f4d35e",
+        fg: "#fff8e0",
+        hd,
+        O,
+      });
+      drawFlagpole(ctx, bx + bw + 2 * hd, wallY + wallH + 2 * hd, wallH + roofH + 8 * hd, { hd, O });
+    }
+
+    // Arched Sanctuary / Civic Double Entrance Doors + Wide Ceremonial Stone Steps
+    const doorW = Math.min(portW - 8 * hd, 12 * hd);
+    const doorH = Math.min(wallH - 18 * hd, 12 * hd);
+    const doorX = midX - Math.floor(doorW / 2);
+    const doorY = wallY + wallH - doorH - hd;
+    px(ctx, doorX - 2, doorY - 2, doorW + 4, doorH + 3, O);
+    px(ctx, doorX, doorY, doorW, doorH, isGothic ? "#302833" : "#6b3822");
+    px(ctx, midX, doorY, 1, doorH, O);
+    px(ctx, portX - hd, wallY + wallH, portW + 2 * hd, 4 * hd, isGothic ? "#7c8494" : "#e3d8c8");
+
+    // Tall Arched Glowing Sanctuary Windows along BOTH wings
+    const winW = hd >= 2 ? 11 : 6;
+    const winH = Math.min(wallH - 8 * hd, hd >= 2 ? 18 : 9);
+    if (winH >= 8) {
+      const winY = wallY + Math.max(4 * hd, Math.floor((wallH - winH) / 2));
+      const stepW = winW + 5 * hd;
       for (let wx = bx + 5 * hd; wx + winW <= portX - 3 * hd; wx += stepW) {
         drawArchedCivicWindow(ctx, wx, winY, style, winW, winH, O);
       }
-      // Right wing windows
       for (let wx = portX + portW + 3 * hd; wx + winW <= bx + bw - 5 * hd; wx += stepW) {
         drawArchedCivicWindow(ctx, wx, winY, style, winW, winH, O);
       }
     }
 
-    // Lush Green Boxwood Shrubs flanking the stone portico steps + cozy Library wooden notice board!
-    if (bw >= 34 * hd) {
-      drawShrub(ctx, portX - 11 * hd, wallY + wallH - 6 * hd, 10 * hd, 8 * hd);
-      drawShrub(ctx, portX + portW + hd, wallY + wallH - 6 * hd, 10 * hd, 8 * hd);
-      // Sample-style wooden bulletin notice board beside Library entrance
-      if (effectiveKind === "library" && bx + bw - (portX + portW) >= 20 * hd) {
-        const nbx = bx + bw - 13 * hd;
-        const nby = wallY + wallH - 5 * hd;
-        px(ctx, nbx + 2 * hd, nby + 5 * hd, 2 * hd, 5 * hd, O);
-        px(ctx, nbx + 7 * hd, nby + 5 * hd, 2 * hd, 5 * hd, O);
-        px(ctx, nbx, nby, 11 * hd, 7 * hd, O);
-        px(ctx, nbx + hd, nby + hd, 9 * hd, 5 * hd, "#d9b88c");
-        px(ctx, nbx + 2 * hd, nby + 2 * hd, 7 * hd, hd, "#593b24");
-        px(ctx, nbx + 2 * hd, nby + 4 * hd, 5 * hd, hd, "#593b24");
-      }
+    if (bw >= 38 * hd && !isGothic) {
+      drawShrub(ctx, portX - 10 * hd, wallY + wallH - 5 * hd, 9 * hd, 7 * hd);
+      drawShrub(ctx, portX + portW + hd, wallY + wallH - 5 * hd, 9 * hd, 7 * hd);
     }
-
     drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
     return { canvas, offsetX: -padSide, offsetY: -padTop };
   }
@@ -2604,10 +3452,44 @@ export function bake32BitHouseStack(building, tileSize = 16, colorOverrideMap = 
   const footH = (maxY - minY + 1) * hdTile;
   const style = resolveHouseStyle(building, colorOverrideMap);
   const kind = style.overrideKind || building.kind || "house";
+  const category = getBuildingVisualCategory(building, colorOverrideMap);
   const O = "#291a18";
   const inset = 3;
   const bw = Math.max(18, footW - inset * 2);
   const bh = Math.max(18, footH - inset * 2);
+  const mx = Math.floor(footW / 2);
+  const my = Math.floor(footH / 2);
+
+  const isFlatNonRes =
+    kind === "commercial" ||
+    kind === "bakery_cafe" ||
+    kind === "corner_market" ||
+    kind === "office_plaza" ||
+    kind === "apartments" ||
+    kind === "fire_station" ||
+    kind === "school" ||
+    kind === "civic";
+  const isGlassOffice = kind === "office_plaza";
+  const isGreenhouse = kind === "greenhouse";
+  const isLibrary = category === "library";
+  const isSchool = category === "school";
+  const isBcSchool = category === "bc_school";
+  const isSynagogue = category === "synagogue";
+  const isChurch = category === "church" || category === "gothic_chapel";
+  const isFire = kind === "fire_station";
+  const isShop = kind === "commercial" || kind === "bakery_cafe" || kind === "corner_market";
+
+  const wallColor = isGlassOffice
+    ? "#9cb0c2"
+    : isGreenhouse
+      ? "#9de3f5"
+      : isBcSchool
+        ? "#c2b7a1"
+        : isSynagogue
+          ? "#e6d8be"
+          : style.wallMain;
+  const winColor = isGlassOffice || isSchool || isGreenhouse ? "#8ad2f2" : "#ffe066";
+  const winHighlight = isGlassOffice || isSchool || isGreenhouse ? "#e0f7ff" : "#fff8c7";
 
   const makeSlice = () => {
     const res = makeCanvas(footW, footH);
@@ -2615,38 +3497,39 @@ export function bake32BitHouseStack(building, tileSize = 16, colorOverrideMap = 
     return res;
   };
 
-  // --- Slice 1: Perimeter Wall Layer (all 4 facades with siding & radiant golden windows!) ---
+  // --- Slice 1: Perimeter Wall Layer (all 4 facades with distinct non-residential window/curtain-wall bands!) ---
   const wall = makeSlice();
   {
     const c = wall.ctx;
     px(c, inset - 1, inset - 1, bw + 2, bh + 2, O);
-    px(c, inset, inset, bw, bh, style.wallMain);
-    px(c, inset, inset, bw, 3, style.wallLight);
-    px(c, inset, inset, 3, bh, style.wallLight);
-    px(c, inset, inset + bh - 3, bw, 3, style.wallShade);
-    px(c, inset + bw - 3, inset, 3, bh, style.wallShade);
-    const winStep = 14;
-    for (let wx = inset + 6; wx <= inset + bw - 10; wx += winStep) {
+    px(c, inset, inset, bw, bh, wallColor);
+    px(c, inset, inset, bw, 3, shadeHex(wallColor, 20));
+    px(c, inset, inset, 3, bh, shadeHex(wallColor, 20));
+    px(c, inset, inset + bh - 3, bw, 3, shadeHex(wallColor, -24));
+    px(c, inset + bw - 3, inset, 3, bh, shadeHex(wallColor, -24));
+    const winStep = isGlassOffice || isSchool ? 10 : 14;
+    for (let wx = inset + 5; wx <= inset + bw - 9; wx += winStep) {
       px(c, wx, inset, 7, 3, O);
-      px(c, wx + 1, inset, 5, 2, "#ffe066");
-      px(c, wx + 2, inset, 3, 1, "#fff8c7");
+      px(c, wx + 1, inset, 5, 2, winColor);
+      px(c, wx + 2, inset, 3, 1, winHighlight);
       px(c, wx, inset + bh - 3, 7, 3, O);
-      px(c, wx + 1, inset + bh - 2, 5, 2, "#ffe066");
-      px(c, wx + 2, inset + bh - 2, 3, 1, "#fff8c7");
+      px(c, wx + 1, inset + bh - 2, 5, 2, winColor);
+      px(c, wx + 2, inset + bh - 2, 3, 1, winHighlight);
     }
-    for (let wy = inset + 6; wy <= inset + bh - 10; wy += winStep) {
+    for (let wy = inset + 5; wy <= inset + bh - 9; wy += winStep) {
       px(c, inset, wy, 3, 7, O);
-      px(c, inset, wy + 1, 2, 5, "#ffe066");
+      px(c, inset, wy + 1, 2, 5, winColor);
       px(c, inset + bw - 3, wy, 3, 7, O);
-      px(c, inset + bw - 2, wy + 1, 2, 5, "#ffe066");
+      px(c, inset + bw - 2, wy + 1, 2, 5, winColor);
     }
-    px(c, inset, inset, 3, 3, style.trim);
-    px(c, inset + bw - 3, inset, 3, 3, style.trim);
-    px(c, inset, inset + bh - 3, 3, 3, style.trim);
-    px(c, inset + bw - 3, inset + bh - 3, 3, 3, style.trim);
+    const cornerCol = isSchool ? "#244c8a" : isBcSchool ? "#7d1d2e" : isFire ? "#d9362e" : style.trim;
+    px(c, inset, inset, 3, 3, cornerCol);
+    px(c, inset + bw - 3, inset, 3, 3, cornerCol);
+    px(c, inset, inset + bh - 3, 3, 3, cornerCol);
+    px(c, inset + bw - 3, inset + bh - 3, 3, 3, cornerCol);
   }
 
-  // --- Slice 2: Overhanging Eaves & Staggered 32-Bit Wooden Shingle Roof Skirt ---
+  // --- Slice 2: Overhanging Eaves / Commercial Awning Skirt / Institutional Stone Parapet ---
   const eaves = makeSlice();
   {
     const c = eaves.ctx;
@@ -2655,78 +3538,173 @@ export function bake32BitHouseStack(building, tileSize = 16, colorOverrideMap = 
     const ew = footW - ex * 2;
     const eh = footH - ey * 2;
     px(c, ex - 1, ey - 1, ew + 2, eh + 2, O);
-    px(c, ex, ey, ew, eh, style.trim);
-    px(c, ex + 2, ey + 2, Math.max(4, ew - 4), Math.max(4, eh - 4), style.roofDark);
-    px(c, ex + 3, ey + 3, Math.max(4, ew - 6), Math.max(4, eh - 6), style.roofMain);
-    for (let sy = ey + 5; sy < ey + eh - 4; sy += 4) {
-      px(c, ex + 3, sy, Math.max(2, ew - 6), 1, style.roofDark);
-      for (let sx = ex + 4 + ((sy / 4) % 2) * 3; sx < ex + ew - 5; sx += 6) {
-        px(c, sx, sy - 2, 4, 2, (sx + sy) % 3 === 0 ? style.roofLight : style.roofMain);
-        px(c, sx + 4, sy - 2, 1, 2, style.roofDark);
+    if (isShop) {
+      // Bold striped awning border around all sides of village shops & cafés!
+      const stripeA = kind === "bakery_cafe" ? "#d93d4a" : kind === "corner_market" ? "#24704a" : "#2d588f";
+      px(c, ex, ey, ew, eh, "#fff5df");
+      for (let sx = ex; sx < ex + ew; sx += 8) {
+        px(c, sx, ey, Math.min(4, ex + ew - sx), 4, stripeA);
+        px(c, sx, ey + eh - 4, Math.min(4, ex + ew - sx), 4, stripeA);
+      }
+      for (let sy = ey; sy < ey + eh; sy += 8) {
+        px(c, ex, sy, 4, Math.min(4, ey + eh - sy), stripeA);
+        px(c, ex + ew - 4, sy, 4, Math.min(4, ey + eh - sy), stripeA);
+      }
+      px(c, ex + 4, ey + 4, Math.max(4, ew - 8), Math.max(4, eh - 8), "#594c48");
+    } else if (isGreenhouse) {
+      px(c, ex, ey, ew, eh, "#ffffff");
+      px(c, ex + 2, ey + 2, Math.max(4, ew - 4), Math.max(4, eh - 4), "#a8e6f7");
+      for (let gx = ex + 6; gx < ex + ew - 4; gx += 8) px(c, gx, ey + 2, 2, eh - 4, "#ffffff");
+    } else if (isLibrary) {
+      // Oxidized verdigris teal-copper roof skirt for Libraries!
+      px(c, ex, ey, ew, eh, "#f2ebe0");
+      px(c, ex + 2, ey + 2, Math.max(4, ew - 4), Math.max(4, eh - 4), "#2d665c");
+      px(c, ex + 3, ey + 3, Math.max(4, ew - 6), Math.max(4, eh - 6), "#4d998b");
+    } else if (isFlatNonRes) {
+      const trimBorder = isSchool ? "#244c8a" : isBcSchool ? "#7d1d2e" : isFire ? "#c92b24" : "#e6dfd0";
+      const roofDeck = isGlassOffice ? "#657180" : isSchool ? "#545e6b" : isBcSchool ? "#414754" : "#544846";
+      px(c, ex, ey, ew, eh, trimBorder);
+      px(c, ex + 3, ey + 3, Math.max(4, ew - 6), Math.max(4, eh - 6), roofDeck);
+    } else {
+      px(c, ex, ey, ew, eh, style.trim);
+      px(c, ex + 2, ey + 2, Math.max(4, ew - 4), Math.max(4, eh - 4), style.roofDark);
+      px(c, ex + 3, ey + 3, Math.max(4, ew - 6), Math.max(4, eh - 6), style.roofMain);
+      for (let sy = ey + 5; sy < ey + eh - 4; sy += 4) {
+        px(c, ex + 3, sy, Math.max(2, ew - 6), 1, style.roofDark);
+        for (let sx = ex + 4 + ((sy / 4) % 2) * 3; sx < ex + ew - 5; sx += 6) {
+          px(c, sx, sy - 2, 4, 2, (sx + sy) % 3 === 0 ? style.roofLight : style.roofMain);
+          px(c, sx + 4, sy - 2, 1, 2, style.roofDark);
+        }
       }
     }
   }
 
-  // --- Slice 3: Inset Upper Pitched Shingled Roof + Autumn Leaves ---
+  // --- Slice 3: Upper Roof / Flat Institutional Parapet Deck / Copper Library Roof ---
   const roof = makeSlice();
   {
     const c = roof.ctx;
-    const isFlatCommercial = kind === "commercial" || kind === "office_plaza" || kind === "apartments" || kind === "fire_station";
-    const rx = inset + (isFlatCommercial ? 1 : Math.min(8, Math.floor(bw * 0.16)));
-    const ry = inset + (isFlatCommercial ? 1 : Math.min(8, Math.floor(bh * 0.16)));
+    const rx = inset + (isFlatNonRes ? 1 : Math.min(8, Math.floor(bw * 0.16)));
+    const ry = inset + (isFlatNonRes ? 1 : Math.min(8, Math.floor(bh * 0.16)));
     const rw = Math.max(8, footW - rx * 2);
     const rh = Math.max(8, footH - ry * 2);
     px(c, rx - 1, ry - 1, rw + 2, rh + 2, O);
-    px(c, rx, ry, rw, rh, style.roofMain);
-    px(c, rx + 1, ry + 1, Math.max(4, rw - 2), Math.max(4, Math.floor(rh * 0.5)), style.roofLight);
-    for (let sy = ry + 4; sy < ry + rh - 2; sy += 4) {
-      px(c, rx + 1, sy, Math.max(2, rw - 2), 1, style.roofDark);
-      for (let sx = rx + 2 + ((sy / 4) % 2) * 3; sx < rx + rw - 3; sx += 6) {
-        px(c, sx, sy - 2, 4, 2, (sx + sy) % 3 === 0 ? style.roofLight : style.roofMain);
-        px(c, sx + 4, sy - 2, 1, 2, style.roofDark);
+    if (isGreenhouse) {
+      px(c, rx, ry, rw, rh, "#c9f2fc");
+      for (let gx = rx + 4; gx < rx + rw - 2; gx += 7) px(c, gx, ry, 2, rh, "#ffffff");
+    } else if (isLibrary) {
+      px(c, rx, ry, rw, rh, "#58a898");
+      px(c, rx + 2, ry + 2, Math.max(4, rw - 4), Math.max(4, Math.floor(rh * 0.5)), "#80cfc0");
+    } else if (isFlatNonRes) {
+      const deckCol = isGlassOffice ? "#788594" : isSchool ? "#5d6875" : isBcSchool ? "#4a5261" : "#5e504e";
+      px(c, rx, ry, rw, rh, "#e6dfd0");
+      px(c, rx + 2, ry + 2, Math.max(4, rw - 4), Math.max(4, rh - 4), deckCol);
+      // Rooftop mechanical units / skylights on flat commercial & office buildings
+      if (rw >= 22 && rh >= 22) {
+        px(c, rx + 5, ry + 5, 8, 6, O);
+        px(c, rx + 6, ry + 6, 6, 4, isGlassOffice ? "#9ad9f5" : "#b8b0a6");
       }
-    }
-    if (!isFlatCommercial && rw >= 26 && rh >= 20) {
-      drawRoofLeafCluster(c, rx + Math.floor(rw * 0.35), ry + Math.floor(rh * 0.65), minX + minY);
+    } else {
+      px(c, rx, ry, rw, rh, style.roofMain);
+      px(c, rx + 1, ry + 1, Math.max(4, rw - 2), Math.max(4, Math.floor(rh * 0.5)), style.roofLight);
+      for (let sy = ry + 4; sy < ry + rh - 2; sy += 4) {
+        px(c, rx + 1, sy, Math.max(2, rw - 2), 1, style.roofDark);
+        for (let sx = rx + 2 + ((sy / 4) % 2) * 3; sx < rx + rw - 3; sx += 6) {
+          px(c, sx, sy - 2, 4, 2, (sx + sy) % 3 === 0 ? style.roofLight : style.roofMain);
+          px(c, sx + 4, sy - 2, 1, 2, style.roofDark);
+        }
+      }
+      if (rw >= 26 && rh >= 20) {
+        drawRoofLeafCluster(c, rx + Math.floor(rw * 0.35), ry + Math.floor(rh * 0.65), minX + minY);
+      }
     }
   }
 
-  // --- Slice 4: Roof Ridge Cap, Brick Chimney & Optional Home Base Badge ---
+  // --- Slice 4: Rooftop Landmark Crown (School Cupola, BC Gothic Tower, Library Copper Dome,
+  //              Synagogue Blue Dome, Church Steeple, Firehouse Beacon, or Residential Ridge & Chimney!) ---
   const ridge = makeSlice();
   {
     const c = ridge.ctx;
-    const isWide = bw >= bh;
-    const rx = inset + Math.min(14, Math.floor(bw * (isWide ? 0.22 : 0.36)));
-    const ry = inset + Math.min(14, Math.floor(bh * (isWide ? 0.36 : 0.22)));
-    const rw = Math.max(6, footW - rx * 2);
-    const rh = Math.max(6, footH - ry * 2);
-    px(c, rx - 1, ry - 1, rw + 2, rh + 2, O);
-    px(c, rx, ry, rw, rh, style.roofLight);
-    if (isWide) {
-      px(c, rx + 1, Math.floor(footH / 2) - 1, Math.max(2, rw - 2), 2, "#f2e2c4");
+    if (isSchool || isBcSchool) {
+      // Prominent raised school clock/bell cupola tower right on top of the flat school roof!
+      const tw = Math.min(20, Math.max(12, Math.floor(bw * 0.34)));
+      const th = Math.min(20, Math.max(12, Math.floor(bh * 0.34)));
+      px(c, mx - Math.floor(tw / 2) - 1, my - Math.floor(th / 2) - 1, tw + 2, th + 2, O);
+      px(c, mx - Math.floor(tw / 2), my - Math.floor(th / 2), tw, th, isBcSchool ? "#7d1d2e" : "#1c4382");
+      px(c, mx - Math.floor(tw / 2) + 2, my - Math.floor(th / 2) + 2, tw - 4, th - 4, "#f4d35e");
+      px(c, mx - 2, my - 2, 4, 4, "#ffffff");
+    } else if (isLibrary) {
+      // Oxidized copper skylight dome crown
+      const dw = Math.min(20, Math.max(12, Math.floor(Math.min(bw, bh) * 0.4)));
+      px(c, mx - Math.floor(dw / 2) - 1, my - Math.floor(dw / 2) - 1, dw + 2, dw + 2, O);
+      px(c, mx - Math.floor(dw / 2), my - Math.floor(dw / 2), dw, dw, "#4d998b");
+      px(c, mx - Math.floor(dw / 2) + 3, my - Math.floor(dw / 2) + 3, dw - 6, dw - 6, "#8ce0cf");
+      px(c, mx - 2, my - 2, 4, 4, "#f4d35e");
+    } else if (isSynagogue) {
+      // Royal-blue & gold sanctuary dome crown
+      const dw = Math.min(22, Math.max(12, Math.floor(Math.min(bw, bh) * 0.42)));
+      px(c, mx - Math.floor(dw / 2) - 1, my - Math.floor(dw / 2) - 1, dw + 2, dw + 2, O);
+      px(c, mx - Math.floor(dw / 2), my - Math.floor(dw / 2), dw, dw, "#2457a3");
+      px(c, mx - Math.floor(dw / 2) + 3, my - Math.floor(dw / 2) + 3, dw - 6, dw - 6, "#4d8be0");
+      px(c, mx - 2, my - 2, 4, 4, "#f4d35e");
+    } else if (isChurch || category === "civic") {
+      // Steeple / Civic cupola crown
+      px(c, mx - 6, my - 6, 12, 12, O);
+      px(c, mx - 5, my - 5, 10, 10, "#f5efe6");
+      px(c, mx - 3, my - 3, 6, 6, "#5c6473");
+      px(c, mx - 1, my - 1, 2, 2, "#f4d35e");
+    } else if (isFire) {
+      // Crimson firehouse hose tower & glowing siren beacon
+      px(c, mx - 7, my - 7, 14, 14, O);
+      px(c, mx - 6, my - 6, 12, 12, "#c92b24");
+      px(c, mx - 3, my - 3, 6, 6, "#ff4d42");
+      px(c, mx - 1, my - 1, 2, 2, "#fff0a6");
+    } else if (isGlassOffice || isShop || kind === "apartments") {
+      // Modern rooftop mechanical penthouse / skylight box
+      const pw = Math.min(18, Math.max(10, Math.floor(bw * 0.32)));
+      const ph = Math.min(14, Math.max(8, Math.floor(bh * 0.28)));
+      px(c, mx - Math.floor(pw / 2) - 1, my - Math.floor(ph / 2) - 1, pw + 2, ph + 2, O);
+      px(c, mx - Math.floor(pw / 2), my - Math.floor(ph / 2), pw, ph, isGlassOffice ? "#6bb8de" : "#c7bdb3");
+      px(c, mx - Math.floor(pw / 2) + 2, my - Math.floor(ph / 2) + 2, pw - 4, ph - 4, isGlassOffice ? "#c7efff" : "#8f857e");
+    } else if (isGreenhouse) {
+      px(c, inset + 4, my - 2, Math.max(6, bw - 8), 4, "#ffffff");
     } else {
-      px(c, Math.floor(footW / 2) - 1, ry + 1, 2, Math.max(2, rh - 2), "#f2e2c4");
-    }
-    const chX = Math.max(rx + 2, Math.min(rx + rw - 9, Math.floor(footW * 0.68)));
-    const chY = Math.max(ry + 2, Math.min(ry + rh - 9, Math.floor(footH * 0.32)));
-    px(c, chX - 1, chY - 1, 9, 9, O);
-    px(c, chX, chY, 7, 7, "#9c4333");
-    px(c, chX + 1, chY + 1, 5, 5, "#36221e");
-    px(c, chX, chY, 7, 1, "#d6c5b4");
-    // Home Base golden star marker on roof so Liam can spot 565 Boylston St from any angle!
-    if (building.isHomeBase) {
-      const mx = Math.floor(footW / 2);
-      const my = Math.floor(footH / 2);
-      px(c, mx - 5, my - 5, 10, 10, O);
-      px(c, mx - 4, my - 4, 8, 8, "#24573d");
-      px(c, mx - 2, my - 2, 4, 4, "#f7dc6f");
-      px(c, mx - 1, my - 1, 2, 2, "#ffffff");
+      const isWide = bw >= bh;
+      const rx = inset + Math.min(14, Math.floor(bw * (isWide ? 0.22 : 0.36)));
+      const ry = inset + Math.min(14, Math.floor(bh * (isWide ? 0.36 : 0.22)));
+      const rw = Math.max(6, footW - rx * 2);
+      const rh = Math.max(6, footH - ry * 2);
+      px(c, rx - 1, ry - 1, rw + 2, rh + 2, O);
+      px(c, rx, ry, rw, rh, style.roofLight);
+      if (isWide) {
+        px(c, rx + 1, my - 1, Math.max(2, rw - 2), 2, "#f2e2c4");
+      } else {
+        px(c, mx - 1, ry + 1, 2, Math.max(2, rh - 2), "#f2e2c4");
+      }
+      const chX = Math.max(rx + 2, Math.min(rx + rw - 9, Math.floor(footW * 0.68)));
+      const chY = Math.max(ry + 2, Math.min(ry + rh - 9, Math.floor(footH * 0.32)));
+      px(c, chX - 1, chY - 1, 9, 9, O);
+      px(c, chX, chY, 7, 7, "#9c4333");
+      px(c, chX + 1, chY + 1, 5, 5, "#36221e");
+      px(c, chX, chY, 7, 1, "#d6c5b4");
+      // Home Base golden star marker on roof so Liam can spot 565 Boylston St from any angle!
+      if (building.isHomeBase) {
+        px(c, mx - 5, my - 5, 10, 10, O);
+        px(c, mx - 4, my - 4, 8, 8, "#24573d");
+        px(c, mx - 2, my - 2, 4, 4, "#f7dc6f");
+        px(c, mx - 1, my - 1, 2, 2, "#ffffff");
+      }
     }
   }
 
   return {
     layers: [wall.canvas, eaves.canvas, roof.canvas, ridge.canvas],
-    isTall: kind === "apartments" || kind === "school" || kind === "library" || kind === "civic" || kind === "office_plaza",
+    isTall:
+      kind === "apartments" ||
+      kind === "school" ||
+      kind === "library" ||
+      kind === "civic" ||
+      kind === "office_plaza" ||
+      kind === "fire_station",
   };
 }
 
@@ -4008,6 +4986,85 @@ export function buildSnesSpriteAtlas(paletteName = "autumn_golden") {
     px(ctx, 4, 4, 1, 2, "#1d2233");
     px(ctx, 7, 4, 1, 2, "#1d2233");
   });
+  sprites.item_sword = makeIcon((ctx) => {
+    // Gleaming 16-bit Graveyard Explorer Hero Sword!
+    px(ctx, 8, 2, 2, 2, "#ffffff");
+    px(ctx, 7, 3, 2, 2, "#b8e4ff");
+    px(ctx, 6, 4, 2, 2, "#7cc4f5");
+    px(ctx, 5, 5, 2, 2, "#b8e4ff");
+    px(ctx, 4, 6, 2, 2, "#5a9bd6");
+    px(ctx, 3, 5, 4, 2, "#f4d35e"); // Golden crossguard
+    px(ctx, 5, 7, 2, 3, "#f4d35e");
+    px(ctx, 2, 8, 2, 2, "#8c4a24"); // Leather hilt
+    px(ctx, 2, 9, 1, 1, "#f4d35e"); // Gold pommel
+  });
+  sprites.item_siddur = makeIcon((ctx) => {
+    // Royal-blue & gold Pocket Siddur prayerbook!
+    px(ctx, 2, 2, 8, 8, "#1b4385");
+    px(ctx, 3, 3, 6, 6, "#2c66bf");
+    px(ctx, 2, 2, 2, 8, "#112a57");
+    px(ctx, 4, 4, 4, 4, "#f4d35e");
+    px(ctx, 5, 5, 2, 2, "#2c66bf");
+    px(ctx, 9, 3, 1, 6, "#fff8e0"); // Gold-edged pages
+  });
+
+  // --- 14b. 32-bit HD Sword Slash Arcs (4 directions!) ---
+  const makeSwordSlash = (dir) => {
+    const isH = dir === "left" || dir === "right";
+    const { canvas, ctx } = makeCanvas(isH ? 34 : 40, isH ? 40 : 34);
+    canvas.__pixelScale = 0.5;
+    const p = (x, y, w, h, col) => px(ctx, x, y, w, h, col);
+    if (dir === "right") {
+      // Gleaming crescent sweep arcing outward to the right
+      p(8, 3, 12, 4, "#f4d35e");
+      p(16, 6, 10, 6, "#fff6b8");
+      p(22, 11, 8, 16, "#ffffff");
+      p(18, 13, 6, 14, "#9ce3ff");
+      p(16, 26, 10, 6, "#fff6b8");
+      p(8, 32, 12, 4, "#f4d35e");
+      // Blade & golden hilt center-right
+      p(4, 18, 24, 4, "#d8f4ff");
+      p(6, 19, 22, 2, "#ffffff");
+      p(2, 16, 4, 8, "#f4d35e");
+    } else if (dir === "left") {
+      p(14, 3, 12, 4, "#f4d35e");
+      p(8, 6, 10, 6, "#fff6b8");
+      p(4, 11, 8, 16, "#ffffff");
+      p(10, 13, 6, 14, "#9ce3ff");
+      p(8, 26, 10, 6, "#fff6b8");
+      p(14, 32, 12, 4, "#f4d35e");
+      p(6, 18, 24, 4, "#d8f4ff");
+      p(6, 19, 22, 2, "#ffffff");
+      p(28, 16, 4, 8, "#f4d35e");
+    } else if (dir === "down") {
+      p(3, 8, 4, 12, "#f4d35e");
+      p(6, 16, 6, 10, "#fff6b8");
+      p(11, 22, 18, 8, "#ffffff");
+      p(13, 18, 14, 6, "#9ce3ff");
+      p(28, 16, 6, 10, "#fff6b8");
+      p(33, 8, 4, 12, "#f4d35e");
+      p(18, 4, 4, 24, "#d8f4ff");
+      p(19, 6, 2, 22, "#ffffff");
+      p(16, 2, 8, 4, "#f4d35e");
+    } else {
+      p(3, 14, 4, 12, "#f4d35e");
+      p(6, 8, 6, 10, "#fff6b8");
+      p(11, 4, 18, 8, "#ffffff");
+      p(13, 10, 14, 6, "#9ce3ff");
+      p(28, 8, 6, 10, "#fff6b8");
+      p(33, 14, 4, 12, "#f4d35e");
+      p(18, 6, 4, 24, "#d8f4ff");
+      p(19, 6, 2, 22, "#ffffff");
+      p(16, 28, 8, 4, "#f4d35e");
+    }
+    return canvas;
+  };
+  for (const dir of ["down", "up", "left", "right"]) {
+    sprites[`sword_slash_${dir}`] = makeSwordSlash(dir);
+  }
+
+  // --- 14c. HERO-GRADE 32-BIT PIXELGRID CARS, SUVs, PICKUP & BOX TRUCKS, ANNOYING BIKERS & EMS AMBULANCE! ---
+  Object.assign(sprites, bake32BitVehicleSprites({ drawMiniText }));
 
   // Upgrade terrain tiles, lush trees, street signs, vehicles & props to 32-bit 2x native pixel detail!
   upgradeAtlasTo32Bit(sprites, P);

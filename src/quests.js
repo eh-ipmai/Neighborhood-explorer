@@ -43,6 +43,19 @@ export const ITEM_CATALOG = {
   spooky_lantern: { name: "Spooky Graveyard Lantern", icon: "🎃", sprite: "item_lantern", desc: "Glowing teal lantern from Newton's 1660 East Parish Burying Ground!" },
   ghost_charm: { name: "Friendly Ghost Charm", icon: "👻", sprite: "item_ghost", desc: "Shimmering spirit keepsake from Newton Cemetery & Arboretum!" },
   ghost_lantern_cloak: { name: "Haunted Lantern Cloak", icon: "🕯️", sprite: "item_lantern", desc: "Master Explorer reward from touring BC & Newton's spooky graveyards!" },
+  graveyard_sword: { name: "Graveyard Explorer Sword", icon: "⚔️", sprite: "item_sword", desc: "Gleaming hero sword from the Salzberg family — press J to fight graveyard enemies!" },
+  pocket_siddur: { name: "Pocket Siddur", icon: "📖", sprite: "item_siddur", desc: "Peaceful synagogue prayerbook — press K to dispel spooky foes & neighborhood bad guys!" },
+  outfit_baseball: { name: "Little League Uniform", icon: "⚾", sprite: "item_glove", desc: "Quest-earned Team Giants baseball outfit — press O to wear it!" },
+  outfit_wetsuit: { name: "Summer Wetsuit & Snorkel", icon: "🤿", sprite: "item_stamp", desc: "Quest-earned wetsuit & snorkel outfit — press O to wear it!" },
+  outfit_link: { name: "Hero of Hyrule (Link) Outfit", icon: "🗡️", sprite: "item_sword", desc: "Quest-earned Legend of Zelda Link tunic, cap & shield — press O to wear it!" },
+};
+
+const ALL_OUTFIT_ORDER = ["polo", "baseball", "wetsuit", "link"];
+const OUTFIT_DISPLAY_NAMES = {
+  polo: "👕 Polo, Kippah & Tzitzit",
+  baseball: "⚾ Little League Uniform",
+  wetsuit: "🤿 Summer Wetsuit & Snorkel",
+  link: "🗡️ Link (Hero of Hyrule) Outfit",
 };
 
 export function getItemMeta(itemId) {
@@ -59,44 +72,126 @@ export function getItemMeta(itemId) {
 }
 
 /**
- * Snap a landmark/chest tile onto the nearest walkable tile (preferring sidewalk/grass)
- * so NPCs and treasure chests are always reachable and never trapped inside solid buildings.
+ * Snap a landmark/chest tile onto a reachable walkable tile while keeping NPCs
+ * comfortably spaced away from crosswalks and immediate road curbs so talking to
+ * someone never fights with Looking Both Ways to cross a street.
  */
-export function snapToWalkableTile(worldMap, targetX, targetY, maxRadius = 10) {
+export function snapToWalkableTile(worldMap, targetX, targetY, maxRadius = 10, avoidPoints = []) {
   const { width, height } = worldMap.dimensions;
   const base = worldMap.layers.base;
   const collision = worldMap.layers.collision;
 
-  const isRoadId = (id) => id === 2 || id === 3 || id === 4 || id === 12;
+  const isRoadId = (id) => id === 2 || id === 3 || id === 4 || id === 12 || id === 13;
 
   const clampX = Math.max(0, Math.min(width - 1, Math.round(targetX)));
   const clampY = Math.max(0, Math.min(height - 1, Math.round(targetY)));
 
-  if (collision[clampY * width + clampX] === 0 && !isRoadId(base[clampY * width + clampX])) {
-    return { x: clampX, y: clampY };
+  const isTooCloseToAvoid = (tx, ty) => {
+    for (const pt of avoidPoints) {
+      const minDist = pt.minDist ?? 2.4;
+      if (Math.hypot(tx - pt.x, ty - pt.y) < minDist) return true;
+    }
+    return false;
+  };
+
+  const measureRoadClearance = (tx, ty) => {
+    let minRoad = 99;
+    let minCross = 99;
+    for (let dy = -3; dy <= 3; dy++) {
+      for (let dx = -3; dx <= 3; dx++) {
+        const nx = tx + dx;
+        const ny = ty + dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        const t = base[ny * width + nx];
+        if (!isRoadId(t)) continue;
+        const d = Math.hypot(dx, dy);
+        if (d < minRoad) minRoad = d;
+        if (t === 4 && d < minCross) minCross = d;
+      }
+    }
+    let openNeighbors = 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = tx + dx;
+      const ny = ty + dy;
+      if (nx >= 0 && ny >= 0 && nx < width && ny < height && collision[ny * width + nx] === 0) {
+        openNeighbors++;
+      }
+    }
+    return { minRoad, minCross, openNeighbors };
+  };
+
+  // If the exact target tile is already walkable, non-road, and clear of curbs/crosswalks & avoided points, keep it!
+  if (
+    collision[clampY * width + clampX] === 0 &&
+    !isRoadId(base[clampY * width + clampX]) &&
+    !isTooCloseToAvoid(clampX, clampY)
+  ) {
+    const cl = measureRoadClearance(clampX, clampY);
+    if (cl.minCross >= 2.5 && cl.minRoad >= 1.8 && cl.openNeighbors >= 2) {
+      return { x: clampX, y: clampY };
+    }
   }
 
-  let fallback = null;
+  let best = null;
+  let bestScore = -Infinity;
   let roadFallback = null;
-  for (let r = 1; r <= maxRadius; r++) {
+  const searchRadius = Math.min(maxRadius, 6);
+
+  const considerTile = (tx, ty) => {
+    const idx = ty * width + tx;
+    if (collision[idx] !== 0) return;
+    if (isRoadId(base[idx])) {
+      if (!roadFallback) roadFallback = { x: tx, y: ty };
+      return;
+    }
+    const dist = Math.hypot(tx - clampX, ty - clampY);
+    const { minRoad, minCross, openNeighbors } = measureRoadClearance(tx, ty);
+    let score = -dist * 4.2;
+    // Strongly prefer staying clear of crosswalks & immediate road curbs!
+    if (minCross >= 3.0) score += 32;
+    else if (minCross >= 2.2) score += 18;
+    else score -= 28;
+
+    if (minRoad >= 2.0) score += 18;
+    else if (minRoad >= 1.4) score += 8;
+    else score -= 12;
+
+    if (openNeighbors < 2) score -= 24;
+    if (isTooCloseToAvoid(tx, ty)) score -= 85;
+    // Gentle preference for yard/park/sidewalk over tall grass
+    if (base[idx] === 1 || base[idx] === 0 || base[idx] === 11) score += 3;
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = { x: tx, y: ty };
+    }
+  };
+
+  for (let r = 0; r <= searchRadius; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const tx = clampX + dx;
         const ty = clampY + dy;
         if (tx < 0 || ty < 0 || tx >= width || ty >= height) continue;
-        const idx = ty * width + tx;
-        if (collision[idx] === 0) {
-          if (base[idx] === 1) return { x: tx, y: ty }; // Prefer front sidewalk
-          if (!isRoadId(base[idx])) {
-            if (!fallback) fallback = { x: tx, y: ty };
-          } else if (!roadFallback) {
-            roadFallback = { x: tx, y: ty };
-          }
-        }
+        considerTile(tx, ty);
       }
     }
-    if (fallback) return fallback;
+  }
+  if (best) return best;
+
+  // Fallback wider scan up to maxRadius if embedded deep inside a huge building footprint
+  for (let r = searchRadius + 1; r <= maxRadius; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const tx = clampX + dx;
+        const ty = clampY + dy;
+        if (tx < 0 || ty < 0 || tx >= width || ty >= height) continue;
+        considerTile(tx, ty);
+      }
+    }
+    if (best) return best;
   }
   return roadFallback || { x: clampX, y: clampY };
 }
@@ -157,12 +252,20 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     return enriched;
   });
 
-  // Extract interactable world objects (e.g. Quest 2 hidden Little Free Library chest)
+  // Extract interactable world objects (e.g. Quest 2 hidden Little Free Library chest),
+  // spacing them cleanly away from landmark NPCs so they never share a tile!
+  const npcAvoidPoints = npcs.map((lm) => ({ x: lm.walkTileX, y: lm.walkTileY, minDist: 2.6 }));
   const interactables = [];
   for (const q of quests) {
     for (const step of q.steps || []) {
       if (step.completionTrigger === "interact_object" && step.targetTile) {
-        const pos = snapToWalkableTile(worldMap, step.targetTile.x, step.targetTile.y);
+        const pos = snapToWalkableTile(
+          worldMap,
+          step.targetTile.x,
+          step.targetTile.y,
+          10,
+          npcAvoidPoints
+        );
         interactables.push({
           id: `${q.id}_step_${step.stepIndex}`,
           questId: q.id,
@@ -196,6 +299,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     gpsAssist: false,
     hardMode: false,
     heroOutfit: "polo",
+    unlockedOutfits: new Set(["polo"]),
     fogCells: new Uint8Array(FOG_GRID_SIZE * FOG_GRID_SIZE),
   };
 
@@ -248,8 +352,25 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       }
       state.gpsAssist = state.navMode === "gps";
       state.hardMode = state.navMode === "hard";
-      if (saved.heroOutfit === "polo" || saved.heroOutfit === "baseball") {
+      state.unlockedOutfits = new Set(["polo"]);
+      if (Array.isArray(saved.unlockedOutfits)) {
+        for (const oid of saved.unlockedOutfits) {
+          if (ALL_OUTFIT_ORDER.includes(oid)) state.unlockedOutfits.add(oid);
+        }
+      }
+      // Retroactively unlock any quest-earned outfits for already-completed quests
+      for (const q of quests) {
+        if (state.completedQuests.has(q.id) && q.rewards?.outfit && ALL_OUTFIT_ORDER.includes(q.rewards.outfit)) {
+          state.unlockedOutfits.add(q.rewards.outfit);
+        }
+      }
+      if (
+        ALL_OUTFIT_ORDER.includes(saved.heroOutfit) &&
+        state.unlockedOutfits.has(saved.heroOutfit)
+      ) {
         state.heroOutfit = saved.heroOutfit;
+      } else {
+        state.heroOutfit = "polo";
       }
       if (Array.isArray(saved.fogRevealedIndices)) {
         for (const idx of saved.fogRevealedIndices) {
@@ -287,6 +408,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
           navMode: state.navMode,
           gpsAssist: state.gpsAssist,
           heroOutfit: state.heroOutfit,
+          unlockedOutfits: [...state.unlockedOutfits],
           fogRevealedIndices,
         })
       );
@@ -309,6 +431,8 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     state.checkedSigns = new Set();
     state.checkedStreets = new Set();
     state.lastCheckedSignId = null;
+    state.heroOutfit = "polo";
+    state.unlockedOutfits = new Set(["polo"]);
     state.fogCells.fill(0);
     for (const obj of interactables) obj.opened = false;
     if (storage) {
@@ -377,6 +501,19 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
         };
       }
     }
+    if (step.completionTrigger === "interact_object") {
+      const q = getActiveQuest();
+      const obj = interactables.find((o) => o.questId === q?.id && o.stepIndex === step.stepIndex);
+      if (obj) {
+        return {
+          label: obj.name || q?.title || "Secret Spot",
+          tileX: obj.tileX,
+          tileY: obj.tileY,
+          landmarkId: null,
+          instruction: step.instruction,
+        };
+      }
+    }
     if (step.targetTile) {
       return {
         label: getActiveQuest()?.title || "Secret Spot",
@@ -406,6 +543,18 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     if (reward.coins) state.coins += reward.coins;
     if (reward.item) state.inventory.add(reward.item);
 
+    // Unlock quest's reward outfit (or next locked outfit if player completed a later quest first!)
+    let unlockedOutfit = null;
+    if (reward.outfit && ALL_OUTFIT_ORDER.includes(reward.outfit) && !state.unlockedOutfits.has(reward.outfit)) {
+      unlockedOutfit = reward.outfit;
+    } else {
+      const nextLocked = ALL_OUTFIT_ORDER.find((oid) => !state.unlockedOutfits.has(oid));
+      if (nextLocked) unlockedOutfit = nextLocked;
+    }
+    if (unlockedOutfit) {
+      state.unlockedOutfits.add(unlockedOutfit);
+    }
+
     // Activate next uncompleted quest automatically
     const nextQuest = quests.find((cand) => !state.completedQuests.has(cand.id)) || null;
     state.activeQuestId = nextQuest ? nextQuest.id : null;
@@ -416,6 +565,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       type: "quest_completed",
       quest: q,
       rewardItem: reward.item || null,
+      unlockedOutfit,
       rewardXP: reward.xp || 0,
       rewardCoins: reward.coins || 0,
       nextQuest,
@@ -453,10 +603,13 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
   }
 
   /**
-   * Find closest interactable NPC or hidden chest within reach (<= 3.2 tiles).
+   * Find closest interactable NPC or hidden chest within tight reach (<= 1.45 tiles)
+   * so talking to someone only triggers when you actually walk up to them.
    */
-  function findNearbyInteraction(tx, ty, maxDist = 2.3) {
+  function findNearbyInteraction(tx, ty, maxDist = 1.45) {
     let best = null;
+    const activeQuestId = getActiveQuest()?.id || null;
+    const activeStep = getActiveStep();
 
     for (const lm of npcs) {
       const dist = Math.hypot(lm.walkTileX - tx, lm.walkTileY - ty);
@@ -467,7 +620,13 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
 
     for (const obj of interactables) {
       const dist = Math.hypot(obj.tileX - tx, obj.tileY - ty);
-      if (dist <= maxDist && (!best || dist < best.dist)) {
+      const isActiveUnopenedChest =
+        !obj.opened &&
+        activeStep?.completionTrigger === "interact_object" &&
+        obj.questId === activeQuestId;
+      const effectiveDist = isActiveUnopenedChest ? dist - 0.15 : dist;
+      const bestEffective = best ? best.dist : Infinity;
+      if (dist <= maxDist && (!best || effectiveDist < bestEffective)) {
         best = { kind: "chest", target: obj, dist };
       }
     }
@@ -502,13 +661,28 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       });
     }
 
+    if (lm.bonusItem && !state.inventory.has(lm.bonusItem)) {
+      state.inventory.add(lm.bonusItem);
+      fanfareQueue.push({
+        itemId: lm.bonusItem,
+        sourceLabel: lm.name,
+      });
+    }
+
     // Check if active quest step targets this NPC
     const step = getActiveStep();
     let questEvent = null;
     if (step && step.completionTrigger === "npc_talk" && step.targetLandmarkId === lm.id) {
       questEvent = advanceQuestStep();
       if (questEvent?.type === "quest_completed") {
-        lines.push(`★ Quest Complete: ${questEvent.quest.title}! (+${questEvent.rewardXP} XP, +${questEvent.rewardCoins} Coins)`);
+        lines.push(`★ Quest Complete: ${questEvent.quest.title}! (+${questEvent.rewardXP} XP, +${questEvent.rewardCoins} Coins, +Hearts!)`);
+        if (questEvent.unlockedOutfit) {
+          lines.push(`🎉 New Outfit Unlocked: ${OUTFIT_DISPLAY_NAMES[questEvent.unlockedOutfit]}! Press O to switch outfits!`);
+          fanfareQueue.push({
+            itemId: `outfit_${questEvent.unlockedOutfit}`,
+            sourceLabel: `Outfit Unlocked: ${questEvent.quest.title}`,
+          });
+        }
         if (questEvent.rewardItem) {
           fanfareQueue.push({
             itemId: questEvent.rewardItem,
@@ -522,11 +696,17 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
 
     save();
 
+    const healHearts = Math.max(
+      Number(lm.healHearts) || 0,
+      questEvent?.type === "quest_completed" ? 2 : 0
+    );
+
     return {
       speaker: `${lm.npcName || "Neighbor"} • ${lm.name}`,
       lines,
       fanfareQueue,
       questEvent,
+      healHearts,
     };
   }
 
@@ -559,6 +739,13 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       questEvent = advanceQuestStep();
       if (questEvent?.type === "quest_completed") {
         lines.push(`★ Quest Complete: ${questEvent.quest.title}! (+${questEvent.rewardXP} XP, +${questEvent.rewardCoins} Coins)`);
+        if (questEvent.unlockedOutfit) {
+          lines.push(`🎉 New Outfit Unlocked: ${OUTFIT_DISPLAY_NAMES[questEvent.unlockedOutfit]}! Press O to switch outfits!`);
+          fanfareQueue.push({
+            itemId: `outfit_${questEvent.unlockedOutfit}`,
+            sourceLabel: `Outfit Unlocked: ${questEvent.quest.title}`,
+          });
+        }
         if (questEvent.rewardItem) {
           fanfareQueue.push({
             itemId: questEvent.rewardItem,
@@ -582,6 +769,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       lines,
       fanfareQueue,
       questEvent,
+      healHearts: questEvent?.type === "quest_completed" ? 2 : 0,
     };
   }
 
@@ -636,8 +824,26 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     return target;
   }
 
+  function getUnlockedOutfits() {
+    return ALL_OUTFIT_ORDER.filter((oid) => state.unlockedOutfits.has(oid));
+  }
+
+  function unlockOutfit(outfitId) {
+    if (!ALL_OUTFIT_ORDER.includes(outfitId)) return false;
+    state.unlockedOutfits.add(outfitId);
+    save();
+    return true;
+  }
+
   function toggleHeroOutfit() {
-    state.heroOutfit = state.heroOutfit === "baseball" ? "polo" : "baseball";
+    const unlocked = getUnlockedOutfits();
+    if (unlocked.length <= 1) {
+      state.heroOutfit = "polo";
+      return state.heroOutfit;
+    }
+    const curIdx = unlocked.indexOf(state.heroOutfit);
+    const nextIdx = (curIdx + 1) % unlocked.length;
+    state.heroOutfit = unlocked[nextIdx];
     save();
     return state.heroOutfit;
   }
@@ -673,6 +879,8 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     setNavMode,
     cycleNavMode,
     toggleGpsAssist,
+    getUnlockedOutfits,
+    unlockOutfit,
     toggleHeroOutfit,
   };
 }

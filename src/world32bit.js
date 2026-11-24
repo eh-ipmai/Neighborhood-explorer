@@ -378,13 +378,13 @@ export function upgradeAtlasTo32Bit(sprites, P) {
     sprites[`sidewalk_${v}`] = canvas;
   }
 
-  // Warm Dusk-Brownish-Slate Asphalt Roads
+  // Ultra-clean 32-bit Slate/Charcoal Asphalt Roads (minimal subtle grain so lane markings pop crisply!)
   const buildAsphaltTile = (baseCol, lightCol, darkCol, seed) => {
     const { canvas, ctx } = makeHdCanvas(32, 32);
     px(ctx, 0, 0, 32, 32, baseCol);
     for (let y = 0; y < 32; y += 2) {
       for (let x = 0; x < 32; x += 2) {
-        const r = h2(x, y, seed) % 15;
+        const r = h2(x, y, seed) % 29;
         if (r === 0) px(ctx, x, y, 1, 1, lightCol);
         else if (r === 1) px(ctx, x, y, 1, 1, darkCol);
       }
@@ -403,20 +403,20 @@ export function upgradeAtlasTo32Bit(sprites, P) {
     const ctx = canvas.getContext("2d");
     px(ctx, 0, 0, 32, 1, P.parkingDark || P.roadMainDark);
     if (v === 0) {
-      px(ctx, 30, 3, 2, 26, "#e8d6c3");
-      px(ctx, 30, 3, 1, 26, "#fff5e8");
+      px(ctx, 30, 3, 2, 26, "#e8ecf2");
+      px(ctx, 30, 3, 1, 26, "#ffffff");
     }
     sprites[`parking_${v}`] = canvas;
   }
 
-  // Cozy Warm-Cream Zebra Crosswalks (matching reference image!)
+  // Crisp High-Visibility White Zebra Crosswalks
   {
     const canvas = buildAsphaltTile(P.roadMain, P.roadMainLight, P.roadMainDark, 220);
     const ctx = canvas.getContext("2d");
     for (let y = 2; y < 30; y += 7) {
-      px(ctx, 2, y, 28, 4, "#f2e5d8");
-      px(ctx, 2, y, 28, 1, "#fffaf2");
-      px(ctx, 2, y + 3, 28, 1, "#c4b0a2");
+      px(ctx, 2, y, 28, 4, "#f4f7fa");
+      px(ctx, 2, y, 28, 1, "#ffffff");
+      px(ctx, 2, y + 3, 28, 1, "#c2cad6");
     }
     sprites.crosswalk_h = canvas;
   }
@@ -424,43 +424,52 @@ export function upgradeAtlasTo32Bit(sprites, P) {
     const canvas = buildAsphaltTile(P.roadMain, P.roadMainLight, P.roadMainDark, 221);
     const ctx = canvas.getContext("2d");
     for (let x = 2; x < 30; x += 7) {
-      px(ctx, x, 2, 4, 28, "#f2e5d8");
-      px(ctx, x, 2, 1, 28, "#fffaf2");
-      px(ctx, x + 3, 2, 1, 28, "#c4b0a2");
+      px(ctx, x, 2, 4, 28, "#f4f7fa");
+      px(ctx, x, 2, 1, 28, "#ffffff");
+      px(ctx, x + 3, 2, 1, 28, "#c2cad6");
     }
     sprites.crosswalk_v = canvas;
   }
 
-  // Warm Concrete Highway Median Barriers
+  // Clean Concrete Highway Jersey Median Barriers with Crisp Yellow Edge Lines Flanking Both Sides!
   {
     const canvas = buildAsphaltTile(P.highway || P.highwayBase, P.highwayLight || P.highwayTrack, P.highwayDark, 225);
     const ctx = canvas.getContext("2d");
-    px(ctx, 0, 8, 32, 16, "#2b2022");
-    px(ctx, 0, 9, 32, 3, "#e8dad0");
-    px(ctx, 0, 12, 32, 6, "#bfb0a8");
-    px(ctx, 0, 18, 32, 4, "#8a7a75");
-    px(ctx, 0, 22, 32, 2, "#574948");
+    // Crisp yellow highway median edge lines flanking both carriageways
+    px(ctx, 0, 2, 32, 2, "#f5c53b");
+    px(ctx, 0, 28, 32, 2, "#f5c53b");
+    // 3D Concrete Jersey Barrier
+    px(ctx, 0, 7, 32, 18, "#222630");
+    px(ctx, 0, 8, 32, 3, "#edf1f5");
+    px(ctx, 0, 11, 32, 7, "#c3cbd6");
+    px(ctx, 0, 18, 32, 4, "#8e97a6");
+    px(ctx, 0, 22, 32, 2, "#5b6370");
     for (const jx of [10, 22]) {
-      px(ctx, jx, 9, 1, 13, "#6e5e5b");
-      px(ctx, jx + 1, 9, 1, 13, "#f2e6dc");
+      px(ctx, jx, 8, 1, 14, "#6f7785");
+      px(ctx, jx + 1, 8, 1, 14, "#f5f8fc");
     }
-    px(ctx, 14, 11, 4, 2, "#f4c842");
-    px(ctx, 15, 11, 2, 1, "#fff6b8");
+    px(ctx, 14, 10, 4, 2, "#f5c53b");
+    px(ctx, 15, 10, 2, 1, "#fff6b8");
     sprites.highway_median_h = canvas;
   }
   {
     const canvas = buildAsphaltTile(P.highway || P.highwayBase, P.highwayLight || P.highwayTrack, P.highwayDark, 226);
     const ctx = canvas.getContext("2d");
-    px(ctx, 8, 0, 16, 32, "#2b2022");
-    px(ctx, 9, 0, 3, 32, "#e8dad0");
-    px(ctx, 12, 0, 6, 32, "#bfb0a8");
-    px(ctx, 18, 0, 4, 32, "#8a7a75");
-    px(ctx, 22, 0, 2, 32, "#574948");
+    // Crisp yellow highway median edge lines flanking both carriageways
+    px(ctx, 2, 0, 2, 32, "#f5c53b");
+    px(ctx, 28, 0, 2, 32, "#f5c53b");
+    // 3D Concrete Jersey Barrier
+    px(ctx, 7, 0, 18, 32, "#222630");
+    px(ctx, 8, 0, 3, 32, "#edf1f5");
+    px(ctx, 11, 0, 7, 32, "#c3cbd6");
+    px(ctx, 18, 0, 4, 32, "#8e97a6");
+    px(ctx, 22, 0, 2, 32, "#5b6370");
     for (const jy of [10, 22]) {
-      px(ctx, 9, jy, 13, 1, "#6e5e5b");
-      px(ctx, 9, jy + 1, 13, 1, "#f2e6dc");
+      px(ctx, 8, jy, 14, 1, "#6f7785");
+      px(ctx, 8, jy + 1, 14, 1, "#f5f8fc");
     }
-    px(ctx, 11, 14, 2, 4, "#f4c842");
+    px(ctx, 10, 14, 2, 4, "#f5c53b");
+    px(ctx, 10, 15, 1, 2, "#fff6b8");
     sprites.highway_median_v = canvas;
   }
 

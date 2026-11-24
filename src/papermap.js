@@ -6,6 +6,7 @@
 
 import { FOG_GRID_SIZE } from "./quests.js";
 import { buildGraveyardMask } from "./graveyards.js";
+import { getBuildingVisualCategory } from "./tileset.js";
 
 // Vintage illustrated parchment map colors
 const MAP_TILE_INK = {
@@ -14,7 +15,7 @@ const MAP_TILE_INK = {
   2: "#8a94a1", // residential street (crisp cool slate so roads pop clearly against sidewalks!)
   3: "#d9a24b", // town avenue / main road (warm ochre)
   4: "#fff5d6", // crosswalk
-  5: "#a87b64", // houses / buildings (terracotta ink)
+  5: "#b58b74", // residential homes (soft muted terracotta ink so non-residential buildings pop!)
   6: "#5d9bd4", // Crystal Lake / water
   7: "#7fa868", // Oakdale Woods / wild tall grass
   8: "#b8b0a2", // parking lots
@@ -25,10 +26,49 @@ const MAP_TILE_INK = {
   13: "#f0ede6", // concrete highway median barrier
 };
 
-export function createPaperMapRenderer(worldMap) {
+// Distinct map-ink colors for non-residential buildings so schools, libraries, civic halls,
+// firehouses & village shops stand out instantly on BOTH the Folded Paper Map & Radar Mini-Map!
+export const NON_RESIDENTIAL_MAP_INK = {
+  school: "#2358b8",       // Cobalt School Blue
+  bc_school: "#8a2434",    // BC Collegiate Maroon
+  library: "#248f7c",      // Oxidized Copper Library Teal
+  synagogue: "#6f42a6",    // Regal Civic Purple
+  church: "#6f42a6",       // Regal Civic Purple
+  gothic_chapel: "#525870",// Gothic Slate
+  civic: "#6f42a6",        // Regal Civic Purple
+  fire_station: "#d92b24", // Firehouse Red
+  bakery_cafe: "#e07124",  // Warm Shop/Café Orange
+  corner_market: "#e07124",// Warm Shop/Market Orange
+  commercial: "#e07124",   // Warm Commercial Orange
+  office_plaza: "#3b82b6", // Modern Steel-Blue Office
+  apartments: "#7c726c",   // Multi-Unit Slate
+  greenhouse: "#5cc2c2",   // Conservatory Mint-Glass
+};
+
+export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
   const { width, height } = worldMap.dimensions;
   const base = worldMap.layers.base;
   const { graveyardGrid } = buildGraveyardMask(worldMap);
+
+  // Build per-tile non-residential building ink lookup so Radar Mini-Map & Paper Map highlight
+  // schools, libraries, synagogues/churches, fire stations & shops clearly against residential homes!
+  const buildingInkGrid = new Array(width * height).fill(null);
+  for (const b of worldMap.buildings || []) {
+    if (!b.bounds) continue;
+    const cat = getBuildingVisualCategory(b, colorOverrideMap);
+    const ink = NON_RESIDENTIAL_MAP_INK[cat];
+    if (!ink) continue;
+    const minX = Math.max(0, b.bounds.minX);
+    const maxX = Math.min(width - 1, b.bounds.maxX);
+    const minY = Math.max(0, b.bounds.minY);
+    const maxY = Math.min(height - 1, b.bounds.maxY);
+    for (let ty = minY; ty <= maxY; ty++) {
+      const rowOff = ty * width;
+      for (let tx = minX; tx <= maxX; tx++) {
+        buildingInkGrid[rowOff + tx] = ink;
+      }
+    }
+  }
 
   // Bake full miniature parchment base map ONCE (256x256 px) so opening the map is instant
   const MAP_PX = 256;
@@ -52,9 +92,27 @@ export function createPaperMapRenderer(worldMap) {
       const idx = rowOffset + tx;
       const id = base[idx];
       const isGraveTurf = graveyardGrid[idx] !== 0 && (id === 0 || id === 7 || id === 11);
-      bCtx.fillStyle = isGraveTurf ? "#8a8ea3" : (MAP_TILE_INK[id] || MAP_TILE_INK[0]);
+      bCtx.fillStyle =
+        buildingInkGrid[idx] || (isGraveTurf ? "#8a8ea3" : MAP_TILE_INK[id] || MAP_TILE_INK[0]);
       bCtx.fillRect(px, py, 1, 1);
     }
+  }
+
+  // Stamp non-residential building footprints directly onto baseCanvas so even narrow 1-tile schools
+  // or fire stations never vanish during 512->256 downsampling!
+  for (const b of worldMap.buildings || []) {
+    if (!b.bounds) continue;
+    const cat = getBuildingVisualCategory(b, colorOverrideMap);
+    const ink = NON_RESIDENTIAL_MAP_INK[cat];
+    if (!ink || cat === "apartments" || cat === "greenhouse") continue;
+    const rx = Math.floor((b.bounds.minX / width) * MAP_PX);
+    const ry = Math.floor((b.bounds.minY / height) * MAP_PX);
+    const rw = Math.max(2, Math.ceil(((b.bounds.maxX - b.bounds.minX + 1) / width) * MAP_PX));
+    const rh = Math.max(2, Math.ceil(((b.bounds.maxY - b.bounds.minY + 1) / height) * MAP_PX));
+    bCtx.fillStyle = "#2b2112";
+    bCtx.fillRect(rx - 1, ry - 1, rw + 2, rh + 2);
+    bCtx.fillStyle = ink;
+    bCtx.fillRect(rx, ry, rw, rh);
   }
 
   /**
@@ -439,7 +497,8 @@ export function createPaperMapRenderer(worldMap) {
           const idx = rowOff + tx;
           const id = base[idx];
           const isGraveTurf = graveyardGrid[idx] !== 0 && (id === 0 || id === 7 || id === 11);
-          ctx.fillStyle = isGraveTurf ? "#8a8ea3" : (MAP_TILE_INK[id] || MAP_TILE_INK[0]);
+          ctx.fillStyle =
+            buildingInkGrid[idx] || (isGraveTurf ? "#8a8ea3" : MAP_TILE_INK[id] || MAP_TILE_INK[0]);
         }
         ctx.fillRect(dx * 2, dy * 2, 2, 2);
       }

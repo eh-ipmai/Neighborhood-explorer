@@ -265,3 +265,81 @@ export function createSafetySystem(worldMap) {
     getSpeedMultiplier,
   };
 }
+
+/**
+ * Cleanly disambiguate whether pressing Space / tapping the action button means:
+ *   - "look_both_ways": crossing an unchecked road directly ahead of Liam
+ *   - "interact": speaking with an NPC, reading a street sign, opening a chest, or shooing street-life
+ *
+ * Facing-aware rule:
+ *   - If Liam just bumped a road curb (curbStopCueTimer > 0), Look Both Ways ALWAYS wins.
+ *   - If Liam is standing off-road FACING directly into an unchecked road/crosswalk
+ *     (the exact tile ahead of him is an unchecked road), Look Both Ways ALWAYS wins so
+ *     corner street signs or nearby NPCs never hijack crossing the street!
+ *   - Turn away from the road / toward the NPC or sign -> Interact wins cleanly!
+ */
+export function resolveActionIntent({
+  playerTileX,
+  playerTileY,
+  facing = "down",
+  headingDeg = 0,
+  hardMode = false,
+  isOnRoad = false,
+  safeCrossingActive = false,
+  curbStopCueTimer = 0,
+  nearbyInteraction = null,
+  isRoadTileFn,
+}) {
+  let fx = 0;
+  let fy = 1;
+  if (hardMode) {
+    const rad = (headingDeg * Math.PI) / 180;
+    const rawX = Math.sin(rad);
+    const rawY = -Math.cos(rad);
+    const len = Math.hypot(rawX, rawY) || 1;
+    fx = rawX / len;
+    fy = rawY / len;
+  } else if (facing === "up") {
+    fx = 0;
+    fy = -1;
+  } else if (facing === "down") {
+    fx = 0;
+    fy = 1;
+  } else if (facing === "left") {
+    fx = -1;
+    fy = 0;
+  } else if (facing === "right") {
+    fx = 1;
+    fy = 0;
+  }
+
+  const aheadTx = Math.round(playerTileX + fx);
+  const aheadTy = Math.round(playerTileY + fy);
+  const facingUncheckedRoad =
+    !isOnRoad && !safeCrossingActive && Boolean(isRoadTileFn?.(aheadTx, aheadTy));
+
+  if (curbStopCueTimer > 0 || facingUncheckedRoad) {
+    return {
+      mode: "look_both_ways",
+      interaction: null,
+      alternateInteraction: nearbyInteraction,
+      facingUncheckedRoad: true,
+    };
+  }
+
+  if (nearbyInteraction) {
+    return {
+      mode: "interact",
+      interaction: nearbyInteraction,
+      alternateInteraction: null,
+      facingUncheckedRoad: false,
+    };
+  }
+
+  return {
+    mode: "look_both_ways",
+    interaction: null,
+    alternateInteraction: null,
+    facingUncheckedRoad: false,
+  };
+}

@@ -21,6 +21,8 @@
 export const HERO_OUTFITS = {
   polo: { id: "polo", label: "Polo & Kippah", shortLabel: "Polo", icon: "👕" },
   baseball: { id: "baseball", label: "Little League", shortLabel: "Baseball", icon: "⚾" },
+  wetsuit: { id: "wetsuit", label: "Summer Wetsuit", shortLabel: "Wetsuit", icon: "🤿" },
+  link: { id: "link", label: "Hero of Hyrule", shortLabel: "Link", icon: "🗡️" },
 };
 
 /**
@@ -284,6 +286,50 @@ const LIAM_PAL = {
   cleatHi: "#555d70",
   cleatMid: "#2a2e38",
   cleatShade: "#16181f",
+
+  // Summer Wetsuit & Swim Goggles!
+  wetHi: "#485d7a",
+  wetMid: "#29384d",
+  wetShade: "#1a2536",
+  wetDeep: "#101724",
+  tealHi: "#8afcf4",
+  tealMid: "#24d4cc",
+  tealShade: "#12918c",
+  tealDeep: "#0b5c59",
+  goggleGlass: "#58c9f5",
+  goggleGlassHi: "#d4f7ff",
+  goggleStrap: "#1ad9cf",
+  zipGold: "#ffd859",
+
+  // Legend of Zelda — Link (Hero of Hyrule) Tunic, Pointy Cap, Hylian Shield & Master Sword!
+  linkGreenSpec: "#98f56c",
+  linkGreenHi: "#56cf48",
+  linkGreenMid: "#2d9e38",
+  linkGreenShade: "#1c732b",
+  linkGreenDeep: "#124d20",
+  linkHairSpec: "#fff5ad",
+  linkHairHi: "#ffe26e",
+  linkHairMid: "#e3b63b",
+  linkHairShade: "#b5851f",
+  linkHairDeep: "#7d550e",
+  linkCreamHi: "#fff9eb",
+  linkCreamMid: "#e8dec3",
+  linkCreamShade: "#bfb393",
+  linkLeatherHi: "#b8703b",
+  linkLeatherMid: "#874a22",
+  linkLeatherShade: "#5c2e13",
+  linkLeatherDeep: "#381a0a",
+  linkGoldHi: "#fff08a",
+  linkGold: "#f2c63d",
+  linkGoldShade: "#b58414",
+  shieldBlueHi: "#5798f2",
+  shieldBlue: "#265cb8",
+  shieldBlueDark: "#153675",
+  shieldSilver: "#e6edf5",
+  shieldSilverShade: "#9ba8ba",
+  shieldRed: "#d9322c",
+  swordHiltHi: "#9478eb",
+  swordHilt: "#5b41ab",
 };
 
 const LIAM_SELOUT = {
@@ -297,6 +343,11 @@ const LIAM_SELOUT = {
   cap: "#11131a",
   orange: "#592005",
   jersey: "#5c5548",
+  wetsuit: "#0c1421",
+  goggle: "#0a4a52",
+  linkGreen: "#0d3817",
+  linkLeather: "#2e1407",
+  linkShield: "#11254d",
   scooter: "#141e26",
   dark: "#181620",
 };
@@ -307,27 +358,35 @@ const LIAM_SELOUT = {
 
 function draw32BitSneaker(g, x, y, facing, outfit, lifted = false) {
   const isBB = outfit === "baseball";
-  const hi = isBB ? LIAM_PAL.cleatHi : LIAM_PAL.shoeHi;
-  const mid = isBB ? LIAM_PAL.cleatMid : LIAM_PAL.shoeMid;
-  const sh = isBB ? LIAM_PAL.cleatShade : LIAM_PAL.shoeShade;
-  const sole = LIAM_PAL.shoeSole;
-  const soleSh = LIAM_PAL.shoeSoleShade;
+  const isWet = outfit === "wetsuit";
+  const isLink = outfit === "link";
+  const hi = isLink ? LIAM_PAL.linkLeatherHi : isWet ? LIAM_PAL.tealMid : isBB ? LIAM_PAL.cleatHi : LIAM_PAL.shoeHi;
+  const mid = isLink ? LIAM_PAL.linkLeatherMid : isWet ? LIAM_PAL.wetMid : isBB ? LIAM_PAL.cleatMid : LIAM_PAL.shoeMid;
+  const sh = isLink ? LIAM_PAL.linkLeatherDeep : isWet ? LIAM_PAL.wetDeep : isBB ? LIAM_PAL.cleatShade : LIAM_PAL.shoeShade;
+  const sole = isLink ? LIAM_PAL.linkLeatherShade : isWet ? LIAM_PAL.tealHi : LIAM_PAL.shoeSole;
+  const soleSh = isLink ? LIAM_PAL.linkLeatherDeep : isWet ? LIAM_PAL.tealShade : LIAM_PAL.shoeSoleShade;
   const yOff = lifted ? -1 : 0;
 
   if (facing === "right") {
-    // Detailed side-view sporty sneaker pointing right (9x6 px!)
+    // Detailed side-view boot/sneaker pointing right (9x6 px!)
     g.rect(x, y + yOff, 6, 4, mid, "shoe");
     g.rect(x + 1, y + yOff, 4, 1, hi, "shoe");
     g.rect(x, y + 3 + yOff, 6, 1, sh, "shoe");
     // Rounded sculpted toe cap pointing right
     g.rect(x + 6, y + 1 + yOff, 2, 3, mid, "shoe");
-    g.set(x + 7, y + 2 + yOff, sole, "shoe"); // White rubber toe bumper
+    g.set(x + 7, y + 2 + yOff, isLink ? hi : sole, "shoe");
     g.set(x + 7, y + 3 + yOff, sole, "shoe");
-    // Crisp white criss-cross laces + sporty side stripe!
-    g.set(x + 4, y + yOff, sole, "shoe");
-    g.set(x + 5, y + 1 + yOff, sole, "shoe");
-    g.line(x + 1, y + 2 + yOff, x + 4, y + 2 + yOff, isBB ? LIAM_PAL.orangeMid : sole, "shoe");
-    // Shaded white outsole
+    if (isLink) {
+      // Folded Hylian leather boot cuff!
+      g.rect(x, y - 2 + yOff, 6, 2, LIAM_PAL.linkLeatherHi, "linkLeather");
+      g.rect(x + 1, y - 1 + yOff, 4, 1, LIAM_PAL.linkGold, "linkLeather");
+    } else {
+      // Crisp white criss-cross laces + sporty side stripe!
+      g.set(x + 4, y + yOff, sole, "shoe");
+      g.set(x + 5, y + 1 + yOff, sole, "shoe");
+      g.line(x + 1, y + 2 + yOff, x + 4, y + 2 + yOff, isBB ? LIAM_PAL.orangeMid : sole, "shoe");
+    }
+    // Outsole
     g.rect(x, y + 4 + yOff, 8, 1, sole, "shoe");
     g.rect(x + 1, y + 5 + yOff, 7, 1, soleSh, "shoe");
     if (isBB) {
@@ -337,17 +396,21 @@ function draw32BitSneaker(g, x, y, facing, outfit, lifted = false) {
       g.set(x + 6, y + 5 + yOff, LIAM_PAL.capDeep, "shoe");
     }
   } else {
-    // Front/back view sculpted sneaker (7x6 px)
+    // Front/back view sculpted boot/sneaker (7x6 px)
     g.rect(x, y + yOff, 7, 4, mid, "shoe");
     g.rect(x + 1, y + yOff, 5, 1, hi, "shoe");
     g.rect(x, y + 3 + yOff, 7, 1, sh, "shoe");
-    // White laces + rubber toe-cap highlight
-    if (facing === "down") {
+    if (isLink) {
+      // Tall folded leather boot cuff with subtle gold stitch!
+      g.rect(x, y - 2 + yOff, 7, 2, LIAM_PAL.linkLeatherHi, "linkLeather");
+      g.rect(x + 1, y - 1 + yOff, 5, 1, LIAM_PAL.linkLeatherMid, "linkLeather");
+    } else if (facing === "down") {
+      // White laces + rubber toe-cap highlight
       g.rect(x + 2, y + yOff, 3, 1, sole, "shoe");
       g.set(x + 3, y + 1 + yOff, sole, "shoe");
       g.rect(x + 1, y + 3 + yOff, 5, 1, sole, "shoe");
     }
-    // White rubber outsole
+    // Outsole
     g.rect(x, y + 4 + yOff, 7, 1, sole, "shoe");
     g.rect(x + 1, y + 5 + yOff, 5, 1, soleSh, "shoe");
   }
@@ -370,6 +433,13 @@ function draw32BitTzitzit(g, x, y, sway = 0, sideView = false) {
 }
 
 function draw32BitHeadFront(g, cx, topY, outfit, happyFanfare = false) {
+  const isLink = outfit === "link";
+  const hSpec = isLink ? LIAM_PAL.linkHairSpec : LIAM_PAL.hairSpec;
+  const hHi = isLink ? LIAM_PAL.linkHairHi : LIAM_PAL.hairHi;
+  const hMid = isLink ? LIAM_PAL.linkHairMid : LIAM_PAL.hairMid;
+  const hShade = isLink ? LIAM_PAL.linkHairShade : LIAM_PAL.hairShade;
+  const hDeep = isLink ? LIAM_PAL.linkHairDeep : LIAM_PAL.hairDeep;
+
   // 1. Sculpted rounded 32-bit head oval (18x18 px)
   g.ellipse(cx, topY + 13, 8.2, 8.2, LIAM_PAL.skinMid, "skin");
   // Warm forehead & cheek highlights
@@ -377,58 +447,66 @@ function draw32BitHeadFront(g, cx, topY, outfit, happyFanfare = false) {
   // Sculpted jawline & chin shadow (classic 32-bit warmth!)
   g.rect(cx - 5, topY + 19, 11, 1, LIAM_PAL.skinShade, "skin");
   g.rect(cx - 3, topY + 20, 7, 1, LIAM_PAL.skinDeep, "skin");
-  // Cute sculpted ears with inner ear shadow
-  g.rect(cx - 9, topY + 12, 2, 4, LIAM_PAL.skinMid, "skin");
-  g.set(cx - 9, topY + 13, LIAM_PAL.skinShade, "skin");
-  g.set(cx - 8, topY + 14, LIAM_PAL.skinDeep, "skin");
-  g.rect(cx + 8, topY + 12, 2, 4, LIAM_PAL.skinMid, "skin");
-  g.set(cx + 9, topY + 13, LIAM_PAL.skinShade, "skin");
-  g.set(cx + 8, topY + 14, LIAM_PAL.skinDeep, "skin");
-
-  // 2. Straight light-brown hair (5-tone sculpted strands + clean straight bangs!)
-  g.ellipse(cx, topY + 8, 8.6, 5.5, LIAM_PAL.hairMid, "hair");
-  // Straight side locks framing temples cleanly
-  g.rect(cx - 8, topY + 8, 2, 5, LIAM_PAL.hairShade, "hair");
-  g.rect(cx + 7, topY + 8, 2, 5, LIAM_PAL.hairShade, "hair");
-  g.set(cx - 8, topY + 12, LIAM_PAL.hairDeep, "hair");
-  g.set(cx + 8, topY + 12, LIAM_PAL.hairDeep, "hair");
-  // Clean straight fringe across forehead with subtle vertical hair strands!
-  g.rect(cx - 7, topY + 9, 15, 2, LIAM_PAL.hairMid, "hair");
-  for (let hx = cx - 6; hx <= cx + 6; hx += 3) {
-    g.line(hx, topY + 5, hx, topY + 10, LIAM_PAL.hairShade, "hair");
-    g.line(hx + 1, topY + 5, hx + 1, topY + 9, LIAM_PAL.hairHi, "hair");
+  // Sculpted ears — classic POINTED Hylian elf ears when dressed as Link!
+  if (isLink) {
+    g.rect(cx - 11, topY + 12, 4, 3, LIAM_PAL.skinMid, "skin");
+    g.rect(cx - 12, topY + 12, 2, 2, LIAM_PAL.skinHi, "skin");
+    g.rect(cx - 10, topY + 14, 3, 1, LIAM_PAL.skinShade, "skin");
+    g.rect(cx + 8, topY + 12, 4, 3, LIAM_PAL.skinMid, "skin");
+    g.rect(cx + 11, topY + 12, 2, 2, LIAM_PAL.skinHi, "skin");
+    g.rect(cx + 8, topY + 14, 3, 1, LIAM_PAL.skinShade, "skin");
+  } else {
+    g.rect(cx - 9, topY + 12, 2, 4, LIAM_PAL.skinMid, "skin");
+    g.set(cx - 9, topY + 13, LIAM_PAL.skinShade, "skin");
+    g.set(cx - 8, topY + 14, LIAM_PAL.skinDeep, "skin");
+    g.rect(cx + 8, topY + 12, 2, 4, LIAM_PAL.skinMid, "skin");
+    g.set(cx + 9, topY + 13, LIAM_PAL.skinShade, "skin");
+    g.set(cx + 8, topY + 14, LIAM_PAL.skinDeep, "skin");
   }
-  // Natural sunlit straight hair sheen band across crown
-  g.rect(cx - 5, topY + 5, 11, 2, LIAM_PAL.hairHi, "hair");
-  g.rect(cx - 3, topY + 5, 6, 1, LIAM_PAL.hairSpec, "hair");
-  // Subtle forehead shadow directly under straight bangs
-  g.rect(cx - 6, topY + 11, 13, 1, LIAM_PAL.skinShade, "skin");
-  // Hair under-edge shadow
-  g.rect(cx - 7, topY + 10, 15, 1, LIAM_PAL.hairDeep, "hair");
-  g.set(cx - 2, topY + 10, LIAM_PAL.hairShade, "hair"); // Subtle natural part!
-  g.set(cx + 3, topY + 10, LIAM_PAL.hairShade, "hair");
 
-  // 3. Expressive 32-bit eyes (lash line + warm hazel iris + dark pupil + white catchlight!)
+  // 2. Hair (golden-blonde swept Link bangs OR Liam's straight light-brown hair!)
+  g.ellipse(cx, topY + 8, 8.6, 5.5, hMid, "hair");
+  // Side locks framing temples cleanly (longer sideburns for Link!)
+  g.rect(cx - 8, topY + 8, 2, isLink ? 8 : 5, hShade, "hair");
+  g.rect(cx + 7, topY + 8, 2, isLink ? 8 : 5, hShade, "hair");
+  g.set(cx - 8, topY + (isLink ? 15 : 12), hDeep, "hair");
+  g.set(cx + 8, topY + (isLink ? 15 : 12), hDeep, "hair");
+  // Fringe across forehead
+  g.rect(cx - 7, topY + 9, 15, 2, hMid, "hair");
+  for (let hx = cx - 6; hx <= cx + 6; hx += 3) {
+    g.line(hx, topY + 5, hx, topY + 10, hShade, "hair");
+    g.line(hx + 1, topY + 5, hx + 1, topY + 9, hHi, "hair");
+  }
+  g.rect(cx - 5, topY + 5, 11, 2, hHi, "hair");
+  g.rect(cx - 3, topY + 5, 6, 1, hSpec, "hair");
+  g.rect(cx - 6, topY + 11, 13, 1, LIAM_PAL.skinShade, "skin");
+  g.rect(cx - 7, topY + 10, 15, 1, hDeep, "hair");
+  g.set(cx - 2, topY + 10, hShade, "hair");
+  g.set(cx + 3, topY + 10, hShade, "hair");
+  if (isLink) {
+    // Classic Link center-parted golden bangs sweeping across forehead!
+    g.rect(cx - 6, topY + 10, 4, 2, hHi, "hair");
+    g.rect(cx + 3, topY + 10, 4, 2, hHi, "hair");
+    g.set(cx, topY + 10, LIAM_PAL.skinHi, "skin");
+  }
+
+  // 3. Expressive 32-bit eyes (lash line + warm hazel/Hylian-blue iris + white catchlight!)
   for (const side of [-1, 1]) {
     const ex = side < 0 ? cx - 5 : cx + 3;
     const ey = topY + 13;
-    // Upper dark eyelash arch
     g.rect(ex, ey, 3, 1, LIAM_PAL.eyeLash, "skin");
-    // Eye white & rich iris
     g.rect(ex, ey + 1, 3, 3, LIAM_PAL.eyeLash, "skin");
-    g.set(ex + 1, ey + 2, LIAM_PAL.eyeIris, "skin");
-    g.set(ex + 1, ey + 3, LIAM_PAL.eyeIrisHi, "skin");
-    // Bright white catchlight sparkle!
-    g.set(ex + (side < 0 ? 0 : 0), ey + 1, LIAM_PAL.white, "skin");
+    g.set(ex + 1, ey + 2, isLink ? "#2e78c7" : LIAM_PAL.eyeIris, "skin");
+    g.set(ex + 1, ey + 3, isLink ? "#64b5f6" : LIAM_PAL.eyeIrisHi, "skin");
+    g.set(ex, ey + 1, LIAM_PAL.white, "skin");
     g.set(ex + 2, ey + 3, "#e8f0fa", "skin");
   }
-  // Cute sculpted nose + warm rosy cheeks + cheerful 7-year-old smile!
+  // Cute sculpted nose + warm rosy cheeks + cheerful smile!
   g.set(cx, topY + 16, LIAM_PAL.skinShade, "skin");
   g.set(cx, topY + 15, LIAM_PAL.skinHi, "skin");
   g.rect(cx - 6, topY + 16, 2, 1, LIAM_PAL.cheek, "skin");
   g.rect(cx + 5, topY + 16, 2, 1, LIAM_PAL.cheek, "skin");
   if (happyFanfare) {
-    // Big beaming SMB3 / Minish Cap triumph grin!
     g.rect(cx - 2, topY + 17, 5, 2, LIAM_PAL.mouthDark, "skin");
     g.rect(cx - 1, topY + 17, 3, 1, LIAM_PAL.white, "skin");
     g.rect(cx - 1, topY + 18, 3, 1, LIAM_PAL.mouth, "skin");
@@ -438,21 +516,60 @@ function draw32BitHeadFront(g, cx, topY, outfit, happyFanfare = false) {
     g.set(cx + 2, topY + 17, LIAM_PAL.skinShade, "skin");
   }
 
-  // 4. Headwear: Royal-Blue Knitted Kippah OR Team Giants Little League Cap!
-  if (outfit === "baseball") {
+  // 4. Headwear: Link's Iconic Pointy Emerald Cap, Royal-Blue Kippah, Team Giants Cap, OR Swim Goggles!
+  if (isLink) {
+    // Iconic Legend of Zelda Long Pointed Emerald Hylian Cap draping to the right with golden rim!
+    g.ellipse(cx, topY + 5, 9.2, 4.6, LIAM_PAL.linkGreenMid, "linkGreen");
+    g.ellipse(cx - 1, topY + 3.5, 6.5, 2.5, LIAM_PAL.linkGreenHi, "linkGreen");
+    g.rect(cx - 4, topY + 2, 6, 1, LIAM_PAL.linkGreenSpec, "linkGreen");
+    // Sweeping pointed cap tail draping cleanly off the side!
+    g.rect(cx + 6, topY + 2, 6, 4, LIAM_PAL.linkGreenMid, "linkGreen");
+    g.rect(cx + 7, topY + 2, 4, 2, LIAM_PAL.linkGreenHi, "linkGreen");
+    g.rect(cx + 10, topY + 4, 4, 4, LIAM_PAL.linkGreenShade, "linkGreen");
+    g.rect(cx + 12, topY + 6, 3, 3, LIAM_PAL.linkGreenDeep, "linkGreen");
+    g.set(cx + 14, topY + 8, LIAM_PAL.linkGreenShade, "linkGreen");
+    // Golden-trimmed Hylian cap brim sitting cleanly over blonde bangs!
+    g.rect(cx - 8, topY + 8, 17, 2, LIAM_PAL.linkGreenShade, "linkGreen");
+    g.rect(cx - 7, topY + 8, 15, 1, LIAM_PAL.linkGold, "linkGreen");
+  } else if (outfit === "wetsuit") {
+    // Wide single-pane Dive Mask + J-shaped Snorkel Tube sticking high up above Liam's head!
+    // Dive mask strap at temples
+    g.rect(cx - 8, topY + 13, 2, 2, LIAM_PAL.goggleStrap, "goggle");
+    g.rect(cx + 7, topY + 13, 2, 2, LIAM_PAL.goggleStrap, "goggle");
+    // Wide single-window dive mask frame + nose pocket + gleaming aqua glass!
+    g.rect(cx - 7, topY + 11, 15, 6, LIAM_PAL.goggleStrap, "goggle");
+    g.rect(cx - 6, topY + 11, 13, 1, LIAM_PAL.tealHi, "goggle");
+    g.rect(cx - 6, topY + 12, 13, 4, LIAM_PAL.goggleGlass, "goggle");
+    g.rect(cx - 5, topY + 12, 5, 1, LIAM_PAL.goggleGlassHi, "goggle");
+    g.set(cx - 4, topY + 12, LIAM_PAL.white, "goggle");
+    g.rect(cx + 2, topY + 12, 3, 1, LIAM_PAL.goggleGlassHi, "goggle");
+    // Eyes peeking cleanly through the wide dive mask glass + silicone nose pocket!
+    g.set(cx - 4, topY + 14, LIAM_PAL.eyeLash, "goggle");
+    g.set(cx + 4, topY + 14, LIAM_PAL.eyeLash, "goggle");
+    g.rect(cx - 1, topY + 15, 3, 2, LIAM_PAL.tealShade, "goggle");
+    // J-shaped Snorkel breathing tube from mouth curving around cheek & rising high above his head!
+    g.rect(cx + 1, topY + 17, 4, 2, LIAM_PAL.wetMid, "goggle");     // Mouthpiece
+    g.rect(cx + 5, topY + 17, 5, 2, LIAM_PAL.goggleStrap, "goggle"); // Lower J-curve
+    g.rect(cx + 6, topY + 17, 3, 1, LIAM_PAL.tealHi, "goggle");
+    g.rect(cx + 9, topY + 2, 3, 17, LIAM_PAL.goggleStrap, "goggle"); // Tall vertical snorkel straw!
+    g.rect(cx + 9, topY + 2, 1, 16, LIAM_PAL.tealHi, "goggle");      // Specular tube highlight
+    g.rect(cx + 11, topY + 3, 1, 15, LIAM_PAL.tealShade, "goggle");  // Tube shadow
+    g.rect(cx + 8, topY + 13, 4, 2, LIAM_PAL.wetMid, "goggle");      // Snorkel keeper clip
+    // High-vis bright orange snorkel splash-guard tip sticking up above the water!
+    g.rect(cx + 9, topY - 1, 3, 4, LIAM_PAL.orangeMid, "orange");
+    g.rect(cx + 9, topY - 1, 2, 2, LIAM_PAL.orangeHi, "orange");
+    g.set(cx + 10, topY - 1, LIAM_PAL.zipGold, "orange");
+  } else if (outfit === "baseball") {
     // 6-panel black cap dome
     g.ellipse(cx, topY + 6, 8.8, 5.2, LIAM_PAL.capMid, "cap");
     g.ellipse(cx - 1, topY + 4, 6.2, 3.0, LIAM_PAL.capHi, "cap");
     g.rect(cx - 8, topY + 7, 17, 2, LIAM_PAL.capShade, "cap");
-    // Panel seam lines + orange top button
     g.line(cx - 4, topY + 2, cx - 5, topY + 8, LIAM_PAL.capDeep, "cap");
     g.line(cx + 4, topY + 2, cx + 5, topY + 8, LIAM_PAL.capDeep, "cap");
     g.rect(cx - 1, topY + 1, 3, 1, LIAM_PAL.orangeMid, "orange");
-    // Crisp orange front 'G' badge!
     g.rect(cx - 1, topY + 4, 3, 3, LIAM_PAL.orangeMid, "orange");
     g.set(cx, topY + 5, LIAM_PAL.capMid, "cap");
     g.set(cx + 1, topY + 5, LIAM_PAL.orangeHi, "orange");
-    // Curved Giants orange baseball bill + under-brim shadow!
     g.ellipse(cx, topY + 9, 9.2, 2.2, LIAM_PAL.orangeMid, "orange");
     g.rect(cx - 7, topY + 8, 15, 1, LIAM_PAL.orangeHi, "orange");
     g.rect(cx - 7, topY + 10, 15, 1, LIAM_PAL.orangeShade, "orange");
@@ -460,12 +577,10 @@ function draw32BitHeadFront(g, cx, topY, outfit, happyFanfare = false) {
     // Royal-blue knitted kippah perched cleanly on Liam's straight light-brown hair!
     g.ellipse(cx, topY + 4, 5.8, 3.4, LIAM_PAL.kipMid, "kippah");
     g.ellipse(cx - 1, topY + 3, 3.6, 1.8, LIAM_PAL.kipHi, "kippah");
-    // Subtle knitted stitch texture pixels
     for (let kx = cx - 4; kx <= cx + 4; kx += 2) {
       g.set(kx, topY + 4, LIAM_PAL.kipShade, "kippah");
       g.set(kx + 1, topY + 3, LIAM_PAL.kipHi, "kippah");
     }
-    // Braided silver-white kippah rim
     g.rect(cx - 5, topY + 6, 11, 1, LIAM_PAL.kipRimHi, "kippah");
     for (let kx = cx - 4; kx <= cx + 4; kx += 2) {
       g.set(kx, topY + 6, LIAM_PAL.kipRimShade, "kippah");
@@ -475,39 +590,71 @@ function draw32BitHeadFront(g, cx, topY, outfit, happyFanfare = false) {
 }
 
 function draw32BitHeadBack(g, cx, topY, outfit) {
-  // Neck & ears visible from behind
+  const isLink = outfit === "link";
+  const hHi = isLink ? LIAM_PAL.linkHairHi : LIAM_PAL.hairHi;
+  const hMid = isLink ? LIAM_PAL.linkHairMid : LIAM_PAL.hairMid;
+  const hShade = isLink ? LIAM_PAL.linkHairShade : LIAM_PAL.hairShade;
+  const hDeep = isLink ? LIAM_PAL.linkHairDeep : LIAM_PAL.hairDeep;
+
+  // Neck & ears visible from behind (pointed Hylian ears for Link!)
   g.rect(cx - 3, topY + 19, 7, 3, LIAM_PAL.skinShade, "skin");
-  g.rect(cx - 9, topY + 12, 2, 4, LIAM_PAL.skinMid, "skin");
-  g.set(cx - 9, topY + 14, LIAM_PAL.skinShade, "skin");
-  g.rect(cx + 8, topY + 12, 2, 4, LIAM_PAL.skinMid, "skin");
-  g.set(cx + 9, topY + 14, LIAM_PAL.skinShade, "skin");
-
-  // Full sculpted straight light-brown hair cascading neatly to the nape!
-  g.ellipse(cx, topY + 12, 8.6, 8.4, LIAM_PAL.hairMid, "hair");
-  // Vertical straight hair strands & natural sheen
-  for (let hx = cx - 6; hx <= cx + 6; hx += 2) {
-    g.line(hx, topY + 6, hx, topY + 18, LIAM_PAL.hairShade, "hair");
-    g.line(hx + 1, topY + 7, hx + 1, topY + 16, LIAM_PAL.hairHi, "hair");
+  if (isLink) {
+    g.rect(cx - 11, topY + 12, 4, 3, LIAM_PAL.skinMid, "skin");
+    g.rect(cx - 12, topY + 12, 2, 2, LIAM_PAL.skinHi, "skin");
+    g.rect(cx + 8, topY + 12, 4, 3, LIAM_PAL.skinMid, "skin");
+    g.rect(cx + 11, topY + 12, 2, 2, LIAM_PAL.skinHi, "skin");
+  } else {
+    g.rect(cx - 9, topY + 12, 2, 4, LIAM_PAL.skinMid, "skin");
+    g.set(cx - 9, topY + 14, LIAM_PAL.skinShade, "skin");
+    g.rect(cx + 8, topY + 12, 2, 4, LIAM_PAL.skinMid, "skin");
+    g.set(cx + 9, topY + 14, LIAM_PAL.skinShade, "skin");
   }
-  g.rect(cx - 6, topY + 18, 13, 2, LIAM_PAL.hairDeep, "hair"); // Clean straight neck trim!
-  g.rect(cx - 5, topY + 17, 11, 1, LIAM_PAL.hairShade, "hair");
 
-  if (outfit === "baseball") {
-    // Full back of black Little League cap with orange top button + keyhole strap!
+  // Full sculpted hair cascading neatly to the nape!
+  g.ellipse(cx, topY + 12, 8.6, 8.4, hMid, "hair");
+  for (let hx = cx - 6; hx <= cx + 6; hx += 2) {
+    g.line(hx, topY + 6, hx, topY + 18, hShade, "hair");
+    g.line(hx + 1, topY + 7, hx + 1, topY + 16, hHi, "hair");
+  }
+  g.rect(cx - 6, topY + 18, 13, 2, hDeep, "hair");
+  g.rect(cx - 5, topY + 17, 11, 1, hShade, "hair");
+
+  if (isLink) {
+    // Full back view of Link's iconic Long Pointy Emerald Hylian Cap draping down his back!
+    g.ellipse(cx, topY + 7, 9.0, 6.2, LIAM_PAL.linkGreenMid, "linkGreen");
+    g.ellipse(cx - 1, topY + 4.5, 6.4, 3.0, LIAM_PAL.linkGreenHi, "linkGreen");
+    g.rect(cx - 8, topY + 10, 17, 2, LIAM_PAL.linkGreenShade, "linkGreen");
+    g.rect(cx - 7, topY + 11, 15, 1, LIAM_PAL.linkGold, "linkGreen");
+    // Draping conical cap tail hanging cheerfully down back-center!
+    g.rect(cx - 4, topY + 11, 9, 4, LIAM_PAL.linkGreenMid, "linkGreen");
+    g.rect(cx - 3, topY + 12, 6, 3, LIAM_PAL.linkGreenHi, "linkGreen");
+    g.rect(cx - 2, topY + 15, 6, 3, LIAM_PAL.linkGreenShade, "linkGreen");
+    g.rect(cx, topY + 18, 3, 2, LIAM_PAL.linkGreenDeep, "linkGreen");
+  } else if (outfit === "wetsuit") {
+    // Wide silicone dive-mask strap + tall snorkel breathing tube sticking high up above head!
+    g.rect(cx - 8, topY + 12, 17, 3, LIAM_PAL.goggleStrap, "goggle");
+    g.rect(cx - 7, topY + 12, 15, 1, LIAM_PAL.tealHi, "goggle");
+    g.rect(cx - 2, topY + 12, 5, 3, LIAM_PAL.white, "goggle");
+    g.rect(cx - 1, topY + 13, 3, 1, LIAM_PAL.tealShade, "goggle");
+    // Tall snorkel tube rising up on the left side (from behind!) with bright orange top tip
+    g.rect(cx - 11, topY + 2, 3, 16, LIAM_PAL.goggleStrap, "goggle");
+    g.rect(cx - 11, topY + 2, 1, 15, LIAM_PAL.tealHi, "goggle");
+    g.rect(cx - 9, topY + 3, 1, 14, LIAM_PAL.tealShade, "goggle");
+    g.rect(cx - 11, topY + 12, 4, 2, LIAM_PAL.wetMid, "goggle");
+    g.rect(cx - 11, topY - 1, 3, 4, LIAM_PAL.orangeMid, "orange");
+    g.rect(cx - 11, topY - 1, 2, 2, LIAM_PAL.orangeHi, "orange");
+  } else if (outfit === "baseball") {
     g.ellipse(cx, topY + 7, 8.8, 6.2, LIAM_PAL.capMid, "cap");
     g.ellipse(cx - 1, topY + 5, 6.4, 3.2, LIAM_PAL.capHi, "cap");
     g.rect(cx - 8, topY + 10, 17, 3, LIAM_PAL.capShade, "cap");
     g.rect(cx - 1, topY + 1, 3, 1, LIAM_PAL.orangeMid, "orange");
-    // Cap back keyhole cutout showing straight light-brown hair + orange adjuster strap!
     g.rect(cx - 3, topY + 10, 7, 3, LIAM_PAL.hairMid, "hair");
     g.rect(cx - 3, topY + 11, 7, 1, LIAM_PAL.orangeMid, "orange");
     g.set(cx, topY + 11, LIAM_PAL.orangeHi, "orange");
   } else {
-    // Full round Royal-Blue Knitted Kippah centered unmistakably on the back crown!
     g.ellipse(cx, topY + 8, 5.8, 5.2, LIAM_PAL.kipShade, "kippah");
     g.ellipse(cx, topY + 7.5, 4.8, 4.3, LIAM_PAL.kipMid, "kippah");
     g.ellipse(cx - 1, topY + 6, 2.8, 2.2, LIAM_PAL.kipHi, "kippah");
-    // Woven knit texture pixels
     for (let ky = topY + 5; ky <= topY + 10; ky += 2) {
       for (let kx = cx - 3; kx <= cx + 3; kx += 2) {
         if ((kx - cx) * (kx - cx) + (ky - (topY + 8)) * (ky - (topY + 8)) <= 12) {
@@ -515,7 +662,6 @@ function draw32BitHeadBack(g, cx, topY, outfit) {
         }
       }
     }
-    // Crisp circular silver-white braided rim around bottom half of kippah!
     for (let deg = 20; deg <= 160; deg += 15) {
       const r = (deg * Math.PI) / 180;
       const rx = cx + Math.cos(r) * 5.2;
@@ -526,62 +672,101 @@ function draw32BitHeadBack(g, cx, topY, outfit) {
 }
 
 function draw32BitHeadRight(g, cx, topY, outfit) {
+  const isLink = outfit === "link";
+  const hSpec = isLink ? LIAM_PAL.linkHairSpec : LIAM_PAL.hairSpec;
+  const hHi = isLink ? LIAM_PAL.linkHairHi : LIAM_PAL.hairHi;
+  const hMid = isLink ? LIAM_PAL.linkHairMid : LIAM_PAL.hairMid;
+  const hShade = isLink ? LIAM_PAL.linkHairShade : LIAM_PAL.hairShade;
+  const hDeep = isLink ? LIAM_PAL.linkHairDeep : LIAM_PAL.hairDeep;
+
   // 1. Sculpted 32-bit side profile head facing RIGHT!
   g.ellipse(cx, topY + 13, 7.6, 8.0, LIAM_PAL.skinMid, "skin");
   g.ellipse(cx + 2, topY + 12, 4.8, 5.2, LIAM_PAL.skinHi, "skin");
-  // Cute sculpted nose sticking 2px forward to the right!
   g.rect(cx + 7, topY + 14, 2, 2, LIAM_PAL.skinMid, "skin");
   g.set(cx + 8, topY + 14, LIAM_PAL.skinHi, "skin");
   g.set(cx + 7, topY + 16, LIAM_PAL.skinShade, "skin");
-  // Chin & jawline shadow
   g.rect(cx - 2, topY + 19, 8, 1, LIAM_PAL.skinShade, "skin");
   g.rect(cx, topY + 20, 5, 1, LIAM_PAL.skinDeep, "skin");
-  // Side rosy cheek & gentle smile
   g.rect(cx + 4, topY + 16, 2, 1, LIAM_PAL.cheek, "skin");
   g.rect(cx + 5, topY + 18, 2, 1, LIAM_PAL.mouth, "skin");
 
   // 2. Expressive side-profile 32-bit eye!
   g.rect(cx + 4, topY + 12, 3, 1, LIAM_PAL.eyeLash, "skin");
   g.rect(cx + 4, topY + 13, 3, 3, LIAM_PAL.eyeLash, "skin");
-  g.set(cx + 5, topY + 14, LIAM_PAL.eyeIris, "skin");
-  g.set(cx + 5, topY + 15, LIAM_PAL.eyeIrisHi, "skin");
+  g.set(cx + 5, topY + 14, isLink ? "#2e78c7" : LIAM_PAL.eyeIris, "skin");
+  g.set(cx + 5, topY + 15, isLink ? "#64b5f6" : LIAM_PAL.eyeIrisHi, "skin");
   g.set(cx + 4, topY + 13, LIAM_PAL.white, "skin");
 
-  // 3. Straight light-brown hair sweeping smoothly over crown & down the back!
-  g.ellipse(cx - 1, topY + 8, 8.0, 5.0, LIAM_PAL.hairMid, "hair");
-  // Back hair sweeping neatly down to the nape
-  g.rect(cx - 8, topY + 8, 7, 10, LIAM_PAL.hairMid, "hair");
-  g.rect(cx - 8, topY + 10, 3, 8, LIAM_PAL.hairShade, "hair");
-  g.rect(cx - 7, topY + 17, 6, 2, LIAM_PAL.hairDeep, "hair"); // Straight trimmed back edge
-  // Straight sunlit hair strands & front bangs over forehead
-  g.rect(cx - 5, topY + 5, 10, 2, LIAM_PAL.hairHi, "hair");
-  g.rect(cx - 3, topY + 5, 6, 1, LIAM_PAL.hairSpec, "hair");
-  g.rect(cx + 1, topY + 8, 7, 2, LIAM_PAL.hairMid, "hair");
-  g.rect(cx + 2, topY + 10, 6, 1, LIAM_PAL.hairDeep, "hair");
-  // Sideburn lock + sculpted ear peeking cleanly out of straight hair!
-  g.rect(cx - 2, topY + 12, 3, 4, LIAM_PAL.skinMid, "skin");
-  g.set(cx - 1, topY + 13, LIAM_PAL.skinShade, "skin");
-  g.set(cx - 1, topY + 14, LIAM_PAL.skinDeep, "skin");
+  // 3. Hair sweeping smoothly over crown & down the back!
+  g.ellipse(cx - 1, topY + 8, 8.0, 5.0, hMid, "hair");
+  g.rect(cx - 8, topY + 8, 7, 10, hMid, "hair");
+  g.rect(cx - 8, topY + 10, 3, 8, hShade, "hair");
+  g.rect(cx - 7, topY + 17, 6, 2, hDeep, "hair");
+  g.rect(cx - 5, topY + 5, 10, 2, hHi, "hair");
+  g.rect(cx - 3, topY + 5, 6, 1, hSpec, "hair");
+  g.rect(cx + 1, topY + 8, 7, 2, hMid, "hair");
+  g.rect(cx + 2, topY + 10, 6, 1, hDeep, "hair");
+  // Sculpted ear (pointed Hylian elf ear sweeping back for Link!)
+  if (isLink) {
+    g.rect(cx - 5, topY + 12, 6, 3, LIAM_PAL.skinMid, "skin");
+    g.rect(cx - 6, topY + 12, 3, 2, LIAM_PAL.skinHi, "skin");
+    g.rect(cx - 4, topY + 14, 4, 1, LIAM_PAL.skinShade, "skin");
+  } else {
+    g.rect(cx - 2, topY + 12, 3, 4, LIAM_PAL.skinMid, "skin");
+    g.set(cx - 1, topY + 13, LIAM_PAL.skinShade, "skin");
+    g.set(cx - 1, topY + 14, LIAM_PAL.skinDeep, "skin");
+  }
 
   // 4. Headwear in side profile
-  if (outfit === "baseball") {
-    // Sculpted black cap crown
+  if (isLink) {
+    // Iconic Link Pointy Emerald Cap sweeping dynamically back behind his head!
+    g.ellipse(cx - 1, topY + 5.5, 8.6, 4.4, LIAM_PAL.linkGreenMid, "linkGreen");
+    g.ellipse(cx - 1, topY + 4, 6.0, 2.2, LIAM_PAL.linkGreenHi, "linkGreen");
+    g.rect(cx - 3, topY + 2, 5, 1, LIAM_PAL.linkGreenSpec, "linkGreen");
+    // Long pointed tail streaming back to the left!
+    g.rect(cx - 14, topY + 4, 8, 5, LIAM_PAL.linkGreenMid, "linkGreen");
+    g.rect(cx - 13, topY + 4, 6, 2, LIAM_PAL.linkGreenHi, "linkGreen");
+    g.rect(cx - 16, topY + 7, 5, 4, LIAM_PAL.linkGreenShade, "linkGreen");
+    g.rect(cx - 18, topY + 9, 3, 3, LIAM_PAL.linkGreenDeep, "linkGreen");
+    // Golden-trimmed front cap rim
+    g.rect(cx - 7, topY + 8, 15, 2, LIAM_PAL.linkGreenShade, "linkGreen");
+    g.rect(cx - 6, topY + 8, 14, 1, LIAM_PAL.linkGold, "linkGreen");
+  } else if (outfit === "wetsuit") {
+    // Dive mask strap + protruding dive mask + J-shaped Snorkel tube rising straight up above head!
+    g.rect(cx - 8, topY + 13, 12, 2, LIAM_PAL.goggleStrap, "goggle");
+    g.rect(cx - 7, topY + 13, 10, 1, LIAM_PAL.tealHi, "goggle");
+    // Wide protruding dive mask covering eyes & nose
+    g.rect(cx + 3, topY + 11, 6, 6, LIAM_PAL.goggleStrap, "goggle");
+    g.rect(cx + 4, topY + 11, 4, 1, LIAM_PAL.tealHi, "goggle");
+    g.rect(cx + 4, topY + 12, 5, 4, LIAM_PAL.goggleGlass, "goggle");
+    g.rect(cx + 5, topY + 12, 3, 1, LIAM_PAL.goggleGlassHi, "goggle");
+    g.set(cx + 8, topY + 12, LIAM_PAL.white, "goggle");
+    // J-shaped snorkel tube from mouth curving back along jaw & shooting straight up above head!
+    g.rect(cx + 5, topY + 17, 4, 2, LIAM_PAL.wetMid, "goggle");      // Mouthpiece
+    g.rect(cx + 1, topY + 17, 5, 2, LIAM_PAL.goggleStrap, "goggle"); // Curved lower bend
+    g.rect(cx + 2, topY + 17, 3, 1, LIAM_PAL.tealHi, "goggle");
+    g.rect(cx, topY + 2, 3, 17, LIAM_PAL.goggleStrap, "goggle");     // Tall vertical snorkel straw!
+    g.rect(cx + 1, topY + 2, 1, 16, LIAM_PAL.tealHi, "goggle");
+    g.rect(cx, topY + 3, 1, 15, LIAM_PAL.tealShade, "goggle");
+    g.rect(cx - 1, topY + 13, 4, 2, LIAM_PAL.wetMid, "goggle");      // Snorkel keeper clip on strap
+    // High-vis bright orange splash-guard top sticking high above his head!
+    g.rect(cx, topY - 1, 3, 4, LIAM_PAL.orangeMid, "orange");
+    g.rect(cx + 1, topY - 1, 2, 2, LIAM_PAL.orangeHi, "orange");
+    g.set(cx + 1, topY - 1, LIAM_PAL.zipGold, "orange");
+  } else if (outfit === "baseball") {
     g.ellipse(cx - 1, topY + 6.5, 8.2, 4.8, LIAM_PAL.capMid, "cap");
     g.ellipse(cx - 2, topY + 4.5, 5.5, 2.5, LIAM_PAL.capHi, "cap");
     g.rect(cx - 8, topY + 8, 15, 2, LIAM_PAL.capShade, "cap");
     g.rect(cx - 2, topY + 1, 3, 1, LIAM_PAL.orangeMid, "orange");
-    // Bold protruding curved Giants orange baseball visor sticking forward to the right!
     g.rect(cx + 4, topY + 8, 10, 2, LIAM_PAL.orangeMid, "orange");
     g.rect(cx + 5, topY + 8, 8, 1, LIAM_PAL.orangeHi, "orange");
     g.rect(cx + 5, topY + 10, 9, 1, LIAM_PAL.orangeShade, "orange");
     g.rect(cx + 6, topY + 10, 5, 1, LIAM_PAL.orangeDeep, "orange");
   } else {
-    // Royal-blue knitted kippah perched naturally on back-top of crown!
     g.ellipse(cx - 4, topY + 5, 4.8, 3.2, LIAM_PAL.kipMid, "kippah");
     g.ellipse(cx - 4.5, topY + 4, 3.0, 1.6, LIAM_PAL.kipHi, "kippah");
     g.set(cx - 6, topY + 5, LIAM_PAL.kipShade, "kippah");
     g.set(cx - 3, topY + 5, LIAM_PAL.kipShade, "kippah");
-    // Braided rim angled naturally along crown
     g.line(cx - 8, topY + 6, cx, topY + 8, LIAM_PAL.kipRimHi, "kippah");
     g.line(cx - 7, topY + 7, cx - 1, topY + 8, LIAM_PAL.kipDeep, "kippah");
   }
@@ -590,25 +775,30 @@ function draw32BitHeadRight(g, cx, topY, outfit) {
 function draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, facing, stepFrame, outfit, onScooter) {
   const isBack = facing === "up";
   const isBB = outfit === "baseball";
+  const isWet = outfit === "wetsuit";
+  const isLink = outfit === "link";
   const liftL = !onScooter && stepFrame === 1 ? -2 : 0;
   const liftR = !onScooter && stepFrame === 2 ? -2 : 0;
   const armSwingL = !onScooter && stepFrame === 1 ? -2 : stepFrame === 2 ? 1 : 0;
   const armSwingR = !onScooter && stepFrame === 2 ? -2 : stepFrame === 1 ? 1 : 0;
   const tzSway = stepFrame === 1 ? -1 : stepFrame === 2 ? 1 : 0;
 
-  // 1. Legs & Sneakers (drawn first behind torso hem & tzitzit!)
-  const pHi = isBB ? LIAM_PAL.bbPantsHi : LIAM_PAL.pantsHi;
-  const pMid = isBB ? LIAM_PAL.bbPantsMid : LIAM_PAL.pantsMid;
-  const pSh = isBB ? LIAM_PAL.bbPantsShade : LIAM_PAL.pantsShade;
-  const pDeep = isBB ? LIAM_PAL.bbPantsShade : LIAM_PAL.pantsDeep;
-  const pMat = isBB ? "jersey" : "pants";
+  // 1. Legs & Boots/Sneakers (drawn first behind torso hem!)
+  const pHi = isLink ? LIAM_PAL.linkCreamHi : isWet ? LIAM_PAL.wetHi : isBB ? LIAM_PAL.bbPantsHi : LIAM_PAL.pantsHi;
+  const pMid = isLink ? LIAM_PAL.linkCreamMid : isWet ? LIAM_PAL.wetMid : isBB ? LIAM_PAL.bbPantsMid : LIAM_PAL.pantsMid;
+  const pSh = isLink ? LIAM_PAL.linkCreamShade : isWet ? LIAM_PAL.wetShade : isBB ? LIAM_PAL.bbPantsShade : LIAM_PAL.pantsShade;
+  const pDeep = isLink ? LIAM_PAL.linkCreamShade : isWet ? LIAM_PAL.wetDeep : isBB ? LIAM_PAL.bbPantsShade : LIAM_PAL.pantsDeep;
+  const pMat = isLink ? "jersey" : isWet ? "wetsuit" : isBB ? "jersey" : "pants";
 
   // Left leg
   g.rect(cx - 6, topY + 33 + liftL, 6, 11, pMid, pMat);
   g.rect(cx - 5, topY + 34 + liftL, 3, 8, pHi, pMat);
   g.rect(cx - 1, topY + 34 + liftL, 1, 9, pDeep, pMat);
-  if (isBB) {
-    // Giants orange & black high baseball stirrup socks!
+  if (isWet) {
+    g.rect(cx - 6, topY + 34 + liftL, 2, 9, LIAM_PAL.tealMid, "wetsuit");
+    g.rect(cx - 6, topY + 34 + liftL, 1, 8, LIAM_PAL.tealHi, "wetsuit");
+    g.rect(cx - 4, topY + 38 + liftL, 3, 2, LIAM_PAL.wetShade, "wetsuit");
+  } else if (isBB) {
     g.rect(cx - 6, topY + 41 + liftL, 6, 2, LIAM_PAL.orangeMid, "orange");
     g.rect(cx - 5, topY + 41 + liftL, 4, 1, LIAM_PAL.orangeHi, "orange");
     g.rect(cx - 6, topY + 43 + liftL, 6, 1, LIAM_PAL.capMid, "cap");
@@ -621,7 +811,11 @@ function draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, facing, stepFrame, outfit
   g.rect(cx + 1, topY + 33 + liftR, 6, 11, pMid, pMat);
   g.rect(cx + 2, topY + 34 + liftR, 3, 8, pHi, pMat);
   g.rect(cx + 1, topY + 34 + liftR, 1, 9, pDeep, pMat);
-  if (isBB) {
+  if (isWet) {
+    g.rect(cx + 5, topY + 34 + liftR, 2, 9, LIAM_PAL.tealMid, "wetsuit");
+    g.rect(cx + 6, topY + 34 + liftR, 1, 8, LIAM_PAL.tealHi, "wetsuit");
+    g.rect(cx + 2, topY + 38 + liftR, 3, 2, LIAM_PAL.wetShade, "wetsuit");
+  } else if (isBB) {
     g.rect(cx + 1, topY + 41 + liftR, 6, 2, LIAM_PAL.orangeMid, "orange");
     g.rect(cx + 2, topY + 41 + liftR, 4, 1, LIAM_PAL.orangeHi, "orange");
     g.rect(cx + 1, topY + 43 + liftR, 6, 1, LIAM_PAL.capMid, "cap");
@@ -630,45 +824,123 @@ function draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, facing, stepFrame, outfit
   }
   draw32BitSneaker(g, cx + 1, topY + 44 + liftR, facing, outfit, liftR < 0);
 
-  // 2. Arms (short sleeves + shaded warm forearms + cute little hands!)
-  const slHi = isBB ? LIAM_PAL.orangeHi : LIAM_PAL.poloHi;
-  const slMid = isBB ? LIAM_PAL.orangeMid : LIAM_PAL.poloMid;
-  const slSh = isBB ? LIAM_PAL.orangeShade : LIAM_PAL.poloShade;
-  const slMat = isBB ? "orange" : "polo";
+  // 2. Arms (Hero's emerald sleeves & cream gauntlets, wetsuit sleeves, or short sleeves!)
+  const slHi = isLink ? LIAM_PAL.linkGreenHi : isWet ? LIAM_PAL.tealHi : isBB ? LIAM_PAL.orangeHi : LIAM_PAL.poloHi;
+  const slMid = isLink ? LIAM_PAL.linkGreenMid : isWet ? LIAM_PAL.tealMid : isBB ? LIAM_PAL.orangeMid : LIAM_PAL.poloMid;
+  const slSh = isLink ? LIAM_PAL.linkGreenShade : isWet ? LIAM_PAL.tealShade : isBB ? LIAM_PAL.orangeShade : LIAM_PAL.poloShade;
+  const slMat = isLink ? "linkGreen" : isWet ? "wetsuit" : isBB ? "orange" : "polo";
 
   for (const [side, swing] of [[-1, armSwingL], [1, armSwingR]]) {
     const ax = side < 0 ? cx - 10 : cx + 7;
     const ay = topY + 22 + swing;
-    // Short sleeve
-    g.rect(ax, ay, 4, 6, slMid, slMat);
-    g.rect(ax + (side < 0 ? 1 : 0), ay + 1, 2, 4, slHi, slMat);
-    g.rect(ax, ay + 5, 4, 1, isBB ? LIAM_PAL.capMid : slSh, slMat);
-    // Warm forearm + sculpted hand
-    g.rect(ax + (side < 0 ? 0 : 1), ay + 6, 3, 5, LIAM_PAL.skinMid, "skin");
-    g.rect(ax + (side < 0 ? 1 : 1), ay + 6, 2, 3, LIAM_PAL.skinHi, "skin");
-    g.rect(ax + (side < 0 ? 0 : 1), ay + 10, 3, 1, LIAM_PAL.skinShade, "skin");
+    if (isLink) {
+      // Emerald tunic shoulder sleeve + cream undershirt forearm + leather adventurer bracer!
+      g.rect(ax, ay, 4, 5, LIAM_PAL.linkGreenMid, "linkGreen");
+      g.rect(ax + (side < 0 ? 1 : 0), ay + 1, 2, 3, LIAM_PAL.linkGreenHi, "linkGreen");
+      g.rect(ax, ay + 5, 4, 3, LIAM_PAL.linkCreamMid, "jersey");
+      g.rect(ax, ay + 7, 4, 2, LIAM_PAL.linkLeatherMid, "linkLeather"); // Leather wrist bracer
+      g.rect(ax + (side < 0 ? 0 : 1), ay + 9, 3, 2, LIAM_PAL.skinMid, "skin");
+    } else if (isWet) {
+      g.rect(ax, ay, 4, 8, LIAM_PAL.wetMid, "wetsuit");
+      g.rect(ax + (side < 0 ? 0 : 2), ay, 2, 7, LIAM_PAL.tealMid, "wetsuit");
+      g.rect(ax + (side < 0 ? 0 : 3), ay + 1, 1, 5, LIAM_PAL.tealHi, "wetsuit");
+      g.rect(ax, ay + 7, 4, 1, LIAM_PAL.tealShade, "wetsuit");
+      g.rect(ax + (side < 0 ? 0 : 1), ay + 8, 3, 3, LIAM_PAL.skinMid, "skin");
+      g.rect(ax + (side < 0 ? 1 : 1), ay + 8, 2, 2, LIAM_PAL.skinHi, "skin");
+    } else {
+      g.rect(ax, ay, 4, 6, slMid, slMat);
+      g.rect(ax + (side < 0 ? 1 : 0), ay + 1, 2, 4, slHi, slMat);
+      g.rect(ax, ay + 5, 4, 1, isBB ? LIAM_PAL.capMid : slSh, slMat);
+      g.rect(ax + (side < 0 ? 0 : 1), ay + 6, 3, 5, LIAM_PAL.skinMid, "skin");
+      g.rect(ax + (side < 0 ? 1 : 1), ay + 6, 2, 3, LIAM_PAL.skinHi, "skin");
+      g.rect(ax + (side < 0 ? 0 : 1), ay + 10, 3, 1, LIAM_PAL.skinShade, "skin");
+    }
   }
 
-  // 3. Torso (Detailed 32-bit Collared Polo OR Team Giants Little League Jersey!)
-  if (isBB) {
-    // Cream-white jersey with vertical pinstripe detail & Giants orange raglan shoulders!
+  // 3. Torso (Link Hero's Tunic OR Summer Wetsuit OR Team Giants Jersey OR Collared Polo!)
+  if (isLink) {
+    // Master Sword purple-winged hilt peeking heroically over Link's shoulder from the front too!
+    if (!isBack) {
+      g.rect(cx + 6, topY + 15, 3, 6, LIAM_PAL.swordHilt, "linkShield");
+      g.rect(cx + 7, topY + 14, 2, 2, LIAM_PAL.linkGoldHi, "linkShield");
+      g.rect(cx + 5, topY + 18, 5, 2, LIAM_PAL.swordHiltHi, "linkShield");
+    }
+    // Iconic Emerald Kokiri/Hylian Tunic with flared tunic skirt!
+    g.rect(cx - 7, topY + 21, 15, 16, LIAM_PAL.linkGreenMid, "linkGreen");
+    g.rect(cx - 8, topY + 33, 17, 4, LIAM_PAL.linkGreenMid, "linkGreen"); // Flared tunic skirt!
+    g.rect(cx - 5, topY + 22, 11, 10, LIAM_PAL.linkGreenHi, "linkGreen");
+    g.rect(cx - 3, topY + 23, 7, 4, LIAM_PAL.linkGreenSpec, "linkGreen");
+    g.rect(cx - 7, topY + 22, 2, 14, LIAM_PAL.linkGreenShade, "linkGreen");
+    g.rect(cx + 6, topY + 22, 2, 14, LIAM_PAL.linkGreenShade, "linkGreen");
+    g.rect(cx - 8, topY + 36, 17, 1, LIAM_PAL.linkGreenDeep, "linkGreen");
+    // Cream undershirt V-collar
+    g.rect(cx - 4, topY + 21, 9, 2, LIAM_PAL.linkCreamHi, "jersey");
+    g.rect(cx - 2, topY + 23, 5, 2, LIAM_PAL.linkCreamMid, "jersey");
+    // Diagonal brown leather sword baldric strap + wide leather belt with gleaming golden buckle!
+    g.line(cx + 5, topY + 22, cx - 5, topY + 32, LIAM_PAL.linkLeatherMid, "linkLeather");
+    g.line(cx + 4, topY + 22, cx - 6, topY + 32, LIAM_PAL.linkLeatherHi, "linkLeather");
+    g.rect(cx - 7, topY + 31, 15, 3, LIAM_PAL.linkLeatherMid, "linkLeather");
+    g.rect(cx - 6, topY + 31, 13, 1, LIAM_PAL.linkLeatherHi, "linkLeather");
+    g.rect(cx - 7, topY + 33, 15, 1, LIAM_PAL.linkLeatherDeep, "linkLeather");
+    g.rect(cx - 2, topY + 31, 5, 3, LIAM_PAL.linkGold, "linkLeather"); // Golden belt buckle!
+    g.rect(cx - 1, topY + 31, 3, 1, LIAM_PAL.linkGoldHi, "linkLeather");
+    g.set(cx, topY + 32, LIAM_PAL.linkLeatherDeep, "linkLeather");
+
+    if (isBack) {
+      // Iconic Blue & Silver HYLIAN SHIELD with Golden Triforce + MASTER SWORD Hilt strapped on Link's back!
+      // Master Sword hilt rising over right shoulder
+      g.rect(cx + 4, topY + 14, 3, 7, LIAM_PAL.swordHilt, "linkShield");
+      g.rect(cx + 5, topY + 13, 2, 2, LIAM_PAL.linkGoldHi, "linkShield");
+      g.rect(cx + 2, topY + 18, 7, 2, LIAM_PAL.swordHiltHi, "linkShield");
+      // Sculpted Hylian Shield body centered on back
+      g.rect(cx - 6, topY + 22, 13, 11, LIAM_PAL.shieldSilver, "linkShield");
+      g.rect(cx - 5, topY + 33, 11, 2, LIAM_PAL.shieldSilverShade, "linkShield");
+      g.rect(cx - 3, topY + 35, 7, 2, LIAM_PAL.shieldSilverShade, "linkShield");
+      g.rect(cx - 1, topY + 37, 3, 1, LIAM_PAL.shieldSilverShade, "linkShield");
+      g.rect(cx - 5, topY + 23, 11, 10, LIAM_PAL.shieldBlue, "linkShield");
+      g.rect(cx - 4, topY + 24, 9, 4, LIAM_PAL.shieldBlueHi, "linkShield");
+      g.rect(cx - 3, topY + 33, 7, 2, LIAM_PAL.shieldBlueDark, "linkShield");
+      // Golden Triforce crest (3 golden triangles!) + Crimson Hylian bird emblem!
+      g.rect(cx - 1, topY + 24, 3, 2, LIAM_PAL.linkGoldHi, "linkShield");
+      g.rect(cx - 3, topY + 26, 3, 2, LIAM_PAL.linkGold, "linkShield");
+      g.rect(cx + 1, topY + 26, 3, 2, LIAM_PAL.linkGold, "linkShield");
+      g.rect(cx - 3, topY + 29, 7, 2, LIAM_PAL.shieldRed, "linkShield");
+      g.rect(cx - 1, topY + 31, 3, 2, LIAM_PAL.shieldRed, "linkShield");
+    }
+  } else if (isWet) {
+    g.rect(cx - 7, topY + 21, 15, 13, LIAM_PAL.wetMid, "wetsuit");
+    g.rect(cx - 5, topY + 22, 11, 10, LIAM_PAL.wetHi, "wetsuit");
+    g.rect(cx - 7, topY + 22, 3, 11, LIAM_PAL.tealMid, "wetsuit");
+    g.rect(cx - 6, topY + 23, 1, 9, LIAM_PAL.tealHi, "wetsuit");
+    g.rect(cx + 5, topY + 22, 3, 11, LIAM_PAL.tealMid, "wetsuit");
+    g.rect(cx + 6, topY + 23, 1, 9, LIAM_PAL.tealHi, "wetsuit");
+    g.rect(cx - 5, topY + 21, 11, 2, LIAM_PAL.wetDeep, "wetsuit");
+    g.rect(cx - 4, topY + 21, 9, 1, LIAM_PAL.tealMid, "wetsuit");
+    if (!isBack) {
+      g.rect(cx - 4, topY + 24, 9, 2, LIAM_PAL.tealMid, "wetsuit");
+      g.rect(cx - 3, topY + 24, 7, 1, LIAM_PAL.tealHi, "wetsuit");
+      g.line(cx, topY + 22, cx, topY + 31, LIAM_PAL.wetDeep, "wetsuit");
+      g.set(cx, topY + 23, LIAM_PAL.zipGold, "wetsuit");
+      g.set(cx, topY + 24, LIAM_PAL.zipGold, "wetsuit");
+    } else {
+      g.line(cx, topY + 22, cx, topY + 32, LIAM_PAL.wetDeep, "wetsuit");
+      g.rect(cx, topY + 22, 1, 4, LIAM_PAL.zipGold, "wetsuit");
+    }
+    g.rect(cx - 7, topY + 32, 15, 2, LIAM_PAL.wetShade, "wetsuit");
+  } else if (isBB) {
     g.rect(cx - 7, topY + 21, 15, 13, LIAM_PAL.jerseyMid, "jersey");
     g.rect(cx - 5, topY + 22, 11, 10, LIAM_PAL.jerseyHi, "jersey");
-    // Subtle vertical pinstripe pixel lines
     for (const sx of [cx - 4, cx + 4]) {
       g.line(sx, topY + 22, sx, topY + 32, LIAM_PAL.jerseyStripe, "jersey");
     }
-    // Orange raglan shoulders
     g.rect(cx - 7, topY + 21, 3, 5, LIAM_PAL.orangeMid, "orange");
     g.rect(cx - 6, topY + 21, 2, 3, LIAM_PAL.orangeHi, "orange");
     g.rect(cx + 5, topY + 21, 3, 5, LIAM_PAL.orangeMid, "orange");
     g.rect(cx + 5, topY + 21, 2, 3, LIAM_PAL.orangeHi, "orange");
-    // Neckline trim
     g.rect(cx - 4, topY + 21, 9, 2, LIAM_PAL.capMid, "cap");
     g.rect(cx - 3, topY + 21, 7, 1, LIAM_PAL.orangeMid, "orange");
 
     if (!isBack) {
-      // Front button placket + buttons + Giants orange chest mark
       g.line(cx, topY + 22, cx, topY + 32, LIAM_PAL.capMid, "cap");
       g.set(cx, topY + 24, LIAM_PAL.white, "jersey");
       g.set(cx, topY + 27, LIAM_PAL.white, "jersey");
@@ -676,90 +948,111 @@ function draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, facing, stepFrame, outfit
       g.rect(cx - 4, topY + 24, 3, 2, LIAM_PAL.orangeMid, "orange");
       g.set(cx - 3, topY + 24, LIAM_PAL.orangeHi, "orange");
     } else {
-      // Bold crisp pixel "#7" on back of Liam's Little League jersey!
       g.rect(cx - 2, topY + 24, 6, 2, LIAM_PAL.capMid, "cap");
       g.rect(cx + 2, topY + 26, 2, 2, LIAM_PAL.capMid, "cap");
       g.rect(cx + 1, topY + 28, 2, 2, LIAM_PAL.capMid, "cap");
       g.rect(cx, topY + 30, 2, 2, LIAM_PAL.capMid, "cap");
-      // Orange outline highlight on the 7!
       g.rect(cx - 2, topY + 24, 5, 1, LIAM_PAL.orangeMid, "orange");
     }
-    // Giants orange baseball belt + metallic buckle
     g.rect(cx - 7, topY + 32, 15, 2, LIAM_PAL.orangeMid, "orange");
     g.rect(cx - 6, topY + 32, 13, 1, LIAM_PAL.orangeHi, "orange");
     g.rect(cx - 1, topY + 32, 3, 2, LIAM_PAL.capMid, "cap");
     g.set(cx, topY + 32, LIAM_PAL.white, "jersey");
   } else {
-    // Rich 5-tone royal-blue collared polo shirt with fabric fold shading!
     g.rect(cx - 7, topY + 21, 15, 13, LIAM_PAL.poloMid, "polo");
     g.rect(cx - 5, topY + 22, 11, 9, LIAM_PAL.poloHi, "polo");
     g.rect(cx - 3, topY + 23, 7, 4, LIAM_PAL.poloSpec, "polo");
-    // Soft vertical side shading & lower hem crease
     g.rect(cx - 7, topY + 22, 2, 11, LIAM_PAL.poloShade, "polo");
     g.rect(cx + 6, topY + 22, 2, 11, LIAM_PAL.poloShade, "polo");
     g.rect(cx - 7, topY + 32, 15, 2, LIAM_PAL.poloDeep, "polo");
 
     if (!isBack) {
-      // Distinct 32-bit folded polo collar flaps + V-placket + 2 pearlescent buttons!
       g.rect(cx - 5, topY + 21, 11, 2, LIAM_PAL.collarHi, "polo");
       g.rect(cx - 4, topY + 22, 3, 2, LIAM_PAL.collarHi, "polo");
       g.rect(cx + 2, topY + 22, 3, 2, LIAM_PAL.collarHi, "polo");
       g.rect(cx - 4, topY + 24, 3, 1, LIAM_PAL.collarShade, "polo");
       g.rect(cx + 2, topY + 24, 3, 1, LIAM_PAL.collarShade, "polo");
-      // V-neck placket
       g.rect(cx - 1, topY + 22, 3, 6, LIAM_PAL.poloDeep, "polo");
-      g.set(cx, topY + 22, LIAM_PAL.skinShade, "skin"); // Neck V
-      g.set(cx, topY + 24, LIAM_PAL.white, "polo");     // Button 1
-      g.set(cx, topY + 26, LIAM_PAL.white, "polo");     // Button 2
+      g.set(cx, topY + 22, LIAM_PAL.skinShade, "skin");
+      g.set(cx, topY + 24, LIAM_PAL.white, "polo");
+      g.set(cx, topY + 26, LIAM_PAL.white, "polo");
     } else {
-      // Crisp folded polo collar band across back of neck
       g.rect(cx - 5, topY + 21, 11, 2, LIAM_PAL.collarHi, "polo");
       g.rect(cx - 5, topY + 23, 11, 1, LIAM_PAL.collarShade, "polo");
     }
   }
 
-  // 4. Crisp multi-strand hanging white Tzitzit peeking cleanly at BOTH hips!
-  draw32BitTzitzit(g, cx - 7, topY + 34, tzSway, false);
-  draw32BitTzitzit(g, cx + 6, topY + 34, tzSway, false);
+  // 4. Crisp multi-strand hanging white Tzitzit peeking cleanly at BOTH hips (everyday & baseball)!
+  if (!isWet && !isLink) {
+    draw32BitTzitzit(g, cx - 7, topY + 34, tzSway, false);
+    draw32BitTzitzit(g, cx + 6, topY + 34, tzSway, false);
+  }
 }
 
 function draw32BitTorsoAndLegsRight(g, cx, topY, stepFrame, outfit, onScooter) {
   const isBB = outfit === "baseball";
-  const pHi = isBB ? LIAM_PAL.bbPantsHi : LIAM_PAL.pantsHi;
-  const pMid = isBB ? LIAM_PAL.bbPantsMid : LIAM_PAL.pantsMid;
-  const pSh = isBB ? LIAM_PAL.bbPantsShade : LIAM_PAL.pantsShade;
-  const pMat = isBB ? "jersey" : "pants";
+  const isWet = outfit === "wetsuit";
+  const isLink = outfit === "link";
+  const pHi = isLink ? LIAM_PAL.linkCreamHi : isWet ? LIAM_PAL.wetHi : isBB ? LIAM_PAL.bbPantsHi : LIAM_PAL.pantsHi;
+  const pMid = isLink ? LIAM_PAL.linkCreamMid : isWet ? LIAM_PAL.wetMid : isBB ? LIAM_PAL.bbPantsMid : LIAM_PAL.pantsMid;
+  const pSh = isLink ? LIAM_PAL.linkCreamShade : isWet ? LIAM_PAL.wetShade : isBB ? LIAM_PAL.bbPantsShade : LIAM_PAL.pantsShade;
+  const pMat = isLink ? "jersey" : isWet ? "wetsuit" : isBB ? "jersey" : "pants";
 
-  const slHi = isBB ? LIAM_PAL.orangeHi : LIAM_PAL.poloHi;
-  const slMid = isBB ? LIAM_PAL.orangeMid : LIAM_PAL.poloMid;
-  const slSh = isBB ? LIAM_PAL.orangeShade : LIAM_PAL.poloShade;
-  const slMat = isBB ? "orange" : "polo";
+  const slHi = isLink ? LIAM_PAL.linkGreenHi : isWet ? LIAM_PAL.tealHi : isBB ? LIAM_PAL.orangeHi : LIAM_PAL.poloHi;
+  const slMid = isLink ? LIAM_PAL.linkGreenMid : isWet ? LIAM_PAL.wetMid : isBB ? LIAM_PAL.orangeMid : LIAM_PAL.poloMid;
+  const slSh = isLink ? LIAM_PAL.linkGreenShade : isWet ? LIAM_PAL.tealShade : isBB ? LIAM_PAL.orangeShade : LIAM_PAL.poloShade;
+  const slMat = isLink ? "linkGreen" : isWet ? "wetsuit" : isBB ? "orange" : "polo";
 
   // 1. Dynamic 32-bit striding legs in side profile!
   const stride = onScooter ? 0 : stepFrame === 1 ? 1 : stepFrame === 2 ? -1 : 0;
   const backLegX = cx - 3 - stride * 4;
   const frontLegX = cx - 2 + stride * 4;
 
-  // Back leg (darker shaded for depth!)
+  // Back leg
   g.rect(backLegX, topY + 34, 5, 10, pSh, pMat);
   if (isBB) g.rect(backLegX, topY + 41, 5, 2, LIAM_PAL.orangeShade, "orange");
   draw32BitSneaker(g, backLegX - 1, topY + 44, "right", outfit, stride !== 0 && stride < 0);
 
-  // Front leg (lit highlight!)
+  // Front leg
   g.rect(frontLegX, topY + 33, 6, 11, pMid, pMat);
   g.rect(frontLegX + 2, topY + 34, 3, 8, pHi, pMat);
-  if (isBB) {
+  if (isWet) {
+    g.rect(frontLegX + 1, topY + 34, 2, 9, LIAM_PAL.tealMid, "wetsuit");
+    g.rect(frontLegX + 1, topY + 35, 1, 7, LIAM_PAL.tealHi, "wetsuit");
+  } else if (isBB) {
     g.rect(frontLegX, topY + 41, 6, 2, LIAM_PAL.orangeMid, "orange");
     g.rect(frontLegX + 1, topY + 41, 4, 1, LIAM_PAL.orangeHi, "orange");
   }
   draw32BitSneaker(g, frontLegX, topY + 44, "right", outfit, stride !== 0 && stride > 0);
 
-  // 2. Side-profile Torso (Polo OR Little League Jersey)
-  if (isBB) {
+  // 2. Side-profile Torso (Link Tunic + Back Shield/Sword OR Wetsuit OR Jersey OR Polo)
+  if (isLink) {
+    // Hylian Shield & Master Sword hilt strapped cleanly on Link's back (left side in right-profile!)
+    g.rect(cx - 10, topY + 21, 4, 13, LIAM_PAL.shieldSilver, "linkShield");
+    g.rect(cx - 9, topY + 22, 3, 11, LIAM_PAL.shieldBlue, "linkShield");
+    g.rect(cx - 9, topY + 25, 2, 3, LIAM_PAL.linkGold, "linkShield");
+    g.rect(cx - 9, topY + 15, 3, 6, LIAM_PAL.swordHilt, "linkShield");
+    g.rect(cx - 10, topY + 14, 2, 2, LIAM_PAL.linkGoldHi, "linkShield");
+    // Emerald Hero's Tunic + flared skirt + brown leather belt & gold buckle!
+    g.rect(cx - 6, topY + 21, 13, 16, LIAM_PAL.linkGreenMid, "linkGreen");
+    g.rect(cx - 7, topY + 33, 15, 4, LIAM_PAL.linkGreenMid, "linkGreen");
+    g.rect(cx - 3, topY + 22, 9, 9, LIAM_PAL.linkGreenHi, "linkGreen");
+    g.rect(cx - 6, topY + 22, 3, 13, LIAM_PAL.linkGreenShade, "linkGreen");
+    g.rect(cx - 4, topY + 21, 8, 2, LIAM_PAL.linkCreamHi, "jersey");
+    g.rect(cx - 6, topY + 31, 13, 3, LIAM_PAL.linkLeatherMid, "linkLeather");
+    g.rect(cx - 4, topY + 31, 10, 1, LIAM_PAL.linkLeatherHi, "linkLeather");
+    g.rect(cx + 3, topY + 31, 3, 3, LIAM_PAL.linkGold, "linkLeather");
+  } else if (isWet) {
+    g.rect(cx - 6, topY + 21, 13, 13, LIAM_PAL.wetMid, "wetsuit");
+    g.rect(cx - 3, topY + 22, 9, 9, LIAM_PAL.wetHi, "wetsuit");
+    g.rect(cx - 2, topY + 22, 4, 11, LIAM_PAL.tealMid, "wetsuit");
+    g.rect(cx - 1, topY + 23, 2, 9, LIAM_PAL.tealHi, "wetsuit");
+    g.rect(cx - 4, topY + 21, 9, 2, LIAM_PAL.wetDeep, "wetsuit");
+    g.rect(cx - 6, topY + 32, 13, 2, LIAM_PAL.wetDeep, "wetsuit");
+  } else if (isBB) {
     g.rect(cx - 6, topY + 21, 13, 13, LIAM_PAL.jerseyMid, "jersey");
     g.rect(cx - 3, topY + 22, 9, 10, LIAM_PAL.jerseyHi, "jersey");
     g.rect(cx - 6, topY + 22, 3, 10, LIAM_PAL.jerseyShade, "jersey");
-    // Orange shoulder collar & belt
     g.rect(cx - 4, topY + 21, 9, 2, LIAM_PAL.orangeMid, "orange");
     g.rect(cx - 6, topY + 32, 13, 2, LIAM_PAL.orangeMid, "orange");
     g.rect(cx - 4, topY + 32, 10, 1, LIAM_PAL.orangeHi, "orange");
@@ -769,13 +1062,14 @@ function draw32BitTorsoAndLegsRight(g, cx, topY, stepFrame, outfit, onScooter) {
     g.rect(cx, topY + 23, 5, 5, LIAM_PAL.poloSpec, "polo");
     g.rect(cx - 6, topY + 22, 3, 11, LIAM_PAL.poloShade, "polo");
     g.rect(cx - 6, topY + 32, 13, 2, LIAM_PAL.poloDeep, "polo");
-    // Side polo collar
     g.rect(cx - 4, topY + 21, 9, 2, LIAM_PAL.collarHi, "polo");
     g.rect(cx - 3, topY + 23, 8, 1, LIAM_PAL.collarShade, "polo");
   }
 
   // 3. White Tzitzit hanging neatly at the side hip & swaying on stride!
-  draw32BitTzitzit(g, cx - 2, topY + 34, stride === 0 ? 0 : -1, true);
+  if (!isWet && !isLink) {
+    draw32BitTzitzit(g, cx - 2, topY + 34, stride === 0 ? 0 : -1, true);
+  }
 
   // 4. Foreground swinging arm (reaches forward on scooter or stride!)
   const armX = onScooter ? cx + 3 : cx - 2 + stride * 3;
@@ -784,9 +1078,12 @@ function draw32BitTorsoAndLegsRight(g, cx, topY, stepFrame, outfit, onScooter) {
   g.rect(armX, armY + 1, 3, 4, slHi, slMat);
   g.rect(armX - 1, armY + 5, 5, 1, isBB ? LIAM_PAL.capMid : slSh, slMat);
   if (onScooter) {
-    // Reaching forward to grip scooter handlebars!
     g.rect(armX + 3, armY + 2, 6, 3, LIAM_PAL.skinMid, "skin");
     g.rect(armX + 4, armY + 2, 4, 2, LIAM_PAL.skinHi, "skin");
+  } else if (isLink) {
+    g.rect(armX, armY + 6, 4, 2, LIAM_PAL.linkCreamMid, "jersey");
+    g.rect(armX, armY + 8, 4, 2, LIAM_PAL.linkLeatherMid, "linkLeather");
+    g.rect(armX, armY + 10, 3, 2, LIAM_PAL.skinMid, "skin");
   } else {
     g.rect(armX, armY + 6, 4, 5, LIAM_PAL.skinMid, "skin");
     g.rect(armX + 1, armY + 6, 2, 3, LIAM_PAL.skinHi, "skin");
@@ -795,9 +1092,9 @@ function draw32BitTorsoAndLegsRight(g, cx, topY, stepFrame, outfit, onScooter) {
 }
 
 function draw32BitScooter(g, facing, outfit) {
-  const deckHi = outfit === "baseball" ? LIAM_PAL.orangeHi : "#7ff7f0";
-  const deckMid = outfit === "baseball" ? LIAM_PAL.orangeMid : "#39cfc8";
-  const deckSh = outfit === "baseball" ? LIAM_PAL.orangeShade : "#22918c";
+  const deckHi = outfit === "link" ? LIAM_PAL.linkGoldHi : outfit === "baseball" ? LIAM_PAL.orangeHi : "#7ff7f0";
+  const deckMid = outfit === "link" ? LIAM_PAL.linkGreenMid : outfit === "baseball" ? LIAM_PAL.orangeMid : "#39cfc8";
+  const deckSh = outfit === "link" ? LIAM_PAL.linkGreenDeep : outfit === "baseball" ? LIAM_PAL.orangeShade : "#22918c";
   const metalHi = "#f0f5fa";
   const metalMid = "#adb8c7";
   const tire = "#23262e";
@@ -867,9 +1164,11 @@ export function bakeSmb3HeroFanfareSprite(outfit = "polo") {
   const cx = 24;
   const topY = 3;
   const isBB = outfit === "baseball";
-  const slHi = isBB ? LIAM_PAL.orangeHi : LIAM_PAL.poloHi;
-  const slMid = isBB ? LIAM_PAL.orangeMid : LIAM_PAL.poloMid;
-  const slMat = isBB ? "orange" : "polo";
+  const isWet = outfit === "wetsuit";
+  const isLink = outfit === "link";
+  const slHi = isLink ? LIAM_PAL.linkGreenHi : isWet ? LIAM_PAL.tealHi : isBB ? LIAM_PAL.orangeHi : LIAM_PAL.poloHi;
+  const slMid = isLink ? LIAM_PAL.linkGreenMid : isWet ? LIAM_PAL.wetMid : isBB ? LIAM_PAL.orangeMid : LIAM_PAL.poloMid;
+  const slMat = isLink ? "linkGreen" : isWet ? "wetsuit" : isBB ? "orange" : "polo";
 
   // Draw legs + sneakers + torso cleanly via idle front pose
   draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, "down", 0, outfit, false);
@@ -1458,8 +1757,237 @@ function bake32BitPumpkinGhoulRight(frame = 0) {
   return g.toCanvas(0.5, { cx: cx, cy: 52, rx: 9.5, ry: 3.0 });
 }
 
+export const BIKER_CHANTS = [
+  "ON YOUR LEFT!",
+  "SHARE THE ROAD!",
+  "STRAVA PR!",
+  "BIKE LANE!",
+  "WATCH CARBON!",
+];
+
+function bake32BitEmtRight(step = 0, variant = 0) {
+  const g = new PixelGrid(46, 54);
+  const cx = 23;
+  const topY = 3 + (step === 1 ? -1 : 0);
+  const stride = step === 1 ? 3 : -2;
+
+  // Dark navy EMS utility trousers with silver reflective ankle bands + sturdy rescue boots!
+  g.rect(cx - 4 - stride, topY + 33, 5, 11, "#1e2e4a", "pants");
+  g.rect(cx - 4 - stride, topY + 40, 5, 2, "#e8f2fc", "jersey");
+  g.rect(cx - 5 - stride, topY + 43, 7, 4, "#181a22", "shoe");
+  g.rect(cx + 1 + stride, topY + 33, 5, 11, "#2a4066", "pants");
+  g.rect(cx + 1 + stride, topY + 40, 5, 2, "#e8f2fc", "jersey");
+  g.rect(cx + stride, topY + 43, 7, 4, "#181a22", "shoe");
+
+  // Crisp navy EMS uniform jacket + high-vis NEON YELLOW reflective safety vest!
+  g.rect(cx - 6, topY + 21, 13, 13, "#203659", "polo");
+  g.rect(cx - 5, topY + 22, 11, 11, "#d9f029", "orange");
+  g.rect(cx - 4, topY + 22, 8, 2, "#f3ff6b", "orange");
+  g.rect(cx - 5, topY + 24, 11, 2, "#f0f8ff", "jersey"); // Silver reflective chest stripe
+  g.rect(cx - 5, topY + 29, 11, 2, "#f0f8ff", "jersey"); // Silver reflective waist stripe
+  // Crimson medical cross emblem on vest
+  g.rect(cx + 1, topY + 26, 3, 1, "#e02820", "orange");
+  g.rect(cx + 2, topY + 25, 1, 3, "#e02820", "orange");
+  // Stethoscope draped around Lead EMT's neck OR red trauma med-pack on Partner EMT!
+  if (variant === 0) {
+    g.line(cx - 2, topY + 20, cx + 3, topY + 25, "#242834", "cap");
+    g.ellipse(cx + 3, topY + 25, 1.5, 1.5, "#cfd8e3", "jersey");
+  } else {
+    g.rect(cx - 10, topY + 26, 6, 7, "#d92820", "orange"); // Red EMS trauma kit bag!
+    g.rect(cx - 9, topY + 27, 4, 2, "#ff685e", "orange");
+    g.rect(cx - 8, topY + 29, 2, 2, "#ffffff", "jersey");
+  }
+
+  // Reaching arms (navy sleeve + light-blue nitrile medical gloves!)
+  g.rect(cx + 4, topY + 24, 7, 4, "#203659", "polo");
+  g.rect(cx + 5, topY + 24, 5, 1, "#3b598a", "polo");
+  g.rect(cx + 10, topY + 24, 4, 4, "#7cd6ff", "kippah"); // Blue medical rescue gloves!
+  g.rect(cx + 11, topY + 24, 2, 2, "#ccf0ff", "kippah");
+
+  // Sculpted 32-bit Head + focused face + EMS cap with gold badge!
+  const skinMid = variant === 1 ? "#d49a6a" : LIAM_PAL.skinMid;
+  const skinHi = variant === 1 ? "#ebb486" : LIAM_PAL.skinHi;
+  g.ellipse(cx, topY + 13, 7.2, 7.2, skinMid, "skin");
+  g.ellipse(cx + 2, topY + 12, 4.2, 4.4, skinHi, "skin");
+  g.rect(cx + 3, topY + 12, 3, 3, LIAM_PAL.eyeLash, "skin");
+  g.set(cx + 3, topY + 12, LIAM_PAL.white, "skin");
+  g.rect(cx + 4, topY + 16, 2, 1, LIAM_PAL.mouth, "skin");
+  // EMS cap (Pearl white w/ navy visor for Lead; Navy w/ gold Star of Life for Partner!)
+  g.ellipse(cx - 1, topY + 7, 7.6, 4.4, variant === 0 ? "#f5f8fc" : "#1c365c", "cap");
+  g.rect(cx - 7, topY + 9, 15, 2, "#1c365c", "cap");
+  g.rect(cx + 4, topY + 9, 8, 2, "#1c365c", "cap");
+  g.rect(cx + 1, topY + 6, 3, 3, "#2b6ec9", "kippah");
+  g.set(cx + 2, topY + 7, "#f4d35e", "kippah");
+
+  g.applySelOut({ ...LIAM_SELOUT, orange: "#3d4a08" });
+  return g.toCanvas(0.5, { cx: 23, cy: 50, rx: 10.5, ry: 3.2 });
+}
+
+function bake32BitEmtKneelRight(variant = 0) {
+  const g = new PixelGrid(46, 54);
+  const cx = 22;
+  const topY = 9; // Lower crouched triage posture!
+
+  // Kneeling navy EMS trousers & braced boots on asphalt
+  g.rect(cx - 7, topY + 34, 12, 5, "#1e2e4a", "pants");
+  g.rect(cx - 9, topY + 35, 5, 5, "#181a22", "shoe");
+  g.rect(cx + 2, topY + 31, 6, 8, "#2a4066", "pants");
+  g.rect(cx + 4, topY + 37, 7, 4, "#181a22", "shoe");
+  // Leaning hi-vis neon vest torso
+  g.rect(cx - 5, topY + 21, 13, 12, "#203659", "polo");
+  g.rect(cx - 4, topY + 22, 11, 10, "#d9f029", "orange");
+  g.rect(cx - 4, topY + 24, 11, 2, "#f0f8ff", "jersey");
+  g.rect(cx - 4, topY + 28, 11, 2, "#f0f8ff", "jersey");
+  // Outstretched gloved hands gently tending / placing band-aid on Liam!
+  g.line(cx + 5, topY + 25, cx + 13, topY + 30, "#203659", "polo");
+  g.line(cx + 5, topY + 26, cx + 13, topY + 31, "#203659", "polo");
+  g.rect(cx + 12, topY + 29, 5, 4, "#7cd6ff", "kippah");
+  g.rect(cx + 14, topY + 30, 3, 2, "#fff5db", "jersey"); // Band-aid in hand!
+  // Open red trauma bag sitting right beside the kneeling EMT!
+  if (variant === 1) {
+    g.rect(cx - 14, topY + 32, 8, 7, "#d92820", "orange");
+    g.rect(cx - 13, topY + 33, 6, 2, "#ff685e", "orange");
+    g.rect(cx - 11, topY + 35, 3, 2, "#ffffff", "jersey");
+  }
+  // Focused Head & EMS Cap
+  const skinMid = variant === 1 ? "#d49a6a" : LIAM_PAL.skinMid;
+  const skinHi = variant === 1 ? "#ebb486" : LIAM_PAL.skinHi;
+  g.ellipse(cx + 1, topY + 13, 7.0, 7.0, skinMid, "skin");
+  g.ellipse(cx + 3, topY + 12, 4.0, 4.2, skinHi, "skin");
+  g.rect(cx + 4, topY + 12, 3, 3, LIAM_PAL.eyeLash, "skin");
+  g.set(cx + 4, topY + 12, LIAM_PAL.white, "skin");
+  g.ellipse(cx, topY + 7, 7.4, 4.2, variant === 0 ? "#f5f8fc" : "#1c365c", "cap");
+  g.rect(cx - 6, topY + 9, 15, 2, "#1c365c", "cap");
+  g.rect(cx + 5, topY + 9, 7, 2, "#1c365c", "cap");
+  g.rect(cx + 2, topY + 6, 3, 3, "#2b6ec9", "kippah");
+  g.set(cx + 3, topY + 7, "#f4d35e", "kippah");
+
+  g.applySelOut({ ...LIAM_SELOUT, orange: "#3d4a08" });
+  return g.toCanvas(0.5, { cx: 22, cy: 50, rx: 12, ry: 3.2 });
+}
+
+function bake32BitEmtStretcher(withPatient = true) {
+  const g = new PixelGrid(62, 40);
+  // Hydraulic Chrome X-Frame Gurney Legs & Heavy Swivel Castors!
+  g.rect(10, 24, 3, 11, "#cfd8e3", "scooter");
+  g.rect(49, 24, 3, 11, "#cfd8e3", "scooter");
+  g.line(11, 25, 50, 34, "#9aa5b5", "scooter");
+  g.line(50, 25, 11, 34, "#9aa5b5", "scooter");
+  g.line(12, 25, 51, 34, "#e6edf5", "scooter");
+  g.ellipse(11, 35, 3.2, 3.2, "#1d2029", "shoe");
+  g.set(11, 35, "#cfd8e3", "scooter");
+  g.ellipse(50, 35, 3.2, 3.2, "#1d2029", "shoe");
+  g.set(50, 35, "#cfd8e3", "scooter");
+  // Bright orange/crimson EMS rescue gurney mattress & gleaming raised chrome safety rails!
+  g.rect(5, 20, 52, 5, "#e04628", "orange");
+  g.rect(6, 20, 50, 2, "#ff7854", "orange");
+  g.rect(7, 16, 48, 2, "#eef5fc", "scooter");
+  g.rect(12, 17, 2, 4, "#cfd8e3", "scooter");
+  g.rect(48, 17, 2, 4, "#cfd8e3", "scooter");
+  // Portable EMS mini-monitor mounted at foot of stretcher
+  g.rect(49, 12, 7, 6, "#242c3a", "cap");
+  g.rect(50, 13, 5, 4, "#42f58d", "kippah");
+  // Cozy white pillow & sky-blue EMS thermal blanket with crimson medical cross
+  g.rect(8, 15, 11, 5, "#ffffff", "jersey");
+  g.rect(19, 16, 30, 5, "#3a85d4", "polo");
+  g.rect(20, 16, 28, 2, "#6ab3f5", "polo");
+  g.rect(31, 17, 6, 3, "#e02820", "orange");
+  g.rect(33, 16, 2, 5, "#e02820", "orange");
+  if (withPatient) {
+    // Liam tucked safely on the pillow with light-brown hair & crisp forehead band-aid!
+    g.ellipse(14, 13, 5.4, 4.8, LIAM_PAL.skinMid, "skin");
+    g.ellipse(15, 12.5, 3.2, 3.0, LIAM_PAL.skinHi, "skin");
+    g.ellipse(13, 10.5, 5.4, 2.8, LIAM_PAL.hairMid, "hair");
+    g.rect(15, 12, 2, 1, LIAM_PAL.eyeLash, "skin");
+    g.rect(12, 11, 4, 2, "#fff5db", "jersey");
+    g.set(13, 11, "#e63946", "orange");
+  }
+  g.applySelOut(LIAM_SELOUT);
+  return g.toCanvas(0.5, { cx: 31, cy: 36, rx: 24, ry: 3.2 });
+}
+
+function bake32BitPoliceOfficerRight(step = 0) {
+  const g = new PixelGrid(46, 54);
+  const cx = 23;
+  const topY = 3 + (step === 1 ? -1 : 0);
+  const stride = step === 1 ? 3 : -2;
+
+  // Dark navy Newton Police dress trousers + polished black patrol boots
+  g.rect(cx - 4 - stride, topY + 33, 5, 11, "#18243b", "pants");
+  g.rect(cx - 5 - stride, topY + 43, 7, 4, "#12141c", "shoe");
+  g.rect(cx + 1 + stride, topY + 33, 5, 11, "#223354", "pants");
+  g.rect(cx + stride, topY + 43, 7, 4, "#12141c", "shoe");
+
+  // Crisp navy Police uniform shirt, shoulder patch, utility belt & gleaming gold shield badge!
+  g.rect(cx - 6, topY + 21, 13, 13, "#1d3154", "polo");
+  g.rect(cx - 4, topY + 22, 9, 9, "#2a4575", "polo");
+  g.rect(cx - 6, topY + 31, 13, 3, "#151720", "cap"); // Black leather utility belt
+  g.rect(cx, topY + 31, 3, 3, "#f4d35e", "orange");   // Brass buckle
+  g.rect(cx + 2, topY + 24, 3, 3, "#f4d35e", "orange"); // Gold police chest shield!
+  g.set(cx + 3, topY + 25, "#fff6b8", "orange");
+  // Crisp white shirt collar & navy tie
+  g.rect(cx - 1, topY + 21, 4, 2, "#f0f5fa", "jersey");
+  // Outstretched arm holding a bright yellow CAUTION tape roll & traffic wand!
+  g.rect(cx + 4, topY + 24, 7, 4, "#1d3154", "polo");
+  g.rect(cx + 10, topY + 24, 3, 4, LIAM_PAL.skinMid, "skin");
+  // Glowing yellow/black CAUTION tape spool held in hand!
+  g.ellipse(cx + 14, topY + 25, 3.2, 3.2, "#ffd92e", "orange");
+  g.ellipse(cx + 14, topY + 25, 1.5, 1.5, "#1a1c24", "cap");
+
+  // Sculpted 32-bit Head + aviator shades + Peaked Navy Police Cap with gold shield!
+  g.ellipse(cx, topY + 13, 7.2, 7.2, LIAM_PAL.skinMid, "skin");
+  g.ellipse(cx + 2, topY + 12, 4.2, 4.4, LIAM_PAL.skinHi, "skin");
+  g.rect(cx + 2, topY + 12, 5, 2, "#141824", "cap"); // Officer aviator shades!
+  g.rect(cx + 3, topY + 12, 2, 1, "#7cc4f5", "kippah");
+  g.rect(cx + 4, topY + 16, 2, 1, LIAM_PAL.mouth, "skin");
+  // Classic peaked navy Police cap with shiny black bill & gold shield!
+  g.ellipse(cx - 1, topY + 6.5, 8.0, 4.4, "#1a2d4f", "cap");
+  g.rect(cx - 8, topY + 8, 16, 2, "#121724", "cap");
+  g.rect(cx + 4, topY + 9, 8, 2, "#121724", "cap");
+  g.rect(cx + 2, topY + 5, 3, 3, "#f4d35e", "orange");
+  g.set(cx + 3, topY + 6, "#fff6b8", "orange");
+
+  g.applySelOut({ ...LIAM_SELOUT, orange: "#4a3206" });
+  return g.toCanvas(0.5, { cx: 23, cy: 50, rx: 10.5, ry: 3.2 });
+}
+
+function bake32BitTrafficCone() {
+  const g = new PixelGrid(18, 22);
+  // Weighted dark rubber octagonal base
+  g.rect(2, 16, 14, 4, "#242834", "shoe");
+  g.rect(3, 15, 12, 2, "#393f52", "shoe");
+  // Bright fluorescent orange cone body with crisp reflective white collar bands!
+  for (let row = 0; row < 12; row++) {
+    const half = Math.max(1, Math.round(1 + (row / 11) * 4.5));
+    const isStripe = row === 4 || row === 5 || row === 8;
+    const col = isStripe ? "#f5f9ff" : row % 2 === 0 ? "#ff681f" : "#eb4d14";
+    g.rect(9 - half, 4 + row, half * 2, 1, col, isStripe ? "jersey" : "orange");
+    if (!isStripe && half >= 2) g.set(9 - half + 1, 4 + row, "#ff9c47", "orange");
+  }
+  g.applySelOut({ ...LIAM_SELOUT, orange: "#591b06" });
+  return g.toCanvas(0.5, { cx: 9, cy: 19, rx: 7.5, ry: 2.2 });
+}
+
+function bake32BitRoadFlare(frame = 0) {
+  const g = new PixelGrid(18, 18);
+  // Red cylindrical highway safety flare lying on asphalt
+  g.rect(2, 11, 9, 4, "#c9241e", "orange");
+  g.rect(3, 11, 7, 2, "#ff5c4d", "orange");
+  g.rect(4, 11, 2, 4, "#f4d35e", "orange");
+  // Sizzling crimson-orange & white burning sparks shooting out of tip!
+  const f = frame === 0 ? 0 : 1;
+  g.ellipse(12, 12, 3.2 + f * 0.6, 3.2 + f * 0.6, "#ff3b2e", "orange");
+  g.ellipse(12, 12, 2.0, 2.0, "#ffcf4d", "orange");
+  g.rect(11, 11, 2, 2, "#ffffff", "jersey");
+  g.set(14 + f, 8 - f, "#fff6b8", "orange");
+  g.set(10, 7 + f, "#ff7854", "orange");
+  g.set(15, 13 - f, "#ffcf4d", "orange");
+  g.applySelOut({ ...LIAM_SELOUT, orange: "#5c120d" });
+  return g.toCanvas(0.5, { cx: 9, cy: 15, rx: 7, ry: 2.2 });
+}
+
 /**
- * Bake all 32-bit street-life sprites (roving turkeys, annoying protestors, spooky graveyard characters, and crisp pixel speech bubbles).
+ * Bake all 32-bit street-life sprites (roving turkeys, annoying protestors, spooky graveyard characters, EMTs, police & crisp pixel speech bubbles).
  */
 export function bake32BitStreetLifeSprites(chants = []) {
   const out = {};
@@ -1499,6 +2027,39 @@ export function bake32BitStreetLifeSprites(chants = []) {
     out[`spooky_${kind}_left_0`] = mirrorCanvasHorizontal(r0);
     out[`spooky_${kind}_left_1`] = mirrorCanvasHorizontal(r1);
   }
+
+  // 32-bit Newton EMS EMT Paramedics (2 distinct variants + kneeling triage pose!) & Hydraulic Stretcher!
+  const emtR0 = bake32BitEmtRight(0, 0);
+  const emtR1 = bake32BitEmtRight(1, 0);
+  const emt1R0 = bake32BitEmtRight(0, 1);
+  const emt1R1 = bake32BitEmtRight(1, 1);
+  const emtKR0 = bake32BitEmtKneelRight(0);
+  const emtKR1 = bake32BitEmtKneelRight(1);
+  out.emt_right_0 = emtR0;
+  out.emt_right_1 = emtR1;
+  out.emt_left_0 = mirrorCanvasHorizontal(emtR0);
+  out.emt_left_1 = mirrorCanvasHorizontal(emtR1);
+  out.emt_1_right_0 = emt1R0;
+  out.emt_1_right_1 = emt1R1;
+  out.emt_1_left_0 = mirrorCanvasHorizontal(emt1R0);
+  out.emt_1_left_1 = mirrorCanvasHorizontal(emt1R1);
+  out.emt_kneel_right = emtKR0;
+  out.emt_kneel_left = mirrorCanvasHorizontal(emtKR0);
+  out.emt_kneel_1_right = emtKR1;
+  out.emt_kneel_1_left = mirrorCanvasHorizontal(emtKR1);
+  out.emt_stretcher_empty = bake32BitEmtStretcher(false);
+  out.emt_stretcher_patient = bake32BitEmtStretcher(true);
+
+  // 32-bit Newton Police Officers, Reflective Traffic Cones & Sizzling Road Flares!
+  const polR0 = bake32BitPoliceOfficerRight(0);
+  const polR1 = bake32BitPoliceOfficerRight(1);
+  out.police_officer_right_0 = polR0;
+  out.police_officer_right_1 = polR1;
+  out.police_officer_left_0 = mirrorCanvasHorizontal(polR0);
+  out.police_officer_left_1 = mirrorCanvasHorizontal(polR1);
+  out.traffic_cone = bake32BitTrafficCone();
+  out.road_flare_0 = bake32BitRoadFlare(0);
+  out.road_flare_1 = bake32BitRoadFlare(1);
 
   // Crisp 32-bit pixel speech bubbles!
   out.bubble_gobble = bakePixelSpeechBubble("GOBBLE!", {
@@ -1546,11 +2107,43 @@ export function bake32BitStreetLifeSprites(chants = []) {
     accent: "#d9641e",
     textColor: "#4a1b09",
   });
+  out.bubble_emt_help = bakePixelSpeechBubble("HOLD ON, KID!", {
+    bg: "#e8f4ff",
+    accent: "#d9221c",
+    textColor: "#14274a",
+  });
+  out.bubble_emt_lift = bakePixelSpeechBubble("ALL SET! LIFTING!", {
+    bg: "#e8fff0",
+    accent: "#228c4e",
+    textColor: "#123822",
+  });
+  out.bubble_police_stop = bakePixelSpeechBubble("SCENE SECURE!", {
+    bg: "#e6eeff",
+    accent: "#2464bd",
+    textColor: "#12244a",
+  });
+  out.bubble_police_tape = bakePixelSpeechBubble("KEEP BACK! CAUTION!", {
+    bg: "#fff7c2",
+    accent: "#1a1c24",
+    textColor: "#1a1404",
+  });
+  out.bubble_fire_clear = bakePixelSpeechBubble("NEWTON FIRE HERE!", {
+    bg: "#ffebe8",
+    accent: "#d9221c",
+    textColor: "#4a1210",
+  });
   chants.forEach((line, idx) => {
     out[`bubble_protest_${idx}`] = bakePixelSpeechBubble(line, {
       bg: "#fff8eb",
       accent: idx % 2 === 0 ? "#d93b36" : "#24573d",
       textColor: "#291a18",
+    });
+  });
+  BIKER_CHANTS.forEach((line, idx) => {
+    out[`bubble_biker_${idx}`] = bakePixelSpeechBubble(line, {
+      bg: "#fbffd1",
+      accent: "#d92820",
+      textColor: "#241e08",
     });
   });
 

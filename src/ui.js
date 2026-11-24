@@ -18,6 +18,22 @@ const TILE_DISPLAY_LABELS = {
   park: "park turf",
 };
 
+const BUILDING_KIND_LABELS = {
+  commercial: "Shop",
+  bakery_cafe: "Café",
+  corner_market: "Market",
+  office_plaza: "Office Plaza",
+  fire_station: "Fire Station",
+  greenhouse: "Greenhouse",
+  library: "Library",
+  school: "School",
+  civic: "Civic Hall",
+  apartments: "Apartments",
+  duplex: "Duplex",
+  garage: "Garage",
+  house: "House",
+};
+
 const BUILDING_KIND_ICONS = {
   commercial: "🏪",
   bakery_cafe: "🥐",
@@ -47,12 +63,16 @@ const BUILDING_KIND_ICONS = {
 export function createUI({
   onToggleDebug,
   onResetHome,
+  onResetSalzberg,
   onLookOrInteract,
   onToggleMute,
   onOpenPaint,
   onToggleMap,
   onToggleGpsAssist,
   onToggleOutfit,
+  onUseSword,
+  onUseSiddur,
+  onGameOverRetry,
   onSelectQuest,
   onOpenMapFromSign,
   onCloseSign,
@@ -104,12 +124,18 @@ export function createUI({
 
   const dpadEl = document.getElementById("dpad");
   const btnMap = document.getElementById("btn-map");
+  const btnSword = document.getElementById("btn-sword");
+  const btnSiddur = document.getElementById("btn-siddur");
   const btnGps = document.getElementById("btn-gps");
   const btnOutfit = document.getElementById("btn-outfit");
+  const gameoverOverlayEl = document.getElementById("gameover-overlay");
+  const gameoverSubEl = document.getElementById("gameover-sub");
+  const btnGameoverRetry = document.getElementById("btn-gameover-retry");
   const btnPaint = document.getElementById("btn-paint");
   const btnMute = document.getElementById("btn-mute");
   const btnDebug = document.getElementById("btn-debug");
   const btnHome = document.getElementById("btn-home");
+  const btnSalzberg = document.getElementById("btn-salzberg");
   const btnFaster = document.getElementById("btn-faster");
   const btnLook = document.getElementById("btn-look");
   const btnLookIcon = document.getElementById("btn-look-icon");
@@ -238,11 +264,18 @@ export function createUI({
     }
 
     if (mapLegendEl) {
+      const buildingKey =
+        `<span style="display:inline-flex;align-items:center;gap:3px;"><i style="display:inline-block;width:8px;height:8px;background:#2358b8;border:1px solid #2b2112;"></i>School</span>` +
+        `<span style="display:inline-flex;align-items:center;gap:3px;"><i style="display:inline-block;width:8px;height:8px;background:#8a2434;border:1px solid #2b2112;"></i>BC</span>` +
+        `<span style="display:inline-flex;align-items:center;gap:3px;"><i style="display:inline-block;width:8px;height:8px;background:#248f7c;border:1px solid #2b2112;"></i>Library</span>` +
+        `<span style="display:inline-flex;align-items:center;gap:3px;"><i style="display:inline-block;width:8px;height:8px;background:#6f42a6;border:1px solid #2b2112;"></i>Civic</span>` +
+        `<span style="display:inline-flex;align-items:center;gap:3px;"><i style="display:inline-block;width:8px;height:8px;background:#d92b24;border:1px solid #2b2112;"></i>Fire</span>` +
+        `<span style="display:inline-flex;align-items:center;gap:3px;"><i style="display:inline-block;width:8px;height:8px;background:#e07124;border:1px solid #2b2112;"></i>Shops</span>`;
       mapLegendEl.innerHTML = gpsOn
-        ? `<span>🔴 You</span><span>🟨 Home / Quest</span><span>🟩 Discovered</span><span>🟧 Landmark</span>`
+        ? `<span>🔴 You</span><span>🟨 Home / Quest</span><span>🟩 Discovered</span>${buildingKey}`
         : hardOn
-          ? `<span>📍 Last Sign</span><span>🟩 Checked Sign</span><span>🔥 Hard Mode: Match your spinning compass to this North-up map!</span>`
-          : `<span>📍 Last Sign</span><span>🟩 Checked Sign</span><span>🟨 Home</span><span>🧭 Check signs to locate yourself!</span>`;
+          ? `<span>📍 Last Sign</span><span>🟩 Checked Sign</span>${buildingKey}`
+          : `<span>📍 Last Sign</span><span>🟩 Checked Sign</span><span>🟨 Home</span>${buildingKey}`;
     }
 
     if (mapDirectionsCardEl) {
@@ -266,17 +299,26 @@ export function createUI({
 
     if (mapQuestListEl) {
       mapQuestListEl.innerHTML = "";
+      const outfitRewardLabels = {
+        baseball: "⚾ Little League Outfit",
+        wetsuit: "🤿 Wetsuit & Snorkel",
+        link: "🗡️ Link (Zelda) Outfit",
+      };
       for (const q of questSystem.quests) {
         const done = questSystem.state.completedQuests.has(q.id);
         const active = questSystem.state.activeQuestId === q.id;
         const div = document.createElement("div");
         div.className = `quest-item${done ? " quest-done" : ""}`;
         const activeStep = active ? q.steps[questSystem.state.activeStepIndex] : null;
+        const outfitTag =
+          !done && q.rewards?.outfit && outfitRewardLabels[q.rewards.outfit]
+            ? ` <span style="font-size:10px; color:#8a4f08; font-weight:700;">• 🎁 ${outfitRewardLabels[q.rewards.outfit]}</span>`
+            : "";
         div.innerHTML = done
           ? `✅ <strong>${q.title}</strong>`
           : active
-            ? `🎯 <strong>${q.title}</strong><br/><span style="opacity:0.85">${activeStep ? activeStep.instruction : q.description}</span>`
-            : `⬜ <strong>${q.title}</strong> <span style="font-size:10px; color:#174a2e; text-decoration:underline;">(Tap to start)</span><br/><span style="opacity:0.75">${q.description}</span>`;
+            ? `🎯 <strong>${q.title}</strong>${outfitTag}<br/><span style="opacity:0.85">${activeStep ? activeStep.instruction : q.description}</span>`
+            : `⬜ <strong>${q.title}</strong>${outfitTag} <span style="font-size:10px; color:#174a2e; text-decoration:underline;">(Tap to start)</span><br/><span style="opacity:0.75">${q.description}</span>`;
         if (!done && !active) {
           div.style.cursor = "pointer";
           div.addEventListener("click", () => onSelectQuest?.(q.id));
@@ -404,8 +446,11 @@ export function createUI({
   });
 
   btnMap?.addEventListener("click", () => onToggleMap?.());
+  btnSword?.addEventListener("click", () => onUseSword?.());
+  btnSiddur?.addEventListener("click", () => onUseSiddur?.());
   btnGps?.addEventListener("click", () => onToggleGpsAssist?.());
   btnOutfit?.addEventListener("click", () => onToggleOutfit?.());
+  btnGameoverRetry?.addEventListener("click", () => onGameOverRetry?.());
   btnMapGps?.addEventListener("click", () => onToggleGpsAssist?.());
   miniMapBtnEl?.addEventListener("click", () => onToggleMap?.());
   questTrackerEl?.addEventListener("click", () => onToggleMap?.());
@@ -530,6 +575,7 @@ export function createUI({
     btnDebug.classList.toggle("active", Boolean(enabled));
   });
   btnHome?.addEventListener("click", () => onResetHome?.());
+  btnSalzberg?.addEventListener("click", () => onResetSalzberg?.());
 
   function showSafetyToast(message, durationMs = 2200) {
     if (!safetyToastEl) return;
@@ -663,12 +709,15 @@ export function createUI({
     nearestLandmark,
     nearestBuilding,
     nearbyInteraction,
+    alternateInteraction = null,
+    facingUncheckedRoad = false,
     questHint,
     pocketDirections = null,
     signBanner = null,
     navMode = "signs",
     gpsAssist = false,
     heroOutfit = "polo",
+    unlockedOutfitsCount = 1,
     checkedSignsCount = 0,
     checkedStreets = null,
     gearLabel = "FAST",
@@ -677,8 +726,10 @@ export function createUI({
     safetyXP = 0,
     coins = 0,
     acorns = 0,
-    hearts = 3,
-    maxHearts = 3,
+    hearts = 5,
+    maxHearts = 5,
+    hasSword = false,
+    hasSiddur = false,
     isFasterActive = false,
     safeCrossingActive = false,
     needsLookAtCurb = false,
@@ -686,7 +737,13 @@ export function createUI({
     if (heartsEl) {
       const clamped = Math.max(0, Math.min(maxHearts, hearts));
       heartsEl.textContent = "❤️".repeat(clamped) + "🖤".repeat(Math.max(0, maxHearts - clamped));
-      heartsEl.classList.toggle("low", clamped < maxHearts);
+      heartsEl.classList.toggle("low", clamped <= 2);
+    }
+    if (btnSword) {
+      btnSword.style.display = hasSword ? "inline-flex" : "none";
+    }
+    if (btnSiddur) {
+      btnSiddur.style.display = hasSiddur ? "inline-flex" : "none";
     }
     if (xpEl) {
       xpEl.textContent = safeCrossingActive
@@ -710,8 +767,21 @@ export function createUI({
       btnGps.classList.toggle("active", navMode !== "signs");
     }
     if (btnOutfit) {
-      btnOutfit.textContent = heroOutfit === "baseball" ? "⚾ Uniform (O)" : "👕 Polo (O)";
-      btnOutfit.classList.toggle("active", heroOutfit === "baseball");
+      if (unlockedOutfitsCount <= 1) {
+        btnOutfit.textContent = "👕 Polo (🔒)";
+        btnOutfit.title = "Complete quests to unlock Baseball, Wetsuit & Link outfits!";
+      } else {
+        btnOutfit.textContent =
+          heroOutfit === "link"
+            ? "🗡️ Link (O)"
+            : heroOutfit === "wetsuit"
+              ? "🤿 Wetsuit (O)"
+              : heroOutfit === "baseball"
+                ? "⚾ Uniform (O)"
+                : "👕 Polo (O)";
+        btnOutfit.title = `Switch between ${unlockedOutfitsCount} unlocked outfits (O)`;
+      }
+      btnOutfit.classList.toggle("active", heroOutfit !== "polo");
     }
     if (miniMapLabelEl) {
       miniMapLabelEl.textContent =
@@ -808,6 +878,15 @@ export function createUI({
     if (landmarkPillEl) {
       if (dialogueState || signModalEl?.classList.contains("open")) {
         landmarkPillEl.classList.remove("visible");
+      } else if (facingUncheckedRoad && !nearbyInteraction) {
+        const altNote =
+          alternateInteraction?.kind === "npc"
+            ? ` • Turn toward ${alternateInteraction.target.npcName} to talk`
+            : alternateInteraction?.kind === "sign"
+              ? " • Turn toward sign to read"
+              : "";
+        landmarkPillEl.textContent = `👀 Facing Road — Tap LOOK BOTH WAYS / Space to cross${altNote}`;
+        landmarkPillEl.classList.add("visible");
       } else if (nearbyInteraction) {
         let label = "";
         if (nearbyInteraction.kind === "sign") {
@@ -828,6 +907,9 @@ export function createUI({
           label = `👻 Tap SPOOK BACK / Space — ${nearbyInteraction.target?.name || "Spooky Graveyard Character"}!`;
         } else {
           label = `💬 Tap TALK / Space — ${nearbyInteraction.target.npcName} (${nearbyInteraction.target.name})`;
+        }
+        if (needsLookAtCurb) {
+          label += " • (Press L to Look Both Ways)";
         }
         landmarkPillEl.textContent = label;
         landmarkPillEl.classList.add("visible");
@@ -860,15 +942,20 @@ export function createUI({
                   ? `${icon} ${b.name}`
                   : "";
         } else {
-          // Signpost Mode: show porch number like real life without spoiling the unchecked street name!
+          // Signpost Mode: show building type + porch number like real life without spoiling the unchecked street name!
+          const kindLabel = BUILDING_KIND_LABELS[b.kind] || "House";
           label =
             b.name && houseNum
               ? `${icon} ${b.name} (${houseNum})`
               : houseNum
-                ? `${icon} House ${houseNum}${archTag}`
+                ? b.kind && b.kind !== "house"
+                  ? `${icon} ${kindLabel} #${houseNum}`
+                  : `${icon} House ${houseNum}${archTag}`
                 : b.name
                   ? `${icon} ${b.name}`
-                  : "";
+                  : b.kind && b.kind !== "house"
+                    ? `${icon} ${kindLabel}`
+                    : "";
         }
 
         if (label) {
@@ -903,6 +990,22 @@ export function createUI({
     openPaintModal,
     closePaintModal,
     isPaintOpen: () => Boolean(paintModalEl?.classList.contains("open")),
+    openGameOver: (vehicleKind = "car") => {
+      if (gameoverSubEl) {
+        const hitThing =
+          vehicleKind === "bike"
+            ? "an annoying spandex biker"
+            : vehicleKind === "truck"
+              ? "a giant truck"
+              : "a car";
+        gameoverSubEl.textContent = `Mom is SO happy you're alive after getting hit by ${hitThing}... but you're GROUNDED FOREVER! Watch carefully for cars, trucks & annoying bikers on the road!`;
+      }
+      gameoverOverlayEl?.classList.add("open");
+    },
+    closeGameOver: () => {
+      gameoverOverlayEl?.classList.remove("open");
+    },
+    isGameOverOpen: () => Boolean(gameoverOverlayEl?.classList.contains("open")),
     updateHUD,
   };
 }

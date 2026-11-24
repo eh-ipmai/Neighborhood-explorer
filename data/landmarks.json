@@ -10,9 +10,10 @@
     "sprite": "house_yellow",
     "discoveryXP": 0,
     "npcName": "Mom",
+    "healHearts": 5,
     "dialogue": [
-      "Welcome back, Explorer!",
-      "Check the bookshelf inside for secrets before heading out on Boylston Street!"
+      "Welcome back, Explorer! Here's a hug and a snack to restore your hearts!",
+      "Check the bookshelf inside for secrets before heading out — and watch out for cars & bikes on the road!"
     ],
     "rewardItem": "folded_map"
   },
@@ -40,9 +41,10 @@
     "sprite": "brick_plaza",
     "discoveryXP": 20,
     "npcName": "Dr. Avery",
+    "healHearts": 5,
     "dialogue": [
       "Hi neighbor! Right next door to Home Base — watch for cars backing out of the little parking lot!",
-      "Here's a pocket bandage kit for your explorer backpack!"
+      "Here's a fresh band-aid and pocket first-aid kit — all your hearts are patched right up!"
     ],
     "rewardItem": "explorer_bandages"
   },
@@ -132,8 +134,9 @@
     "sprite": "kosher_bakery",
     "discoveryXP": 55,
     "npcName": "Baker Ben",
+    "healHearts": 2,
     "dialogue": [
-      "Fresh warm challah and sesame bagels straight out of the oven!",
+      "Fresh warm challah and sesame bagels straight out of the oven — have a bite to restore your hearts!",
       "Take a warm paper bag for your delivery errand — careful at the Centre Street crosswalks!"
     ],
     "rewardItem": "fresh_challah_bag"
@@ -164,9 +167,10 @@
     "sprite": "ice_cream_shop",
     "discoveryXP": 55,
     "npcName": "Scooper Maya",
+    "healHearts": 3,
     "dialogue": [
       "Welcome to J.P. Licks in Newton Centre! Cookies 'n' Cream or Mint Chocolate Chip?",
-      "Here's a Double Scoop Waffle Cone for super explorer energy!"
+      "Here's a Double Scoop Waffle Cone — restores +3 hearts for super explorer energy!"
     ],
     "rewardItem": "double_scoop_cone"
   },
@@ -223,9 +227,10 @@
     "sprite": "shop_storefront",
     "discoveryXP": 60,
     "npcName": "Chef Carlos",
+    "healHearts": 2,
     "dialogue": [
       "Bienvenidos to Newton Highlands Village on Lincoln Street!",
-      "Grab a warm quesadilla snack before heading north toward Crystal Lake or the Library!"
+      "Grab a warm quesadilla snack (+2 hearts!) before heading north toward Crystal Lake or the Library!"
     ],
     "rewardItem": "highlands_taco"
   },
@@ -252,8 +257,9 @@
     "sprite": "shop_storefront",
     "discoveryXP": 55,
     "npcName": "Barista Marco",
+    "healHearts": 2,
     "dialogue": [
-      "You hiked all the way west along Route 9! Grab a Munchkin box for the walk back!"
+      "You hiked all the way west along Route 9! Grab a Munchkin box (+2 hearts!) for the walk back!"
     ],
     "rewardItem": "donut_box"
   },
@@ -299,10 +305,29 @@
     "sprite": "synagogue_building",
     "discoveryXP": 70,
     "npcName": "Kiddush Host",
+    "healHearts": 2,
     "dialogue": [
-      "Shabbat Shalom! Try Dad's Spicy Cholent for an explosive speed boost!"
+      "Shabbat Shalom! Try Dad's Spicy Cholent (+2 hearts!) for explosive explorer energy!",
+      "Take this Pocket Siddur too — press K (or tap 📖 Siddur) to dispel spooky ghosts, protestors & bad guys!"
     ],
-    "rewardItem": "spicy_cholent"
+    "rewardItem": "spicy_cholent",
+    "bonusItem": "pocket_siddur"
+  },
+  {
+    "id": "shaarei_tefillah",
+    "name": "Congregation Shaarei Tefillah",
+    "address": "35 Morseland Ave",
+    "tileX": 209,
+    "tileY": 72,
+    "sprite": "synagogue_building",
+    "discoveryXP": 65,
+    "npcName": "Rabbi David",
+    "healHearts": 2,
+    "dialogue": [
+      "Shalom, Explorer! Welcome to Congregation Shaarei Tefillah on Morseland Avenue!",
+      "Take this Pocket Siddur — press K (or tap 📖 Siddur) to shine a peaceful blessing that dispels bad guys!"
+    ],
+    "rewardItem": "pocket_siddur"
   },
   {
     "id": "temple_emanuel",
@@ -313,10 +338,13 @@
     "sprite": "synagogue_building",
     "discoveryXP": 65,
     "npcName": "Cantor Rachel",
+    "healHearts": 2,
     "dialogue": [
-      "Welcome to Temple Emanuel on Ward Street! Head east down Ward Street to reach Ward Elementary Baseball Field!"
+      "Welcome to Temple Emanuel on Ward Street! Head east down Ward Street to reach Ward Elementary Baseball Field!",
+      "Take a Pocket Siddur too — press K (or tap 📖 Siddur) whenever you need to dispel bad guys!"
     ],
-    "rewardItem": "songbook_star"
+    "rewardItem": "songbook_star",
+    "bonusItem": "pocket_siddur"
   },
   {
     "id": "chabad_newton",
@@ -327,10 +355,12 @@
     "sprite": "synagogue_building",
     "discoveryXP": 60,
     "npcName": "Neighbor Avi",
+    "healHearts": 2,
     "dialogue": [
-      "Shalom, Explorer! Loring Street is a quiet residential shortcut between Centre Street and Ward Street!"
+      "Shalom, Explorer! Have some warm honey cake (+2 hearts!) and take a Pocket Siddur to dispel bad guys (press K)!"
     ],
-    "rewardItem": "honey_cake"
+    "rewardItem": "honey_cake",
+    "bonusItem": "pocket_siddur"
   },
   {
     "id": "ward_baseball_field",
@@ -374,11 +404,13 @@
     "sprite": "friend_house",
     "discoveryXP": 65,
     "npcName": "The Salzberg Family",
+    "healHearts": 2,
     "dialogue": [
-      "Hey Liam! Welcome to 200 Cotton Street — awesome job navigating up here!",
-      "Let's hang out in the yard and plan our next Newton adventure — take this Co-Op Explorer Badge!"
+      "Hey Liam! Welcome to 200 Cotton Street — right next to the spooky 1660 graveyard!",
+      "Take our Co-Op Explorer Badge AND this Explorer's Graveyard Sword — press J (or tap ⚔️ Sword) to fight graveyard skeletons, phantoms & ghosts!"
     ],
-    "rewardItem": "coop_badge"
+    "rewardItem": "coop_badge",
+    "bonusItem": "graveyard_sword"
   },
   {
     "id": "bella_sydney_house",

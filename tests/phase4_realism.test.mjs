@@ -27,7 +27,10 @@ import {
   BUILDING_STYLE_PRESETS,
   normalizeAddress,
   resolveHouseStyle,
+  getBuildingVisualCategory,
+  getBuildingSignText,
 } from "../src/tileset.js";
+import { NON_RESIDENTIAL_MAP_INK } from "../src/papermap.js";
 import { buildParkFeatures, buildWoodlandTreeGrid } from "../src/parks.js";
 import { buildGraveyardFeatures } from "../src/graveyards.js";
 
@@ -793,4 +796,44 @@ test("highway median barriers always run in strictly straight unbroken lines wit
   assert.equal(isolated, 0, "highway barriers must have zero isolated 1-tile stubs");
   assert.equal(bends, 0, "highway barriers must never form L-bends or T-junctions");
   assert.equal(diagTouches, 0, "highway barriers must never stair-step diagonally");
+});
+
+test("schools and non-residential buildings resolve distinct visual categories, readable signage, and map ink colors", () => {
+  const houseColors = JSON.parse(
+    fs.readFileSync(path.resolve(process.cwd(), "data", "house_colors.json"), "utf8")
+  );
+  const overrideMap = {};
+  for (const [k, v] of Object.entries(houseColors)) {
+    if (k.startsWith("_")) continue;
+    overrideMap[normalizeAddress(k)] = v;
+  }
+
+  const samples = [
+    { b: { id: "s1", kind: "school", address: "280 Cypress St" }, cat: "school", sign: "SCHOOL" },
+    { b: { id: "s2", kind: "school", bcCampus: true, name: "BC Law — Stuart Hall", address: "885 Centre St" }, cat: "bc_school", sign: "BC LAW" },
+    { b: { id: "l1", kind: "house", address: "330 Homer Street" }, cat: "library", sign: "LIBRARY" },
+    { b: { id: "c1", kind: "civic", name: "Congregation Beth El-Atereth Israel", address: "561 Ward St" }, cat: "synagogue", sign: "SHUL" },
+    { b: { id: "c2", kind: "house", address: "385 Ward Street" }, cat: "synagogue", sign: "TEMPLE" },
+    { b: { id: "c3", kind: "civic", name: "First Baptist Church in Newton" }, cat: "church", sign: "CHURCH" },
+    { b: { id: "c4", kind: "civic", gothicCrypt: true, name: "Newton Cemetery Chapel", address: "791 Walnut St" }, cat: "gothic_chapel", sign: "CHAPEL" },
+    { b: { id: "f1", kind: "fire_station", address: "1164 Centre St" }, cat: "fire_station", sign: "FIRE" },
+    { b: { id: "b1", kind: "house", address: "1280 Centre St" }, cat: "bakery_cafe", sign: "BAGELS" },
+    { b: { id: "b2", kind: "house", address: "46 Langley Rd" }, cat: "bakery_cafe", sign: "CREAM" },
+    { b: { id: "m1", kind: "house", address: "10 Langley Rd" }, cat: "corner_market", sign: "BOOKS" },
+    { b: { id: "o1", kind: "office_plaza", name: "Brookline Bank", address: "1160 Walnut St" }, cat: "office_plaza", sign: "BANK" },
+    { b: { id: "h1", kind: "house", address: "565 Boylston St", isHomeBase: true }, cat: "house", sign: "" },
+  ];
+
+  for (const { b, cat, sign } of samples) {
+    const style = resolveHouseStyle(b, overrideMap);
+    const gotCat = getBuildingVisualCategory(b, overrideMap);
+    const gotSign = getBuildingSignText(b, gotCat, style);
+    assert.equal(gotCat, cat, `${b.id} visual category should be ${cat}`);
+    assert.equal(gotSign, sign, `${b.id} marquee signage should be "${sign}"`);
+    if (cat !== "house") {
+      assert.ok(NON_RESIDENTIAL_MAP_INK[cat], `non-residential category "${cat}" must have distinct map ink`);
+      assert.notEqual(NON_RESIDENTIAL_MAP_INK[cat], "#b58b74", `"${cat}" map ink must differ from residential homes`);
+    }
+  }
+  assert.equal(NON_RESIDENTIAL_MAP_INK.house, undefined, "residential homes must not override default home ink");
 });
