@@ -39,8 +39,11 @@ import {
   playDoorChime,
   playSecretRevealSfx,
   playDiceRollSfx,
+  playSquirrelChitter,
+  playCatMeow,
+  playDogBark,
 } from "../src/audio.js";
-import { createHomeInteriorSystem } from "../src/house_interior.js";
+import { createHomeInteriorSystem, bake32BitInteriorCanvas } from "../src/house_interior.js";
 import { validateAndCleanCrosswalks, TILE_IDS } from "../scripts/build_map.mjs";
 
 function loadLiveData() {
@@ -347,9 +350,22 @@ test("Game starts with Polo/Kippah/Tzitzit only, earns other outfits from quests
       "bubble_biker_0",
       "bubble_snack_thanks",
       "bubble_want_snack",
+      "squirrel_right_0",
+      "squirrel_left_1",
+      "squirrel_alert_right",
+      "cat_0_right_0",
+      "cat_1_left_1",
+      "cat_0_alert_left",
+      "dog_0_right_0",
+      "dog_1_left_1",
+      "dog_0_alert_right",
+      "bubble_chitter",
+      "bubble_meow",
+      "bubble_woof",
     ]) {
       assert.ok(atlas[key], `sprite atlas must include "${key}"`);
     }
+    assert.ok(atlas.dog_0_right_0.width >= 56, "runaway dog sprite must be wide enough for its trailing leash (>= 56px native)");
     assert.ok(atlas.traffic_car_0_e.width >= 64, "32-bit hero-grade car sprite should be >= 64px native");
     assert.ok(atlas.traffic_truck_1_e.width >= 80, "32-bit hero-grade box truck sprite should be >= 80px native");
     assert.ok(atlas.traffic_bike_0_e.width >= 52, "32-bit hero-grade biker sprite should be >= 52px native");
@@ -982,4 +998,38 @@ test("Home Base interior lets Liam go inside 565 Boylston St, restock snacks, di
   playSecretRevealSfx();
   playDiceRollSfx(false);
   playDiceRollSfx(true);
+  playSquirrelChitter();
+  playCatMeow();
+  playDogBark();
+
+  // Headless 2x HD 32-bit interior room baking check for all 3 Home Base rooms!
+  const prevDoc = global.document;
+  global.document = {
+    createElement: () => ({
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        imageSmoothingEnabled: false,
+        fillStyle: "",
+        globalAlpha: 1,
+        fillRect() {},
+        clearRect() {},
+      }),
+    }),
+  };
+  try {
+    for (const [roomId, expectedW, expectedH] of [
+      ["main_floor", 20 * 32, 12 * 32],
+      ["upstairs_nook", 16 * 32, 10 * 32],
+      ["dnd_basement", 18 * 32, 11 * 32],
+    ]) {
+      const baked = bake32BitInteriorCanvas(roomId, home.state);
+      assert.ok(baked, `bake32BitInteriorCanvas must produce canvas for ${roomId}`);
+      assert.equal(baked.__pixelScale, 0.5, `${roomId} must be baked at 2x HD (__pixelScale = 0.5)`);
+      assert.equal(baked.width, expectedW, `${roomId} HD canvas width`);
+      assert.equal(baked.height, expectedH, `${roomId} HD canvas height`);
+    }
+  } finally {
+    global.document = prevDoc;
+  }
 });

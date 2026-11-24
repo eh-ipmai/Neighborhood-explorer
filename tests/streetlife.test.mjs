@@ -10,6 +10,7 @@ import {
   checkStreetLifeContact,
   isBlockedByStreetLife,
   findNearbyStreetLife,
+  findNearbyHungryProtestor,
   interactWithStreetLife,
 } from "../src/streetlife.js";
 import { buildGraveyardFeatures, getGraveyardGhostPos } from "../src/graveyards.js";
@@ -102,6 +103,11 @@ test("protestors peacefully block sidewalks until Liam shares a snack, and wild 
 
   const nearPr = findNearbyStreetLife(sl, pr.x - 14, pr.y, 26);
   assert.equal(nearPr?.kind, "protestor");
+  assert.equal(
+    findNearbyHungryProtestor(sl, pr.x - 36, pr.y, 44)?.target?.id,
+    pr.id,
+    "dedicated snack helper should detect hungry protestors within generous 44px reach"
+  );
 
   // Without a snack -> polite hint, stays in place
   const noSnackRes = interactWithStreetLife(sl, nearPr, pr.x - 14, pr.y, { hasSnack: false });
@@ -121,6 +127,11 @@ test("protestors peacefully block sidewalks until Liam shares a snack, and wild 
   assert.equal(prRes?.sharedSnack, true);
   assert.equal(snacksLeft, 1, "sharing a snack should consume 1 snack");
   assert.ok(pr.yieldTimer > 0, "marcher should happily step aside after receiving a snack");
+  assert.equal(
+    findNearbyHungryProtestor(sl, pr.x - 14, pr.y, 44)?.target?.id === pr.id,
+    false,
+    "already-fed yielding protestor must NOT consume another snack"
+  );
   assert.equal(
     isBlockedByStreetLife(sl, pr.x, pr.y, DEFAULT_HITBOX, pr.x - 24, pr.y),
     false,
@@ -331,4 +342,95 @@ test("spooky graveyard characters spawn strictly inside graveyard areas, stay in
   const spRes = interactWithStreetLife(sl, nearSp, sp2.x - 6, sp2.y);
   assert.equal(spRes?.kind, "spooky");
   assert.ok(nearSp.target.spookTimer > 1.5, "interacting with a spooky character should startle it back");
+});
+
+test("wild squirrels, prowling cats, and runaway dogs with trailing leashes roam Newton, hurt on contact, and bolt when shooed", () => {
+  const worldMap = JSON.parse(
+    fs.readFileSync(path.resolve(process.cwd(), "data", "world_map.json"), "utf8")
+  );
+  const home = worldMap.origin.spawnTile;
+  const tileSize = worldMap.tileSize || 16;
+  const { width, height } = worldMap.dimensions;
+  const sl = buildStreetLife(worldMap, { spawnTile: home });
+
+  assert.ok(sl.squirrels.length >= 20, `expected >= 20 wild squirrels (got ${sl.squirrels.length})`);
+  assert.ok(sl.cats.length >= 20, `expected >= 20 prowling cats (got ${sl.cats.length})`);
+  assert.ok(sl.dogs.length >= 20, `expected >= 20 runaway dogs (got ${sl.dogs.length})`);
+  assert.equal(
+    sl.critters.length,
+    sl.squirrels.length + sl.cats.length + sl.dogs.length,
+    "critters array should contain all squirrels, cats, and dogs"
+  );
+  assert.ok(
+    sl.dogs.every((d) => d.hasTrailingLeash === true),
+    "every runaway dog must have hasTrailingLeash enabled"
+  );
+
+  // At least 1 squirrel, 1 cat, and 1 leash-trailing dog spawn near Home Base
+  for (const [label, list] of [
+    ["squirrels", sl.squirrels],
+    ["cats", sl.cats],
+    ["dogs", sl.dogs],
+  ]) {
+    const near = list.filter(
+      (c) => Math.hypot(c.x / tileSize - home.x, c.y / tileSize - home.y) <= 18
+    );
+    assert.ok(near.length >= 1, `expected >= 1 ${label} near Home Base (got ${near.length})`);
+  }
+
+  // Full-map quadrant coverage across NW, NE, SW, SE + center
+  const midX = (width * tileSize) / 2;
+  const midY = (height * tileSize) / 2;
+  for (const [label, list] of [
+    ["squirrels", sl.squirrels],
+    ["cats", sl.cats],
+    ["dogs", sl.dogs],
+  ]) {
+    const q = { nw: 0, ne: 0, sw: 0, se: 0, center: 0 };
+    for (const c of list) {
+      if (c.x < midX && c.y < midY) q.nw++;
+      else if (c.x >= midX && c.y < midY) q.ne++;
+      else if (c.x < midX && c.y >= midY) q.sw++;
+      else q.se++;
+      if (Math.abs(c.x - midX) < midX * 0.5 && Math.abs(c.y - midY) < midY * 0.5) q.center++;
+    }
+    assert.ok(q.nw >= 5 && q.ne >= 5 && q.sw >= 5 && q.se >= 5 && q.center >= 5, `${label} must populate all quadrants + center`);
+  }
+
+  // Contact damage (-1 heart + knockback + invulnerability) and shooing behavior for all 3 critter kinds
+  for (const cr of [sl.squirrels[0], sl.cats[0], sl.dogs[0]]) {
+    const p = {
+      x: cr.x - 10,
+      y: cr.y,
+      facing: "right",
+      hurtTimer: 0,
+      knockbackTimer: 0,
+      knockbackVx: 0,
+      knockbackVy: 0,
+      hearts: 5,
+      maxHearts: 5,
+    };
+    let bump = null;
+    let soundKind = null;
+    updateStreetLife(sl, 0.05, p, worldMap, {
+      onCritterSound: (c) => {
+        soundKind = c.kind;
+      },
+      onPlayerBump: (b) => {
+        bump = b;
+      },
+    });
+    assert.equal(bump?.kind, cr.kind, `touching a ${cr.kind} must trigger a ${cr.kind} bump event`);
+    assert.equal(p.hearts, 4, `touching a ${cr.kind} must reduce hearts by 1`);
+    assert.ok(p.knockbackTimer > 0 && p.knockbackVx < -50, `touching a ${cr.kind} must knock Liam back`);
+    assert.ok(p.hurtTimer > 0.5, `touching a ${cr.kind} must set hurt invulnerability timer`);
+    assert.ok(soundKind !== null && cr.bubbleTimer > 0, `${cr.kind} should react with sound and speech bubble`);
+
+    const near = findNearbyStreetLife(sl, cr.x - 12, cr.y, 26);
+    assert.equal(near?.kind, cr.kind, `findNearbyStreetLife should detect nearby ${cr.kind}`);
+    const shoo = interactWithStreetLife(sl, near, cr.x - 12, cr.y);
+    assert.equal(shoo?.kind, cr.kind);
+    assert.equal(shoo?.sound, cr.kind);
+    assert.ok(cr.fleeTimer > 0, `shooed ${cr.kind} must bolt away`);
+  }
 });

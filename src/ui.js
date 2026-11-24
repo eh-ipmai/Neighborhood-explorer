@@ -70,6 +70,8 @@ export function createUI({
   onToggleMap,
   onToggleGpsAssist,
   onToggleOutfit,
+  onToggleInside,
+  onGiveSnack,
   onUseSword,
   onUseSiddur,
   onGameOverRetry,
@@ -123,6 +125,8 @@ export function createUI({
   const btnSignClose = document.getElementById("btn-sign-close");
 
   const dpadEl = document.getElementById("dpad");
+  const btnInside = document.getElementById("btn-inside");
+  const btnSnack = document.getElementById("btn-snack");
   const btnMap = document.getElementById("btn-map");
   const btnSword = document.getElementById("btn-sword");
   const btnSiddur = document.getElementById("btn-siddur");
@@ -452,6 +456,8 @@ export function createUI({
     if (e.target === signModalEl) closeSignModal();
   });
 
+  btnInside?.addEventListener("click", () => onToggleInside?.());
+  btnSnack?.addEventListener("click", () => onGiveSnack?.());
   btnMap?.addEventListener("click", () => onToggleMap?.());
   btnSword?.addEventListener("click", () => onUseSword?.());
   btnSiddur?.addEventListener("click", () => onUseSiddur?.());
@@ -776,6 +782,9 @@ export function createUI({
     maxHearts = 5,
     hasSword = false,
     hasSiddur = false,
+    canEnterHouse = false,
+    isInsideHouse = false,
+    canGiveSnack = false,
     isFasterActive = false,
     isWading = false,
     isFastWading = false,
@@ -787,6 +796,16 @@ export function createUI({
       setText(heartsEl, "hearts", "❤️".repeat(clamped) + "🖤".repeat(Math.max(0, maxHearts - clamped)));
       setClass(heartsEl, "heartsLow", "low", clamped <= 2);
     }
+    setDisplay(btnInside, "insideDisp", isInsideHouse || canEnterHouse ? "inline-flex" : "none");
+    setText(btnInside, "insideTxt", isInsideHouse ? "🚪 Outside (I)" : "🏠 Inside (I)");
+    setClass(btnInside, "insideAct", "active", isInsideHouse || canEnterHouse);
+    setDisplay(btnSnack, "snackDisp", canGiveSnack ? "inline-flex" : "none");
+    setText(
+      btnSnack,
+      "snackTxt",
+      hasSnack ? `🥨 Give Snack (${gpsAssist ? "∞" : snacks}) [N]` : "🥨 Need Snacks [N]"
+    );
+    setClass(btnSnack, "snackAct", "active", canGiveSnack && hasSnack);
     setDisplay(btnSword, "swordDisp", hasSword ? "inline-flex" : "none");
     setDisplay(btnSiddur, "siddurDisp", hasSiddur ? "inline-flex" : "none");
     setText(
@@ -871,6 +890,15 @@ export function createUI({
         } else if (nearbyInteraction.kind === "turkey") {
           setText(btnLookIcon, "lookIcon", "🦃");
           setHtml(btnLookLabel, "lookLbl", "SHOO<br/>TURKEY");
+        } else if (nearbyInteraction.kind === "squirrel") {
+          setText(btnLookIcon, "lookIcon", "🐿️");
+          setHtml(btnLookLabel, "lookLbl", "SHOO<br/>SQUIRREL");
+        } else if (nearbyInteraction.kind === "cat") {
+          setText(btnLookIcon, "lookIcon", "🐱");
+          setHtml(btnLookLabel, "lookLbl", "SHOO<br/>CAT");
+        } else if (nearbyInteraction.kind === "dog") {
+          setText(btnLookIcon, "lookIcon", "🐕");
+          setHtml(btnLookLabel, "lookLbl", "SHOO<br/>PUP");
         } else if (nearbyInteraction.kind === "spooky") {
           setText(btnLookIcon, "lookIcon", "🔦");
           setHtml(btnLookLabel, "lookLbl", "SPOOK<br/>BACK!");
@@ -947,7 +975,7 @@ export function createUI({
       } else if (nearbyInteraction) {
         let label = "";
         if (nearbyInteraction.kind === "home_door") {
-          label = "🏠 Tap GO INSIDE / Space — Enter 565 Boylston St (Your House!)";
+          label = "🏠 Tap Inside (I) or Space — Enter 565 Boylston St (Your House!)";
         } else if (nearbyInteraction.kind === "house_prop") {
           label = `${nearbyInteraction.target?.icon || "✨"} Tap / Space — ${nearbyInteraction.target?.label || "Inspect"}`;
         } else if (nearbyInteraction.kind === "sign") {
@@ -960,10 +988,16 @@ export function createUI({
           label = `📦 Tap OPEN / Space — ${nearbyInteraction.target.name}`;
         } else if (nearbyInteraction.kind === "protestor") {
           label = hasSnack
-            ? `🥨 Tap SHARE SNACK / Space — Share a snack with the marchers ("${nearbyInteraction.target.chantText}")!`
-            : `🥨 Marching makes them hungry! Grab snacks at Home Base Kitchen, J.P. Licks, or Rosenfeld's!`;
+            ? `🥨 Tap Give Snack (N) or Space — Share a snack with the marchers ("${nearbyInteraction.target.chantText}")!`
+            : `🥨 Marching makes them hungry! Grab snacks at Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's!`;
         } else if (nearbyInteraction.kind === "turkey") {
           label = "🦃 Tap SHOO / Space — Bold Wild Newton Turkey!";
+        } else if (nearbyInteraction.kind === "squirrel") {
+          label = "🐿️ Tap SHOO / Space — Feisty Wild Newton Squirrel!";
+        } else if (nearbyInteraction.kind === "cat") {
+          label = "🐱 Tap SHOO / Space — Sassy Prowling Cat!";
+        } else if (nearbyInteraction.kind === "dog") {
+          label = "🐕 Tap SHOO / Space — Runaway Dog with Trailing Leash!";
         } else if (nearbyInteraction.kind === "spooky") {
           label = `👻 Tap SPOOK BACK / Space — ${nearbyInteraction.target?.name || "Spooky Graveyard Character"}!`;
         } else {
@@ -992,7 +1026,9 @@ export function createUI({
 
         let label = "";
         if (b.isHomeBase) {
-          label = `🏠 ${b.address} — Home Base`;
+          label = canEnterHouse
+            ? `🏠 ${b.address} — Home Base • Press I or tap Inside (I) to go inside!`
+            : `🏠 ${b.address} — Home Base`;
         } else if (streetKnown) {
           label =
             b.name && b.address

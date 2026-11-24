@@ -38,6 +38,9 @@ import {
   playSpookyBooSfx,
   playSignpostReadChime,
   playTurkeyGobble,
+  playSquirrelChitter,
+  playCatMeow,
+  playDogBark,
   playProtestorShout,
   playBumpHurtSfx,
   playSwordSlashSfx,
@@ -67,6 +70,7 @@ import {
   updateStreetLife,
   isBlockedByStreetLife,
   findNearbyStreetLife,
+  findNearbyHungryProtestor,
   interactWithStreetLife,
   performSwordAttack,
   performSiddurDispel,
@@ -643,7 +647,7 @@ async function boot() {
         alreadyChecked: questSystem.state.checkedSigns.has(signNear.sign.id),
       };
     }
-    const streetNear = findNearbyStreetLife(streetLife, playerState.x, playerState.y, 19);
+    const streetNear = findNearbyStreetLife(streetLife, playerState.x, playerState.y, 26);
     if (streetNear) return streetNear;
     return null;
   }
@@ -926,6 +930,58 @@ async function boot() {
     }
   }
 
+  function shareSnackWithProtestor(entry) {
+    if (!entry || entry.kind !== "protestor") return null;
+    const res = interactWithStreetLife(streetLife, entry, playerState.x, playerState.y, {
+      hasSnack: questSystem.hasSnack(),
+      consumeSnack: () => questSystem.useSnack(),
+      isEasyMode: Boolean(questSystem.state.gpsAssist),
+    });
+    if (!res) return null;
+    if (res.sound === "snack_thanks") {
+      playHealHeartSfx();
+      if (res.xpReward) {
+        questSystem.state.safetyXP += res.xpReward;
+        questSystem.save();
+      }
+      for (let i = 0; i < 10; i++) {
+        const ang = (i / 10) * Math.PI * 2;
+        leafParticles.push({
+          x: entry.target.x,
+          y: entry.target.y - 10,
+          vx: Math.cos(ang) * 28,
+          vy: Math.sin(ang) * 18 - 22,
+          life: 0.48,
+          shade: i % 2 === 0 ? [255, 212, 92] : [116, 238, 162],
+          w: 3,
+          h: 3,
+        });
+      }
+    } else if (res.sound === "protestor") {
+      playProtestorShout();
+    }
+    ui?.showSafetyToast(res.toast, 2800);
+    return res;
+  }
+
+  function triggerGiveSnack() {
+    if (roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
+    if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
+    if (homeInterior.state.active) {
+      ui?.showSafetyToast("🥨 Grab snacks from the Kitchen Snack Jar inside, then share them with marchers outside!", 2500);
+      return;
+    }
+    const nearHungry = findNearbyHungryProtestor(streetLife, playerState.x, playerState.y, 44);
+    if (nearHungry) {
+      shareSnackWithProtestor(nearHungry);
+    } else if (questSystem.hasSnack()) {
+      const countLabel = questSystem.state.gpsAssist ? "∞" : questSystem.state.snacks;
+      ui?.showSafetyToast(`🥨 You have ${countLabel} snacks ready! Walk up to any sidewalk marcher and press N or Space to share!`, 2500);
+    } else {
+      ui?.showSafetyToast("🥨 Out of snacks! Visit Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's Bagels to restock!", 2600);
+    }
+  }
+
   function triggerSiddurDispel() {
     if (roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
     if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
@@ -1054,6 +1110,42 @@ async function boot() {
     playerState.knockbackTimer = 0;
     resetToHome();
     ui?.showSafetyToast("🏠 Back at Home Base with all 5 hearts! Watch closely for cars & bikes!", 2600);
+  }
+
+  function canEnterNearbyHouse(tx, ty) {
+    if (homeInterior.state.active) return false;
+    return Math.hypot(tx - homeDoorTile.x, ty - homeDoorTile.y) <= 3.5;
+  }
+
+  function enterHomeBaseHouse() {
+    const entered = homeInterior.enterHouse(playerState.x, playerState.y);
+    playerState.x = entered.x;
+    playerState.y = entered.y;
+    playerState.facing = entered.facing;
+    playerState.moving = false;
+    playerState.isWading = false;
+    k.setCamRot(0);
+    playDoorChime();
+    ui?.showSafetyToast(
+      "🏠 Welcome inside 565 Boylston St! Try the Kitchen Snacks, Closet, Bookshelf & D&D Pool Table!",
+      3000
+    );
+  }
+
+  function toggleHouseInside() {
+    if (roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
+    if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
+    if (homeInterior.state.active) {
+      leaveHouseToOutdoor();
+      return;
+    }
+    const tx = Math.floor(playerState.x / tileSize);
+    const ty = Math.floor(playerState.y / tileSize);
+    if (canEnterNearbyHouse(tx, ty)) {
+      enterHomeBaseHouse();
+    } else {
+      ui?.showSafetyToast("🏠 Walk up to 565 Boylston St (Home Base) and press I to go inside!", 2400);
+    }
   }
 
   function leaveHouseToOutdoor() {
@@ -1214,18 +1306,7 @@ async function boot() {
     const nearby = intent.interaction;
     if (nearby) {
       if (nearby.kind === "home_door") {
-        const entered = homeInterior.enterHouse(playerState.x, playerState.y);
-        playerState.x = entered.x;
-        playerState.y = entered.y;
-        playerState.facing = entered.facing;
-        playerState.moving = false;
-        playerState.isWading = false;
-        k.setCamRot(0);
-        playDoorChime();
-        ui?.showSafetyToast(
-          "🏠 Welcome inside 565 Boylston St! Try the Kitchen Snacks, Closet, Bookshelf & D&D Pool Table!",
-          3000
-        );
+        enterHomeBaseHouse();
         return;
       }
       if (nearby.kind === "sign") {
@@ -1236,7 +1317,17 @@ async function boot() {
         triggerSwordSlash();
         return;
       }
-      if (nearby.kind === "protestor" || nearby.kind === "turkey" || nearby.kind === "spooky") {
+      if (nearby.kind === "protestor") {
+        shareSnackWithProtestor(nearby);
+        return;
+      }
+      if (
+        nearby.kind === "turkey" ||
+        nearby.kind === "squirrel" ||
+        nearby.kind === "cat" ||
+        nearby.kind === "dog" ||
+        nearby.kind === "spooky"
+      ) {
         const res = interactWithStreetLife(streetLife, nearby, playerState.x, playerState.y, {
           hasSnack: questSystem.hasSnack(),
           consumeSnack: () => questSystem.useSnack(),
@@ -1246,27 +1337,15 @@ async function boot() {
           if (res.sound === "turkey") {
             playTurkeyGobble();
             spawnFeatherBurst(nearby.target.x, nearby.target.y);
-          } else if (res.sound === "snack_thanks") {
-            playHealHeartSfx();
-            if (res.xpReward) {
-              questSystem.state.safetyXP += res.xpReward;
-              questSystem.save();
-            }
-            for (let i = 0; i < 8; i++) {
-              const ang = (i / 8) * Math.PI * 2;
-              leafParticles.push({
-                x: nearby.target.x,
-                y: nearby.target.y - 10,
-                vx: Math.cos(ang) * 26,
-                vy: Math.sin(ang) * 18 - 20,
-                life: 0.45,
-                shade: i % 2 === 0 ? [255, 212, 92] : [116, 238, 162],
-                w: 3,
-                h: 3,
-              });
-            }
-          } else if (res.sound === "protestor") {
-            playProtestorShout();
+          } else if (res.sound === "squirrel") {
+            playSquirrelChitter();
+            spawnAutumnLeafBurst(nearby.target.x, nearby.target.y, 6, 36);
+          } else if (res.sound === "cat") {
+            playCatMeow();
+            spawnAutumnLeafBurst(nearby.target.x, nearby.target.y, 6, 36);
+          } else if (res.sound === "dog") {
+            playDogBark();
+            spawnAutumnLeafBurst(nearby.target.x, nearby.target.y, 7, 42);
           } else if (res.sound === "spooky") {
             playSpookyChime();
           }
@@ -1288,6 +1367,13 @@ async function boot() {
           onComplete: () => {
             if (outcome.healHearts > 0) {
               healPlayerHearts(outcome.healHearts, outcome.questEvent?.type === "quest_completed" ? "Quest Complete" : nearby.target.name?.replace(/\s*\(.*\)/, ""));
+            }
+            if (outcome.gainedSnacks > 0) {
+              playCoinPickup();
+              ui?.showSafetyToast(
+                `🥨 Packed +${outcome.gainedSnacks} snacks! (${questSystem.state.snacks}/${questSystem.getMaxSnacks()}) — share with marchers (N)!`,
+                2500
+              );
             }
             if (outcome.fanfareQueue.length > 0) {
               enqueueFanfare(outcome.fanfareQueue);
@@ -1450,6 +1536,8 @@ async function boot() {
     onToggleMap: togglePaperMap,
     onToggleGpsAssist: cycleNavModeAction,
     onToggleOutfit: toggleHeroOutfitMode,
+    onToggleInside: toggleHouseInside,
+    onGiveSnack: triggerGiveSnack,
     onUseSword: triggerSwordSlash,
     onUseSiddur: triggerSiddurDispel,
     onGameOverRetry: retryAfterGameOver,
@@ -1503,6 +1591,8 @@ async function boot() {
   });
   k.onKeyPress("g", cycleNavModeAction);
   k.onKeyPress("o", toggleHeroOutfitMode);
+  k.onKeyPress("i", toggleHouseInside);
+  k.onKeyPress("n", triggerGiveSnack);
   k.onKeyPress("h", resetToHome);
   k.onKeyPress("s", resetToSalzberg);
   k.onKeyPress("m", togglePaperMap);
@@ -2109,6 +2199,9 @@ async function boot() {
         maxHearts: playerState.maxHearts,
         hasSword: questSystem.hasSword(),
         hasSiddur: questSystem.hasSiddur(),
+        canEnterHouse: false,
+        isInsideHouse: true,
+        canGiveSnack: false,
         isFasterActive: false,
         isWading: false,
         isFastWading: false,
@@ -2403,19 +2496,30 @@ async function boot() {
       }
     }
 
-    // Update roving wild Newton turkeys, annoying sidewalk protestors, protestor mobs & spooky graveyard characters!
+    // Update roving wild Newton turkeys, squirrels, cats, leash-trailing dogs, peaceful marchers & spooky graveyard characters!
     updateStreetLife(streetLife, dt, playerState, worldMap, {
       isFasterNow,
       tileSize,
       graveyardGhosts: graveyardFeatures.ghosts,
       elapsedTime: playerState.elapsedTime,
       onTurkeyGobble: () => playTurkeyGobble(),
+      onCritterSound: (cr) => {
+        if (cr.kind === "squirrel") playSquirrelChitter();
+        else if (cr.kind === "cat") playCatMeow();
+        else if (cr.kind === "dog") playDogBark();
+      },
       onProtestorShout: () => playProtestorShout(),
       onSpookyChime: () => playSpookyChime(),
       onFeatherBurst: (fx, fy) => spawnFeatherBurst(fx, fy),
       onPlayerBump: (bump) => {
         if (bump.kind === "spooky") {
           playSpookyBooSfx();
+        } else if (bump.kind === "squirrel") {
+          playSquirrelChitter();
+        } else if (bump.kind === "cat") {
+          playCatMeow();
+        } else if (bump.kind === "dog") {
+          playDogBark();
         }
         playBumpHurtSfx();
         // Comic impact sparks (eerie violet/cyan ectoplasm for spooky hits, crimson/gold for turkeys/protestors!)
@@ -2611,6 +2715,9 @@ async function boot() {
       maxHearts: playerState.maxHearts,
       hasSword: questSystem.hasSword(),
       hasSiddur: questSystem.hasSiddur(),
+      canEnterHouse: canEnterNearbyHouse(tx, ty),
+      isInsideHouse: false,
+      canGiveSnack: Boolean(findNearbyHungryProtestor(streetLife, playerState.x, playerState.y, 44)),
       isFasterActive: isFasterNow,
       isWading: playerState.isWading,
       isFastWading: isFastWadingNow,
@@ -4253,7 +4360,53 @@ async function boot() {
       });
     }
 
-    // Annoying Sidewalk Protestors waving big picket signs, shouting chants & getting in Liam's way!
+    // Roving Wild Squirrels, Prowling Cats & Runaway Dogs with Trailing Leashes!
+    for (const cr of streetLife.critters || []) {
+      const crTx = cr.x / tileSize;
+      const crTy = cr.y / tileSize;
+      if (crTx < startX - 2 || crTx > endX + 2 || crTy < startY - 2 || crTy > endY + 2) continue;
+      const step = Math.floor(cr.animTimer) % 2;
+      const isAlert = cr.alertTimer > 0;
+      let spr;
+      let drawX;
+      let drawY;
+      if (cr.kind === "squirrel") {
+        spr = isAlert ? `squirrel_alert_${cr.facing}` : `squirrel_${cr.facing}_${step}`;
+        drawX = Math.round(cr.x - 9);
+        drawY = Math.round(cr.y - 14);
+      } else if (cr.kind === "cat") {
+        spr = isAlert
+          ? `cat_${cr.variant}_alert_${cr.facing}`
+          : `cat_${cr.variant}_${cr.facing}_${step}`;
+        drawX = Math.round(cr.x - 10);
+        drawY = Math.round(cr.y - 15);
+      } else {
+        // Runaway dog with animated trailing leash behind collar (58x38 native -> 29x19 logical)
+        spr = isAlert
+          ? `dog_${cr.variant}_alert_${cr.facing}`
+          : `dog_${cr.variant}_${cr.facing}_${step}`;
+        drawX = Math.round(cr.x + (cr.facing === "right" ? -18 : -11));
+        drawY = Math.round(cr.y - 17);
+      }
+      const footX = Math.round(cr.x);
+      const footY = Math.round(cr.y + 2);
+      drawables.push({
+        sortY: depthOf(footX, footY),
+        draw: () => {
+          k.drawSprite(spr, drawX, drawY, 1, bbAngle, footX, footY);
+          if (cr.bubbleTimer > 0) {
+            const bob = Math.round(Math.sin(tSec * 10 + cr.x) * 1.2);
+            const bKey = cr.bubbleSprite || "bubble_woof";
+            const bSpr = atlas[bKey];
+            const bwLog = bSpr ? (bSpr.width * (bSpr.__pixelScale || 0.5)) : 24;
+            k.drawSprite(bKey, Math.round(footX - bwLog / 2), drawY - 10 + bob, 1, bbAngle, footX, footY);
+          }
+        },
+      });
+    }
+
+    // Peaceful Sidewalk Marchers waving picket signs — share a snack (N or Space) to make them cheer & step aside!
+    const nearestHungryPr = findNearbyHungryProtestor(streetLife, playerState.x, playerState.y, 44)?.target || null;
     for (const pr of streetLife.protestors) {
       const prTx = pr.x / tileSize;
       const prTy = pr.y / tileSize;
@@ -4264,9 +4417,21 @@ async function boot() {
       const pyDraw = Math.round(pr.y - 28);
       const footX = Math.round(pr.x);
       const footY = Math.round(pr.y + 3);
+      const isSnackTarget = nearestHungryPr && pr.id === nearestHungryPr.id;
       drawables.push({
         sortY: depthOf(footX, footY),
         draw: () => {
+          if (isSnackTarget) {
+            const pulse = 0.55 + Math.sin(tSec * 8) * 0.25;
+            k.drawRect({
+              pos: k.vec2(footX - 9, footY - 4),
+              width: 18,
+              height: 7,
+              color: k.rgb(114, 232, 156),
+              opacity: pulse * 0.42,
+              outline: { width: 1, color: k.rgb(255, 240, 140), opacity: pulse },
+            });
+          }
           k.drawSprite(spr, pxDraw, pyDraw, 1, bbAngle, footX, footY);
           if (pr.bubbleTimer > 0) {
             const bob = Math.round(Math.sin(tSec * 9 + pr.anchorX) * 1.2);
@@ -4441,6 +4606,8 @@ async function boot() {
     playerState,
     triggerSwordSlash,
     triggerSiddurDispel,
+    triggerGiveSnack,
+    toggleHouseInside,
     startRoadHitCutscene,
     resetToSalzberg,
   };

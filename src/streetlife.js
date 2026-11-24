@@ -14,6 +14,54 @@
 
 import { buildGraveyardMask, getGraveyardGhostPos } from "./graveyards.js";
 
+export const CRITTER_ARCHETYPES = {
+  squirrel: {
+    kind: "squirrel",
+    name: "Wild Squirrel",
+    icon: "🐿️",
+    bubble: "bubble_chitter",
+    sound: "squirrel",
+    roamSpeed: 20,
+    chaseSpeed: 22,
+    fleeSpeed: 68,
+    hitRadius: 13.0,
+    hitToast: "💥 OUCH! A feisty Newton squirrel darted at your shoes and took 1 heart!",
+    shooToast: "🐿️ CHITTER-CHITTER! The wild squirrel scampered up toward the trees!",
+    variants: 1,
+    hasTrailingLeash: false,
+  },
+  cat: {
+    kind: "cat",
+    name: "Prowling Cat",
+    icon: "🐱",
+    bubble: "bubble_meow",
+    sound: "cat",
+    roamSpeed: 17,
+    chaseSpeed: 20,
+    fleeSpeed: 64,
+    hitRadius: 13.5,
+    hitToast: "💥 OUCH! A sassy neighborhood cat pounced past your ankles and took 1 heart!",
+    shooToast: "🐱 MROW! The sassy cat hopped gracefully onto a garden wall!",
+    variants: 2,
+    hasTrailingLeash: false,
+  },
+  dog: {
+    kind: "dog",
+    name: "Runaway Dog",
+    icon: "🐕",
+    bubble: "bubble_woof",
+    sound: "dog",
+    roamSpeed: 23,
+    chaseSpeed: 27,
+    fleeSpeed: 72,
+    hitRadius: 14.5,
+    hitToast: "💥 OUCH! A runaway dog with a trailing leash zoomed into you and took 1 heart!",
+    shooToast: "🐕 WOOF WOOF! You tossed a pretend stick and the leash-trailing pup bounded away!",
+    variants: 2,
+    hasTrailingLeash: true,
+  },
+};
+
 export const SPOOKY_ARCHETYPES = [
   {
     kind: "skeleton",
@@ -145,6 +193,10 @@ export function buildStreetLife(
   }
 
   const turkeys = [];
+  const squirrels = [];
+  const cats = [];
+  const dogs = [];
+  const critters = [];
   const protestors = [];
   const mobs = [];
   const spookyChars = [];
@@ -193,6 +245,44 @@ export function buildStreetLife(
       gobbleSoundCooldown: 0,
       shooedCount: 0,
     });
+    markSpot(tx, ty, 2);
+  };
+
+  const addCritter = (kind, tx, ty) => {
+    const arch = CRITTER_ARCHETYPES[kind];
+    if (!arch) return;
+    const idx = critters.length;
+    const h = hash2(tx, ty, 419 + idx * 13);
+    const angle = ((h % 8) * Math.PI) / 4;
+    const px = tx * tileSize + tileSize / 2;
+    const py = ty * tileSize + tileSize / 2;
+    const entry = {
+      id: `${kind}_${idx}`,
+      kind,
+      name: arch.name,
+      icon: arch.icon,
+      variant: h % (arch.variants || 1),
+      hasTrailingLeash: Boolean(arch.hasTrailingLeash),
+      x: px,
+      y: py,
+      homeX: px,
+      homeY: py,
+      vx: Math.cos(angle) * arch.roamSpeed,
+      vy: Math.sin(angle) * arch.roamSpeed,
+      facing: Math.cos(angle) >= 0 ? "right" : "left",
+      animTimer: (h % 10) * 0.1,
+      dirTimer: 1.3 + (h % 22) * 0.1,
+      alertTimer: 0,
+      fleeTimer: 0,
+      bubbleTimer: 0,
+      bubbleSprite: arch.bubble,
+      soundCooldown: 0,
+      shooedCount: 0,
+    };
+    critters.push(entry);
+    if (kind === "squirrel") squirrels.push(entry);
+    else if (kind === "cat") cats.push(entry);
+    else if (kind === "dog") dogs.push(entry);
     markSpot(tx, ty, 2);
   };
 
@@ -357,6 +447,27 @@ export function buildStreetLife(
     }
   }
 
+  // --- 2b. Guarantee at least 1 Wild Squirrel, 1 Prowling Cat, and 1 Runaway Dog (with trailing leash!) near Home Base! ---
+  for (const kind of ["squirrel", "cat", "dog"]) {
+    let placedNear = false;
+    for (let r = 5; r <= 18 && !placedNear; r++) {
+      for (let dy = -r; dy <= r && !placedNear; dy++) {
+        for (let dx = -r; dx <= r && !placedNear; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const tx = home.x + dx;
+          const ty = home.y + dy;
+          if (usedSpots.has(`${tx},${ty}`)) continue;
+          if (!isTurkeyTile(base, collision, width, height, tx, ty)) continue;
+          if (base[ty * width + tx] === 2) continue;
+          if (parkOccupiedGrid && parkOccupiedGrid[ty * width + tx] === 1) continue;
+          if (effectiveGraveGrid && effectiveGraveGrid[ty * width + tx] !== 0) continue;
+          addCritter(kind, tx, ty);
+          placedNear = true;
+        }
+      }
+    }
+  }
+
   // --- 3. Distribute Sidewalk Protestors & Occasional Protestor Mobs evenly across EVERY neighborhood sector! ---
   // Use stratified grid cells (no early cap cutoff!) so NW, NE, Center, SW, SE all have lively pickets & mobs.
   const protestorCell = width >= 200 ? 38 : 16;
@@ -427,6 +538,43 @@ export function buildStreetLife(
         }
         if (placedCount >= wantInCell) break;
       }
+    }
+  }
+
+  // --- 4b. Distribute Wild Squirrels, Prowling Cats & Runaway Leash-Trailing Dogs across EVERY neighborhood sector! ---
+  const critterOrder = ["squirrel", "cat", "dog"];
+  const critterCell = width >= 200 ? 34 : 16;
+  let cellCounter = 0;
+  for (let cy0 = 8; cy0 < height - 8; cy0 += critterCell) {
+    for (let cx0 = 8; cx0 < width - 8; cx0 += critterCell) {
+      const cellW = Math.min(critterCell, width - 8 - cx0);
+      const cellH = Math.min(critterCell, height - 8 - cy0);
+      // Spawn 2 different critters per sector so every neighborhood has lively squirrels, cats & leash dogs!
+      for (let slot = 0; slot < 2; slot++) {
+        const kind = critterOrder[(cellCounter + slot) % critterOrder.length];
+        const seedX = cx0 + (hash2(cx0 + slot * 17, cy0, 313) % Math.max(1, cellW));
+        const seedY = cy0 + (hash2(cx0, cy0 + slot * 23, 353) % Math.max(1, cellH));
+        let placed = false;
+        const maxSearchR = Math.min(12, Math.floor(critterCell / 2));
+        for (let r = 0; r <= maxSearchR && !placed; r++) {
+          for (let dy = -r; dy <= r && !placed; dy++) {
+            for (let dx = -r; dx <= r && !placed; dx++) {
+              if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+              const ox = seedX + dx;
+              const oy = seedY + dy;
+              if (ox < cx0 || ox >= cx0 + cellW || oy < cy0 || oy >= cy0 + cellH) continue;
+              if (usedSpots.has(`${ox},${oy}`)) continue;
+              if (!isTurkeyTile(base, collision, width, height, ox, oy)) continue;
+              if (base[oy * width + ox] === 2) continue;
+              if (parkOccupiedGrid && parkOccupiedGrid[oy * width + ox] === 1) continue;
+              if (effectiveGraveGrid && effectiveGraveGrid[oy * width + ox] !== 0) continue;
+              addCritter(kind, ox, oy);
+              placed = true;
+            }
+          }
+        }
+      }
+      cellCounter++;
     }
   }
 
@@ -551,7 +699,7 @@ export function buildStreetLife(
     }
   });
 
-  return { turkeys, protestors, mobs, spookyChars, graveyardGrid: effectiveGraveGrid };
+  return { turkeys, squirrels, cats, dogs, critters, protestors, mobs, spookyChars, graveyardGrid: effectiveGraveGrid };
 }
 
 /**
@@ -585,14 +733,17 @@ export function isBlockedByStreetLife(streetLife, px, py, hitbox, curPlayerX = n
 }
 
 /**
- * Find the closest interactive protestor or turkey within maxDistPx for Space / E interaction.
+ * Find the closest interactive protestor, turkey, critter, or spooky character for Space / E interaction.
+ * Skips protestors who already received a snack (yieldTimer > 0) and uses a generous reach for hungry marchers.
  */
 export function findNearbyStreetLife(streetLife, px, py, maxDistPx = 28) {
   if (!streetLife) return null;
   let best = null;
+  const protestorMaxDist = Math.max(maxDistPx, 34);
   for (const pr of streetLife.protestors || []) {
+    if (pr.yieldTimer > 0) continue;
     const d = Math.hypot(px - pr.x, py - pr.y);
-    if (d <= maxDistPx && (!best || d < best.dist)) {
+    if (d <= protestorMaxDist && (!best || d < best.dist)) {
       best = { kind: "protestor", target: pr, dist: d };
     }
   }
@@ -602,11 +753,34 @@ export function findNearbyStreetLife(streetLife, px, py, maxDistPx = 28) {
       best = { kind: "turkey", target: tk, dist: d };
     }
   }
+  for (const cr of streetLife.critters || []) {
+    const d = Math.hypot(px - cr.x, py - cr.y);
+    if (d <= maxDistPx && (!best || d < best.dist)) {
+      best = { kind: cr.kind, target: cr, dist: d };
+    }
+  }
   for (const sp of streetLife.spookyChars || []) {
     if ((sp.defeatedTimer || 0) > 0) continue;
     const d = Math.hypot(px - sp.x, py - sp.y);
     if (d <= maxDistPx && (!best || d < best.dist)) {
       best = { kind: "spooky", target: sp, dist: d };
+    }
+  }
+  return best;
+}
+
+/**
+ * Find the closest hungry (non-yielding) protestor/marcher within generous snack-sharing reach
+ * for the dedicated physical Give Snack (N) button & hotkey.
+ */
+export function findNearbyHungryProtestor(streetLife, px, py, maxDistPx = 44) {
+  if (!streetLife) return null;
+  let best = null;
+  for (const pr of streetLife.protestors || []) {
+    if (pr.yieldTimer > 0) continue;
+    const d = Math.hypot(px - pr.x, py - pr.y);
+    if (d <= maxDistPx && (!best || d < best.dist)) {
+      best = { kind: "protestor", target: pr, dist: d };
     }
   }
   return best;
@@ -711,6 +885,26 @@ export function interactWithStreetLife(streetLife, entry, playerX, playerY, opti
       sound: "turkey",
     };
   }
+  if (entry.kind === "squirrel" || entry.kind === "cat" || entry.kind === "dog") {
+    const cr = entry.target;
+    const arch = CRITTER_ARCHETYPES[entry.kind];
+    const dx = cr.x - playerX;
+    const dy = cr.y - playerY;
+    const len = Math.hypot(dx, dy) || 1;
+    const fleeSpd = arch?.fleeSpeed || 64;
+    cr.vx = (dx / len) * fleeSpd;
+    cr.vy = (dy / len) * fleeSpd;
+    cr.facing = cr.vx >= 0 ? "right" : "left";
+    cr.fleeTimer = 2.6;
+    cr.alertTimer = 0.8;
+    cr.bubbleTimer = 2.0;
+    cr.shooedCount += 1;
+    return {
+      kind: entry.kind,
+      toast: arch?.shooToast || "You shooed the critter away!",
+      sound: arch?.sound || entry.kind,
+    };
+  }
   if (entry.kind === "spooky") {
     const sp = entry.target;
     const dx = sp.x - playerX;
@@ -770,6 +964,31 @@ export function checkStreetLifeContact(
         duration: 0.24,
         bubbleSprite: "bubble_ouch",
         toast: "💥 OUCH! A bold wild Newton turkey pecked & knocked you back!",
+      };
+    }
+  }
+
+  // Wild squirrels, prowling cats & runaway leash-trailing dogs act as nimble neighborhood enemies like turkeys!
+  for (const cr of streetLife.critters || []) {
+    if (cr.fleeTimer > 0) continue;
+    const arch = CRITTER_ARCHETYPES[cr.kind];
+    const dx = px - cr.x;
+    const dy = py - cr.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < (arch?.hitRadius || 13.5)) {
+      const fb = fallbackDir();
+      const dirX = dist > 0.5 ? dx / dist : fb.x;
+      const dirY = dist > 0.5 ? dy / dist : fb.y;
+      return {
+        kind: cr.kind,
+        isMob: false,
+        source: cr,
+        dirX,
+        dirY,
+        speed: cr.kind === "dog" ? 142 : 128,
+        duration: 0.24,
+        bubbleSprite: "bubble_ouch",
+        toast: arch?.hitToast || "💥 OUCH! A wild neighborhood critter bumped you and took 1 heart!",
       };
     }
   }
@@ -845,6 +1064,7 @@ export function updateStreetLife(
     graveyardGhosts = null,
     elapsedTime = 0,
     onTurkeyGobble = null,
+    onCritterSound = null,
     onProtestorShout = null,
     onSpookyChime = null,
     onFeatherBurst = null,
@@ -886,12 +1106,14 @@ export function updateStreetLife(
       tk.fleeTimer = 1.2;
       onFeatherBurst?.(tk.x, tk.y);
       onTurkeyGobble?.(tk);
-    } else if (bump.kind === "protestor") {
-      const pr = bump.source;
-      pr.bubbleSprite = pr.isMob ? "bubble_mob_block" : "bubble_watch_sign";
-      pr.bubbleTimer = 2.5;
-      pr.shoutSoundCooldown = 2.4;
-      onProtestorShout?.(pr);
+    } else if (bump.kind === "squirrel" || bump.kind === "cat" || bump.kind === "dog") {
+      const cr = bump.source;
+      cr.alertTimer = 1.2;
+      cr.bubbleTimer = 2.0;
+      cr.vx = -bump.dirX * 42;
+      cr.vy = -bump.dirY * 42;
+      cr.fleeTimer = 1.3;
+      onCritterSound?.(cr);
     } else if (bump.kind === "spooky") {
       const sp = bump.source;
       if (sp && typeof sp.spookTimer === "number") {
@@ -986,6 +1208,76 @@ export function updateStreetLife(
     }
     if (Math.abs(tk.vx) > 1.5) {
       tk.facing = tk.vx >= 0 ? "right" : "left";
+    }
+  }
+
+  // --- 1b. Update Wild Squirrels, Prowling Cats & Runaway Dogs (with trailing leashes!) ---
+  for (const cr of streetLife.critters || []) {
+    const dist = Math.hypot(px - cr.x, py - cr.y);
+    if (dist > 420) continue;
+
+    const arch = CRITTER_ARCHETYPES[cr.kind];
+    cr.animTimer += dt * (cr.fleeTimer > 0 ? 15 : cr.kind === "dog" ? 10 : 8.5);
+    if (cr.alertTimer > 0) cr.alertTimer = Math.max(0, cr.alertTimer - dt);
+    if (cr.fleeTimer > 0) cr.fleeTimer = Math.max(0, cr.fleeTimer - dt);
+    if (cr.bubbleTimer > 0) cr.bubbleTimer = Math.max(0, cr.bubbleTimer - dt);
+    if (cr.soundCooldown > 0) cr.soundCooldown = Math.max(0, cr.soundCooldown - dt);
+
+    if (cr.fleeTimer <= 0) {
+      const detectRadius = cr.kind === "dog" ? 64 : 50;
+      if (dist < detectRadius) {
+        cr.alertTimer = Math.max(cr.alertTimer, 0.85);
+        if (cr.soundCooldown <= 0) {
+          cr.bubbleTimer = 1.9;
+          cr.soundCooldown = 3.8;
+          onCritterSound?.(cr);
+        }
+        if (isFasterNow && dist < 38) {
+          const len = dist || 1;
+          const fSpd = arch?.fleeSpeed || 64;
+          cr.vx = ((cr.x - px) / len) * fSpd;
+          cr.vy = ((cr.y - py) / len) * fSpd;
+          cr.fleeTimer = 2.0;
+        } else {
+          // Dart/prowl/bound toward Liam's path just like bold Newton turkeys!
+          const len = dist || 1;
+          const cSpd = arch?.chaseSpeed || 20;
+          cr.vx = ((px - cr.x) / len) * cSpd;
+          cr.vy = ((py - cr.y) / len) * cSpd;
+        }
+      } else {
+        cr.dirTimer -= dt;
+        if (cr.dirTimer <= 0) {
+          const homeDist = Math.hypot(cr.homeX - cr.x, cr.homeY - cr.y);
+          let angle;
+          if (homeDist > 165) {
+            angle = Math.atan2(cr.homeY - cr.y, cr.homeX - cr.x) + (Math.random() - 0.5) * 0.7;
+          } else {
+            angle = Math.random() * Math.PI * 2;
+          }
+          const baseSpd = arch?.roamSpeed || 18;
+          const spd = baseSpd * (0.8 + Math.random() * 0.4);
+          cr.vx = Math.cos(angle) * spd;
+          cr.vy = Math.sin(angle) * spd;
+          cr.dirTimer = 1.4 + Math.random() * 2.2;
+        }
+      }
+    }
+
+    const nx = cr.x + cr.vx * dt;
+    const ny = cr.y + cr.vy * dt;
+    const ntx = Math.floor(nx / tileSize);
+    const nty = Math.floor(ny / tileSize);
+    if (isTurkeyTile(base, collision, width, height, ntx, nty)) {
+      cr.x = nx;
+      cr.y = ny;
+    } else {
+      cr.vx = -cr.vx;
+      cr.vy = -cr.vy;
+      cr.dirTimer = 0.4;
+    }
+    if (Math.abs(cr.vx) > 1.5) {
+      cr.facing = cr.vx >= 0 ? "right" : "left";
     }
   }
 
@@ -1268,6 +1560,23 @@ export function performSiddurDispel(
       tk.puffedTimer = 0.6;
       dispelledTurkeys++;
       positions.push({ x: tk.x, y: tk.y });
+    }
+  }
+
+  for (const cr of streetLife.critters || []) {
+    if (cr.fleeTimer > 0) continue;
+    const dx = cr.x - px;
+    const dy = cr.y - py;
+    const dist = Math.hypot(dx, dy);
+    if (dist <= radiusPx) {
+      const len = dist || 1;
+      cr.vx = (dx / len) * 66;
+      cr.vy = (dy / len) * 66;
+      cr.facing = cr.vx >= 0 ? "right" : "left";
+      cr.fleeTimer = 3.5;
+      cr.alertTimer = 0.6;
+      dispelledTurkeys++;
+      positions.push({ x: cr.x, y: cr.y });
     }
   }
 

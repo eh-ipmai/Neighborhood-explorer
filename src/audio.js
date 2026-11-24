@@ -301,6 +301,40 @@ export function playTurkeyGobble() {
   });
 }
 
+/** Rapid high-pitched staccato wild squirrel chitter! */
+export function playSquirrelChitter() {
+  const chirps = [1180, 1420, 1260, 1520, 1140];
+  chirps.forEach((freq, idx) => {
+    setTimeout(() => {
+      playTone({
+        freq,
+        endFreq: freq * 0.84,
+        duration: 0.036,
+        type: "square",
+        volume: 0.035,
+      });
+    }, idx * 42);
+  });
+}
+
+/** Expressive retro pitch-bent sassy neighborhood cat meow! */
+export function playCatMeow() {
+  playTone({ freq: 720, endFreq: 960, duration: 0.08, type: "triangle", volume: 0.055 });
+  setTimeout(() => {
+    playTone({ freq: 940, endFreq: 490, duration: 0.18, type: "triangle", volume: 0.055 });
+  }, 75);
+}
+
+/** Punchy double retro runaway-dog bark ("WOOF! WOOF!") */
+export function playDogBark() {
+  [0, 125].forEach((delay, idx) => {
+    setTimeout(() => {
+      zzfx(0.08, 0.06, idx === 0 ? 220 : 245, 0.004, 0.025, 0.085, 2, 1.2, -2.4, 0.35);
+      playTone({ freq: idx === 0 ? 290 : 320, endFreq: 135, duration: 0.08, type: "sawtooth", volume: 0.045 });
+    }, delay);
+  });
+}
+
 /** Funny nasal retro megaphone protestor chant squawk! */
 export function playProtestorShout() {
   zzfx(0.055, 0.06, 260, 0.005, 0.03, 0.09, 2, 1.2, 0.9, 0.18);

@@ -1480,6 +1480,249 @@ function bake32BitTurkeyRight(stepFrame = 0, puffed = false) {
 }
 
 /**
+ * Bake 32-bit Pure Pixel Wild Newton Squirrel (fluffy S-curved bushy tail, scampering paws!).
+ */
+function bake32BitSquirrelRight(stepFrame = 0, alert = false) {
+  const w = 34;
+  const h = 32;
+  const g = new PixelGrid(w, h);
+  const cx = 18;
+  const hop = stepFrame === 1 ? -2 : alert ? -1 : 0;
+
+  // 1. Huge fluffy curled-up bushy squirrel tail behind body!
+  const tailLift = alert ? -2 : stepFrame === 1 ? -1 : 0;
+  g.ellipse(cx - 8, 17 + tailLift, 5.5, 8.2, "#6e4e38", "tail");
+  g.ellipse(cx - 9, 14 + tailLift, 4.8, 6.2, "#9c7454", "tail");
+  g.ellipse(cx - 10, 11 + tailLift, 4.2, 4.0, "#bfa07e", "tail");
+  g.ellipse(cx - 9, 10 + tailLift, 2.4, 2.2, "#e0c8a8", "tail");
+  g.rect(cx - 8, 20 + tailLift, 4, 4, "#593d2b", "tail");
+
+  // 2. Quick scampering feet & legs
+  const backX = stepFrame === 1 ? cx - 6 : cx - 4;
+  const frontX = stepFrame === 1 ? cx + 6 : cx + 3;
+  g.rect(backX, 24, 4, 3, "#6e4e38", "feet");
+  g.rect(backX + 1, 26, 4, 2, "#8f694d", "feet");
+  g.rect(frontX, 24 + (alert ? -2 : 0), 3, 3, "#8f694d", "feet");
+  g.rect(frontX + 1, 26 + (alert ? -2 : 0), 3, 2, "#b58b68", "feet");
+
+  // 3. Plump russet-gray squirrel body & cream belly
+  g.ellipse(cx, 20 + hop, 6.8, 4.8, "#7d5b42", "body");
+  g.ellipse(cx + 1, 18.5 + hop, 5.2, 3.2, "#a8805e", "body");
+  g.ellipse(cx + 2, 22 + hop, 4.2, 2.2, "#f0dfc4", "belly");
+
+  // 4. Cute head, perked round ears, bright shiny dark eye, pink nose & tiny teeth!
+  const hx = cx + 6;
+  const hy = (alert ? 12 : 14) + hop;
+  g.ellipse(hx, hy, 4.2, 3.8, "#8c6648", "head");
+  g.ellipse(hx + 1, hy - 1, 2.8, 2.2, "#b58b68", "head");
+  // Perked round ears
+  g.rect(hx - 2, hy - 5, 3, 3, "#7d5b42", "head");
+  g.set(hx - 1, hy - 4, "#e3a698", "head");
+  g.rect(hx + 1, hy - 5, 2, 3, "#9c7454", "head");
+  // Cheek & bright glossy eye + cute nose
+  g.rect(hx + 1, hy + 1, 3, 2, "#f0dfc4", "belly");
+  g.rect(hx + 1, hy - 1, 2, 2, "#1a1312", "head");
+  g.set(hx + 1, hy - 1, "#ffffff", "head");
+  g.set(hx + 4, hy, "#38221e", "head");
+  if (alert) {
+    // Holding a tiny lucky acorn or chattering paws up!
+    g.rect(hx + 2, hy + 3, 3, 3, "#c47d32", "feet");
+    g.rect(hx + 2, hy + 2, 3, 1, "#5c3416", "feet");
+  }
+
+  g.applySelOut({
+    tail: "#2e1e14",
+    body: "#2e1e14",
+    belly: "#5c4530",
+    head: "#2e1e14",
+    feet: "#2e1e14",
+  });
+  return g.toCanvas(0.5, { cx: cx - 1, cy: 27, rx: 8.5, ry: 2.5 });
+}
+
+/**
+ * Bake 32-bit Pure Pixel Prowling Neighborhood Cat (variant 0 = orange tabby, 1 = tuxedo!).
+ */
+function bake32BitCatRight(variant = 0, stepFrame = 0, alert = false) {
+  const w = 42;
+  const h = 36;
+  const g = new PixelGrid(w, h);
+  const cx = 21;
+  const isTux = variant % 2 === 1;
+  const furDark = isTux ? "#1c1f29" : "#b8551c";
+  const furMid = isTux ? "#2d3242" : "#e37a2b";
+  const furHi = isTux ? "#4b5268" : "#ffaa4f";
+  const stripe = isTux ? "#14161f" : "#8f3810";
+  const accent = isTux ? "#f5f7fa" : "#fff0d1";
+  const eyeCol = isTux ? "#78e058" : "#52c468";
+  const bob = stepFrame === 1 ? -1 : 0;
+
+  // 1. Long expressive swishing cat tail (puffed straight up when alert!)
+  if (alert) {
+    g.rect(cx - 12, 8, 4, 14, furDark, "tail");
+    g.rect(cx - 11, 9, 2, 12, furMid, "tail");
+    g.rect(cx - 11, 7, 3, 3, accent, "tail");
+  } else {
+    const swish = stepFrame === 1 ? -2 : 1;
+    g.line(cx - 9, 20 + bob, cx - 14, 14 + swish, furDark, "tail");
+    g.line(cx - 9, 19 + bob, cx - 14, 13 + swish, furMid, "tail");
+    g.line(cx - 14, 13 + swish, cx - 16, 10 + swish, furHi, "tail");
+    g.rect(cx - 16, 9 + swish, 2, 2, accent, "tail");
+  }
+
+  // 2. Nimble stepping cat legs + white mittens!
+  const l1 = stepFrame === 1 ? cx - 7 : cx - 5;
+  const l2 = stepFrame === 1 ? cx - 3 : cx - 7;
+  const f1 = stepFrame === 1 ? cx + 7 : cx + 5;
+  const f2 = stepFrame === 1 ? cx + 4 : cx + 8;
+  g.rect(l2, 24, 3, 7, furDark, "feet");
+  g.rect(l1, 24, 3, 7, furMid, "feet");
+  g.rect(f2, 24, 3, 7, furDark, "feet");
+  g.rect(f1, 24, 3, 7, furMid, "feet");
+  g.rect(l1, 30, 3, 2, accent, "feet");
+  g.rect(f1, 30, 3, 2, accent, "feet");
+
+  // 3. Sleek prowling cat body (arched high when alert/hissing!)
+  const archY = alert ? -3 : 0;
+  g.ellipse(cx, 20 + bob + archY, 9.2, alert ? 6.4 : 5.2, furDark, "body");
+  g.ellipse(cx + 1, 19 + bob + archY, 7.6, alert ? 4.8 : 3.8, furMid, "body");
+  g.ellipse(cx + 1, 17.5 + bob + archY, 5.5, 2.0, furHi, "body");
+  // Tabby stripes or tuxedo chest bib
+  if (isTux) {
+    g.ellipse(cx + 6, 21 + bob, 3.6, 3.2, accent, "belly");
+  } else {
+    g.rect(cx - 3, 16 + bob + archY, 2, 5, stripe, "body");
+    g.rect(cx + 1, 16 + bob + archY, 2, 5, stripe, "body");
+    g.rect(cx + 5, 17 + bob + archY, 2, 4, stripe, "body");
+  }
+
+  // 4. Sculpted cat head, pointed triangular ears, bright emerald eyes, pink nose & whiskers!
+  const hx = cx + 9;
+  const hy = (alert ? 15 : 14) + bob;
+  // Pointy ears
+  g.rect(hx - 4, hy - 7, 3, 4, furDark, "head");
+  g.set(hx - 3, hy - 5, "#f59ca6", "head");
+  g.rect(hx + 1, hy - 7, 3, 4, furMid, "head");
+  g.set(hx + 2, hy - 5, "#f59ca6", "head");
+  // Head
+  g.ellipse(hx, hy, 5.2, 4.4, furMid, "head");
+  g.ellipse(hx, hy - 1.5, 3.6, 2.2, furHi, "head");
+  // Muzzle & pink nose
+  g.rect(hx + 1, hy + 1, 4, 2, accent, "head");
+  g.set(hx + 4, hy + 1, "#f27e8d", "head");
+  // Bright expressive green cat eye + vertical pupil
+  g.rect(hx + 1, hy - 2, 3, 2, eyeCol, "head");
+  g.set(hx + 2, hy - 2, "#14161a", "head");
+  g.set(hx + 1, hy - 2, "#ffffff", "head");
+  // Crisp cute pixel whiskers
+  g.set(hx + 5, hy, "#ffffff", "head");
+  g.set(hx + 6, hy + 1, "#ffffff", "head");
+
+  g.applySelOut({
+    tail: "#1a1418",
+    body: "#1a1418",
+    belly: "#545866",
+    head: "#1a1418",
+    feet: "#1a1418",
+  });
+  return g.toCanvas(0.5, { cx: cx + 1, cy: 31, rx: 10.5, ry: 2.8 });
+}
+
+/**
+ * Bake 32-bit Pure Pixel Runaway Neighborhood Dog with a colorful LEASH TRAILING BEHIND IT!
+ * Wide 58x38 canvas gives plenty of room for the waving collar leash & handle loop dragging behind!
+ */
+function bake32BitDogRight(variant = 0, stepFrame = 0, alert = false) {
+  const w = 58;
+  const h = 38;
+  const g = new PixelGrid(w, h);
+  const cx = 34; // Dog sits on right side so leash trails cleanly behind to the left!
+  const isSpotted = variant % 2 === 1;
+  const furDark = isSpotted ? "#7a583c" : "#a86828";
+  const furMid = isSpotted ? "#e6d8c2" : "#dba04b";
+  const furHi = isSpotted ? "#fff8ed" : "#f7ca72";
+  const earCol = isSpotted ? "#4f3422" : "#8f511c";
+  const collarCol = isSpotted ? "#1ea8b8" : "#d9322c";
+  const collarHi = isSpotted ? "#76e8f2" : "#ff6b61";
+  const bob = stepFrame === 1 ? -2 : alert ? -1 : 0;
+
+  // 1. UNMISTAKABLE TRAILING LEASH + HANDLE LOOP DRAGGING BEHIND THE DOG'S COLLAR!
+  // Connects from collar neck (cx + 7, 20) arcing back behind the dog and dragging along the ground (x = 4..26)!
+  const wave = stepFrame === 1 ? -2 : 2;
+  // Back strap arcing from collar over shoulder down to the ground behind the dog
+  g.line(cx + 6, 19 + bob, cx - 2, 16 + bob, collarCol, "leash");
+  g.line(cx - 2, 16 + bob, cx - 11, 24 + Math.round(wave * 0.5), collarCol, "leash");
+  g.line(cx - 11, 24 + Math.round(wave * 0.5), cx - 19, 30 + wave, collarCol, "leash");
+  g.line(cx - 19, 30 + wave, cx - 26, 31, collarCol, "leash");
+  // Bright highlight pixel ribbon along top edge of leash so it pops crisply over autumn lawns & sidewalks!
+  g.line(cx - 2, 15 + bob, cx - 11, 23 + Math.round(wave * 0.5), collarHi, "leash");
+  g.line(cx - 11, 23 + Math.round(wave * 0.5), cx - 19, 29 + wave, collarHi, "leash");
+  // Trailing stitched handle loop at the far tail end of the leash!
+  g.rect(cx - 31, 28, 6, 5, collarCol, "leash");
+  g.rect(cx - 30, 29, 4, 3, collarHi, "leash");
+  g.clear(cx - 29, 30);
+  g.clear(cx - 28, 30);
+
+  // 2. Wagging dog tail
+  const tailWag = stepFrame === 1 ? -3 : 0;
+  g.line(cx - 9, 18 + bob, cx - 14, 12 + bob + tailWag, furDark, "tail");
+  g.line(cx - 9, 17 + bob, cx - 13, 11 + bob + tailWag, furMid, "tail");
+  g.rect(cx - 14, 10 + bob + tailWag, 3, 3, furHi, "tail");
+
+  // 3. Bounding dog legs (wide stride on frame 1!)
+  const b1 = stepFrame === 1 ? cx - 10 : cx - 6;
+  const b2 = stepFrame === 1 ? cx - 6 : cx - 9;
+  const f1 = stepFrame === 1 ? cx + 9 : cx + 5;
+  const f2 = stepFrame === 1 ? cx + 5 : cx + 9;
+  g.rect(b2, 24, 3, 8, furDark, "feet");
+  g.rect(b1, 24, 3, 8, furMid, "feet");
+  g.rect(f2, 24, 3, 8, furDark, "feet");
+  g.rect(f1, 24, 3, 8, furMid, "feet");
+  g.rect(b1, 31, 4, 2, furHi, "feet");
+  g.rect(f1, 31, 4, 2, furHi, "feet");
+
+  // 4. Sturdy playful dog torso (with cute spots on variant 1!)
+  g.ellipse(cx, 20 + bob, 10.2, 6.2, furDark, "body");
+  g.ellipse(cx + 1, 19 + bob, 8.8, 4.8, furMid, "body");
+  g.ellipse(cx + 1, 17.5 + bob, 6.5, 2.5, furHi, "body");
+  if (isSpotted) {
+    g.ellipse(cx - 3, 19 + bob, 3.0, 2.4, "#5c3b24", "body");
+    g.ellipse(cx + 3, 21 + bob, 2.2, 1.8, "#5c3b24", "body");
+  }
+
+  // 5. Bright collar + shiny brass ID tag!
+  g.rect(cx + 6, 17 + bob, 4, 6, collarCol, "leash");
+  g.rect(cx + 7, 18 + bob, 2, 4, collarHi, "leash");
+  g.rect(cx + 9, 22 + bob, 2, 2, "#ffd952", "leash");
+
+  // 6. Expressive dog head, floppy ear, snout, wet black nose & happy pink tongue!
+  const hx = cx + 11;
+  const hy = (alert ? 12 : 13) + bob;
+  g.ellipse(hx, hy, 5.6, 5.0, furMid, "head");
+  g.ellipse(hx, hy - 1.5, 4.0, 2.6, furHi, "head");
+  // Prominent dog snout
+  g.rect(hx + 3, hy - 1, 6, 4, furMid, "head");
+  g.rect(hx + 4, hy - 1, 4, 2, furHi, "head");
+  g.rect(hx + 8, hy - 1, 2, 2, "#1c181a", "head"); // wet nose!
+  // Panting pink tongue
+  g.rect(hx + 5, hy + 3, 2, alert ? 4 : 3, "#f26b7a", "head");
+  // Floppy ear hanging on cheek
+  g.ellipse(hx - 3, hy + 1, 2.8, 4.4, earCol, "head");
+  // Glossy brown eye
+  g.rect(hx + 2, hy - 2, 2, 2, "#1a1312", "head");
+  g.set(hx + 2, hy - 2, "#ffffff", "head");
+
+  g.applySelOut({
+    leash: "#291214",
+    tail: "#261810",
+    body: "#261810",
+    head: "#261810",
+    feet: "#261810",
+  });
+  return g.toCanvas(0.5, { cx: cx + 1, cy: 32, rx: 12.5, ry: 3.0 });
+}
+
+/**
  * Bake 32-bit Pure Pixel Annoying Sidewalk Protestor waving a big cardboard picket sign + megaphone!
  */
 function bake32BitProtestorRight(variant = 0, shoutFrame = 0) {
@@ -2003,6 +2246,43 @@ export function bake32BitStreetLifeSprites(chants = []) {
   out.turkey_puff_right = tPuffR;
   out.turkey_puff_left = mirrorCanvasHorizontal(tPuffR);
 
+  // Wild Newton Squirrels
+  const sqR0 = bake32BitSquirrelRight(0, false);
+  const sqR1 = bake32BitSquirrelRight(1, false);
+  const sqAlertR = bake32BitSquirrelRight(0, true);
+  out.squirrel_right_0 = sqR0;
+  out.squirrel_right_1 = sqR1;
+  out.squirrel_left_0 = mirrorCanvasHorizontal(sqR0);
+  out.squirrel_left_1 = mirrorCanvasHorizontal(sqR1);
+  out.squirrel_alert_right = sqAlertR;
+  out.squirrel_alert_left = mirrorCanvasHorizontal(sqAlertR);
+
+  // Prowling Neighborhood Cats (2 coat variants)
+  for (let cv = 0; cv < 2; cv++) {
+    const cR0 = bake32BitCatRight(cv, 0, false);
+    const cR1 = bake32BitCatRight(cv, 1, false);
+    const cAlertR = bake32BitCatRight(cv, 0, true);
+    out[`cat_${cv}_right_0`] = cR0;
+    out[`cat_${cv}_right_1`] = cR1;
+    out[`cat_${cv}_left_0`] = mirrorCanvasHorizontal(cR0);
+    out[`cat_${cv}_left_1`] = mirrorCanvasHorizontal(cR1);
+    out[`cat_${cv}_alert_right`] = cAlertR;
+    out[`cat_${cv}_alert_left`] = mirrorCanvasHorizontal(cAlertR);
+  }
+
+  // Runaway Dogs with Trailing Leashes (2 breed variants)
+  for (let dv = 0; dv < 2; dv++) {
+    const dR0 = bake32BitDogRight(dv, 0, false);
+    const dR1 = bake32BitDogRight(dv, 1, false);
+    const dAlertR = bake32BitDogRight(dv, 0, true);
+    out[`dog_${dv}_right_0`] = dR0;
+    out[`dog_${dv}_right_1`] = dR1;
+    out[`dog_${dv}_left_0`] = mirrorCanvasHorizontal(dR0);
+    out[`dog_${dv}_left_1`] = mirrorCanvasHorizontal(dR1);
+    out[`dog_${dv}_alert_right`] = dAlertR;
+    out[`dog_${dv}_alert_left`] = mirrorCanvasHorizontal(dAlertR);
+  }
+
   // 3 Annoying Sidewalk Protestor variants (waving signs & shouting into megaphones!)
   for (let v = 0; v < 3; v++) {
     const pR0 = bake32BitProtestorRight(v, 0);
@@ -2066,6 +2346,21 @@ export function bake32BitStreetLifeSprites(chants = []) {
     bg: "#fff6db",
     accent: "#cf2b26",
     textColor: "#4a1912",
+  });
+  out.bubble_chitter = bakePixelSpeechBubble("CHITTER!", {
+    bg: "#fff6de",
+    accent: "#b56724",
+    textColor: "#42240c",
+  });
+  out.bubble_meow = bakePixelSpeechBubble("MEOW!", {
+    bg: "#f7ecff",
+    accent: "#9948bd",
+    textColor: "#331447",
+  });
+  out.bubble_woof = bakePixelSpeechBubble("WOOF!", {
+    bg: "#e8f6ff",
+    accent: "#d9382e",
+    textColor: "#1a2845",
   });
   out.bubble_watch_sign = bakePixelSpeechBubble("GOT ANY SNACKS?", {
     bg: "#fff6db",

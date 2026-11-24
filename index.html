@@ -1029,6 +1029,30 @@
         font-weight: 700;
       }
 
+      .mini-btn.inside-btn {
+        border-color: #ffcf56;
+        background: linear-gradient(180deg, rgba(176, 98, 26, 0.96) 0%, rgba(118, 56, 14, 0.96) 100%);
+        color: #fff8dc;
+        font-weight: 800;
+        box-shadow: 0 0 12px rgba(255, 207, 86, 0.45);
+      }
+
+      .mini-btn.inside-btn:hover {
+        filter: brightness(1.12);
+      }
+
+      .mini-btn.snack-btn {
+        border-color: #72e89c;
+        background: linear-gradient(180deg, rgba(32, 118, 68, 0.96) 0%, rgba(18, 76, 44, 0.96) 100%);
+        color: #f0fff4;
+        font-weight: 800;
+        box-shadow: 0 0 12px rgba(114, 232, 156, 0.45);
+      }
+
+      .mini-btn.snack-btn:hover {
+        filter: brightness(1.12);
+      }
+
       @media (hover: hover) and (pointer: fine) {
         .dpad {
           opacity: 0.5;
@@ -1092,6 +1116,8 @@
 
       <div class="action-cluster">
         <div class="utility-row">
+          <button id="btn-inside" class="mini-btn inside-btn" type="button" style="display:none;" aria-label="Go Inside House">🏠 Inside (I)</button>
+          <button id="btn-snack" class="mini-btn snack-btn" type="button" style="display:none;" aria-label="Give Snack to Protestor">🥨 Give Snack (N)</button>
           <button id="btn-sword" class="mini-btn combat-btn" type="button" style="display:none;" aria-label="Swing Graveyard Sword">⚔️ Sword (J)</button>
           <button id="btn-siddur" class="mini-btn siddur-btn" type="button" style="display:none;" aria-label="Raise Pocket Siddur">📖 Siddur (K)</button>
           <button id="btn-map" class="mini-btn" type="button" aria-label="Open Folded Paper Map">🗺️ Map (M)</button>
