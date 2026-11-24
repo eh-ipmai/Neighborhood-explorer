@@ -215,6 +215,14 @@ export function playTextBlip() {
   playTone({ freq: 520 + Math.random() * 60, duration: 0.022, type: "triangle", volume: 0.02 });
 }
 
+/** Gentle 2-tone curb-stop reminder when trying to cross a road without looking both ways */
+export function playCurbStopBoop() {
+  playTone({ freq: 349.23, duration: 0.065, type: "triangle", volume: 0.055 }); // F4
+  setTimeout(() => {
+    playTone({ freq: 261.63, duration: 0.1, type: "triangle", volume: 0.055 }); // C4
+  }, 75);
+}
+
 /** Ascending 3-note landmark discovery chime (G5 -> B5 -> D6) */
 export function playLandmarkDiscover() {
   const notes = [783.99, 987.77, 1174.66];
@@ -223,4 +231,73 @@ export function playLandmarkDiscover() {
       playTone({ freq, duration: 0.12, type: "sine", volume: 0.05 });
     }, idx * 80);
   });
+}
+
+/** Gentle kid-friendly retro spooky graveyard chime (eerie descending minor sine + ghostly shimmer) */
+export function playSpookyChime() {
+  const notes = [659.25, 622.25, 493.88, 392.0]; // E5 -> Eb5 -> B4 -> G4
+  notes.forEach((freq, idx) => {
+    setTimeout(() => {
+      playTone({
+        freq,
+        endFreq: freq * 0.96,
+        duration: idx === 3 ? 0.28 : 0.13,
+        type: "sine",
+        volume: 0.04,
+      });
+    }, idx * 115);
+  });
+}
+
+/** Crisp wooden sign-tap + brass compass chime when reading an active street sign */
+export function playSignpostReadChime(isNewSign = false) {
+  playTone({ freq: 587.33, duration: 0.065, type: "triangle", volume: 0.05 }); // D5
+  setTimeout(() => {
+    playTone({ freq: 880.0, duration: 0.1, type: "sine", volume: 0.05 }); // A5
+  }, 65);
+  if (isNewSign) {
+    setTimeout(() => {
+      playTone({ freq: 1174.66, duration: 0.16, type: "sine", volume: 0.055 }); // D6 sparkle
+    }, 145);
+  }
+}
+
+/** Hilarious rapid warbling retro wild Newton turkey gobble! */
+export function playTurkeyGobble() {
+  const warble = [380, 510, 340, 480, 310];
+  warble.forEach((freq, idx) => {
+    setTimeout(() => {
+      playTone({
+        freq,
+        endFreq: freq * 0.78,
+        duration: 0.055,
+        type: "triangle",
+        volume: 0.055,
+      });
+    }, idx * 52);
+  });
+}
+
+/** Funny nasal retro megaphone protestor chant squawk! */
+export function playProtestorShout() {
+  zzfx(0.055, 0.06, 260, 0.005, 0.03, 0.09, 2, 1.2, 0.9, 0.18);
+  setTimeout(() => {
+    zzfx(0.05, 0.06, 330, 0.005, 0.02, 0.08, 2, 1.1, -0.5, 0.16);
+  }, 115);
+}
+
+/** Classic 16-bit SNES RPG hit/bonk knockback SFX when bumped by a wild turkey or protestor! */
+export function playBumpHurtSfx() {
+  zzfx(0.085, 0.05, 190, 0.003, 0.02, 0.12, 4, 1.1, -2.6, 0.35);
+  setTimeout(() => {
+    playTone({ freq: 240, endFreq: 110, duration: 0.11, type: "square", volume: 0.055 });
+  }, 45);
+}
+
+/** Playful spooky graveyard "BOO!" warble SFX when a skeleton, phantom, or ghost spooks Liam! */
+export function playSpookyBooSfx() {
+  playTone({ freq: 587.33, endFreq: 311.13, duration: 0.16, type: "sine", volume: 0.065 });
+  setTimeout(() => {
+    playTone({ freq: 466.16, endFreq: 220.0, duration: 0.18, type: "triangle", volume: 0.06 });
+  }, 75);
 }

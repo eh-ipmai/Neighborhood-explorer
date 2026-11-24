@@ -7,19 +7,124 @@
  *  - Classical red-brick columns & pediments for libraries, schools, and civic landmarks
  *  - Auto-tiled cobblestone sidewalks with 3D stone curbs, clean multi-lane roads,
  *    direction-aware zebra crosswalks, glowing green WALK signal posts, and red fire hydrants
- *  - Pixel-outlined 16x24 SNES hero sprites (4 directions x walk frames + kick scooter)
+ *  - Super Mario Bros. 3 / All-Stars–detail character sprites for Liam & neighbors!
  */
 
+import {
+  HERO_OUTFITS,
+  bakeSmb3HeroSprite,
+  bakeSmb3HeroFanfareSprite,
+  bakeSmb3NpcSprite,
+  bake32BitStreetLifeSprites,
+} from "./characters.js";
+import { PROTEST_CHANTS } from "./streetlife.js";
+import { upgradeAtlasTo32Bit } from "./world32bit.js";
+
+export { HERO_OUTFITS };
+
 export const PALETTES = {
+  autumn_golden: {
+    outline: "#241715",
+    // Warm golden-amber autumn lawns (from reference artwork!)
+    grassBase: "#d9892e",
+    grassLight: "#eca63e",
+    grassMid: "#c27121",
+    grassDark: "#8f4a16",
+    // Warm olive-gold autumn park turf (keeps athletic parks distinct!)
+    parkBase: "#888a34",
+    parkStripeLight: "#999c3c",
+    parkStripeDark: "#77792b",
+    parkHighlight: "#b4b852",
+    parkShadow: "#57591f",
+    tallGrassBase: "#7a5e22",
+    tallGrassMid: "#a67529",
+    tallGrassTip: "#e39c36",
+    dirtBase: "#b5743f",
+    dirtLight: "#cf8f55",
+    dirtMid: "#945a2c",
+    dirtDark: "#693b1a",
+    dirtPebble: "#e3c9a6",
+    sandBase: "#e8c480",
+    sandLight: "#f7dca0",
+    sandMid: "#cfa45f",
+    sandWet: "#ab8044",
+    sandSparkle: "#fff5d1",
+    // Warm mauve-taupe New England cobblestone sidewalks!
+    sidewalkBase: "#a89693",
+    sidewalkLight: "#c7b5b0",
+    sidewalkMid: "#948280",
+    sidewalkDark: "#786666",
+    sidewalkJoint: "#5e4e50",
+    sidewalkMortar: "#5e4e50",
+    sidewalkCurbTop: "#dfd0c8",
+    sidewalkCurbFace: "#6b595b",
+    sidewalkCurbShadow: "#332528",
+    // Warm dusk-brownish-slate twilight asphalt streets!
+    roadRes: "#665759",
+    roadResDark: "#544749",
+    roadResLight: "#78686a",
+    roadMain: "#5e5052",
+    roadMainDark: "#4c4043",
+    roadMainLight: "#706062",
+    highway: "#4d4144",
+    highwayBase: "#4d4144",
+    highwayDark: "#3b3134",
+    highwayLight: "#5e5054",
+    highwayTrack: "#594b4e",
+    highwayYellow: "#f2c14e",
+    highwayMedian: "#a89b96",
+    parkingBase: "#5c4f52",
+    parkingLight: "#6e6063",
+    parkingDark: "#473c3f",
+    roadShoulder: "#e8dbd2",
+    roadDashWhite: "#ede0d4",
+    roadYellow: "#ebb84d",
+    crosswalkWhite: "#f2e5d8",
+    crosswalkEdge: "#c4b2a5",
+    waterBase: "#32648f",
+    waterDeep: "#254c73",
+    waterMid: "#3b76a3",
+    waterShallow: "#5695bf",
+    waterShallowLight: "#8cc4de",
+    waterLight: "#7cb4d6",
+    waterShimmer: "#ffe9c2",
+    treeOutline: "#2b1214",
+    treeDark: "#7d1b20",
+    treeMid: "#bf3424",
+    treeLight: "#eb6c2b",
+    treeHighlight: "#ffb047",
+    pineDark: "#243b24",
+    pineMid: "#385930",
+    pineLight: "#557d3e",
+    pineHighlight: "#7da350",
+    treeTrunk: "#6e4226",
+    treeTrunkDark: "#452614",
+    treeTrunkLight: "#965e38",
+  },
   snes_classic: {
     outline: "#1d2228",
     grassBase: "#5ca642",
     grassLight: "#7bc24e",
     grassMid: "#4b8f38",
     grassDark: "#38702d",
-    tallGrassBase: "#3b8234",
-    tallGrassMid: "#56a844",
-    tallGrassTip: "#8ee05c",
+    parkBase: "#4ca64a",
+    parkStripeLight: "#5eb854",
+    parkStripeDark: "#3f9442",
+    parkHighlight: "#86d96a",
+    parkShadow: "#2f7535",
+    tallGrassBase: "#357830",
+    tallGrassMid: "#4e9e3e",
+    tallGrassTip: "#88db58",
+    dirtBase: "#a8794d",
+    dirtLight: "#c49464",
+    dirtMid: "#8f633c",
+    dirtDark: "#6b472a",
+    dirtPebble: "#d6c4a8",
+    sandBase: "#e8cf8e",
+    sandLight: "#f6e3ae",
+    sandMid: "#d4b672",
+    sandWet: "#b59153",
+    sandSparkle: "#fff7db",
     sidewalkBase: "#d9d0be",
     sidewalkLight: "#ece5d5",
     sidewalkMid: "#c7bda8",
@@ -27,48 +132,87 @@ export const PALETTES = {
     sidewalkCurbTop: "#f3ede0",
     sidewalkCurbFace: "#8e8576",
     sidewalkCurbShadow: "#2d323b",
-    roadMain: "#3e444f",
-    roadMainDark: "#343944",
-    roadRes: "#4e5563",
-    roadResDark: "#434956",
+    roadRes: "#4a5260",
+    roadResDark: "#3e4552",
+    roadResLight: "#5c6575",
+    roadMain: "#3f4652",
+    roadMainDark: "#343a45",
+    highwayBase: "#2b303a",
+    highwayDark: "#22262e",
+    highwayTrack: "#363c48",
+    highwayYellow: "#f2c138",
+    highwayMedian: "#9aa3b0",
     roadShoulder: "#e6ebf2",
     roadDashWhite: "#dce3ec",
     roadYellow: "#e8be4a",
     crosswalkWhite: "#f4f6fa",
     crosswalkEdge: "#c4ccd8",
-    waterDeep: "#255db0",
-    waterMid: "#367bd6",
+    waterDeep: "#1e4e9c",
+    waterMid: "#2c6bc4",
+    waterShallow: "#4aa6db",
+    waterShallowLight: "#79c8f0",
     waterLight: "#5da6f0",
-    waterShimmer: "#c4ebff",
+    waterShimmer: "#d6f4ff",
     treeOutline: "#162b1c",
     treeDark: "#22542b",
     treeMid: "#377f37",
     treeLight: "#5eb043",
     treeHighlight: "#96e05e",
+    pineDark: "#1c4532",
+    pineMid: "#2a6345",
+    pineLight: "#3f875c",
+    pineHighlight: "#67b37b",
     treeTrunk: "#6e462d",
     treeTrunkDark: "#472b1c",
     treeTrunkLight: "#8f5d3e",
   },
 };
 
+// Selectable house architectural styles & non-residential building kinds (for Paint modal & house_colors.json)
+export const BUILDING_STYLE_PRESETS = {
+  colonial: { label: "Colonial", mode: "arch" },
+  cape: { label: "Cape Cod", mode: "arch" },
+  craftsman: { label: "Craftsman", mode: "arch" },
+  gambrel: { label: "Gambrel", mode: "arch" },
+  tudor: { label: "Tudor", mode: "arch" },
+  victorian: { label: "Victorian", mode: "arch" },
+  brownstone: { label: "Brownstone", mode: "arch" },
+  stone_manor: { label: "Stone Manor", mode: "arch" },
+  saltbox: { label: "Saltbox", mode: "arch" },
+  farmhouse: { label: "Farmhouse", mode: "arch" },
+  ranch: { label: "Ranch", mode: "arch" },
+  modern: { label: "Modern", mode: "arch" },
+  duplex: { label: "Duplex", mode: "kind" },
+  commercial: { label: "Shop", mode: "kind" },
+  bakery_cafe: { label: "Bakery/Café", mode: "kind" },
+  corner_market: { label: "Market", mode: "kind" },
+  office_plaza: { label: "Office", mode: "kind" },
+  fire_station: { label: "Firehouse", mode: "kind" },
+  greenhouse: { label: "Greenhouse", mode: "kind" },
+  apartments: { label: "Apts", mode: "kind" },
+  garage: { label: "Garage", mode: "kind" },
+  civic: { label: "Civic", mode: "kind" },
+  school: { label: "School", mode: "kind" },
+};
+
 // 12 realistic New England house color presets for real-world address matching
 export const HOUSE_COLOR_PRESETS = {
   yellow: {
     label: "Colonial Yellow",
-    swatch: "#f0cf6b",
-    roofLight: "#7695ad",
-    roofMain: "#55728a",
-    roofDark: "#394e61",
-    wallLight: "#fbe694",
-    wallMain: "#f0cf6b",
-    wallShade: "#d4ae48",
-    trim: "#f7f4ea",
-    trimShade: "#cfc9b8",
-    door: "#b87442",
-    doorDark: "#7a4726",
-    shutter: "#4a6173",
-    porchWood: "#c99563",
-    windowGlow: "#fff0a6",
+    swatch: "#edc258",
+    roofLight: "#c49166",
+    roofMain: "#996947",
+    roofDark: "#69422b",
+    wallLight: "#fce38d",
+    wallMain: "#edc258",
+    wallShade: "#c79434",
+    trim: "#f7ebd2",
+    trimShade: "#cca97c",
+    door: "#8c512c",
+    doorDark: "#542d17",
+    shutter: "#5e3d2a",
+    porchWood: "#b87442",
+    windowGlow: "#ffe066",
   },
   white: {
     label: "Colonial White",
@@ -192,20 +336,20 @@ export const HOUSE_COLOR_PRESETS = {
   },
   brick: {
     label: "Red Brick",
-    swatch: "#b04e3c",
-    roofLight: "#6f7787",
-    roofMain: "#4f5666",
-    roofDark: "#343945",
-    wallLight: "#cc6852",
-    wallMain: "#b04e3c",
-    wallShade: "#853629",
-    trim: "#f2ece0",
-    trimShade: "#c7bfb0",
-    door: "#7a492e",
-    doorDark: "#4f2d1b",
-    shutter: "#343d4d",
-    porchWood: "#c9c0b2",
-    windowGlow: "#b2dcf0",
+    swatch: "#9e3a2e",
+    roofLight: "#8c6956",
+    roofMain: "#664a3e",
+    roofDark: "#402d26",
+    wallLight: "#c75540",
+    wallMain: "#9e3a2e",
+    wallShade: "#70241e",
+    trim: "#e6d8ca",
+    trimShade: "#b8a496",
+    door: "#733e24",
+    doorDark: "#452213",
+    shutter: "#3d2c29",
+    porchWood: "#c9b8aa",
+    windowGlow: "#ffe066",
     isBrick: true,
   },
   cedar_brown: {
@@ -259,6 +403,58 @@ export const HOUSE_COLOR_PRESETS = {
     porchWood: "#b89f82",
     windowGlow: "#ffeba6",
   },
+  forest_green: {
+    label: "Historic Forest",
+    swatch: "#3c634d",
+    roofLight: "#8a684e",
+    roofMain: "#664935",
+    roofDark: "#453022",
+    wallLight: "#518065",
+    wallMain: "#3c634d",
+    wallShade: "#294736",
+    trim: "#f6f2e6",
+    trimShade: "#cfc8b6",
+    door: "#b5483a",
+    doorDark: "#782b22",
+    shutter: "#21362a",
+    porchWood: "#c29668",
+    windowGlow: "#ffefa8",
+  },
+  buttercream: {
+    label: "Buttercream",
+    swatch: "#f2e1b6",
+    roofLight: "#6e7c8a",
+    roofMain: "#4d5a66",
+    roofDark: "#323b45",
+    wallLight: "#fcf2d7",
+    wallMain: "#f2e1b6",
+    wallShade: "#d4be8e",
+    trim: "#ffffff",
+    trimShade: "#d6ceb8",
+    door: "#3b5f85",
+    doorDark: "#243c57",
+    shutter: "#365446",
+    porchWood: "#c49a6c",
+    windowGlow: "#b4e0f5",
+  },
+  bc_gothic: {
+    label: "BC Collegiate Gothic",
+    swatch: "#8a2434",
+    roofLight: "#5d6473",
+    roofMain: "#414754",
+    roofDark: "#292d36",
+    wallLight: "#d9d0bd",
+    wallMain: "#c2b7a1",
+    wallShade: "#9c917d",
+    trim: "#ece6d8",
+    trimShade: "#bfb6a3",
+    door: "#6e1b2a",
+    doorDark: "#45101a",
+    shutter: "#6e1b2a",
+    porchWood: "#b5ab98",
+    windowGlow: "#ffe699",
+    isStone: true,
+  },
 };
 
 export const ROOF_PRESETS = {
@@ -278,6 +474,12 @@ export const HOUSE_STYLES = [
   HOUSE_COLOR_PRESETS.brick,
   HOUSE_COLOR_PRESETS.gray,
   HOUSE_COLOR_PRESETS.tan,
+  HOUSE_COLOR_PRESETS.navy,
+  HOUSE_COLOR_PRESETS.cedar_brown,
+  HOUSE_COLOR_PRESETS.red_clapboard,
+  HOUSE_COLOR_PRESETS.forest_green,
+  HOUSE_COLOR_PRESETS.buttercream,
+  HOUSE_COLOR_PRESETS.charcoal,
 ];
 
 /**
@@ -309,6 +511,21 @@ function shadeHex(hex, delta) {
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 }
 
+const DEFAULT_ARCH_LIST = [
+  "colonial",
+  "cape",
+  "craftsman",
+  "gambrel",
+  "tudor",
+  "victorian",
+  "brownstone",
+  "stone_manor",
+  "saltbox",
+  "farmhouse",
+  "ranch",
+  "modern",
+];
+
 /**
  * Resolve final architectural style for an individual building using:
  *   1. Real-world address override (data/house_colors.json + iPad Paint House edits)
@@ -320,12 +537,21 @@ export function resolveHouseStyle(building, colorOverrideMap = {}) {
     building.kind === "library" ||
     building.kind === "school" ||
     building.kind === "civic";
+  const isApartments = building.kind === "apartments";
 
   let baseStyle;
   if (building.isHomeBase) {
     baseStyle = { ...HOUSE_COLOR_PRESETS.yellow };
+  } else if (building.bcCampus) {
+    baseStyle = { ...HOUSE_COLOR_PRESETS.bc_gothic };
+  } else if (building.gothicCrypt) {
+    baseStyle = { ...HOUSE_COLOR_PRESETS.charcoal };
   } else if (isCivic) {
     baseStyle = { ...HOUSE_COLOR_PRESETS.brick };
+  } else if (isApartments) {
+    const hash = Math.abs((building.bounds?.minX || 0) * 11 + (building.bounds?.minY || 0) * 17);
+    const aptPalettes = [HOUSE_COLOR_PRESETS.brick, HOUSE_COLOR_PRESETS.tan, HOUSE_COLOR_PRESETS.cream_stucco, HOUSE_COLOR_PRESETS.gray];
+    baseStyle = { ...aptPalettes[hash % aptPalettes.length] };
   } else {
     const hash = Math.abs(
       (building.styleIndex || 1) * 7 + (building.bounds?.minX || 0) * 13 + (building.bounds?.minY || 0) * 29
@@ -334,11 +560,23 @@ export function resolveHouseStyle(building, colorOverrideMap = {}) {
     baseStyle = { ...HOUSE_STYLES[idx] };
   }
 
+  // Deterministic house architecture fallback if building.arch wasn't pre-tagged
+  if (building.isHomeBase) {
+    baseStyle.arch = "colonial";
+  } else if (building.arch) {
+    baseStyle.arch = building.arch;
+  } else {
+    const h = Math.abs(
+      (building.styleIndex || 1) * 19 + (building.bounds?.minX || 0) * 31 + (building.bounds?.minY || 0) * 17
+    );
+    baseStyle.arch = DEFAULT_ARCH_LIST[h % DEFAULT_ARCH_LIST.length];
+  }
+
   // Apply OSM color tags if available
   if (building.osmColor) {
     const key = building.osmColor.toLowerCase();
     if (HOUSE_COLOR_PRESETS[key]) {
-      baseStyle = { ...HOUSE_COLOR_PRESETS[key] };
+      baseStyle = { ...baseStyle, ...HOUSE_COLOR_PRESETS[key] };
     } else if (key.startsWith("#") && key.length === 7) {
       baseStyle.wallMain = key;
       baseStyle.wallLight = shadeHex(key, 24);
@@ -361,7 +599,7 @@ export function resolveHouseStyle(building, colorOverrideMap = {}) {
 
   if (override) {
     if (override.preset && HOUSE_COLOR_PRESETS[override.preset]) {
-      baseStyle = { ...HOUSE_COLOR_PRESETS[override.preset] };
+      baseStyle = { ...baseStyle, ...HOUSE_COLOR_PRESETS[override.preset] };
     }
     if (override.roof && ROOF_PRESETS[override.roof]) {
       const r = ROOF_PRESETS[override.roof];
@@ -385,7 +623,11 @@ export function resolveHouseStyle(building, colorOverrideMap = {}) {
     }
     if (override.trim) baseStyle.trim = override.trim;
     if (override.kind) baseStyle.overrideKind = override.kind;
+    if (override.arch) baseStyle.arch = override.arch;
   }
+
+  // Warm golden-hour glowing interior windows on every neighborhood home & civic building
+  baseStyle.windowGlow = "#ffe070";
 
   return baseStyle;
 }
@@ -439,471 +681,2064 @@ function drawMiniNumber(ctx, str, centerX, y, color) {
 }
 
 /**
- * Draw a crisp pixel-art garden shrub with 3-tone foliage & dark outline.
+ * Draw a lush 32-bit Golden-Hour olive-green boxwood garden shrub (matching sample house/library hedges).
  */
-function drawShrub(ctx, x, y, w = 8, h = 6) {
-  px(ctx, x + 1, y, w - 2, h, "#19331f");
-  px(ctx, x, y + 1, w, h - 2, "#19331f");
-  px(ctx, x + 1, y + 1, w - 2, h - 2, "#2e6b31");
-  px(ctx, x + 2, y + 1, w - 4, h - 3, "#4da33e");
-  px(ctx, x + 2, y + 1, Math.max(2, w - 5), 2, "#80d152");
+function drawShrub(ctx, x, y, w = 14, h = 11) {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  // Soft dusk ground shadow
+  px(ctx, x + 1, y + h - 2, w - 2, 3, "rgba(42, 20, 18, 0.34)");
+  // Rounded bushy silhouette with 5-tone sunlit olive-green foliage clusters
+  px(ctx, x + 2, y, Math.max(2, w - 4), h, "#192914");
+  px(ctx, x, y + 2, w, Math.max(2, h - 4), "#192914");
+  px(ctx, x + 1, y + 1, Math.max(2, w - 2), Math.max(2, h - 2), "#192914");
+  px(ctx, x + 2, y + 1, Math.max(2, w - 4), Math.max(2, h - 2), "#2d4d20");
+  px(ctx, x + 1, y + 2, Math.max(2, w - 2), Math.max(2, h - 4), "#2d4d20");
+  px(ctx, x + 2, y + 2, Math.max(2, w - 4), Math.max(2, h - 4), "#4b782f");
+  // Individual sunlit leaf tufts
+  px(ctx, x + 2, y + 2, Math.max(2, Math.floor(w * 0.55)), Math.max(2, Math.floor(h * 0.48)), "#73a63e");
+  px(ctx, cx - 2, y + 1, Math.max(2, Math.floor(w * 0.38)), Math.max(2, Math.floor(h * 0.35)), "#73a63e");
+  px(ctx, x + 3, y + 2, Math.max(2, Math.floor(w * 0.28)), 2, "#a6cf5c");
+  px(ctx, x + w - 4, cy + 1, 2, 2, "#243d19");
 }
 
 /**
- * Draw a crisp pixel-art picket fence strip.
+ * Draw a crisp 32-bit warm cedar-wood picket fence strip (straight from the sample house yard!).
  */
-function drawPicketFence(ctx, x, y, width) {
-  if (width < 6) return;
-  // Rails
-  px(ctx, x, y + 2, width, 1, "#2a3038");
-  px(ctx, x, y + 3, width, 1, "#ded8c8");
-  px(ctx, x, y + 6, width, 1, "#c7c0ae");
-  // Pickets every 3px
-  for (let fx = x; fx < x + width - 1; fx += 3) {
-    px(ctx, fx, y, 2, 7, "#2a3038");
-    px(ctx, fx, y + 1, 2, 5, "#f7f4ec");
-    px(ctx, fx, y, 1, 1, "#ffffff");
+function drawPicketFence(ctx, x, y, width, h = 13) {
+  if (width < 8) return;
+  // Horizontal rails
+  px(ctx, x, y + 3, width, 2, "#361e14");
+  px(ctx, x, y + 4, width, 1, "#9c6238");
+  px(ctx, x, y + h - 4, width, 2, "#361e14");
+  px(ctx, x, y + h - 3, width, 1, "#7d4a28");
+  // Individual pointed warm-cedar pickets every 4px
+  for (let fx = x; fx < x + width - 2; fx += 4) {
+    px(ctx, fx, y + 1, 4, h - 1, "#361e14");
+    px(ctx, fx + 1, y, 2, 1, "#361e14");
+    px(ctx, fx + 1, y + 1, 2, h - 2, "#a86b3e");
+    px(ctx, fx + 1, y + 1, 1, h - 3, "#cf8f59");
+    px(ctx, fx + 2, y + 2, 1, h - 3, "#7a4726");
   }
 }
 
 /**
- * Draw a tiny silver mailbox with red flag on wooden post (straight from concept art!).
+ * Draw a 32-bit neighborhood mailbox with red flag on wooden post.
  */
 function drawMailbox(ctx, x, y) {
-  // Post
-  px(ctx, x + 2, y + 4, 2, 5, "#4a2e1e");
-  px(ctx, x + 2, y + 4, 1, 5, "#784c32");
-  // Rounded silver box with dark outline
-  px(ctx, x, y + 1, 6, 4, "#1d2228");
-  px(ctx, x + 1, y, 4, 5, "#1d2228");
-  px(ctx, x + 1, y + 1, 4, 3, "#9aa6b5");
-  px(ctx, x + 1, y + 1, 3, 1, "#dce3eb");
-  // Tiny red flag
-  px(ctx, x + 4, y + 1, 1, 2, "#d93b36");
+  px(ctx, x + 3, y + 6, 3, 8, "#291a18");
+  px(ctx, x + 4, y + 7, 1, 6, "#8c5838");
+  px(ctx, x, y + 1, 9, 6, "#291a18");
+  px(ctx, x + 1, y, 7, 7, "#291a18");
+  px(ctx, x + 1, y + 1, 7, 5, "#8f98a6");
+  px(ctx, x + 1, y + 1, 6, 2, "#dce3eb");
+  px(ctx, x + 6, y + 2, 2, 3, "#d93b36");
 }
 
 /**
- * Bake an individual, pixel-art 16-bit SNES house/building onto an offscreen canvas
- * matching the real OSM footprint (1 house per address!).
- * Includes generous yard margins (+6px top for chimney/gable peak, +8px bottom for porch/steps/bushes/mailbox).
+ * Draw a lush crimson/tangerine/gold autumn leaf cluster resting on a shingled roof (like the sample house!).
  */
-export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap = {}) {
-  const { minX, minY, maxX, maxY } = building.bounds;
-  const footW = (maxX - minX + 1) * tileSize;
-  const footH = (maxY - minY + 1) * tileSize;
+function drawRoofLeafCluster(ctx, cx, cy, seed = 1) {
+  const O = "#3d1410";
+  // Grounded cluster shadow on shingles
+  px(ctx, cx - 7, cy + 3, 15, 3, "rgba(42, 16, 12, 0.32)");
+  // Layered organic autumn leaf mound
+  px(ctx, cx - 6, cy - 1, 12, 6, O);
+  px(ctx, cx - 8, cy + 1, 16, 4, O);
+  px(ctx, cx - 4, cy - 3, 8, 4, O);
+  px(ctx, cx - 5, cy - 1, 10, 5, "#9c221b");
+  px(ctx, cx - 7, cy + 1, 14, 3, "#b82c1d");
+  px(ctx, cx - 3, cy - 2, 7, 4, "#e05b22");
+  px(ctx, cx - 5, cy, 8, 3, "#f08529");
+  px(ctx, cx - 2, cy - 2, 4, 2, "#ffba42");
+  px(ctx, cx + 2, cy, 3, 2, "#ffd966");
+  // Crisp fluttering stray leaves nearby
+  const s = Math.abs(seed);
+  px(ctx, cx - 10 + (s % 3), cy - 3, 2, 2, "#c93822");
+  px(ctx, cx + 9 - (s % 2), cy + 2, 2, 2, "#f08529");
+  px(ctx, cx + 4, cy - 5, 2, 1, "#ffd25a");
+}
 
-  const padTop = 8;
-  const padBottom = 6;
-  const padSide = 2;
-  const canvasW = footW + padSide * 2;
-  const canvasH = footH + padTop + padBottom;
-  const { canvas, ctx } = makeCanvas(canvasW, canvasH);
-
-  // Inset walls slightly inside footprint so adjacent addresses visually separate as distinct houses!
-  const insetX = footW >= 48 ? 4 : footW >= 32 ? 3 : 2;
-  const bx = padSide + insetX;
-  const bw = Math.max(14, footW - insetX * 2);
-  const by = padTop + 1;
-  const bh = Math.max(16, footH - 2);
-
-  const style = resolveHouseStyle(building, colorOverrideMap);
-  const effectiveKind = style.overrideKind || building.kind;
-  const isCivic =
-    effectiveKind === "library" ||
-    effectiveKind === "school" ||
-    effectiveKind === "civic";
-  const isCommercial = effectiveKind === "commercial";
-
-  const O = "#1d2228";
-
-  // Soft cast drop shadow onto grass (SE side)
-  px(ctx, bx + 3, by + 5, bw + 1, bh - 1, "rgba(18, 34, 20, 0.34)");
-
-  // --- Compact Garage / Outbuilding ---
-  if (effectiveKind === "garage" && footW <= 32 && footH <= 32) {
-    const roofH = Math.max(8, Math.floor(bh * 0.52));
-    const wallH = bh - roofH;
-    px(ctx, bx - 1, by - 1, bw + 2, bh + 2, O);
-    px(ctx, bx, by, bw, roofH, style.roofMain);
-    px(ctx, bx + 1, by + 1, bw - 2, Math.floor(roofH / 2), style.roofLight);
-    px(ctx, bx, by + roofH - 2, bw, 2, style.roofDark);
-    px(ctx, bx, by + roofH, bw, wallH, style.wallMain);
-    if (bw >= 12 && wallH >= 7) {
-      px(ctx, bx + 2, by + roofH + 2, bw - 4, wallH - 2, O);
-      px(ctx, bx + 3, by + roofH + 3, bw - 6, wallH - 4, style.trim);
-      for (let gy = by + roofH + 5; gy < by + bh - 2; gy += 2) {
-        px(ctx, bx + 3, gy, bw - 6, 1, style.trimShade);
-      }
-    }
-    return { canvas, offsetX: -padSide, offsetY: -padTop };
-  }
-
-  // --- Full 16-Bit SNES House / Civic / Commercial Building ---
-  const wallH = Math.min(24, Math.max(11, Math.floor(bh * 0.44)));
-  const roofH = Math.max(10, bh - wallH);
-  const wallY = by + roofH;
-
-  const useGableFront = !isCommercial && (building.isHomeBase || isCivic || (bw <= 64 && (minX + minY) % 2 === 0));
-
-  // 1. Main Wall Body + Dark Pixel Outline
-  px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
-  px(ctx, bx, wallY, bw, wallH, style.wallMain);
-  px(ctx, bx, wallY, bw, 2, style.wallShade);
-  px(ctx, bx + bw - 3, wallY + 2, 3, wallH - 3, style.wallShade);
-
-  // Brick, smooth stucco, or horizontal clapboard siding
+/**
+ * Helper: render rich 32-bit siding texture (staggered brick masonry, stucco, or deep clapboards)
+ * plus realistic eave drop-shadow and stone/granite foundation course!
+ */
+function drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd = 2) {
+  const stepY = hd >= 2 ? 4 : 3;
   if (style.isBrick) {
-    for (let ry = wallY + 2; ry < wallY + wallH - 2; ry += 3) {
-      px(ctx, bx + 1, ry, bw - 2, 1, style.wallShade);
-      const offset = ((ry - wallY) / 3) % 2 === 0 ? 0 : 2;
-      for (let rx = bx + 2 + offset; rx < bx + bw - 2; rx += 5) {
-        px(ctx, rx, ry + 1, 1, 2, style.wallShade);
+    const mortar = "#4a1d19";
+    const brickW = hd >= 2 ? 7 : 5;
+    for (let ry = wallY + 2; ry < wallY + wallH - 3; ry += stepY) {
+      px(ctx, bx + 1, ry, bw - 2, 1, mortar);
+      const rowIdx = Math.floor((ry - wallY) / stepY);
+      const offset = rowIdx % 2 === 0 ? 0 : Math.floor(brickW / 2);
+      for (let rx = bx + 1 + offset; rx < bx + bw - 2; rx += brickW) {
+        const bwSeg = Math.min(brickW - 1, bx + bw - 1 - rx);
+        if (bwSeg <= 0) continue;
+        const h = (rx * 13 + ry * 7) & 7;
+        const col =
+          h === 0 || h === 5
+            ? style.wallLight
+            : h === 2 || h === 6
+              ? style.wallShade
+              : style.wallMain;
+        px(ctx, rx, ry + 1, bwSeg, stepY - 1, col);
+        if (hd >= 2 && bwSeg >= 3 && h % 3 === 0) {
+          px(ctx, rx, ry + 1, bwSeg - 1, 1, style.wallLight);
+        }
+        if (rx + bwSeg < bx + bw - 1) {
+          px(ctx, rx + bwSeg, ry + 1, 1, stepY - 1, mortar);
+        }
       }
     }
   } else if (style.isStucco) {
-    // Subtle stippled stucco + brick base wainscot
-    px(ctx, bx + 1, wallY + wallH - 5, bw - 2, 3, "#a85442");
-    px(ctx, bx + 1, wallY + wallH - 6, bw - 2, 1, style.trim);
-    for (let sy = wallY + 3; sy < wallY + wallH - 6; sy += 4) {
-      for (let sx = bx + 3; sx < bx + bw - 3; sx += 7) {
-        px(ctx, sx, sy, 1, 1, style.wallShade);
+    px(ctx, bx + 1, wallY + wallH - 6 * hd, bw - 2, 3 * hd, "#a85442");
+    px(ctx, bx + 1, wallY + wallH - 6 * hd - 1, bw - 2, hd, style.trim);
+    for (let sy = wallY + 4; sy < wallY + wallH - 6 * hd; sy += 5) {
+      for (let sx = bx + 4; sx < bx + bw - 4; sx += 8) {
+        px(ctx, sx, sy, 3, 1, style.wallShade);
+        px(ctx, sx, sy - 1, 2, 1, style.wallLight);
       }
     }
   } else {
-    for (let ry = wallY + 4; ry < wallY + wallH - 2; ry += 3) {
-      px(ctx, bx + 1, ry, bw - 2, 1, style.wallShade);
-      px(ctx, bx + 1, ry - 1, bw - 4, 1, style.wallLight);
+    // Rich 32-bit horizontal New England clapboards (distinct shadow grooves & sunlit lap edges!)
+    const clapStep = hd >= 2 ? 4 : 3;
+    const grooveCol = shadeHex(style.wallShade, -26);
+    for (let ry = wallY + clapStep; ry < wallY + wallH - 2; ry += clapStep) {
+      px(ctx, bx + 1, ry, bw - 2, 1, grooveCol);
+      px(ctx, bx + 1, ry - 1, bw - 2, 1, style.wallShade);
+      if (hd >= 2 && ry - clapStep + 1 >= wallY + 1) {
+        px(ctx, bx + 1, ry - clapStep + 1, bw - 3, 1, style.wallLight);
+      }
     }
   }
 
-  // Crisp white colonial corner boards & stone foundation
-  px(ctx, bx, wallY, 2, wallH - 1, style.trim);
-  px(ctx, bx + bw - 2, wallY, 2, wallH - 1, style.trimShade);
-  px(ctx, bx, wallY + wallH - 2, bw, 2, "#87847c");
-  px(ctx, bx, wallY + wallH - 1, bw, 1, "#5c5a54");
+  // Subtle warm roof-eave overhang shadow cast onto upper clapboards/bricks
+  px(ctx, bx + 1, wallY, bw - 2, 2 * hd, "rgba(42, 18, 14, 0.24)");
 
-  // 2. Pitched Shingled Roof (True Stepped-Slope Pixel Art!)
-  const slopeInsetMax = Math.min(8, Math.floor(bw * 0.18));
+  // Warm New England stepped stone/granite foundation course along bottom of wall!
+  const foundH = Math.max(3, 3 * hd);
+  if (wallH >= 10 * hd) {
+    px(ctx, bx, wallY + wallH - foundH, bw, foundH, "#75655e");
+    px(ctx, bx + 1, wallY + wallH - foundH, bw - 2, hd, "#b8a69a");
+    px(ctx, bx, wallY + wallH - foundH - 1, bw, 1, "#291a18");
+    const stoneStep = 6 * hd;
+    for (let fx = bx + stoneStep; fx < bx + bw - 2; fx += stoneStep) {
+      px(ctx, fx, wallY + wallH - foundH + 1, 1, foundH - 1, "#4a3d39");
+    }
+  }
+}
+
+/**
+ * Helper: render rich 32-bit pitched shingled roof trapezoid with individual alternating wooden/slate
+ * shingles, crisp staggered seams, bold ridge cap, fascia trim & cozy autumn roof leaves!
+ */
+function drawShingledRoof(
+  ctx,
+  bx,
+  by,
+  bw,
+  roofH,
+  wallY,
+  style,
+  slopeRatio = 0.16,
+  O = "#291a18",
+  { hd = 2, leafCluster = true, seed = 0 } = {}
+) {
+  const slopeInsetMax = Math.min(Math.floor(bw * 0.24), Math.max(2 * hd, Math.floor(bw * slopeRatio)));
+  const courseH = hd >= 2 ? 4 : 3;
+  const shW = hd >= 2 ? 6 : 4;
+  const seamCol = shadeHex(style.roofDark, -18);
+  const brightEdge = shadeHex(style.roofLight, 18);
+
   for (let row = 0; row < roofH; row++) {
     const t = row / Math.max(1, roofH - 1);
     const inset = Math.round((1 - t) * slopeInsetMax);
-    const rx = bx - 2 + inset;
-    const rw = bw + 4 - inset * 2;
+    const rx = bx - 2 * hd + inset;
+    const rw = bw + 4 * hd - inset * 2;
     const ry = by + row;
 
-    // Dark pixel outline on left/right roof slopes
     px(ctx, rx - 1, ry, 1, 1, O);
     px(ctx, rx + rw, ry, 1, 1, O);
     if (row === 0) px(ctx, rx, ry - 1, rw, 1, O);
 
-    // Shaded roof slope
-    const isTopHalf = row < roofH * 0.45;
-    px(ctx, rx, ry, rw, 1, isTopHalf ? style.roofLight : style.roofMain);
+    const courseIdx = Math.floor(row / courseH);
+    const inCourse = row % courseH;
+    const stagger = (courseIdx % 2) * Math.floor(shW / 2);
 
-    // Individual pixel roof shingles (every 3 rows with alternating notches!)
-    if (row > 1 && row < roofH - 2 && row % 3 === 0) {
-      px(ctx, rx + 1, ry, rw - 2, 1, style.roofDark);
-      const stagger = (row / 3) % 2 === 0 ? 0 : 2;
-      for (let sx = rx + 2 + stagger; sx < rx + rw - 2; sx += 4) {
-        px(ctx, sx, ry - 1, 1, 1, style.roofDark);
+    if (inCourse === courseH - 1 && row > 1 && row < roofH - 2) {
+      // Crisp dark horizontal shingle overlap shadow line
+      px(ctx, rx, ry, rw, 1, seamCol);
+    } else {
+      // Paint individual alternating shingle tiles with golden-hour top-left sun -> bottom-right shade!
+      const isTopBand = row < roofH * 0.36;
+      const isBottomBand = row > roofH * 0.80;
+      for (let sx = rx; sx < rx + rw; ) {
+        const tileIdx = Math.floor((sx - bx + 100 + stagger) / shW);
+        const nextBoundary = rx + ((tileIdx + 1) * shW - ((rx - bx + 100 + stagger) % shW));
+        const segW = Math.max(1, Math.min(shW, rx + rw - sx, Math.ceil(nextBoundary - sx)));
+        const h = Math.abs(tileIdx * 17 + courseIdx * 31 + seed) & 7;
+        const sunFrac = (sx - rx) / Math.max(1, rw);
+        let col = style.roofMain;
+        if (isBottomBand || sunFrac > 0.78) {
+          col = h % 3 === 0 ? style.roofMain : style.roofDark;
+        } else if (isTopBand || sunFrac < 0.28) {
+          col = h === 0 || h === 3 ? brightEdge : h === 5 ? style.roofMain : style.roofLight;
+        } else {
+          col = h === 0 || h === 4 ? style.roofLight : h === 2 || h === 6 ? style.roofDark : style.roofMain;
+        }
+        px(ctx, sx, ry, segW, 1, col);
+        // Subtle 1px sunlit top lip on first row of each shingle course
+        if (inCourse === 0 && row > 2 && h % 2 === 0 && segW >= 3) {
+          px(ctx, sx + 1, ry, segW - 2, 1, sunFrac < 0.5 ? brightEdge : style.roofLight);
+        }
+        // Crisp 1px vertical joint between shingles
+        if (sx + segW < rx + rw - 1) {
+          px(ctx, sx + segW - 1, ry, 1, 1, seamCol);
+        }
+        sx += segW;
       }
     }
   }
-  // Roof ridge cap highlight + dark eave trim
-  const topW = bw + 4 - slopeInsetMax * 2;
-  px(ctx, bx - 2 + slopeInsetMax, by, topW, 2, style.roofLight);
-  px(ctx, bx - 1 + slopeInsetMax, by, Math.max(2, topW - 2), 1, "#dce4ec");
-  px(ctx, bx - 2, wallY - 1, bw + 4, 2, O);
-  px(ctx, bx - 1, wallY - 1, bw + 2, 1, style.trim);
 
-  // Brick Chimney poking above roof
-  if (bw >= 24) {
-    const chX = (minX + minY) % 2 === 0 ? bx + bw - slopeInsetMax - 7 : bx + slopeInsetMax + 3;
-    const chY = by - 5;
-    px(ctx, chX - 1, chY - 1, 7, 8, O);
-    px(ctx, chX, chY, 5, 7, "#b54f3d");
-    px(ctx, chX + 3, chY, 2, 7, "#87372a");
-    px(ctx, chX - 1, chY, 7, 2, "#732c22");
-    px(ctx, chX, chY, 5, 1, "#d97762");
+  // Bold wooden/slate ridge cap beam along top peak
+  const topW = bw + 4 * hd - slopeInsetMax * 2;
+  const ridgeX = bx - 2 * hd + slopeInsetMax;
+  px(ctx, ridgeX, by, topW, 2 * hd, style.roofDark);
+  px(ctx, ridgeX + 1, by, Math.max(2, topW - 2), hd, brightEdge);
+
+  // Thick overhanging eaves & cornice trim beam
+  px(ctx, bx - 2 * hd, wallY - hd - 1, bw + 4 * hd, hd + 2, O);
+  px(ctx, bx - 2 * hd + 1, wallY - hd, bw + 4 * hd - 2, hd, style.trim);
+  px(ctx, bx - 2 * hd + 1, wallY, bw + 4 * hd - 2, 1, style.trimShade);
+
+  // Cozy autumn leaf cluster & stray fallen leaves resting on the roof shingles!
+  if (leafCluster && hd >= 2 && bw >= 42 && roofH >= 20) {
+    const lcx = bx + Math.floor(bw * (((seed & 1) === 0 ? 0.68 : 0.32)));
+    const lcy = by + Math.floor(roofH * 0.56);
+    drawRoofLeafCluster(ctx, lcx, lcy, seed + bx);
   }
-
-  // 3. Front Gable Peak (Home Base Yellow House & Gable Colonials) OR Classical Library Pediment
-  const midX = bx + Math.floor(bw / 2);
-  if (useGableFront && bw >= 30) {
-    const gableHalfW = Math.min(14, Math.floor(bw * 0.28));
-    const gableH = Math.min(12, Math.max(7, Math.floor(roofH * 0.65)));
-    const gableBaseY = wallY - 1;
-    for (let gy = 0; gy < gableH; gy++) {
-      const halfSpan = Math.max(1, Math.round((gy / Math.max(1, gableH - 1)) * gableHalfW));
-      const rowY = gableBaseY - gableH + gy;
-      // Roof gable overhang trim + outline
-      px(ctx, midX - halfSpan - 2, rowY, 2, 1, O);
-      px(ctx, midX + halfSpan, rowY, 2, 1, O);
-      px(ctx, midX - halfSpan - 1, rowY, 1, 1, style.trim);
-      px(ctx, midX + halfSpan, rowY, 1, 1, style.trim);
-      // Gable triangle siding (or white stone pediment for library/school!)
-      px(ctx, midX - halfSpan, rowY, halfSpan * 2, 1, isCivic ? style.trim : style.wallMain);
-    }
-    px(ctx, midX - 1, gableBaseY - gableH - 1, 2, 2, O);
-    // Tiny attic window inside the gable (iconic detail from style_1_snes_16bit!)
-    if (gableH >= 8 && !isCivic) {
-      px(ctx, midX - 2, gableBaseY - 6, 5, 5, O);
-      px(ctx, midX - 1, gableBaseY - 5, 3, 3, style.windowGlow);
-      px(ctx, midX, gableBaseY - 5, 1, 3, style.trim);
-      px(ctx, midX - 1, gableBaseY - 4, 3, 1, style.trim);
-    }
-  }
-
-  // 4. Front Door, Covered Porch & Classical Columns
-  const doorW = isCivic ? 10 : 6;
-  const doorH = Math.min(wallH - 3, 11);
-  const doorX = midX - Math.floor(doorW / 2);
-  const doorY = wallY + wallH - doorH - 2;
-
-  if (bw >= 18 && doorH >= 6) {
-    // Covered porch roof / portico for Home Base & larger homes
-    if (bw >= 42 && (building.isHomeBase || isCivic || bw >= 56)) {
-      const porchW = Math.min(bw - 8, isCivic ? 24 : 20);
-      const porchX = midX - Math.floor(porchW / 2);
-      const porchTopY = doorY - 3;
-      // Porch overhang awning
-      px(ctx, porchX - 1, porchTopY - 1, porchW + 2, 4, O);
-      px(ctx, porchX, porchTopY, porchW, 2, isCivic ? style.trim : style.roofMain);
-      px(ctx, porchX, porchTopY + 2, porchW, 1, isCivic ? style.trimShade : style.roofDark);
-      // White columns on left & right of porch
-      px(ctx, porchX + 1, porchTopY + 3, 2, wallY + wallH - porchTopY - 3, style.trim);
-      px(ctx, porchX + porchW - 3, porchTopY + 3, 2, wallY + wallH - porchTopY - 3, style.trim);
-      // Wooden porch deck & steps protruding cleanly onto the front lawn
-      px(ctx, porchX, wallY + wallH - 2, porchW, 4, O);
-      px(ctx, porchX + 1, wallY + wallH - 1, porchW - 2, 2, style.porchWood);
-    }
-
-    // Door surround + paneled wood door + brass knob
-    px(ctx, doorX - 1, doorY - 1, doorW + 2, doorH + 2, O);
-    px(ctx, doorX, doorY, doorW, doorH, style.trim);
-    px(ctx, doorX + 1, doorY + 1, doorW - 2, doorH - 1, style.door);
-    px(ctx, doorX + 1, doorY + 1, doorW - 2, 2, style.doorDark);
-    if (isCivic) {
-      // Double doors center seam
-      px(ctx, midX, doorY + 1, 1, doorH - 1, style.doorDark);
-    } else {
-      // Brass doorknob
-      px(ctx, doorX + doorW - 2, doorY + Math.floor(doorH / 2), 1, 1, "#f7dc6f");
-    }
-
-    // Front stone steps + stepping-stone garden walk
-    px(ctx, doorX - 2, wallY + wallH, doorW + 4, 3, O);
-    px(ctx, doorX - 1, wallY + wallH, doorW + 2, 2, "#e8e2d5");
-    px(ctx, doorX - 1, wallY + wallH + 2, doorW + 2, 1, "#b8b09e");
-    // Tiny stepping stone on lawn
-    px(ctx, midX - 2, wallY + wallH + 4, 4, 2, "#cfc6b4");
-  }
-
-  // 5. Crisp Paned Colonial Windows with Shutters & Glass Glints
-  if (bw >= 30 && wallH >= 10) {
-    const winW = 6;
-    const winH = 7;
-    const winY = wallY + Math.max(3, Math.floor((wallH - winH) / 2) - 1);
-    const candidates = [bx + 5, bx + bw - 5 - winW];
-    if (bw >= 64) {
-      candidates.push(bx + 16, bx + bw - 16 - winW);
-    }
-    for (const wx of candidates) {
-      if (wx + winW + 2 >= doorX - 3 && wx - 2 <= doorX + doorW + 3) continue;
-      // Shutters (left & right)
-      px(ctx, wx - 2, winY, 2, winH, O);
-      px(ctx, wx - 1, winY + 1, 1, winH - 2, style.shutter);
-      px(ctx, wx + winW, winY, 2, winH, O);
-      px(ctx, wx + winW, winY + 1, 1, winH - 2, style.shutter);
-      // Window frame & glass
-      px(ctx, wx, winY, winW, winH, O);
-      px(ctx, wx + 1, winY + 1, winW - 2, winH - 2, style.windowGlow);
-      // Diagonal glass highlight glint
-      px(ctx, wx + 1, winY + 1, 2, 1, "#ffffff");
-      // White muntin crossbars
-      px(ctx, wx + Math.floor(winW / 2), winY + 1, 1, winH - 2, style.trim);
-      px(ctx, wx + 1, winY + Math.floor(winH / 2), winW - 2, 1, style.trim);
-      // Window sill
-      px(ctx, wx - 1, winY + winH, winW + 2, 1, style.trim);
-    }
-  }
-
-  // 6. Front Garden Bushes, Picket Fence & Mailbox (straight from style_1_snes_16bit!)
-  if (bw >= 34) {
-    drawShrub(ctx, bx + 2, wallY + wallH - 3, 8, 6);
-    drawShrub(ctx, bx + bw - 10, wallY + wallH - 3, 8, 6);
-  }
-  if (building.isHomeBase && bw >= 48) {
-    // Crisp white picket fence flanking Home Base + silver mailbox!
-    drawPicketFence(ctx, bx - 2, wallY + wallH - 1, 15);
-    drawPicketFence(ctx, bx + bw - 13, wallY + wallH - 1, 15);
-    drawMailbox(ctx, midX + 8, wallY + wallH - 2);
-  } else if (building.houseNumber && bw >= 38 && (minX + minY) % 3 === 0) {
-    drawMailbox(ctx, bx + bw - 7, wallY + wallH - 2);
-  }
-
-  // 7. Tiny Crisp House Number Plaque on Addressed Houses (1-House-Per-Address Identity!)
-  if (building.houseNumber && bw >= 36) {
-    const numStr = String(building.houseNumber).replace(/[^0-9]/g, "").slice(0, 4);
-    if (numStr) {
-      const plaqueW = numStr.length * 4 + 3;
-      const plaqueX = Math.floor(midX - plaqueW / 2);
-      const plaqueY = by + 2;
-      px(ctx, plaqueX - 1, plaqueY - 1, plaqueW + 2, 9, O);
-      px(
-        ctx,
-        plaqueX,
-        plaqueY,
-        plaqueW,
-        7,
-        building.isHomeBase ? "#24573d" : "#28323d"
-      );
-      drawMiniNumber(
-        ctx,
-        numStr,
-        midX,
-        plaqueY + 1,
-        building.isHomeBase ? "#f7dc6f" : "#f2f5f7"
-      );
-    }
-  }
-
-  return { canvas, offsetX: -padSide, offsetY: -padTop };
+  return slopeInsetMax;
 }
 
 /**
- * Bake a crisp pixel-outlined 16x24 SNES Kid Explorer sprite for a given direction,
- * walk frame (0=idle, 1=stepA, 2=stepB), and optional kick scooter!
+ * Helper: render rich 32-bit brick masonry chimney poking above the roof ridge.
  */
-function bakeHeroSprite(facing, stepFrame, onScooter) {
-  const { canvas, ctx } = makeCanvas(20, 26);
-  const cx = 10; // Horizontal center
-  const feetY = 22;
-  const O = "#1c1b24";
+function drawChimney(ctx, chX, chY, w = 10, h = 14, O = "#291a18") {
+  px(ctx, chX - 1, chY - 1, w + 2, h + 2, O);
+  px(ctx, chX, chY, w, h, "#9c4333");
+  px(ctx, chX + w - 3, chY, 3, h, "#6e2920");
+  // Individual brick mortar courses on chimney
+  for (let ry = chY + 3; ry < chY + h - 1; ry += 3) {
+    px(ctx, chX, ry, w, 1, "#4a1d19");
+    const off = ((ry - chY) / 3) % 2 === 0 ? 2 : 5;
+    if (off < w - 1) px(ctx, chX + off, ry + 1, 1, 2, "#4a1d19");
+  }
+  // Protruding limestone/brick chimney cap + dark flue top
+  px(ctx, chX - 2, chY - 1, w + 4, 4, O);
+  px(ctx, chX - 1, chY, w + 2, 2, "#d6c5b4");
+  px(ctx, chX - 1, chY + 2, w + 2, 1, "#9c8a7c");
+  px(ctx, chX + 1, chY - 2, Math.max(2, w - 2), 2, "#36221e");
+}
 
-  // Soft ground shadow
-  px(ctx, cx - 5, feetY, 10, 3, "rgba(16, 26, 18, 0.42)");
+/**
+ * Helper: render crisp house number plaque on porch/roof for 1-house-per-address identity.
+ */
+function drawAddressPlaque(ctx, building, midX, plaqueY, bw, O = "#291a18") {
+  if (!building.houseNumber || bw < 40) return;
+  const numStr = String(building.houseNumber).replace(/[^0-9]/g, "").slice(0, 4);
+  if (!numStr) return;
+  const plaqueW = numStr.length * 4 + 4;
+  const plaqueX = Math.floor(midX - plaqueW / 2);
+  px(ctx, plaqueX - 1, plaqueY - 1, plaqueW + 2, 9, O);
+  px(
+    ctx,
+    plaqueX,
+    plaqueY,
+    plaqueW,
+    7,
+    building.isHomeBase ? "#4a2c18" : "#3a251c"
+  );
+  px(ctx, plaqueX, plaqueY, plaqueW, 1, "#d9a760");
+  drawMiniNumber(
+    ctx,
+    numStr,
+    midX,
+    plaqueY + 1,
+    building.isHomeBase ? "#ffe680" : "#f7ebd2"
+  );
+}
 
-  // Kick Scooter (sleek teal deck, black wheels, silver stem)
-  if (onScooter) {
-    if (facing === "left" || facing === "right") {
-      const dir = facing === "right" ? 1 : -1;
-      // Wheels
-      px(ctx, cx - 7, feetY, 3, 3, O);
-      px(ctx, cx - 6, feetY + 1, 1, 1, "#7c8594");
-      px(ctx, cx + 4, feetY, 3, 3, O);
-      px(ctx, cx + 5, feetY + 1, 1, 1, "#7c8594");
-      // Deck
-      px(ctx, cx - 6, feetY - 1, 12, 2, O);
-      px(ctx, cx - 5, feetY - 1, 10, 1, "#4de0d8");
-      // Handlebar stem
-      const stemX = dir > 0 ? cx + 5 : cx - 6;
-      px(ctx, stemX, feetY - 10, 2, 10, O);
-      px(ctx, stemX, feetY - 10, 1, 9, "#dbe4ee");
-      px(ctx, stemX - 1, feetY - 11, 4, 2, O);
-      px(ctx, stemX, feetY - 11, 2, 1, "#4de0d8");
-    } else {
-      px(ctx, cx - 3, feetY, 6, 3, O);
-      px(ctx, cx - 2, feetY, 4, 2, "#4de0d8");
-      px(ctx, cx - 5, feetY - 10, 10, 2, O);
-      px(ctx, cx - 4, feetY - 10, 8, 1, "#dbe4ee");
+/**
+ * Helper: render rich 32-bit Golden-Hour glowing multi-pane window (matching the sample Yellow House!).
+ */
+function drawColonialWindow(
+  ctx,
+  wx,
+  winY,
+  style,
+  { flowerbox = false, shutters = true, winW = 11, winH = 13, panesX = 2, panesY = 2 } = {},
+  O = "#291a18"
+) {
+  // Warm ambient golden-hour lantern glow halo softly illuminating the frame & clapboards!
+  px(ctx, wx - 2, winY - 2, winW + 4, winH + 5, "rgba(255, 198, 72, 0.22)");
+
+  // Molded header lintel above window
+  px(ctx, wx - 1, winY - 2, winW + 2, 2, O);
+  px(ctx, wx, winY - 1, winW, 1, style.trim);
+
+  if (shutters) {
+    const shW = winW >= 11 ? 4 : 3;
+    px(ctx, wx - shW, winY, shW, winH, O);
+    px(ctx, wx - shW + 1, winY + 1, shW - 1, winH - 2, style.shutter);
+    px(ctx, wx + winW, winY, shW, winH, O);
+    px(ctx, wx + winW, winY + 1, shW - 1, winH - 2, style.shutter);
+    for (let ly = winY + 2; ly < winY + winH - 1; ly += 2) {
+      px(ctx, wx - shW + 1, ly, shW - 1, 1, O);
+      px(ctx, wx + winW, ly, shW - 1, 1, O);
     }
   }
 
-  const legLiftL = !onScooter && stepFrame === 1 ? -1 : 0;
-  const legLiftR = !onScooter && stepFrame === 2 ? -1 : 0;
-  const bobY = !onScooter && stepFrame !== 0 ? -1 : 0;
+  // Outer espresso outline + warm wood/cream outer casing
+  px(ctx, wx, winY, winW, winH, O);
+  px(ctx, wx + 1, winY + 1, winW - 2, winH - 2, style.trim);
+  px(ctx, wx + 2, winY + 2, Math.max(2, winW - 4), Math.max(2, winH - 4), O);
 
-  // Legs (jeans) + Red-and-White Sneakers
-  px(ctx, cx - 4, feetY - 5 + legLiftL, 4, 6, O);
-  px(ctx, cx - 3, feetY - 4 + legLiftL, 2, 3, "#3b598f");
-  px(ctx, cx - 3, feetY - 1 + legLiftL, 2, 2, "#d64538");
-  px(ctx, cx - 3, feetY + legLiftL, 2, 1, "#f2f4f7");
-
-  px(ctx, cx, feetY - 5 + legLiftR, 4, 6, O);
-  px(ctx, cx + 1, feetY - 4 + legLiftR, 2, 3, "#3b598f");
-  px(ctx, cx + 1, feetY - 1 + legLiftR, 2, 2, "#d64538");
-  px(ctx, cx + 1, feetY + legLiftR, 2, 1, "#f2f4f7");
-
-  // Side Backpack (behind torso)
-  if (facing === "left") {
-    px(ctx, cx + 3, feetY - 12 + bobY, 5, 8, O);
-    px(ctx, cx + 4, feetY - 11 + bobY, 3, 6, "#d94a38");
-    px(ctx, cx + 4, feetY - 11 + bobY, 2, 2, "#f0725c");
-    px(ctx, cx + 5, feetY - 8 + bobY, 1, 2, "#f4d35e");
-  } else if (facing === "right") {
-    px(ctx, cx - 8, feetY - 12 + bobY, 5, 8, O);
-    px(ctx, cx - 7, feetY - 11 + bobY, 3, 6, "#d94a38");
-    px(ctx, cx - 6, feetY - 11 + bobY, 2, 2, "#f0725c");
-    px(ctx, cx - 6, feetY - 8 + bobY, 1, 2, "#f4d35e");
+  // Radiant 4-layer Golden-Hour lantern interior glass!
+  const gx = wx + 2;
+  const gy = winY + 2;
+  const gw = Math.max(2, winW - 4);
+  const gh = Math.max(2, winH - 4);
+  px(ctx, gx, gy, gw, gh, "#e38222");
+  px(ctx, gx + 1, gy + 1, Math.max(1, gw - 2), Math.max(1, gh - 2), "#ffbc3b");
+  px(ctx, gx + 1, gy + 1, Math.max(1, gw - 2), Math.max(1, gh - 3), "#ffe36e");
+  if (gw >= 5 && gh >= 5) {
+    px(ctx, gx + 2, gy + 2, Math.max(1, gw - 4), Math.max(1, gh - 4), "#fff8c7");
+    px(ctx, gx + 2, gy + 2, 2, 1, "#ffffff");
+  } else {
+    px(ctx, gx + 1, gy + 1, 1, 1, "#fff9cc");
   }
 
-  // Torso (Shaded Teal Explorer Hoodie with dark pixel outline)
-  px(ctx, cx - 5, feetY - 12 + bobY, 10, 8, O);
-  px(ctx, cx - 4, feetY - 11 + bobY, 8, 6, "#2c9e91");
-  px(ctx, cx - 3, feetY - 11 + bobY, 6, 4, "#47c4b4");
-  px(ctx, cx - 3, feetY - 11 + bobY, 6, 1, "#7ee0d2"); // Collar highlight
-  // Arms
-  if (facing === "down" || facing === "up") {
-    px(ctx, cx - 5, feetY - 10 + bobY, 2, 4, "#248075");
-    px(ctx, cx + 3, feetY - 10 + bobY, 2, 4, "#248075");
+  // Crisp dark wood window muntin bars (4-pane or 6-pane grid!)
+  const muntin = "#593520";
+  for (let i = 1; i < panesX; i++) {
+    const mx = gx + Math.floor((gw * i) / panesX);
+    px(ctx, mx, gy, 1, gh, muntin);
   }
-  // Backpack on back when facing UP
-  if (facing === "up") {
-    px(ctx, cx - 4, feetY - 12 + bobY, 8, 7, O);
-    px(ctx, cx - 3, feetY - 11 + bobY, 6, 5, "#d94a38");
-    px(ctx, cx - 3, feetY - 11 + bobY, 6, 2, "#f0725c");
-    px(ctx, cx - 1, feetY - 9 + bobY, 2, 2, "#f4d35e");
+  for (let j = 1; j < panesY; j++) {
+    const my = gy + Math.floor((gh * j) / panesY);
+    px(ctx, gx, my, gw, 1, muntin);
   }
 
-  // Head (Crisp 16-bit SNES Proportions with Shaggy Chestnut Hair)
-  const headY = feetY - 21 + bobY;
-  // Head outline
-  px(ctx, cx - 5, headY, 10, 10, O);
-  px(ctx, cx - 4, headY - 1, 8, 1, O);
-  // Warm skin
-  px(ctx, cx - 4, headY + 3, 8, 6, "#f7d1ab");
-  px(ctx, cx - 4, headY + 8, 8, 1, "#dfa97d"); // Chin shade
-  // Chestnut hair top + bangs
-  px(ctx, cx - 4, headY, 8, 4, "#8c502b");
-  px(ctx, cx - 3, headY, 6, 2, "#ba713f"); // Sunlit hair highlight
-  px(ctx, cx - 4, headY + 3, 2, 1, "#754122");
-  px(ctx, cx + 2, headY + 3, 2, 1, "#754122");
+  // Protruding molded window sill with warm golden light bounce!
+  px(ctx, wx - 1, winY + winH, winW + 2, 3, O);
+  px(ctx, wx, winY + winH, winW, 1, "#ffe699");
+  px(ctx, wx, winY + winH + 1, winW, 1, style.trimShade);
 
-  if (facing === "up") {
-    px(ctx, cx - 4, headY + 1, 8, 8, "#7d4626");
-    px(ctx, cx - 3, headY + 1, 6, 3, "#a66235");
-  } else if (facing === "down") {
-    // Expressive SNES eyes with white sparkle
-    px(ctx, cx - 3, headY + 5, 2, 2, "#1c1c26");
-    px(ctx, cx + 1, headY + 5, 2, 2, "#1c1c26");
-    px(ctx, cx - 3, headY + 5, 1, 1, "#ffffff");
-    px(ctx, cx + 1, headY + 5, 1, 1, "#ffffff");
-    // Cute tiny rosy cheek pixels
-    px(ctx, cx - 4, headY + 7, 1, 1, "#e89882");
-    px(ctx, cx + 3, headY + 7, 1, 1, "#e89882");
-  } else if (facing === "left") {
-    px(ctx, cx - 3, headY + 5, 2, 2, "#1c1c26");
-    px(ctx, cx - 3, headY + 5, 1, 1, "#ffffff");
-    px(ctx, cx + 1, headY + 2, 3, 6, "#7d4626");
-  } else if (facing === "right") {
-    px(ctx, cx + 1, headY + 5, 2, 2, "#1c1c26");
-    px(ctx, cx + 2, headY + 5, 1, 1, "#ffffff");
-    px(ctx, cx - 4, headY + 2, 3, 6, "#7d4626");
+  if (flowerbox) {
+    px(ctx, wx - 1, winY + winH + 1, winW + 2, 5, O);
+    px(ctx, wx, winY + winH + 2, winW, 3, "#8c5432");
+    px(ctx, wx, winY + winH + 2, winW, 1, "#b5744a");
+    px(ctx, wx, winY + winH + 1, winW, 2, "#3f782c");
+    px(ctx, wx + 1, winY + winH, 3, 2, "#6aa33b");
+    px(ctx, wx + 2, winY + winH + 1, 2, 1, "#eb5e48");
+    px(ctx, wx + Math.floor(winW / 2), winY + winH, 2, 1, "#ffe575");
+    px(ctx, wx + winW - 3, winY + winH + 1, 2, 1, "#fff2b2");
+  }
+}
+
+/**
+ * Helper: render tall arched glowing golden civic window (straight from the sample Library!).
+ */
+function drawArchedCivicWindow(ctx, wx, winY, style, winW = 11, winH = 19, O = "#291a18") {
+  // Soft warm ambient glow radiating gently around the arched library window!
+  px(ctx, wx - 2, winY - 1, winW + 4, winH + 4, "rgba(255, 198, 72, 0.22)");
+  // Rounded stone arch surround + carved stone keystone at top center!
+  px(ctx, wx + 2, winY, winW - 4, 2, O);
+  px(ctx, wx + 1, winY + 1, winW - 2, 2, O);
+  px(ctx, wx, winY + 3, winW, winH - 3, O);
+  // Warm limestone arch molding
+  px(ctx, wx + 2, winY + 1, winW - 4, 1, style.trim);
+  px(ctx, wx + 1, winY + 2, winW - 2, winH - 3, style.trim);
+  px(ctx, wx + Math.floor(winW / 2) - 1, winY - 1, 3, 2, "#f2e8dc");
+  // Radiant golden interior glass inside arch!
+  const gx = wx + 2;
+  const gy = winY + 3;
+  const gw = Math.max(3, winW - 4);
+  const gh = Math.max(6, winH - 5);
+  px(ctx, gx + 1, winY + 2, Math.max(2, gw - 2), 2, "#ffe066");
+  px(ctx, gx, gy, gw, gh, "#eb8e24");
+  px(ctx, gx + 1, gy, Math.max(2, gw - 2), gh - 1, "#ffd452");
+  px(ctx, gx + 1, gy + 1, Math.max(2, gw - 2), Math.max(3, gh - 3), "#fff4b3");
+  if (gw >= 5) {
+    px(ctx, gx + 2, gy + 2, Math.max(1, gw - 4), Math.max(2, gh - 5), "#fffce0");
+  }
+  // Crisp dark-wood arched mullion grid
+  const muntin = "#5c3720";
+  px(ctx, gx + Math.floor(gw / 2), gy - 1, 1, gh + 1, muntin);
+  px(ctx, gx, gy + Math.floor(gh * 0.36), gw, 1, muntin);
+  px(ctx, gx, gy + Math.floor(gh * 0.68), gw, 1, muntin);
+  // Projecting stone sill
+  px(ctx, wx - 1, winY + winH, winW + 2, 3, O);
+  px(ctx, wx, winY + winH, winW, 1, "#f2e8dc");
+  px(ctx, wx, winY + winH + 1, winW, 1, style.trimShade);
+}
+
+/**
+ * Bake an individual, pixel-art 16-bit SNES house/building onto an offscreen canvas
+ * matching the real OSM footprint (1 house per address!) with distinct architectural
+ * silhouettes for houses (Colonial, Cape Cod, Tudor, Victorian, Ranch, Modern),
+ * duplexes, garages, shops, apartments, libraries, schools, and civic landmarks.
+ */
+export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap = {}) {
+  const hd = tileSize >= 24 ? 2 : 1;
+  const { minX, minY, maxX, maxY } = building.bounds;
+  const footW = (maxX - minX + 1) * tileSize;
+  const footH = (maxY - minY + 1) * tileSize;
+
+  const style = resolveHouseStyle(building, colorOverrideMap);
+  const effectiveKind = style.overrideKind || building.kind || "house";
+  const arch = style.arch || "colonial";
+  const O = "#291a18";
+  const bSeed = Math.abs((minX * 19 + minY * 37 + (building.styleIndex || 1) * 11) | 0);
+
+  // Regularize visual building proportions so residential houses share a cohesive, handsome
+  // 32-bit New England neighborhood scale (no squished 1-tile pancakes or skinny towers!),
+  // while anchoring every building strictly to the SOUTH edge of its real map footprint!
+  let bw;
+  let bh;
+  if (effectiveKind === "house") {
+    const rawW = footW - 2 * hd;
+    bw = Math.max(48 * hd, Math.min(64 * hd, rawW));
+    bh = Math.max(52 * hd, Math.min(60 * hd, footH + 10 * hd));
+  } else if (effectiveKind === "duplex") {
+    bw = Math.max(54 * hd, Math.min(72 * hd, footW - 2 * hd));
+    bh = Math.max(54 * hd, Math.min(64 * hd, footH + 10 * hd));
+  } else if (effectiveKind === "garage") {
+    bw = Math.max(24 * hd, Math.min(44 * hd, footW - 2 * hd));
+    bh = Math.max(28 * hd, Math.min(36 * hd, footH + 4 * hd));
+  } else if (effectiveKind === "library" || effectiveKind === "school" || effectiveKind === "civic") {
+    bw = Math.max(60 * hd, Math.min(116 * hd, footW - 2 * hd));
+    bh = Math.max(60 * hd, Math.min(76 * hd, footH + 12 * hd));
+  } else if (
+    effectiveKind === "commercial" ||
+    effectiveKind === "bakery_cafe" ||
+    effectiveKind === "corner_market" ||
+    effectiveKind === "office_plaza" ||
+    effectiveKind === "fire_station"
+  ) {
+    bw = Math.max(48 * hd, Math.min(88 * hd, footW - 2 * hd));
+    bh = Math.max(48 * hd, Math.min(62 * hd, footH + 10 * hd));
+  } else {
+    bw = Math.max(20 * hd, footW - 2 * hd);
+    bh = Math.max(24 * hd, footH + 6 * hd);
   }
 
-  return canvas;
+  const insetBottom = 1 * hd;
+  const padSide = Math.max(4 * hd, Math.ceil(Math.max(0, bw - footW) / 2) + 4 * hd);
+  const padTop = Math.max(16 * hd, bh - footH + 14 * hd);
+  const padBottom = 6 * hd;
+  const canvasW = footW + padSide * 2;
+  const canvasH = footH + padTop + padBottom;
+  const { canvas, ctx } = makeCanvas(canvasW, canvasH);
+
+  const bx = Math.floor((canvasW - bw) / 2);
+  const bottomY = padTop + footH - insetBottom;
+  const by = bottomY - bh;
+  const midX = bx + Math.floor(bw / 2);
+
+  // Soft warm golden-hour dusk drop shadow grounded under the house (SE side)
+  px(ctx, bx + 3 * hd, by + Math.floor(bh * 0.25), bw + 2 * hd, Math.floor(bh * 0.78), "rgba(42, 20, 18, 0.34)");
+
+  // =========================================================================
+  // 1. GARAGE / SHED / OUTBUILDING (1-car or 2-car wide)
+  // =========================================================================
+  if (effectiveKind === "garage") {
+    const roofH = Math.max(10 * hd, Math.floor(bh * 0.48));
+    const wallH = Math.max(10 * hd, bh - roofH);
+    const wallY = by + roofH;
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, style.wallMain);
+    drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd);
+    drawShingledRoof(ctx, bx, by, bw, roofH, wallY, style, 0.2, O, { hd, leafCluster: false, seed: bSeed });
+    if (bw >= 20 * hd && roofH >= 10 * hd) {
+      px(ctx, midX - 2 * hd, by + 3 * hd, 4 * hd, 3 * hd, O);
+      px(ctx, midX - hd, by + 4 * hd, 2 * hd, hd, style.trim);
+    }
+    const bays = bw >= 40 * hd ? 2 : 1;
+    const bayGap = 4 * hd;
+    const doorW = bays === 2 ? Math.floor((bw - 10 * hd) / 2) : Math.max(10 * hd, bw - 8 * hd);
+    const doorH = Math.max(8 * hd, wallH - 4 * hd);
+    for (let i = 0; i < bays; i++) {
+      const dx = bays === 2 ? bx + 3 * hd + i * (doorW + bayGap) : bx + Math.floor((bw - doorW) / 2);
+      const dy = wallY + wallH - doorH;
+      px(ctx, dx - 1, dy - 1, doorW + 2, doorH + 1, O);
+      px(ctx, dx, dy, doorW, doorH, style.trim);
+      if (doorH >= 9 * hd && doorW >= 12 * hd) {
+        for (let wx = dx + 2 * hd; wx < dx + doorW - 3 * hd; wx += 4 * hd) {
+          px(ctx, wx, dy + hd, 2 * hd, 2 * hd, "#ffe066");
+        }
+      }
+      for (let gy = dy + 4 * hd; gy < dy + doorH - 1; gy += 3 * hd) {
+        px(ctx, dx + 1, gy, doorW - 2, 1, style.trimShade);
+      }
+      px(ctx, dx - 1, wallY + wallH + 1, doorW + 2, 3 * hd, "#b5a39c");
+    }
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 1B. GLASS GREENHOUSE / GARDEN CONSERVATORY (Arched glass roof + lush interior plants!)
+  // =========================================================================
+  if (effectiveKind === "greenhouse") {
+    const roofH = Math.max(10, Math.floor(bh * 0.5));
+    const wallH = Math.max(9, bh - roofH);
+    const wallY = by + roofH;
+
+    // Stone knee wall + bright glass upper walls
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, "#bfe8f5");
+    px(ctx, bx, wallY + wallH - 4, bw, 4, "#9c9689");
+    px(ctx, bx, wallY + wallH - 5, bw, 1, "#f7f8fa");
+    // Lush potted greenery & colorful blossoms visible through the glass!
+    for (let gx = bx + 3; gx < bx + bw - 5; gx += 6) {
+      px(ctx, gx, wallY + wallH - 9, 4, 4, "#3b8c3b");
+      px(ctx, gx + 1, wallY + wallH - 10, 2, 2, "#73cf57");
+      if ((gx % 12) < 6) px(ctx, gx + 1, wallY + wallH - 9, 1, 1, "#f56c82");
+      else px(ctx, gx + 2, wallY + wallH - 9, 1, 1, "#ffe066");
+    }
+    // Arched glass conservatory roof with crisp white iron ribs
+    const insetMax = Math.min(Math.floor(bw * 0.24), 8);
+    for (let row = 0; row < roofH; row++) {
+      const t = row / Math.max(1, roofH - 1);
+      const curve = Math.round((1 - Math.sqrt(t)) * insetMax);
+      const rx = bx - 1 + curve;
+      const rw = bw + 2 - curve * 2;
+      const ry = by + row;
+      px(ctx, rx - 1, ry, 1, 1, O);
+      px(ctx, rx + rw, ry, 1, 1, O);
+      if (row === 0) px(ctx, rx, ry - 1, rw, 1, O);
+      px(ctx, rx, ry, rw, 1, row < roofH * 0.45 ? "#ddf5fc" : "#a8dcf0");
+      if (row % 4 === 0) px(ctx, rx + 1, ry, rw - 2, 1, "#ffffff");
+    }
+    // Vertical white iron glass mullions
+    for (let mx = bx + 5; mx < bx + bw - 3; mx += 6) {
+      px(ctx, mx, by + 2, 1, roofH + wallH - 6, "#f7fafc");
+    }
+    // White conservatory ridge finial & wooden garden door
+    px(ctx, bx - 1, wallY - 1, bw + 2, 2, "#ffffff");
+    const doorW = 6;
+    const doorH = Math.min(wallH - 1, 10);
+    px(ctx, midX - 3, wallY + wallH - doorH, doorW, doorH + 1, O);
+    px(ctx, midX - 2, wallY + wallH - doorH + 1, doorW - 2, doorH - 1, "#f5f7fa");
+    px(ctx, midX - 1, wallY + wallH - doorH + 2, doorW - 4, Math.max(2, doorH - 4), "#8cd0eb");
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 1C. FIRE STATION / NEW ENGLAND FIREHOUSE (32-bit HD Red Brick, Bell Tower & Engine Bays!)
+  // =========================================================================
+  if (effectiveKind === "fire_station") {
+    const roofH = Math.min(16 * hd, Math.max(9 * hd, Math.floor(bh * 0.28)));
+    const wallH = Math.max(20 * hd, bh - roofH);
+    const wallY = by + roofH;
+
+    px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
+    px(ctx, bx, by, bw, roofH, "#5e504d");
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(4, roofH - 4 * hd), "#473b3a");
+    px(ctx, bx - 1, wallY - 3 * hd, bw + 2, 4 * hd, O);
+    px(ctx, bx, wallY - 2 * hd, bw, 2 * hd, "#e6d8ca");
+    px(ctx, bx, wallY, bw, hd, "#b8a496");
+
+    const brickStyle = { ...HOUSE_COLOR_PRESETS.brick };
+    px(ctx, bx, wallY + hd, bw, wallH - hd, brickStyle.wallMain);
+    drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, brickStyle, hd);
+    px(ctx, bx, wallY + hd, 2 * hd, wallH - hd, "#e6d8ca");
+    px(ctx, bx + bw - 2 * hd, wallY + hd, 2 * hd, wallH - hd, "#b8a496");
+
+    if (bw >= 30 * hd) {
+      const tw = 12 * hd;
+      const th = 14 * hd;
+      const tx = bx + 2 * hd;
+      const ty = by - 7 * hd;
+      px(ctx, tx - 1, ty - 1, tw + 2, th + 2, O);
+      px(ctx, tx, ty, tw, th, "#9e3a2e");
+      px(ctx, tx - 1, ty, tw + 2, 2 * hd, "#e6d8ca");
+      px(ctx, tx + 4 * hd, ty - 3 * hd, 4 * hd, 3 * hd, O);
+      px(ctx, tx + 5 * hd, ty - 2 * hd, 2 * hd, 2 * hd, "#ff4d42");
+      px(ctx, tx + 3 * hd, ty + 4 * hd, 6 * hd, 6 * hd, O);
+      px(ctx, tx + 4 * hd, ty + 5 * hd, 4 * hd, 4 * hd, "#2c2224");
+      px(ctx, tx + 5 * hd, ty + 6 * hd, 2 * hd, 2 * hd, "#ffe066");
+    }
+
+    const bays = bw >= 44 * hd ? 2 : 1;
+    const bayW = bays === 2 ? Math.min(20 * hd, Math.floor((bw - 12 * hd) / 2)) : Math.min(22 * hd, bw - 10 * hd);
+    const bayH = Math.min(wallH - 8 * hd, 14 * hd);
+    const bayY = wallY + wallH - bayH;
+    for (let i = 0; i < bays; i++) {
+      const dx = bays === 2
+        ? bx + Math.floor((bw - bayW * 2 - 4 * hd) / 2) + i * (bayW + 4 * hd)
+        : midX - Math.floor(bayW / 2);
+      px(ctx, dx - 1, bayY - 2 * hd, bayW + 2, bayH + 3 * hd, O);
+      px(ctx, dx, bayY - hd, bayW, bayH + hd, "#e6d8ca");
+      px(ctx, dx + hd, bayY + hd, bayW - 2 * hd, bayH - hd, "#291e20");
+      px(ctx, dx + 2 * hd, bayY + 2 * hd, bayW - 4 * hd, Math.max(4 * hd, bayH - 3 * hd), "#d9362e");
+      px(ctx, dx + 3 * hd, bayY + 3 * hd, bayW - 6 * hd, 3 * hd, "#ffe680");
+      px(ctx, dx + 2 * hd, bayY + bayH - 3 * hd, bayW - 4 * hd, 2 * hd, "#e6dcd5");
+      px(ctx, dx - 1, wallY + wallH + 1, bayW + 2, 2 * hd, "#cfc0b2");
+    }
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 1D. COZY BAKERY / CAFÉ / ICE CREAM SHOPPE (32-bit HD Scalloped Awning + Glowing Windows!)
+  // =========================================================================
+  if (effectiveKind === "bakery_cafe") {
+    const roofH = Math.min(18 * hd, Math.max(10 * hd, Math.floor(bh * 0.34)));
+    const wallH = Math.max(18 * hd, bh - roofH);
+    const wallY = by + roofH;
+
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, style.wallMain);
+    drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd);
+    px(ctx, bx, wallY, 2 * hd, wallH, style.trim);
+    px(ctx, bx + bw - 2 * hd, wallY, 2 * hd, wallH, style.trimShade);
+    drawShingledRoof(ctx, bx, by, bw, roofH, wallY, style, 0.14, O, { hd, seed: bSeed });
+
+    const cafeAwnings = [
+      ["#d4474e", "#fff4df"],
+      ["#2f7d57", "#fff4df"],
+      ["#d97a2b", "#fff4df"],
+    ];
+    const [sA, sB] = cafeAwnings[bSeed % cafeAwnings.length];
+    const awY = wallY + 2 * hd;
+    const awH = Math.min(7 * hd, Math.max(5 * hd, Math.floor(wallH * 0.28)));
+    px(ctx, bx + hd, awY - 1, bw - 2 * hd, awH + 2, O);
+    const sW = 3 * hd;
+    for (let sx = bx + 2 * hd; sx < bx + bw - 2 * hd; sx += sW) {
+      const col = Math.floor((sx - bx) / sW) % 2 === 0 ? sA : sB;
+      const segW = Math.min(sW, bx + bw - 2 * hd - sx);
+      px(ctx, sx, awY, segW, awH, col);
+      px(ctx, sx, awY + awH, Math.max(1, segW - 1), hd, col);
+    }
+
+    const lowerY = awY + awH + 2 * hd;
+    const lowerH = Math.max(7 * hd, wallY + wallH - lowerY - hd);
+    const doorW = Math.min(10 * hd, Math.max(7 * hd, Math.floor(bw * 0.22)));
+    const doorX = midX - Math.floor(doorW / 2);
+    px(ctx, doorX, lowerY, doorW, lowerH + hd, O);
+    px(ctx, doorX + 1, lowerY + 1, doorW - 2, lowerH - 1, "#6b3c22");
+    px(ctx, doorX + 2 * hd, lowerY + 2 * hd, Math.max(2, doorW - 4 * hd), Math.max(3, lowerH - 4 * hd), "#ffe680");
+
+    const drawCafeBay = (x0, w0) => {
+      if (w0 < 6 * hd) return;
+      px(ctx, x0, lowerY, w0, lowerH, O);
+      px(ctx, x0 + 1, lowerY + 1, w0 - 2, lowerH - 2, "#eb8e24");
+      px(ctx, x0 + 2, lowerY + 2, Math.max(2, w0 - 4), Math.max(2, lowerH - 4), "#ffe470");
+      px(ctx, x0 + 3, lowerY + 2, Math.max(2, w0 - 6), Math.max(2, Math.floor(lowerH * 0.4)), "#fff8c7");
+      px(ctx, x0 + 2, lowerY + lowerH - 3 * hd, Math.max(2, w0 - 4), 2 * hd, "#b56c32");
+    };
+    drawCafeBay(bx + 3 * hd, doorX - (bx + 4 * hd));
+    drawCafeBay(doorX + doorW + hd, bx + bw - 3 * hd - (doorX + doorW + hd));
+
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 1E. VILLAGE CORNER MARKET / BOOKSHOP (32-bit HD Stepped Parapet + Warm Glowing Bays!)
+  // =========================================================================
+  if (effectiveKind === "corner_market") {
+    const roofH = Math.min(16 * hd, Math.max(8 * hd, Math.floor(bh * 0.26)));
+    const wallH = Math.max(18 * hd, bh - roofH);
+    const wallY = by + roofH;
+
+    px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
+    px(ctx, bx, by, bw, roofH, "#594c48");
+    const crestW = Math.min(bw - 8 * hd, 28 * hd);
+    const crestX = midX - Math.floor(crestW / 2);
+    px(ctx, crestX - 1, wallY - 7 * hd, crestW + 2, 7 * hd, O);
+    px(ctx, crestX, wallY - 6 * hd, crestW, 5 * hd, style.wallMain);
+    px(ctx, crestX, wallY - 6 * hd, crestW, 2 * hd, style.trim);
+    px(ctx, crestX + 3 * hd, wallY - 3 * hd, Math.max(4, crestW - 6 * hd), 2 * hd, "#ffe066");
+
+    px(ctx, bx - 1, wallY - 2 * hd, bw + 2, 3 * hd, O);
+    px(ctx, bx, wallY - hd, bw, 2 * hd, style.trim);
+    px(ctx, bx, wallY + hd, bw, wallH - hd, style.wallMain);
+    drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, style, hd);
+
+    const hasUpper = wallH >= 22 * hd;
+    const groundY = hasUpper ? wallY + Math.floor(wallH * 0.46) : wallY + 4 * hd;
+    if (hasUpper) {
+      for (let wx = bx + 5 * hd; wx + 6 * hd <= bx + bw - 5 * hd; wx += 11 * hd) {
+        drawColonialWindow(ctx, wx, wallY + 3 * hd, style, { shutters: false, winW: 6 * hd, winH: 7 * hd }, O);
+      }
+      px(ctx, bx + hd, groundY - 2 * hd, bw - 2 * hd, 2 * hd, style.trim);
+    }
+
+    const groundH = Math.max(8 * hd, wallY + wallH - groundY - hd);
+    const doorW = 7 * hd;
+    const doorX = midX - Math.floor(doorW / 2);
+    px(ctx, doorX, groundY, doorW, groundH + hd, O);
+    px(ctx, doorX + 1, groundY + 1, doorW - 2, groundH - 1, style.door);
+    px(ctx, doorX + 2 * hd, groundY + 2 * hd, Math.max(2, doorW - 4 * hd), Math.max(3, groundH - 4 * hd), "#ffe066");
+
+    const paintBay = (x0, w0) => {
+      if (w0 < 6 * hd) return;
+      px(ctx, x0, groundY, w0, groundH, O);
+      px(ctx, x0 + 1, groundY + 1, w0 - 2, groundH - 2, "#eb8e24");
+      px(ctx, x0 + 2, groundY + 2, Math.max(2, w0 - 4), Math.max(2, groundH - 4), "#ffe470");
+      px(ctx, x0 + 3, groundY + 2, Math.max(2, w0 - 6), Math.max(2, Math.floor(groundH * 0.4)), "#fff8c7");
+    };
+    paintBay(bx + 3 * hd, doorX - (bx + 4 * hd));
+    paintBay(doorX + doorW + hd, bx + bw - 3 * hd - (doorX + doorW + hd));
+
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 1F. MODERN BRICK & GLASS OFFICE / MEDICAL PLAZA (32-bit HD Ribbon Glass!)
+  // =========================================================================
+  if (effectiveKind === "office_plaza") {
+    const roofH = Math.min(16 * hd, Math.max(8 * hd, Math.floor(bh * 0.26)));
+    const wallH = Math.max(20 * hd, bh - roofH);
+    const wallY = by + roofH;
+
+    px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
+    px(ctx, bx, by, bw, roofH, "#6b5d5a");
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(4, roofH - 4 * hd), "#524644");
+    px(ctx, bx - 1, wallY - 2 * hd, bw + 2, 3 * hd, O);
+    px(ctx, bx, wallY - hd, bw, 2 * hd, "#e6d8ca");
+    px(ctx, bx, wallY + hd, bw, wallH - hd, style.wallMain);
+    drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, style, hd);
+
+    const floors = wallH >= 26 * hd ? 3 : 2;
+    const flH = Math.floor((wallH - 4 * hd) / floors);
+    for (let f = 0; f < floors; f++) {
+      const fy = wallY + 2 * hd + f * flH;
+      px(ctx, bx, fy, bw, 2 * hd, "#dfd0c2");
+      if (f < floors - 1) {
+        const winH = Math.max(4 * hd, flH - 3 * hd);
+        px(ctx, bx + 2 * hd, fy + 2 * hd, bw - 4 * hd, winH, O);
+        px(ctx, bx + 3 * hd, fy + 2 * hd + 1, bw - 6 * hd, Math.max(2, winH - 2), "#f5b842");
+        px(ctx, bx + 3 * hd, fy + 2 * hd + 1, bw - 6 * hd, Math.max(1, Math.floor(winH * 0.45)), "#fff2b3");
+        for (let mx = bx + 9 * hd; mx < bx + bw - 4 * hd; mx += 8 * hd) {
+          px(ctx, mx, fy + 2 * hd, hd, winH, O);
+        }
+      }
+    }
+
+    const lobH = Math.max(8 * hd, Math.min(13 * hd, flH + 2 * hd));
+    const lobY = wallY + wallH - lobH;
+    const lobW = Math.min(bw - 8 * hd, 20 * hd);
+    const lobX = midX - Math.floor(lobW / 2);
+    px(ctx, lobX - 2 * hd, lobY - 2 * hd, lobW + 4 * hd, 3 * hd, O);
+    px(ctx, lobX - hd, lobY - hd, lobW + 2 * hd, hd, "#b8a69c");
+    px(ctx, lobX, lobY + hd, lobW, lobH - hd, O);
+    px(ctx, lobX + 1, lobY + hd + 1, lobW - 2, lobH - hd - 2, "#ffe066");
+    px(ctx, midX, lobY + hd, hd, lobH - hd, O);
+    if (bw >= 34 * hd) {
+      drawShrub(ctx, bx + 2 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+      drawShrub(ctx, bx + bw - 10 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+    }
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 2. COMMERCIAL STOREFRONT (Shops, Bakeries, Ice Cream, Medical Offices)
+  // =========================================================================
+  if (effectiveKind === "commercial") {
+    const roofH = Math.min(18 * hd, Math.max(8 * hd, Math.floor(bh * 0.34)));
+    const wallH = Math.max(16 * hd, bh - roofH);
+    const wallY = by + roofH;
+
+    // Flat commercial gravel/tar roof with brick parapet wall & warm stone coping
+    px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
+    px(ctx, bx, by, bw, roofH, "#6b5d5a");
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(4, roofH - 4 * hd), "#544847");
+    if (bw >= 30 * hd && roofH >= 9 * hd) {
+      px(ctx, bx + 5 * hd, by + 3 * hd, 9 * hd, 5 * hd, O);
+      px(ctx, bx + 5 * hd + 1, by + 3 * hd + 1, 9 * hd - 2, 5 * hd - 2, "#b5a69c");
+    }
+    px(ctx, bx - 1, wallY - 3 * hd, bw + 2, 4 * hd, O);
+    px(ctx, bx, wallY - 2 * hd, bw, 2 * hd, style.trim);
+    px(ctx, bx, wallY, bw, hd, style.trimShade);
+
+    px(ctx, bx, wallY + hd, bw, wallH - hd, style.wallMain);
+    drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, style, hd);
+    px(ctx, bx, wallY + hd, 2 * hd, wallH - hd, style.trim);
+    px(ctx, bx + bw - 2 * hd, wallY + hd, 2 * hd, wallH - hd, style.trimShade);
+
+    // Striped Canvas Storefront Awning
+    const awningPalettes = [
+      ["#c93e34", "#f7ebd2"],
+      ["#326e49", "#f7ebd2"],
+      ["#3b5678", "#f7ebd2"],
+      ["#c96e32", "#fff0cc"],
+    ];
+    const [stripeA, stripeB] = awningPalettes[bSeed % awningPalettes.length];
+    const awningY = wallY + Math.max(4 * hd, Math.floor(wallH * 0.28));
+    const awningH = Math.min(7 * hd, Math.max(4 * hd, Math.floor(wallH * 0.22)));
+    px(ctx, bx + hd, awningY - 1, bw - 2 * hd, awningH + 2, O);
+    const stripeW = 4 * hd;
+    for (let sx = bx + 2 * hd; sx < bx + bw - 2 * hd; sx += stripeW) {
+      const col = Math.floor((sx - bx) / stripeW) % 2 === 0 ? stripeA : stripeB;
+      const segW = Math.min(stripeW, bx + bw - 2 * hd - sx);
+      px(ctx, sx, awningY, segW, awningH, col);
+      px(ctx, sx, awningY + awningH - hd, segW, hd, shadeHex(col, -25));
+    }
+
+    // Wide warm glowing display windows & central glass door beneath awning
+    const lowerY = awningY + awningH + hd;
+    const lowerH = Math.max(7 * hd, wallY + wallH - lowerY - hd);
+    const doorW = Math.min(12 * hd, Math.max(7 * hd, Math.floor(bw * 0.22)));
+    const doorX = midX - Math.floor(doorW / 2);
+
+    const drawShopWindow = (x0, w0) => {
+      if (w0 < 6 * hd) return;
+      px(ctx, x0, lowerY, w0, lowerH, O);
+      px(ctx, x0 + 1, lowerY + 1, w0 - 2, lowerH - 2, "#eb9028");
+      px(ctx, x0 + 2, lowerY + 2, Math.max(2, w0 - 4), Math.max(2, lowerH - 4), "#ffe066");
+      px(ctx, x0 + 3, lowerY + 2, Math.max(2, w0 - 6), Math.max(2, Math.floor(lowerH * 0.45)), "#fff7c4");
+      px(ctx, x0 + 2, lowerY + lowerH - 3 * hd, Math.max(2, w0 - 4), 2 * hd, "#9c5c2b");
+    };
+    drawShopWindow(bx + 3 * hd, doorX - (bx + 5 * hd));
+    drawShopWindow(doorX + doorW + 2 * hd, bx + bw - 3 * hd - (doorX + doorW + 2 * hd));
+
+    px(ctx, doorX, lowerY, doorW, lowerH + hd, O);
+    px(ctx, doorX + 1, lowerY + 1, doorW - 2, lowerH - 1, "#593520");
+    px(ctx, doorX + 2 * hd, lowerY + 2 * hd, Math.max(2, doorW - 4 * hd), Math.max(2, lowerH - 4 * hd), "#ffe680");
+    if (doorW >= 8 * hd) px(ctx, midX, lowerY + 1, 1, lowerH - 1, O);
+
+    px(ctx, bx + hd, wallY + wallH, bw - 2 * hd, 2 * hd, "#cfc0b2");
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 3. APARTMENTS / MULTI-FAMILY CONDO BLOCK (Multi-story HD glowing grid!)
+  // =========================================================================
+  if (effectiveKind === "apartments") {
+    const roofH = Math.min(18 * hd, Math.max(8 * hd, Math.floor(bh * 0.26)));
+    const wallH = Math.max(20 * hd, bh - roofH);
+    const wallY = by + roofH;
+
+    px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
+    px(ctx, bx, by, bw, roofH, "#635552");
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(4, roofH - 4 * hd), "#4d4140");
+    px(ctx, bx - 1, wallY - 2 * hd, bw + 2, 3 * hd, O);
+    px(ctx, bx, wallY - hd, bw, 2 * hd, style.trim);
+
+    px(ctx, bx, wallY + hd, bw, wallH - hd, style.wallMain);
+    drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, style, hd);
+
+    const stories = wallH >= 28 * hd ? 3 : 2;
+    const storyH = Math.floor((wallH - 5 * hd) / stories);
+    const doorW = Math.min(12 * hd, Math.max(7 * hd, Math.floor(bw * 0.16)));
+    const doorX = midX - Math.floor(doorW / 2);
+
+    for (let s = 0; s < stories; s++) {
+      const rowY = wallY + 3 * hd + s * storyH;
+      if (s > 0) px(ctx, bx + hd, rowY - 2 * hd, bw - 2 * hd, hd, style.trimShade);
+      const winW = 6 * hd;
+      const winH = Math.min(storyH - 3 * hd, 7 * hd);
+      for (let wx = bx + 4 * hd; wx + winW <= bx + bw - 4 * hd; wx += 10 * hd) {
+        if (s === stories - 1 && wx + winW >= doorX - 2 * hd && wx <= doorX + doorW + 2 * hd) continue;
+        drawColonialWindow(ctx, wx, rowY, style, { shutters: false, winW, winH }, O);
+      }
+    }
+
+    const lobbyH = Math.min(14 * hd, Math.max(8 * hd, storyH + 2 * hd));
+    const lobbyY = wallY + wallH - lobbyH;
+    px(ctx, doorX - 2 * hd, lobbyY - 2 * hd, doorW + 4 * hd, 3 * hd, O);
+    px(ctx, doorX - hd, lobbyY - hd, doorW + 2 * hd, 2 * hd, style.roofMain);
+    px(ctx, doorX, lobbyY + hd, doorW, lobbyH - hd, O);
+    px(ctx, doorX + 1, lobbyY + hd + 1, doorW - 2, lobbyH - hd - 2, "#593520");
+    px(ctx, doorX + 2 * hd, lobbyY + 2 * hd, Math.max(2, doorW - 4 * hd), Math.max(2, lobbyH - 4 * hd), "#ffe066");
+    px(ctx, doorX - hd, wallY + wallH, doorW + 2 * hd, 3 * hd, "#d6c5b4");
+
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 4. CIVIC LANDMARKS: SAMPLE-STYLE RED BRICK LIBRARY, SCHOOL, SYNAGOGUE/CHURCH
+  // =========================================================================
+  if (effectiveKind === "library" || effectiveKind === "school" || effectiveKind === "civic") {
+    const wallH = Math.min(36 * hd, Math.max(18 * hd, Math.floor(bh * 0.54)));
+    const roofH = Math.max(12 * hd, bh - wallH);
+    const wallY = by + roofH;
+
+    // Rich red-brick / stone facade with warm limestone belt-courses & corner pilasters!
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, style.wallMain);
+    drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd);
+    // Warm limestone corner pilasters & cornice trim
+    px(ctx, bx, wallY, 3 * hd, wallH, style.trim);
+    px(ctx, bx + 3 * hd, wallY, 1, wallH, O);
+    px(ctx, bx + bw - 3 * hd, wallY, 3 * hd, wallH, style.trimShade);
+    px(ctx, bx + bw - 3 * hd - 1, wallY, 1, wallH, O);
+    // Molded horizontal stone sill belt-course across lower facade
+    const baseH = 5 * hd;
+    px(ctx, bx, wallY + wallH - baseH, bw, baseH, "#a39186");
+    px(ctx, bx, wallY + wallH - baseH, bw, hd, "#e6d8ca");
+    px(ctx, bx, wallY + wallH - baseH - 1, bw, 1, O);
+
+    // Dignified pitched shingled roof with individual alternating shingles
+    drawShingledRoof(ctx, bx, by, bw, roofH, wallY, style, 0.14, O, {
+      hd,
+      leafCluster: effectiveKind !== "school",
+      seed: bSeed,
+    });
+
+    const portW = Math.min(Math.floor(bw * 0.44), 30 * hd);
+    const portX = midX - Math.floor(portW / 2);
+
+    if (effectiveKind === "library" || (effectiveKind === "civic" && !building.gothicCrypt)) {
+      // Sample-style Grand Pedimented Stone Portico with Gabled Shingled Peak + Carved Frieze + 4 Stone Columns!
+      const pedHalfW = Math.min(Math.floor(portW / 2) + 2 * hd, Math.floor(bw * 0.32));
+      const pedH = Math.min(Math.floor(roofH * 0.85), 16 * hd);
+      for (let gy = 0; gy < pedH; gy++) {
+        const span = Math.max(2, Math.round((gy / Math.max(1, pedH - 1)) * pedHalfW));
+        const ry = wallY - pedH + gy;
+        px(ctx, midX - span - 2, ry, span * 2 + 4, 1, O);
+        px(ctx, midX - span - 1, ry, span * 2 + 2, 1, style.trim);
+        if (gy > 2 && span > 3) {
+          px(ctx, midX - span + 2, ry, Math.max(2, (span - 2) * 2), 1, gy % 3 === 0 ? style.wallShade : style.wallMain);
+        }
+      }
+      // Carved stone frieze header banner (just like "LIBRARY" in the sample!)
+      const friezeH = 5 * hd;
+      px(ctx, portX - 2, wallY - 2, portW + 4, friezeH + 2, O);
+      px(ctx, portX - 1, wallY - 1, portW + 2, friezeH, "#d6c5b6");
+      px(ctx, portX, wallY, portW, hd, "#f2e8dc");
+      px(ctx, portX + 2 * hd, wallY + 2 * hd, Math.max(4, portW - 4 * hd), hd, "#594842");
+
+      // Fluted warm limestone portico columns
+      const colTop = wallY + friezeH;
+      const colH = Math.max(8, wallY + wallH - colTop);
+      const colW = 3 * hd;
+      for (const cx of [portX + hd, portX + portW - colW - hd]) {
+        px(ctx, cx - 1, colTop, colW + 2, colH, O);
+        px(ctx, cx, colTop, colW, colH, "#ded0c2");
+        px(ctx, cx, colTop, hd, colH, "#f7efe4");
+        px(ctx, cx + colW - hd, colTop, hd, colH, "#a8968a");
+      }
+
+      // Recessed dark-oak double entrance doors inside portico
+      const doorW = Math.min(portW - colW * 2 - 4 * hd, 14 * hd);
+      const doorH = Math.min(colH - hd, 18 * hd);
+      const doorX = midX - Math.floor(doorW / 2);
+      const doorY = wallY + wallH - doorH - hd;
+      px(ctx, doorX - 2, doorY - 2, doorW + 4, doorH + 3, O);
+      px(ctx, doorX - 1, doorY - 1, doorW + 2, doorH + 1, "#b8a496");
+      px(ctx, doorX, doorY, doorW, doorH, style.door);
+      px(ctx, doorX + 1, doorY + 1, doorW - 2, doorH - 2, "#874a2c");
+      // Recessed door panels + center seam + brass handles
+      px(ctx, midX, doorY, 1, doorH, O);
+      const pW = Math.max(2, Math.floor(doorW / 2) - 3);
+      px(ctx, doorX + 2, doorY + 2, pW, Math.max(3, Math.floor(doorH * 0.38)), "#5e301b");
+      px(ctx, midX + 2, doorY + 2, pW, Math.max(3, Math.floor(doorH * 0.38)), "#5e301b");
+      px(ctx, doorX + 2, doorY + Math.floor(doorH * 0.55), pW, Math.max(3, Math.floor(doorH * 0.34)), "#5e301b");
+      px(ctx, midX + 2, doorY + Math.floor(doorH * 0.55), pW, Math.max(3, Math.floor(doorH * 0.34)), "#5e301b");
+      px(ctx, midX - 2, doorY + Math.floor(doorH * 0.52), 1, 2, "#ffe066");
+      px(ctx, midX + 2, doorY + Math.floor(doorH * 0.52), 1, 2, "#ffe066");
+
+      // Wide stepped stone staircase with stone cheek walls!
+      const stepW = Math.min(bw - 8 * hd, portW + 2 * hd);
+      const stepX = midX - Math.floor(stepW / 2);
+      const stepY = wallY + wallH - hd;
+      px(ctx, stepX - 2, stepY, stepW + 4, 5 * hd, O);
+      for (let st = 0; st < 4; st++) {
+        const sy = stepY + st * hd;
+        px(ctx, stepX, sy, stepW, hd, st % 2 === 0 ? "#ded0c2" : "#bfa99c");
+      }
+      // Stone stair side walls
+      px(ctx, stepX - 2, stepY - hd, 3 * hd, 6 * hd, O);
+      px(ctx, stepX - 1, stepY - hd + 1, 2 * hd, 5 * hd, "#cfc0b2");
+      px(ctx, stepX + stepW - hd, stepY - hd, 3 * hd, 6 * hd, O);
+      px(ctx, stepX + stepW - hd + 1, stepY - hd + 1, 2 * hd, 5 * hd, "#b09e92");
+    } else if (effectiveKind === "school") {
+      if (building.bcCampus) {
+        // Boston College Collegiate Gothic Bell Tower (Gasson-inspired pinnacles, clock & Maroon/Gold banners!)
+        const towerW = Math.min(22 * hd, Math.max(14 * hd, Math.floor(bw * 0.24)));
+        const towerH = 16 * hd;
+        const towerX = midX - Math.floor(towerW / 2);
+        const towerY = by - 9 * hd;
+        px(ctx, towerX - 1, towerY - 3 * hd, 3 * hd, 4 * hd, O);
+        px(ctx, towerX, towerY - 2 * hd, hd, 3 * hd, "#e6be53");
+        px(ctx, towerX + towerW - 2 * hd, towerY - 3 * hd, 3 * hd, 4 * hd, O);
+        px(ctx, towerX + towerW - hd, towerY - 2 * hd, hd, 3 * hd, "#e6be53");
+        px(ctx, midX - 2 * hd, towerY - 5 * hd, 4 * hd, 5 * hd, O);
+        px(ctx, midX - hd, towerY - 4 * hd, 2 * hd, 4 * hd, "#8a2434");
+        px(ctx, midX - hd, towerY - 6 * hd, 2 * hd, 2 * hd, "#f4d35e");
+        px(ctx, towerX - 1, towerY, towerW + 2, towerH, O);
+        px(ctx, towerX, towerY + 1, towerW, towerH - 2, "#d4cbb8");
+        px(ctx, towerX + towerW - 2 * hd, towerY + 1, 2 * hd, towerH - 2, "#a69c88");
+        px(ctx, midX - 3 * hd, towerY + 3 * hd, 6 * hd, 6 * hd, O);
+        px(ctx, midX - 2 * hd, towerY + 4 * hd, 4 * hd, 4 * hd, "#fff4c2");
+        px(ctx, midX, towerY + 4 * hd, hd, 3 * hd, O);
+        px(ctx, midX, towerY + 6 * hd, 2 * hd, hd, O);
+        px(ctx, portX - 1, wallY, portW + 2, wallH, O);
+        px(ctx, portX, wallY + 1, portW, wallH - 1, "#dfd8c8");
+        px(ctx, portX - 1, wallY + wallH, portW + 2, 3 * hd, "#d4cdbc");
+        if (bw >= 34 * hd) {
+          for (const bxBanner of [portX - 5 * hd, portX + portW + 2 * hd]) {
+            px(ctx, bxBanner - 1, wallY + 2 * hd, 5 * hd, 10 * hd, O);
+            px(ctx, bxBanner, wallY + 3 * hd, 3 * hd, 8 * hd, "#7d1d2e");
+            px(ctx, bxBanner + hd, wallY + 4 * hd, hd, 5 * hd, "#f0c850");
+          }
+        }
+      } else {
+        // Classic New England Schoolhouse Clock & Bell Cupola Tower!
+        const cupW = 14 * hd;
+        const cupH = 12 * hd;
+        const cupX = midX - Math.floor(cupW / 2);
+        const cupY = by - 7 * hd;
+        px(ctx, midX - 4 * hd, cupY - 3 * hd, 8 * hd, 3 * hd, O);
+        px(ctx, midX - 3 * hd, cupY - 2 * hd, 6 * hd, 2 * hd, style.roofMain);
+        px(ctx, midX - hd, cupY - 5 * hd, 2 * hd, 3 * hd, "#f4d35e");
+        px(ctx, cupX - 1, cupY, cupW + 2, cupH, O);
+        px(ctx, cupX, cupY + 1, cupW, cupH - 2, "#f7ebd2");
+        px(ctx, midX - 3 * hd, cupY + 3 * hd, 6 * hd, 6 * hd, O);
+        px(ctx, midX - 2 * hd, cupY + 4 * hd, 4 * hd, 4 * hd, "#fff9dc");
+        px(ctx, midX, cupY + 4 * hd, hd, 3 * hd, O);
+        px(ctx, portX, wallY + 2 * hd, portW, wallH - 2 * hd, style.trim);
+        px(ctx, portX - 1, wallY + wallH, portW + 2, 3 * hd, "#ded0c2");
+      }
+      // Recessed school entry doors
+      const doorW = Math.min(portW - 6 * hd, 12 * hd);
+      const doorH = Math.min(wallH - 6 * hd, 16 * hd);
+      px(ctx, midX - Math.floor(doorW / 2) - 1, wallY + wallH - doorH - hd, doorW + 2, doorH + hd, O);
+      px(ctx, midX - Math.floor(doorW / 2), wallY + wallH - doorH, doorW, doorH, style.door);
+      px(ctx, midX, wallY + wallH - doorH, 1, doorH, O);
+    } else {
+      // Gothic Cemetery Chapel spire with glowing teal lantern window
+      px(ctx, midX - 2 * hd, by - 9 * hd, 4 * hd, 9 * hd, O);
+      px(ctx, midX - hd, by - 8 * hd, 2 * hd, 8 * hd, "#4c5463");
+      px(ctx, midX - 5 * hd, by - 3 * hd, 10 * hd, 8 * hd, O);
+      px(ctx, midX - 4 * hd, by - 2 * hd, 8 * hd, 6 * hd, "#666f7d");
+      px(ctx, midX - 2 * hd, by, 4 * hd, 3 * hd, "#6be6d2");
+      px(ctx, portX, wallY + wallH, portW, 4 * hd, O);
+      px(ctx, portX + 1, wallY + wallH + 1, portW - 2, 2 * hd, "#8b929e");
+    }
+
+    // Tall Arched Glowing Golden Windows along BOTH left & right wings (matching the sample Library!)
+    const winW = hd >= 2 ? 11 : 6;
+    const winH = Math.min(wallH - baseH - 4 * hd, hd >= 2 ? 19 : 10);
+    if (winH >= 8) {
+      const winY = wallY + Math.max(3 * hd, Math.floor((wallH - baseH - winH) / 2));
+      const stepW = winW + 6 * hd;
+      // Left wing windows
+      for (let wx = bx + 5 * hd; wx + winW <= portX - 3 * hd; wx += stepW) {
+        drawArchedCivicWindow(ctx, wx, winY, style, winW, winH, O);
+      }
+      // Right wing windows
+      for (let wx = portX + portW + 3 * hd; wx + winW <= bx + bw - 5 * hd; wx += stepW) {
+        drawArchedCivicWindow(ctx, wx, winY, style, winW, winH, O);
+      }
+    }
+
+    // Lush Green Boxwood Shrubs flanking the stone portico steps + cozy Library wooden notice board!
+    if (bw >= 34 * hd) {
+      drawShrub(ctx, portX - 11 * hd, wallY + wallH - 6 * hd, 10 * hd, 8 * hd);
+      drawShrub(ctx, portX + portW + hd, wallY + wallH - 6 * hd, 10 * hd, 8 * hd);
+      // Sample-style wooden bulletin notice board beside Library entrance
+      if (effectiveKind === "library" && bx + bw - (portX + portW) >= 20 * hd) {
+        const nbx = bx + bw - 13 * hd;
+        const nby = wallY + wallH - 5 * hd;
+        px(ctx, nbx + 2 * hd, nby + 5 * hd, 2 * hd, 5 * hd, O);
+        px(ctx, nbx + 7 * hd, nby + 5 * hd, 2 * hd, 5 * hd, O);
+        px(ctx, nbx, nby, 11 * hd, 7 * hd, O);
+        px(ctx, nbx + hd, nby + hd, 9 * hd, 5 * hd, "#d9b88c");
+        px(ctx, nbx + 2 * hd, nby + 2 * hd, 7 * hd, hd, "#593b24");
+        px(ctx, nbx + 2 * hd, nby + 4 * hd, 5 * hd, hd, "#593b24");
+      }
+    }
+
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 5. DUPLEX / TWO-FAMILY TOWNHOUSE (32-bit HD Twin Doors, Twin Steps & Glowing Windows!)
+  // =========================================================================
+  if (effectiveKind === "duplex") {
+    const wallH = Math.min(34 * hd, Math.max(16 * hd, Math.floor(bh * 0.50)));
+    const roofH = Math.max(14 * hd, bh - wallH);
+    const wallY = by + roofH;
+
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, style.wallMain);
+    drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd);
+    px(ctx, midX - hd, wallY, 2 * hd, wallH - hd, style.trim);
+    px(ctx, bx, wallY, 2 * hd, wallH - hd, style.trim);
+    px(ctx, bx + bw - 2 * hd, wallY, 2 * hd, wallH - hd, style.trimShade);
+
+    const slopeInset = drawShingledRoof(ctx, bx, by, bw, roofH, wallY, style, 0.15, O, { hd, seed: bSeed });
+    if (bw >= 34 * hd) {
+      drawChimney(ctx, bx + slopeInset + 2 * hd, by - 6 * hd, 5 * hd, 7 * hd, O);
+      drawChimney(ctx, bx + bw - slopeInset - 7 * hd, by - 6 * hd, 5 * hd, 7 * hd, O);
+    }
+
+    const doorW = 6 * hd;
+    const doorH = Math.min(wallH - 4 * hd, 10 * hd);
+    const doorY = wallY + wallH - doorH - 2 * hd;
+    const leftDoorX = bx + Math.max(5 * hd, Math.floor(bw * 0.28) - Math.floor(doorW / 2));
+    const rightDoorX = bx + Math.min(bw - doorW - 5 * hd, Math.floor(bw * 0.72) - Math.floor(doorW / 2));
+    for (const dx of [leftDoorX, rightDoorX]) {
+      px(ctx, dx - 1, doorY - 1, doorW + 2, doorH + 2, O);
+      px(ctx, dx, doorY, doorW, doorH, style.trim);
+      px(ctx, dx + 1, doorY + 1, doorW - 2, doorH - 1, style.door);
+      px(ctx, dx + 2, doorY + 2, Math.max(2, doorW - 4), Math.max(3, Math.floor(doorH * 0.35)), "#ffe066");
+      px(ctx, dx - hd, wallY + wallH - hd, doorW + 2 * hd, 4 * hd, O);
+      px(ctx, dx, wallY + wallH, doorW, 2 * hd, "#b87442");
+    }
+
+    if (bw >= 36 * hd && wallH >= 12 * hd) {
+      const winW = hd >= 2 ? 10 : 5;
+      const winH = hd >= 2 ? 12 : 6;
+      const winY = wallY + Math.max(3 * hd, Math.floor((wallH - winH) / 2) - hd);
+      if (bx + 4 * hd + winW < leftDoorX - 2) {
+        drawColonialWindow(ctx, bx + 4 * hd, winY, style, { shutters: false, winW, winH }, O);
+      }
+      if (bx + bw - 4 * hd - winW > rightDoorX + doorW + 2) {
+        drawColonialWindow(ctx, bx + bw - 4 * hd - winW, winY, style, { shutters: false, winW, winH }, O);
+      }
+    }
+    if (bw >= 34 * hd) {
+      drawShrub(ctx, bx + 2 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+      drawShrub(ctx, bx + bw - 10 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+    }
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 6. RESIDENTIAL HOUSES — SAMPLE-STYLE 32-BIT GOLDEN-HOUR NEW ENGLAND HOMES!
+  //    True 2x HD proportions, tall front gables, individual shingled roofs,
+  //    warm covered wooden porches with balusters & steps, radiant glowing windows,
+  //    roof autumn leaf piles, brick chimneys, boxwood shrubs & cedar fences!
+  // =========================================================================
+
+  /**
+   * Reusable helper: render a warm cedar/wood covered front porch with sloped shingled porch roof,
+   * turned columns, wooden spindle railings, paneled front door, glowing parlor window & stepped stairs!
+   */
+  const drawCoveredPorchWing = (px0, pw, wallY, wallH, { stonePiers = false, wideWindow = true } = {}) => {
+    if (pw < 16 * hd) return;
+    const porchRoofH = Math.max(5 * hd, Math.min(8 * hd, Math.floor(wallH * 0.25)));
+    const porchTopY = wallY + Math.max(2 * hd, wallH - Math.min(20 * hd, Math.max(13 * hd, Math.floor(wallH * 0.62))));
+    const deckH = 3 * hd;
+    const deckY = wallY + wallH - deckH;
+    const railH = Math.max(4 * hd, Math.floor((deckY - (porchTopY + porchRoofH)) * 0.36));
+    const railTopY = deckY - railH;
+
+    // 1. Recessed shaded porch back-wall behind the porch roof & railings
+    const innerTop = porchTopY + porchRoofH;
+    const innerH = Math.max(6, deckY - innerTop);
+    px(ctx, px0 + 1, innerTop, pw - 2, innerH, "rgba(42, 18, 12, 0.16)");
+
+    // 2. Paneled wooden front door tucked cleanly under the porch!
+    const doorW = Math.min(Math.floor(pw * 0.32), 7 * hd);
+    const doorH = Math.min(innerH - 1, 11 * hd);
+    const doorX = wideWindow && pw >= 26 * hd ? px0 + 4 * hd : px0 + Math.floor((pw - doorW) / 2);
+    const doorY = deckY - doorH;
+    px(ctx, doorX - 1, doorY - 1, doorW + 2, doorH + 1, O);
+    px(ctx, doorX, doorY, doorW, doorH, style.trim);
+    px(ctx, doorX + 1, doorY + 1, doorW - 2, doorH - 1, style.door);
+    // Door top glass lite (warm golden glow!) + lower wood panel + brass knob
+    px(ctx, doorX + 2, doorY + 2, Math.max(2, doorW - 4), Math.max(3, Math.floor(doorH * 0.32)), "#ffe066");
+    px(ctx, doorX + 2, doorY + 2, Math.max(1, doorW - 5), 1, "#fff8c7");
+    px(ctx, doorX + 2, doorY + Math.floor(doorH * 0.56), Math.max(2, doorW - 4), Math.max(2, Math.floor(doorH * 0.3)), style.doorDark);
+    px(ctx, doorX + doorW - 3, doorY + Math.floor(doorH * 0.52), 1, 2, "#ffe066");
+
+    // 3. Wide glowing 6-pane golden parlor window beside the front door (like the sample Yellow House!)
+    if (wideWindow && pw >= 26 * hd) {
+      const availX = doorX + doorW + 3 * hd;
+      const availW = px0 + pw - 3 * hd - availX;
+      if (availW >= 10) {
+        const wW = Math.min(availW, 9 * hd);
+        const wH = Math.min(innerH - 3 * hd, 8 * hd);
+        const wY = innerTop + Math.max(2, Math.floor((innerH - wH) / 2) - 1);
+        drawColonialWindow(ctx, availX, wY, style, { shutters: false, winW: wW, winH: wH, panesX: 3, panesY: 2 }, O);
+      }
+    }
+
+    // 4. Sloped shingled porch awning roof with warm trim fascia & drop shadow!
+    px(ctx, px0 - hd, porchTopY - 1, pw + 2 * hd, porchRoofH + 2, O);
+    for (let r = 0; r < porchRoofH; r++) {
+      const col = r < 2 ? style.roofLight : r % 3 === 0 ? style.roofDark : style.roofMain;
+      px(ctx, px0 - hd + 1, porchTopY + r, pw + 2 * hd - 2, 1, col);
+    }
+    px(ctx, px0 - hd + 1, porchTopY + porchRoofH - hd, pw + 2 * hd - 2, hd, style.trim);
+    px(ctx, px0, porchTopY + porchRoofH + 1, pw, hd, "rgba(42, 18, 12, 0.28)");
+
+    // 5. Warm cedar porch floor deck planks + foundation skirt below deck
+    px(ctx, px0 - 1, deckY - 1, pw + 2, deckH + 2, O);
+    px(ctx, px0, deckY, pw, deckH, style.porchWood);
+    px(ctx, px0, deckY, pw, 1, shadeHex(style.porchWood, 24));
+    for (let dx = px0 + 4; dx < px0 + pw - 2; dx += 4) {
+      px(ctx, dx, deckY + 1, 1, deckH - 1, shadeHex(style.porchWood, -32));
+    }
+
+    // 6. Wooden porch railings with crisp vertical balusters (leaving clean opening in front of front door!)
+    const stairOpenL = doorX - hd;
+    const stairOpenR = doorX + doorW + hd;
+    const drawRailSpan = (rx0, rx1) => {
+      const rw = rx1 - rx0;
+      if (rw < 4) return;
+      px(ctx, rx0, railTopY, rw, 2, O);
+      px(ctx, rx0, railTopY, rw, 1, "#c78652");
+      px(ctx, rx0, deckY - 2, rw, 2, "#59301a");
+      for (let bx2 = rx0 + 1; bx2 < rx1 - 1; bx2 += 3) {
+        px(ctx, bx2, railTopY + 2, 1, Math.max(1, deckY - railTopY - 3), "#8c512c");
+        px(ctx, bx2 + 1, railTopY + 2, 1, Math.max(1, deckY - railTopY - 3), "#4a2614");
+      }
+    };
+    drawRailSpan(px0 + 2, stairOpenL);
+    drawRailSpan(stairOpenR, px0 + pw - 2);
+
+    // 7. Turned wooden porch columns (or tapered river-stone piers for Craftsman!)
+    const colPositions = [px0 + 1, px0 + pw - 4];
+    if (stairOpenR < px0 + pw - 8) colPositions.push(stairOpenR);
+    for (const cx of colPositions) {
+      if (stonePiers) {
+        const pierH = Math.max(5 * hd, railH + deckH);
+        px(ctx, cx - 1, wallY + wallH - pierH, 5, pierH + 1, O);
+        px(ctx, cx, wallY + wallH - pierH + 1, 3, pierH - 1, "#a69c92");
+        px(ctx, cx, innerTop, 3, Math.max(2, wallY + wallH - pierH - innerTop), O);
+        px(ctx, cx + 1, innerTop, 1, Math.max(2, wallY + wallH - pierH - innerTop), style.trim);
+      } else {
+        px(ctx, cx, innerTop, 3, deckY - innerTop + 1, O);
+        px(ctx, cx + 1, innerTop, 1, deckY - innerTop, "#d49b66");
+      }
+    }
+
+    // 8. Three wide stepped cedar wooden front stairs + cobblestone walk stub!
+    const stW = Math.max(doorW + 2 * hd, 9 * hd);
+    const stX = Math.max(px0 + 1, Math.min(px0 + pw - stW - 1, doorX - hd));
+    const stY = deckY + 1;
+    px(ctx, stX - 1, stY, stW + 2, 5 * hd, O);
+    for (let st = 0; st < 3; st++) {
+      const sy = stY + st * Math.max(2, Math.floor(1.5 * hd));
+      px(ctx, stX, sy, stW, 1, "#d99e68");
+      px(ctx, stX, sy + 1, stW, Math.max(1, hd - 1), "#8c512c");
+    }
+    // Little cobblestone walkway stub beneath steps
+    px(ctx, stX + 2, stY + 5 * hd, stW - 4, 2 * hd, "#a89693");
+    px(ctx, stX + 3, stY + 5 * hd, stW - 6, 1, "#c7b5b0");
+  };
+
+  /**
+   * Crown-Jewel Sample-Style Asymmetric Front-Gable + Covered Wooden Porch House!
+   * Directly inspired by the warm golden yellow house in the user's reference artwork.
+   */
+  const drawSampleGablePorchHouse = ({
+    gableOnLeft = true,
+    stonePiers = false,
+    metalRoof = false,
+    boardAndBatten = false,
+    hasPicketFence = false,
+  } = {}) => {
+    const wallH = Math.min(34 * hd, Math.max(18 * hd, Math.floor(bh * 0.50)));
+    const roofH = Math.max(16 * hd, bh - wallH);
+    const wallY = by + roofH;
+    const roofStyle = metalRoof
+      ? { ...style, roofLight: "#595452", roofMain: "#3d3938", roofDark: "#292524" }
+      : style;
+
+    // 1. Full main house wall body with rich 32-bit clapboards (or board-and-batten) & stone foundation
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, style.wallMain);
+    if (boardAndBatten) {
+      for (let sx = bx + 4 * hd; sx < bx + bw - 2; sx += 4 * hd) {
+        px(ctx, sx, wallY, 1, wallH - 3 * hd, style.wallShade);
+      }
+      px(ctx, bx, wallY + wallH - 3 * hd, bw, 3 * hd, "#75655e");
+    } else {
+      drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd);
+    }
+    // Crisp corner trim boards
+    px(ctx, bx, wallY, 2 * hd, wallH - 2 * hd, style.trim);
+    px(ctx, bx + bw - 2 * hd, wallY, 2 * hd, wallH - 2 * hd, style.trimShade);
+
+    // 2. Main shingled horizontal roof across the entire building width (with autumn roof leaf cluster!)
+    const slopeInset = drawShingledRoof(ctx, bx, by, bw, roofH, wallY, roofStyle, 0.14, O, {
+      hd,
+      leafCluster: true,
+      seed: bSeed,
+    });
+    if (metalRoof) {
+      for (let mx = bx + 5 * hd; mx < bx + bw - 5 * hd; mx += 6 * hd) {
+        px(ctx, mx, by + 3 * hd, 1, roofH - 4 * hd, "#24201f");
+      }
+    }
+
+    // 3. Tall Asymmetric Front-Facing Triangular Gable Wing (~46% width) + Covered Front Porch Wing (~54%)!
+    if (bw >= 30 * hd) {
+      const gableW = Math.max(16 * hd, Math.floor(bw * 0.46));
+      const gLeft = gableOnLeft ? bx : bx + bw - gableW;
+      const gMid = gLeft + Math.floor(gableW / 2);
+      const gHalf = Math.floor(gableW / 2);
+      const gH = Math.min(roofH + 3 * hd, Math.max(14 * hd, Math.floor(roofH * 0.96)));
+      const gBaseY = wallY;
+      const clapStep = hd >= 2 ? 4 : 3;
+      const grooveCol = shadeHex(style.wallShade, -26);
+
+      // Brick chimney on the opposite (main shingled roof) wing right above the ridge!
+      const chX = gableOnLeft
+        ? Math.min(bx + bw - slopeInset - 7 * hd, gLeft + gableW + Math.floor((bw - gableW) * 0.45))
+        : Math.max(bx + slopeInset + 2 * hd, gLeft - Math.floor((bw - gableW) * 0.55));
+      drawChimney(ctx, chX, by - 7 * hd, 5 * hd, 8 * hd, O);
+
+      // Tall clapboard front gable triangle with sculpted 3D sunlit-left vs shaded-right bargeboards!
+      const litVerge = shadeHex(roofStyle.roofLight, 16);
+      const shadeVerge = shadeHex(roofStyle.roofDark, -8);
+      for (let gy = 0; gy < gH; gy++) {
+        const halfSpan = Math.max(1, Math.round((gy / Math.max(1, gH - 1)) * gHalf));
+        const rowY = gBaseY - gH + gy;
+        const lx = gMid - halfSpan;
+        const rx = gMid + halfSpan;
+        // Overhanging shingled bargeboards (warm sunlit tan left slope vs deep chestnut shaded right slope!)
+        px(ctx, lx - 4 * hd, rowY, 4 * hd, 1, O);
+        px(ctx, rx, rowY, 4 * hd, 1, O);
+        px(ctx, lx - 3 * hd, rowY, 3 * hd, 1, gy % 4 === 0 ? roofStyle.roofMain : litVerge);
+        px(ctx, rx, rowY, 3 * hd, 1, gy % 4 === 0 ? shadeVerge : roofStyle.roofDark);
+        // Cream rake trim inside verge
+        px(ctx, lx - hd, rowY, hd, 1, style.trim);
+        px(ctx, rx - hd, rowY, hd, 1, style.trimShade);
+        // Clapboard fill inside gable triangle
+        const fillW = Math.max(0, halfSpan * 2 - 2 * hd);
+        if (fillW > 0) {
+          const isGroove = gy % clapStep === clapStep - 1;
+          const isLit = gy % clapStep === 0;
+          px(
+            ctx,
+            lx + hd,
+            rowY,
+            fillW,
+            1,
+            isGroove ? grooveCol : isLit ? style.wallLight : style.wallMain
+          );
+          // Crisp 3D overhang cast shadow tucked diagonally along the sloped gable roof!
+          if (fillW >= 6) {
+            px(ctx, lx + hd, rowY, 3, 1, "rgba(42, 18, 12, 0.28)");
+            px(ctx, rx - hd - 4, rowY, 4, 1, "rgba(42, 18, 12, 0.34)");
+          }
+        }
+      }
+      // Crisp gable apex cap & horizontal eave fascia separating gable from 1st floor
+      px(ctx, gMid - hd, gBaseY - gH - hd, 2 * hd, 2 * hd, O);
+      px(ctx, gLeft - hd, gBaseY - hd, gableW + 2 * hd, hd + 1, O);
+      px(ctx, gLeft, gBaseY - hd, gableW, hd, style.trim);
+      // Vertical trim dividing the gable wing cleanly from the porch wing
+      const splitX = gableOnLeft ? gLeft + gableW : gLeft - hd;
+      px(ctx, splitX, wallY, hd, wallH - 2 * hd, style.trim);
+      px(ctx, splitX + (gableOnLeft ? hd : -1), wallY, 1, wallH - 2 * hd, O);
+
+      // 2nd-story glowing 4-pane window centered inside the tall gable triangle!
+      const upWinW = Math.min(Math.floor(gableW * 0.42), hd >= 2 ? 11 : 6);
+      const upWinH = Math.min(Math.floor(gH * 0.48), hd >= 2 ? 13 : 7);
+      if (upWinW >= 5 && upWinH >= 6 && gH >= 12 * hd) {
+        drawColonialWindow(
+          ctx,
+          gMid - Math.floor(upWinW / 2),
+          gBaseY - upWinH - 4 * hd,
+          style,
+          { shutters: false, winW: upWinW, winH: upWinH, panesX: 2, panesY: 2 },
+          O
+        );
+      }
+
+      // 1st-story large glowing 6-pane window centered on the gable wing wall!
+      const lowWinW = Math.min(gableW - 8 * hd, hd >= 2 ? 14 : 7);
+      const lowWinH = Math.min(wallH - 8 * hd, hd >= 2 ? 16 : 8);
+      if (lowWinW >= 6 && lowWinH >= 6) {
+        drawColonialWindow(
+          ctx,
+          gMid - Math.floor(lowWinW / 2),
+          wallY + Math.max(3 * hd, Math.floor((wallH - lowWinH) / 2) - hd),
+          style,
+          { shutters: false, winW: lowWinW, winH: lowWinH, panesX: 2, panesY: 2 },
+          O
+        );
+      }
+
+      // Covered Front Wooden Porch on the opposite wing!
+      const porchX = gableOnLeft ? gLeft + gableW + hd : bx + hd;
+      const porchW = bw - gableW - 2 * hd;
+      drawCoveredPorchWing(porchX, porchW, wallY, wallH, { stonePiers, wideWindow: true });
+
+      // Clustered multi-size lush green boxwood hedges tucked along foundation corners (straight from the sample!)
+      drawShrub(ctx, gLeft + hd, wallY + wallH - 6 * hd, 10 * hd, 8 * hd);
+      drawShrub(ctx, gLeft + 8 * hd, wallY + wallH - 4 * hd, 7 * hd, 6 * hd);
+      const rightCornerX = gableOnLeft ? bx + bw - 10 * hd : gLeft + gableW - 10 * hd;
+      drawShrub(ctx, rightCornerX, wallY + wallH - 6 * hd, 10 * hd, 8 * hd);
+      drawShrub(ctx, rightCornerX - 5 * hd, wallY + wallH - 4 * hd, 6 * hd, 5 * hd);
+    } else {
+      // Compact narrow cottage lot: centered chimney, covered front porch door & cozy glowing windows!
+      drawChimney(ctx, bx + bw - slopeInset - 6 * hd, by - 5 * hd, 4 * hd, 6 * hd, O);
+      drawCoveredPorchWing(bx + 2 * hd, bw - 4 * hd, wallY, wallH, { stonePiers, wideWindow: false });
+      drawShrub(ctx, bx + hd, wallY + wallH - 5 * hd, 7 * hd, 6 * hd);
+    }
+
+    // Warm cedar wooden picket fence flanking Home Base & select neighborhood yards!
+    if (hasPicketFence && bw >= 38 * hd) {
+      drawPicketFence(ctx, bx - 2 * hd, wallY + wallH - 5 * hd, 12 * hd, 7 * hd);
+      drawPicketFence(ctx, bx + bw - 10 * hd, wallY + wallH - 5 * hd, 12 * hd, 7 * hd);
+      drawMailbox(ctx, midX + 8 * hd, wallY + wallH - 5 * hd);
+    } else if (building.houseNumber && bw >= 36 * hd && (minX + minY) % 3 === 0) {
+      drawMailbox(ctx, bx + bw - 6 * hd, wallY + wallH - 5 * hd);
+    }
+
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  };
+
+  // --- 6A-1. ARTS & CRAFTS BUNGALOW (Front-gable + tapered river-stone porch piers!) ---
+  if (arch === "craftsman") {
+    return drawSampleGablePorchHouse({
+      gableOnLeft: (bSeed & 1) === 0,
+      stonePiers: true,
+    });
+  }
+
+  // --- 6A-2. NEW ENGLAND FARMHOUSE (Board-and-batten + standing-seam roof + full covered porch!) ---
+  if (arch === "farmhouse") {
+    return drawSampleGablePorchHouse({
+      gableOnLeft: (bSeed & 1) === 1,
+      metalRoof: true,
+      boardAndBatten: true,
+    });
+  }
+
+  // --- 6A-3. HISTORIC NEW ENGLAND SALTBOX (Warm gable + sweeping roof + cedar porch!) ---
+  if (arch === "saltbox") {
+    return drawSampleGablePorchHouse({
+      gableOnLeft: (bSeed & 1) === 0,
+      hasPicketFence: (bSeed % 3) === 0,
+    });
+  }
+
+  // --- 6A-4. DUTCH COLONIAL GAMBREL (32-bit HD Two-slope barn roof + full front shed dormer!) ---
+  if (arch === "gambrel") {
+    const wallH = Math.min(30 * hd, Math.max(16 * hd, Math.floor(bh * 0.45)));
+    const roofH = Math.max(18 * hd, bh - wallH);
+    const wallY = by + roofH;
+
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, style.wallMain);
+    drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd);
+    px(ctx, bx, wallY, 2 * hd, wallH - hd, style.trim);
+    px(ctx, bx + bw - 2 * hd, wallY, 2 * hd, wallH - hd, style.trimShade);
+
+    const breakRow = Math.floor(roofH * 0.4);
+    const maxInset = Math.min(Math.floor(bw * 0.25), 11 * hd);
+    for (let row = 0; row < roofH; row++) {
+      let inset;
+      if (row <= breakRow) {
+        const t = row / Math.max(1, breakRow);
+        inset = Math.round(maxInset - t * (maxInset * 0.65));
+      } else {
+        const t = (row - breakRow) / Math.max(1, roofH - 1 - breakRow);
+        inset = Math.round(maxInset * 0.35 * (1 - t));
+      }
+      const rx = bx - 2 * hd + inset;
+      const rw = bw + 4 * hd - inset * 2;
+      const ry = by + row;
+      px(ctx, rx - 1, ry, 1, 1, O);
+      px(ctx, rx + rw, ry, 1, 1, O);
+      if (row === 0) px(ctx, rx, ry - 1, rw, 1, O);
+      px(ctx, rx, ry, rw, 1, row < breakRow ? style.roofLight : row % 4 === 0 ? style.roofDark : style.roofMain);
+      if (row === breakRow) px(ctx, rx + 1, ry, rw - 2, hd, style.roofDark);
+    }
+    px(ctx, bx - 2 * hd, wallY - hd, bw + 4 * hd, hd + 1, O);
+    px(ctx, bx - 2 * hd + 1, wallY - hd, bw + 4 * hd - 2, hd, style.trim);
+
+    // Wide HD Dutch Colonial shed dormer with glowing 2nd-floor windows!
+    if (bw >= 28 * hd && roofH >= 14 * hd) {
+      const dW = Math.max(18 * hd, bw - 14 * hd);
+      const dX = midX - Math.floor(dW / 2);
+      const dH = Math.min(11 * hd, roofH - 5 * hd);
+      const dY = wallY - dH - hd;
+      px(ctx, dX - 1, dY - 1, dW + 2, dH + 2, O);
+      px(ctx, dX, dY, dW, dH, style.wallLight);
+      px(ctx, dX - hd, dY - hd, dW + 2 * hd, 2 * hd, O);
+      px(ctx, dX, dY - hd + 1, dW, hd, style.roofDark);
+      const dwW = hd >= 2 ? 9 : 5;
+      const dwH = Math.min(dH - 3 * hd, hd >= 2 ? 10 : 5);
+      if (dwH >= 4) {
+        for (let wx = dX + 4 * hd; wx + dwW <= dX + dW - 4 * hd; wx += dwW + 5 * hd) {
+          drawColonialWindow(ctx, wx, dY + 2 * hd, style, { shutters: false, winW: dwW, winH: dwH }, O);
+        }
+      }
+    }
+    if (bw >= 24 * hd) drawChimney(ctx, bx + bw - 10 * hd, by - 6 * hd, 5 * hd, 7 * hd, O);
+
+    // Covered center portico + glowing flanking windows + boxwood shrubs
+    const doorW = 6 * hd;
+    const doorH = Math.min(wallH - 4 * hd, 12 * hd);
+    px(ctx, midX - Math.floor(doorW / 2) - 2 * hd, wallY + wallH - doorH - 3 * hd, doorW + 4 * hd, 2 * hd, O);
+    px(ctx, midX - Math.floor(doorW / 2) - hd, wallY + wallH - doorH - 2 * hd, doorW + 2 * hd, hd, style.trim);
+    px(ctx, midX - Math.floor(doorW / 2) - 1, wallY + wallH - doorH - hd, doorW + 2, doorH + hd, O);
+    px(ctx, midX - Math.floor(doorW / 2), wallY + wallH - doorH, doorW, doorH, style.door);
+    px(ctx, midX - Math.floor(doorW / 2) + 2, wallY + wallH - doorH + 2, Math.max(2, doorW - 4), 4 * hd, "#ffe066");
+    px(ctx, midX - Math.floor(doorW / 2) - hd, wallY + wallH, doorW + 2 * hd, 3 * hd, "#d6c5b4");
+    if (bw >= 30 * hd && wallH >= 12 * hd) {
+      const wW = hd >= 2 ? 11 : 6;
+      const wH = hd >= 2 ? 13 : 7;
+      const wy = wallY + Math.max(3 * hd, Math.floor((wallH - wH) / 2) - hd);
+      drawColonialWindow(ctx, bx + 5 * hd, wy, style, { shutters: true, winW: wW, winH: wH }, O);
+      drawColonialWindow(ctx, bx + bw - 5 * hd - wW, wy, style, { shutters: true, winW: wW, winH: wH }, O);
+    }
+    if (bw >= 30 * hd) {
+      drawShrub(ctx, bx + 2 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+      drawShrub(ctx, bx + bw - 10 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+    }
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // --- 6A-5. BOSTON/NEWTON BRICK BROWNSTONE (32-bit HD Cornice + Bowfront Bay + Iron Stoop!) ---
+  if (arch === "brownstone") {
+    const roofH = Math.min(14 * hd, Math.max(8 * hd, Math.floor(bh * 0.24)));
+    const wallH = Math.max(20 * hd, bh - roofH);
+    const wallY = by + roofH;
+    const stoneWall = style.isBrick ? style : HOUSE_COLOR_PRESETS.brick;
+
+    px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
+    px(ctx, bx, by, bw, roofH, "#524442");
+    px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(4, roofH - 4 * hd), "#3d3130");
+    px(ctx, bx - 2 * hd, wallY - 3 * hd, bw + 4 * hd, 4 * hd, O);
+    px(ctx, bx - hd, wallY - 2 * hd, bw + 2 * hd, 2 * hd, "#785a4a");
+
+    px(ctx, bx, wallY + hd, bw, wallH - hd, stoneWall.wallMain);
+    drawWallTexture(ctx, bx, wallY + hd, bw, wallH - hd, stoneWall, hd);
+
+    const bayW = Math.min(Math.floor(bw * 0.48), 22 * hd);
+    const bayX = bx + 3 * hd;
+    if (bayW >= 12 * hd) {
+      px(ctx, bayX - 1, wallY + hd, bayW + 2, wallH - hd, O);
+      px(ctx, bayX, wallY + hd, bayW, wallH - 2 * hd, stoneWall.wallLight);
+      const stories = wallH >= 26 * hd ? 2 : 1;
+      const sh = Math.floor((wallH - 6 * hd) / stories);
+      for (let s = 0; s < stories; s++) {
+        const wy = wallY + 3 * hd + s * sh;
+        const ww = Math.max(4 * hd, Math.floor((bayW - 6 * hd) / 2));
+        const wh = Math.min(sh - 3 * hd, 9 * hd);
+        if (wh >= 5) {
+          drawColonialWindow(ctx, bayX + 2 * hd, wy, stoneWall, { shutters: false, winW: ww, winH: wh }, O);
+          if (bayW >= 18 * hd) {
+            drawColonialWindow(ctx, bayX + bayW - 2 * hd - ww, wy, stoneWall, { shutters: false, winW: ww, winH: wh }, O);
+          }
+        }
+      }
+    }
+    const doorW = 6 * hd;
+    const doorX = bx + bw - Math.max(10 * hd, Math.floor(bw * 0.30));
+    const doorH = Math.min(12 * hd, wallH - 6 * hd);
+    const doorY = wallY + wallH - doorH - 4 * hd;
+    px(ctx, doorX - 1, doorY - 1, doorW + 2, doorH + 2, O);
+    px(ctx, doorX, doorY, doorW, doorH, "#593d30");
+    px(ctx, doorX + 2, doorY + 2, Math.max(2, doorW - 4), Math.max(3, Math.floor(doorH * 0.35)), "#ffe066");
+    for (let st = 0; st < 4; st++) {
+      px(ctx, doorX - hd, wallY + wallH - 4 * hd + st * hd, doorW + 2 * hd, hd, st % 2 === 0 ? "#9c8273" : "#70594d");
+    }
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // --- 6A-6. NEW ENGLAND FIELDSTONE MANOR (32-bit HD Fieldstone + Twin Gables + Glowing Windows!) ---
+  if (arch === "stone_manor") {
+    const wallH = Math.min(34 * hd, Math.max(16 * hd, Math.floor(bh * 0.50)));
+    const roofH = Math.max(16 * hd, bh - wallH);
+    const wallY = by + roofH;
+
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, "#8c7f75");
+    const stoneTones = ["#aba096", "#736860", "#9c9086", "#635954"];
+    for (let sy = wallY + 2; sy < wallY + wallH - 2; sy += 4) {
+      const off = ((sy - wallY) / 4) % 2 === 0 ? 0 : 3;
+      for (let sx = bx + 2 + off; sx < bx + bw - 4; sx += 7) {
+        px(ctx, sx, sy, 6, 3, stoneTones[(sx + sy) % stoneTones.length]);
+      }
+    }
+    const slateRoof = { ...style, roofLight: "#786962", roofMain: "#574a46", roofDark: "#382e2c" };
+    drawShingledRoof(ctx, bx, by, bw, roofH, wallY, slateRoof, 0.15, O, { hd, seed: bSeed });
+
+    if (bw >= 32 * hd) {
+      for (const gCx of [bx + Math.floor(bw * 0.28), bx + Math.floor(bw * 0.72)]) {
+        const gHalf = Math.min(10 * hd, Math.floor(bw * 0.18));
+        const gH = Math.min(14 * hd, roofH - 2 * hd);
+        for (let gy = 0; gy < gH; gy++) {
+          const span = Math.max(1, Math.round((gy / Math.max(1, gH - 1)) * gHalf));
+          const ry = wallY - gH + gy;
+          px(ctx, gCx - span - 2, ry, span * 2 + 4, 1, O);
+          px(ctx, gCx - span, ry, span * 2, 1, "#9c9086");
+        }
+        drawColonialWindow(ctx, gCx - 3 * hd, wallY - 8 * hd, style, { shutters: false, winW: 6 * hd, winH: 6 * hd }, O);
+      }
+    }
+    if (bw >= 24 * hd) drawChimney(ctx, midX - 3 * hd, by - 7 * hd, 6 * hd, 8 * hd, O);
+
+    const doorW = 6 * hd;
+    const doorH = Math.min(wallH - 4 * hd, 12 * hd);
+    px(ctx, midX - Math.floor(doorW / 2) - 2, wallY + wallH - doorH - 2, doorW + 4, doorH + 3, O);
+    px(ctx, midX - Math.floor(doorW / 2), wallY + wallH - doorH, doorW, doorH, "#593420");
+    if (bw >= 30 * hd && wallH >= 12 * hd) {
+      const wW = hd >= 2 ? 11 : 6;
+      const wH = hd >= 2 ? 13 : 7;
+      const wy = wallY + Math.max(3 * hd, Math.floor((wallH - wH) / 2) - hd);
+      drawColonialWindow(ctx, bx + 5 * hd, wy, { ...style, trim: "#d6c5b4" }, { shutters: false, winW: wW, winH: wH }, O);
+      drawColonialWindow(ctx, bx + bw - 5 * hd - wW, wy, { ...style, trim: "#d6c5b4" }, { shutters: false, winW: wW, winH: wH }, O);
+    }
+    drawShrub(ctx, bx + 2 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+    drawShrub(ctx, bx + bw - 10 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // --- 6A. RANCH / SPLIT-LEVEL (32-bit HD Low Hipped Roof + Big Glowing Picture Window + Garage!) ---
+  if (arch === "ranch") {
+    const wallH = Math.min(30 * hd, Math.max(16 * hd, Math.floor(bh * 0.50)));
+    const roofH = Math.max(14 * hd, bh - wallH);
+    const wallY = by + roofH;
+
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, style.wallMain);
+    drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd);
+    px(ctx, bx, wallY, 2 * hd, wallH - hd, style.trim);
+    px(ctx, bx + bw - 2 * hd, wallY, 2 * hd, wallH - hd, style.trimShade);
+
+    drawShingledRoof(ctx, bx, by, bw, roofH, wallY, style, 0.22, O, { hd, seed: bSeed });
+    if (bw >= 24 * hd) drawChimney(ctx, bx + Math.floor(bw * 0.35), by - 5 * hd, 5 * hd, 7 * hd, O);
+
+    const hasGarageBay = bw >= 36 * hd;
+    const garW = hasGarageBay ? Math.min(20 * hd, Math.floor(bw * 0.34)) : 0;
+    const garX = bx + bw - garW - 3 * hd;
+    if (hasGarageBay) {
+      const garH = Math.min(wallH - 4 * hd, 14 * hd);
+      const garY = wallY + wallH - garH;
+      px(ctx, garX - 1, garY - 1, garW + 2, garH + 1, O);
+      px(ctx, garX, garY, garW, garH, style.trim);
+      for (let gy = garY + 4 * hd; gy < garY + garH - 1; gy += 3 * hd) {
+        px(ctx, garX + 1, gy, garW - 2, 1, style.trimShade);
+      }
+      px(ctx, garX, wallY + wallH + 1, garW, 3 * hd, "#b5a39c");
+    }
+
+    const doorW = 6 * hd;
+    const doorX = hasGarageBay ? garX - 10 * hd : midX - Math.floor(doorW / 2);
+    const doorH = Math.min(wallH - 4 * hd, 12 * hd);
+    const doorY = wallY + wallH - doorH - hd;
+    px(ctx, doorX - 1, doorY - 1, doorW + 2, doorH + 2, O);
+    px(ctx, doorX, doorY, doorW, doorH, style.trim);
+    px(ctx, doorX + 1, doorY + 1, doorW - 2, doorH - 1, style.door);
+    px(ctx, doorX - hd, wallY + wallH, doorW + 2 * hd, 3 * hd, "#b87442");
+
+    const picSpace = doorX - (bx + 5 * hd);
+    if (picSpace >= 10 * hd && wallH >= 12 * hd) {
+      const pw = Math.min(18 * hd, picSpace - 2 * hd);
+      const ph = Math.min(wallH - 8 * hd, 10 * hd);
+      const py = wallY + Math.max(3 * hd, Math.floor((wallH - ph) / 2) - hd);
+      drawColonialWindow(ctx, bx + 5 * hd, py, style, { shutters: false, winW: pw, winH: ph, panesX: 3, panesY: 2 }, O);
+    }
+    if (bw >= 30 * hd) drawShrub(ctx, bx + 2 * hd, wallY + wallH - 5 * hd, 9 * hd, 7 * hd);
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // --- 6B. MODERN / CONTEMPORARY CRAFTSMAN (32-bit HD Asymmetric Shed Roof + Warm Cedar & Glowing Glass!) ---
+  if (arch === "modern") {
+    const wallH = Math.min(34 * hd, Math.max(18 * hd, Math.floor(bh * 0.56)));
+    const roofH = Math.max(12 * hd, bh - wallH);
+    const wallY = by + roofH;
+
+    const flip = (minX + minY) % 2 === 1;
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, style.wallMain);
+    const cedarW = Math.max(10 * hd, Math.floor(bw * 0.36));
+    const cedarX = flip ? bx + bw - cedarW : bx;
+    px(ctx, cedarX, wallY, cedarW, wallH - 2 * hd, "#b57442");
+    for (let cx = cedarX + 3; cx < cedarX + cedarW - 1; cx += 4) {
+      px(ctx, cx, wallY, 1, wallH - 2 * hd, "#7d4924");
+    }
+    px(ctx, bx, wallY + wallH - 3 * hd, bw, 3 * hd, "#6b5d56");
+
+    for (let x = 0; x < bw + 6 * hd; x++) {
+      const t = flip ? 1 - x / Math.max(1, bw + 6 * hd - 1) : x / Math.max(1, bw + 6 * hd - 1);
+      const topY = Math.round(by + t * Math.min(10 * hd, roofH - 4 * hd));
+      const colX = bx - 3 * hd + x;
+      const colH = Math.max(4 * hd, wallY - topY);
+      px(ctx, colX, topY - 1, 1, 1, O);
+      px(ctx, colX, topY, 1, colH, x % 8 === 0 ? "#382c2a" : "#524340");
+      px(ctx, colX, wallY - 2 * hd, 1, 2 * hd, "#b87a46");
+    }
+    px(ctx, bx - 3 * hd, wallY, bw + 6 * hd, hd, O);
+
+    const doorW = 7 * hd;
+    const doorH = Math.min(wallH - 4 * hd, 13 * hd);
+    const doorX = flip ? bx + bw - Math.floor(cedarW / 2) - Math.floor(doorW / 2) : bx + Math.floor(cedarW / 2) - Math.floor(doorW / 2);
+    const doorY = wallY + wallH - doorH - hd;
+    px(ctx, doorX - 1, doorY - 1, doorW + 2, doorH + 2, O);
+    px(ctx, doorX, doorY, doorW, doorH, "#3d2820");
+    px(ctx, doorX + 1, doorY + 1, doorW - 2, doorH - 2, "#8c512c");
+    px(ctx, doorX + 3, doorY + 3, Math.max(2, doorW - 6), Math.max(4, doorH - 7), "#ffe066");
+
+    const glassStart = flip ? bx + 4 * hd : bx + cedarW + 4 * hd;
+    const glassEnd = flip ? bx + bw - cedarW - 4 * hd : bx + bw - 4 * hd;
+    const glassW = glassEnd - glassStart;
+    if (glassW >= 10 * hd && wallH >= 12 * hd) {
+      const gh = Math.min(wallH - 8 * hd, 14 * hd);
+      const gy = wallY + Math.max(3 * hd, Math.floor((wallH - gh) / 2));
+      drawColonialWindow(ctx, glassStart, gy, { ...style, trim: "#3d2820", trimShade: "#291a18" }, { shutters: false, winW: glassW, winH: gh, panesX: 3, panesY: 2 }, O);
+    }
+    drawShrub(ctx, bx + 2 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // --- 6C. TUDOR REVIVAL (32-bit HD Steep Timber Cross-Gable + Warm Stucco + Brick Base!) ---
+  if (arch === "tudor") {
+    const wallH = Math.min(34 * hd, Math.max(16 * hd, Math.floor(bh * 0.48)));
+    const roofH = Math.max(16 * hd, bh - wallH);
+    const wallY = by + roofH;
+
+    const stuccoCol = style.isBrick ? "#ebd8bc" : style.wallMain;
+    const timber = "#422719";
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, stuccoCol);
+    const skirtH = Math.max(6 * hd, Math.floor(wallH * 0.36));
+    px(ctx, bx, wallY + wallH - skirtH, bw, skirtH, "#9e3e2f");
+    px(ctx, bx, wallY + wallH - skirtH, bw, hd, timber);
+    px(ctx, bx, wallY, bw, 2 * hd, timber);
+    for (let tx = bx; tx < bx + bw; tx += 8 * hd) {
+      px(ctx, tx, wallY, 2 * hd, wallH - skirtH, timber);
+    }
+    px(ctx, bx + bw - 2 * hd, wallY, 2 * hd, wallH, timber);
+
+    const slopeInset = drawShingledRoof(ctx, bx, by, bw, roofH, wallY, style, 0.16, O, { hd, seed: bSeed });
+    if (bw >= 26 * hd) {
+      const gCx = bx + Math.max(12 * hd, Math.floor(bw * 0.34));
+      const gHalfW = Math.min(15 * hd, Math.floor(bw * 0.28));
+      const gH = Math.min(18 * hd, Math.max(11 * hd, Math.floor(roofH * 0.9)));
+      for (let gy = 0; gy < gH; gy++) {
+        const span = Math.max(1, Math.round((gy / Math.max(1, gH - 1)) * gHalfW));
+        const ry = wallY - gH + gy;
+        px(ctx, gCx - span - 2 * hd, ry, 2 * hd, 1, O);
+        px(ctx, gCx + span, ry, 2 * hd, 1, O);
+        px(ctx, gCx - span - hd, ry, hd, 1, timber);
+        px(ctx, gCx + span, ry, hd, 1, timber);
+        px(ctx, gCx - span, ry, span * 2, 1, "#f2e2c6");
+      }
+      px(ctx, gCx, wallY - gH + 3, hd, gH - 3, timber);
+      px(ctx, gCx - Math.floor(gHalfW * 0.65), wallY - 4 * hd, Math.floor(gHalfW * 1.3), hd, timber);
+      if (gH >= 11 * hd) {
+        drawColonialWindow(ctx, gCx - 4 * hd, wallY - 9 * hd, { ...style, trim: timber }, { shutters: false, winW: 8 * hd, winH: 7 * hd }, O);
+      }
+    }
+    if (bw >= 24 * hd) drawChimney(ctx, bx + bw - slopeInset - 7 * hd, by - 7 * hd, 5 * hd, 8 * hd, O);
+
+    const doorW = 7 * hd;
+    const doorX = bw >= 30 * hd ? bx + Math.floor(bw * 0.62) - Math.floor(doorW / 2) : midX - Math.floor(doorW / 2);
+    const doorH = Math.min(wallH - 4 * hd, 13 * hd);
+    const doorY = wallY + wallH - doorH - hd;
+    px(ctx, doorX - 2, doorY, doorW + 4, doorH + 2, O);
+    px(ctx, doorX, doorY - hd, doorW, 2 * hd, O);
+    px(ctx, doorX - 1, doorY, doorW + 2, doorH + 1, "#d6c5b4");
+    px(ctx, doorX + 1, doorY + 1, doorW - 2, doorH - 1, "#5c341d");
+    px(ctx, doorX - hd, wallY + wallH, doorW + 2 * hd, 3 * hd, "#cfc0b2");
+
+    if (bw >= 28 * hd && wallH >= 12 * hd) {
+      const wW = hd >= 2 ? 12 : 6;
+      const wH = hd >= 2 ? 13 : 7;
+      const winY = wallY + Math.max(3 * hd, Math.floor((wallH - wH) / 2) - hd);
+      drawColonialWindow(ctx, bx + 5 * hd, winY, { ...style, trim: timber }, { shutters: false, winW: wW, winH: wH }, O);
+      if (bx + bw - 5 * hd - wW > doorX + doorW + 3 * hd) {
+        drawColonialWindow(ctx, bx + bw - 5 * hd - wW, winY, { ...style, trim: timber }, { shutters: false, winW: wW, winH: wH }, O);
+      }
+    }
+    if (bw >= 30 * hd) {
+      drawShrub(ctx, bx + 2 * hd, wallY + wallH - 5 * hd, 9 * hd, 7 * hd);
+      drawShrub(ctx, bx + bw - 11 * hd, wallY + wallH - 5 * hd, 9 * hd, 7 * hd);
+    }
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // --- 6D. CAPE COD COTTAGE (32-bit HD Steep Shingled Roof + 2 Glowing Dormers + Flowerboxes!) ---
+  if (arch === "cape") {
+    const wallH = Math.min(28 * hd, Math.max(15 * hd, Math.floor(bh * 0.44)));
+    const roofH = Math.max(18 * hd, bh - wallH);
+    const wallY = by + roofH;
+
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, style.wallMain);
+    drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd);
+    px(ctx, bx, wallY, 2 * hd, wallH - hd, style.trim);
+    px(ctx, bx + bw - 2 * hd, wallY, 2 * hd, wallH - hd, style.trimShade);
+
+    drawShingledRoof(ctx, bx, by, bw, roofH, wallY, style, 0.13, O, { hd, seed: bSeed });
+
+    if (bw >= 22 * hd) drawChimney(ctx, midX - 3 * hd, by - 7 * hd, 6 * hd, 8 * hd, O);
+
+    // Two crisp 32-bit gabled roof dormers with glowing attic windows!
+    if (bw >= 28 * hd && roofH >= 14 * hd) {
+      const dormerXs = [bx + Math.floor(bw * 0.27), bx + Math.floor(bw * 0.73)];
+      const dW = 9 * hd;
+      const dH = 9 * hd;
+      const dormerY = wallY - dH - 2 * hd;
+      for (const dx of dormerXs) {
+        for (let r = 0; r < 4 * hd; r++) {
+          const sp = Math.max(2, Math.round((r / (4 * hd)) * (dW / 2 + 2)));
+          px(ctx, dx - sp - 1, dormerY - 4 * hd + r, sp * 2 + 2, 1, O);
+          px(ctx, dx - sp, dormerY - 4 * hd + r, sp * 2, 1, style.roofDark);
+        }
+        px(ctx, dx - Math.floor(dW / 2) - 1, dormerY, dW + 2, dH + 1, O);
+        px(ctx, dx - Math.floor(dW / 2), dormerY + 1, dW, dH - 1, style.wallLight);
+        drawColonialWindow(
+          ctx,
+          dx - 3 * hd,
+          dormerY + 2 * hd,
+          style,
+          { shutters: false, winW: 6 * hd, winH: 6 * hd },
+          O
+        );
+      }
+    }
+
+    // Center cottage front door with warm porch awning & wooden steps
+    const doorW = 6 * hd;
+    const doorH = Math.min(wallH - 3 * hd, 12 * hd);
+    const doorX = midX - Math.floor(doorW / 2);
+    const doorY = wallY + wallH - doorH - hd;
+    px(ctx, doorX - 2 * hd, doorY - 2 * hd, doorW + 4 * hd, 2 * hd, O);
+    px(ctx, doorX - hd, doorY - hd, doorW + 2 * hd, hd, style.roofDark);
+    px(ctx, doorX - 1, doorY - 1, doorW + 2, doorH + 2, O);
+    px(ctx, doorX, doorY, doorW, doorH, style.trim);
+    px(ctx, doorX + 1, doorY + 1, doorW - 2, doorH - 1, style.door);
+    px(ctx, doorX + 2, doorY + 2, Math.max(2, doorW - 4), 4 * hd, "#ffe066");
+    px(ctx, doorX - hd, wallY + wallH, doorW + 2 * hd, 3 * hd, "#b87442");
+
+    if (bw >= 28 * hd && wallH >= 12 * hd) {
+      const wW = hd >= 2 ? 11 : 6;
+      const wH = hd >= 2 ? 12 : 6;
+      const winY = wallY + Math.max(3 * hd, Math.floor((wallH - wH) / 2) - hd);
+      drawColonialWindow(ctx, bx + 5 * hd, winY, style, { flowerbox: true, shutters: true, winW: wW, winH: wH }, O);
+      drawColonialWindow(ctx, bx + bw - 5 * hd - wW, winY, style, { flowerbox: true, shutters: true, winW: wW, winH: wH }, O);
+    }
+    if (bw >= 30 * hd) {
+      drawShrub(ctx, bx + 2 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+      drawShrub(ctx, bx + bw - 10 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+    }
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // --- 6E. QUEEN ANNE VICTORIAN (32-bit HD Corner Turret + Covered Wooden Veranda Porch!) ---
+  if (arch === "victorian") {
+    const wallH = Math.min(34 * hd, Math.max(18 * hd, Math.floor(bh * 0.50)));
+    const roofH = Math.max(16 * hd, bh - wallH);
+    const wallY = by + roofH;
+
+    px(ctx, bx - 1, wallY - 1, bw + 2, wallH + 2, O);
+    px(ctx, bx, wallY, bw, wallH, style.wallMain);
+    drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd);
+    px(ctx, bx, wallY, 2 * hd, wallH - hd, style.trim);
+    px(ctx, bx + bw - 2 * hd, wallY, 2 * hd, wallH - hd, style.trimShade);
+
+    drawShingledRoof(ctx, bx, by, bw, roofH, wallY, style, 0.15, O, { hd, seed: bSeed });
+
+    const turretRight = (minX + minY) % 2 === 0;
+    const hasTurret = bw >= 30 * hd;
+    const turW = 14 * hd;
+    const turX = turretRight ? bx + bw - turW + hd : bx - hd;
+    if (hasTurret) {
+      px(ctx, turX - 1, wallY - 3 * hd, turW + 2, wallH + 4 * hd, O);
+      px(ctx, turX, wallY - 2 * hd, turW, wallH + 2 * hd, style.wallLight);
+      px(ctx, turX + turW - 3 * hd, wallY - 2 * hd, 3 * hd, wallH + 2 * hd, style.wallShade);
+      const spireH = Math.min(18 * hd, roofH + 5 * hd);
+      const tMid = turX + Math.floor(turW / 2);
+      for (let sy = 0; sy < spireH; sy++) {
+        const half = Math.max(1, Math.round((sy / Math.max(1, spireH - 1)) * (turW / 2 + 2)));
+        const ry = wallY - 2 * hd - spireH + sy;
+        px(ctx, tMid - half - 1, ry, half * 2 + 2, 1, O);
+        px(ctx, tMid - half, ry, half * 2, 1, sy % 4 === 0 ? style.roofDark : style.roofMain);
+      }
+      px(ctx, tMid, wallY - 5 * hd - spireH, hd, 4 * hd, "#ffe066");
+      drawColonialWindow(ctx, turX + 2 * hd, wallY + 3 * hd, style, { shutters: false, winW: 4 * hd, winH: 8 * hd }, O);
+      drawColonialWindow(ctx, turX + turW - 6 * hd, wallY + 3 * hd, style, { shutters: false, winW: 4 * hd, winH: 8 * hd }, O);
+    }
+
+    const porchStart = hasTurret && !turretRight ? turX + turW + hd : bx + 2 * hd;
+    const porchEnd = hasTurret && turretRight ? turX - hd : bx + bw - 2 * hd;
+    drawCoveredPorchWing(porchStart, porchEnd - porchStart, wallY, wallH, { wideWindow: true });
+
+    drawShrub(ctx, hasTurret ? turX + 2 * hd : bx + 2 * hd, wallY + wallH - 5 * hd, 9 * hd, 7 * hd);
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // --- 6F. CLASSIC NEW ENGLAND COLONIAL & HOME BASE (565 BOYLSTON ST!) ---
+  // Exact Sample-Style Warm Yellow Clapboard Front-Gable + Covered Cedar Porch + Roof Leaves + Picket Fence!
+  return drawSampleGablePorchHouse({
+    gableOnLeft: building.isHomeBase ? true : (bSeed & 1) === 0,
+    hasPicketFence: Boolean(building.isHomeBase) || (bSeed % 4) === 0,
+  });
+}
+
+/**
+ * Bake a 32-bit 2.5D Pixel-Stacked Building (4 crisp horizontal height slices:
+ * foundation/wall, eaves, mid-roof, roof-ridge + chimney) so buildings smoothly
+ * extrude upward toward the player's POV from ANY rotation angle in Hard Mode!
+ * 100% pure discrete pixels (zero 3D polygons), preserving every real house color!
+ */
+export function bake32BitHouseStack(building, tileSize = 16, colorOverrideMap = {}) {
+  const hdTile = tileSize * 2; // 32 native pixels per tile (__pixelScale = 0.5)
+  const { minX, minY, maxX, maxY } = building.bounds;
+  const footW = (maxX - minX + 1) * hdTile;
+  const footH = (maxY - minY + 1) * hdTile;
+  const style = resolveHouseStyle(building, colorOverrideMap);
+  const kind = style.overrideKind || building.kind || "house";
+  const O = "#291a18";
+  const inset = 3;
+  const bw = Math.max(18, footW - inset * 2);
+  const bh = Math.max(18, footH - inset * 2);
+
+  const makeSlice = () => {
+    const res = makeCanvas(footW, footH);
+    res.canvas.__pixelScale = 0.5;
+    return res;
+  };
+
+  // --- Slice 1: Perimeter Wall Layer (all 4 facades with siding & radiant golden windows!) ---
+  const wall = makeSlice();
+  {
+    const c = wall.ctx;
+    px(c, inset - 1, inset - 1, bw + 2, bh + 2, O);
+    px(c, inset, inset, bw, bh, style.wallMain);
+    px(c, inset, inset, bw, 3, style.wallLight);
+    px(c, inset, inset, 3, bh, style.wallLight);
+    px(c, inset, inset + bh - 3, bw, 3, style.wallShade);
+    px(c, inset + bw - 3, inset, 3, bh, style.wallShade);
+    const winStep = 14;
+    for (let wx = inset + 6; wx <= inset + bw - 10; wx += winStep) {
+      px(c, wx, inset, 7, 3, O);
+      px(c, wx + 1, inset, 5, 2, "#ffe066");
+      px(c, wx + 2, inset, 3, 1, "#fff8c7");
+      px(c, wx, inset + bh - 3, 7, 3, O);
+      px(c, wx + 1, inset + bh - 2, 5, 2, "#ffe066");
+      px(c, wx + 2, inset + bh - 2, 3, 1, "#fff8c7");
+    }
+    for (let wy = inset + 6; wy <= inset + bh - 10; wy += winStep) {
+      px(c, inset, wy, 3, 7, O);
+      px(c, inset, wy + 1, 2, 5, "#ffe066");
+      px(c, inset + bw - 3, wy, 3, 7, O);
+      px(c, inset + bw - 2, wy + 1, 2, 5, "#ffe066");
+    }
+    px(c, inset, inset, 3, 3, style.trim);
+    px(c, inset + bw - 3, inset, 3, 3, style.trim);
+    px(c, inset, inset + bh - 3, 3, 3, style.trim);
+    px(c, inset + bw - 3, inset + bh - 3, 3, 3, style.trim);
+  }
+
+  // --- Slice 2: Overhanging Eaves & Staggered 32-Bit Wooden Shingle Roof Skirt ---
+  const eaves = makeSlice();
+  {
+    const c = eaves.ctx;
+    const ex = Math.max(1, inset - 2);
+    const ey = Math.max(1, inset - 2);
+    const ew = footW - ex * 2;
+    const eh = footH - ey * 2;
+    px(c, ex - 1, ey - 1, ew + 2, eh + 2, O);
+    px(c, ex, ey, ew, eh, style.trim);
+    px(c, ex + 2, ey + 2, Math.max(4, ew - 4), Math.max(4, eh - 4), style.roofDark);
+    px(c, ex + 3, ey + 3, Math.max(4, ew - 6), Math.max(4, eh - 6), style.roofMain);
+    for (let sy = ey + 5; sy < ey + eh - 4; sy += 4) {
+      px(c, ex + 3, sy, Math.max(2, ew - 6), 1, style.roofDark);
+      for (let sx = ex + 4 + ((sy / 4) % 2) * 3; sx < ex + ew - 5; sx += 6) {
+        px(c, sx, sy - 2, 4, 2, (sx + sy) % 3 === 0 ? style.roofLight : style.roofMain);
+        px(c, sx + 4, sy - 2, 1, 2, style.roofDark);
+      }
+    }
+  }
+
+  // --- Slice 3: Inset Upper Pitched Shingled Roof + Autumn Leaves ---
+  const roof = makeSlice();
+  {
+    const c = roof.ctx;
+    const isFlatCommercial = kind === "commercial" || kind === "office_plaza" || kind === "apartments" || kind === "fire_station";
+    const rx = inset + (isFlatCommercial ? 1 : Math.min(8, Math.floor(bw * 0.16)));
+    const ry = inset + (isFlatCommercial ? 1 : Math.min(8, Math.floor(bh * 0.16)));
+    const rw = Math.max(8, footW - rx * 2);
+    const rh = Math.max(8, footH - ry * 2);
+    px(c, rx - 1, ry - 1, rw + 2, rh + 2, O);
+    px(c, rx, ry, rw, rh, style.roofMain);
+    px(c, rx + 1, ry + 1, Math.max(4, rw - 2), Math.max(4, Math.floor(rh * 0.5)), style.roofLight);
+    for (let sy = ry + 4; sy < ry + rh - 2; sy += 4) {
+      px(c, rx + 1, sy, Math.max(2, rw - 2), 1, style.roofDark);
+      for (let sx = rx + 2 + ((sy / 4) % 2) * 3; sx < rx + rw - 3; sx += 6) {
+        px(c, sx, sy - 2, 4, 2, (sx + sy) % 3 === 0 ? style.roofLight : style.roofMain);
+        px(c, sx + 4, sy - 2, 1, 2, style.roofDark);
+      }
+    }
+    if (!isFlatCommercial && rw >= 26 && rh >= 20) {
+      drawRoofLeafCluster(c, rx + Math.floor(rw * 0.35), ry + Math.floor(rh * 0.65), minX + minY);
+    }
+  }
+
+  // --- Slice 4: Roof Ridge Cap, Brick Chimney & Optional Home Base Badge ---
+  const ridge = makeSlice();
+  {
+    const c = ridge.ctx;
+    const isWide = bw >= bh;
+    const rx = inset + Math.min(14, Math.floor(bw * (isWide ? 0.22 : 0.36)));
+    const ry = inset + Math.min(14, Math.floor(bh * (isWide ? 0.36 : 0.22)));
+    const rw = Math.max(6, footW - rx * 2);
+    const rh = Math.max(6, footH - ry * 2);
+    px(c, rx - 1, ry - 1, rw + 2, rh + 2, O);
+    px(c, rx, ry, rw, rh, style.roofLight);
+    if (isWide) {
+      px(c, rx + 1, Math.floor(footH / 2) - 1, Math.max(2, rw - 2), 2, "#f2e2c4");
+    } else {
+      px(c, Math.floor(footW / 2) - 1, ry + 1, 2, Math.max(2, rh - 2), "#f2e2c4");
+    }
+    const chX = Math.max(rx + 2, Math.min(rx + rw - 9, Math.floor(footW * 0.68)));
+    const chY = Math.max(ry + 2, Math.min(ry + rh - 9, Math.floor(footH * 0.32)));
+    px(c, chX - 1, chY - 1, 9, 9, O);
+    px(c, chX, chY, 7, 7, "#9c4333");
+    px(c, chX + 1, chY + 1, 5, 5, "#36221e");
+    px(c, chX, chY, 7, 1, "#d6c5b4");
+    // Home Base golden star marker on roof so Liam can spot 565 Boylston St from any angle!
+    if (building.isHomeBase) {
+      const mx = Math.floor(footW / 2);
+      const my = Math.floor(footH / 2);
+      px(c, mx - 5, my - 5, 10, 10, O);
+      px(c, mx - 4, my - 4, 8, 8, "#24573d");
+      px(c, mx - 2, my - 2, 4, 4, "#f7dc6f");
+      px(c, mx - 1, my - 1, 2, 2, "#ffffff");
+    }
+  }
+
+  return {
+    layers: [wall.canvas, eaves.canvas, roof.canvas, ridge.canvas],
+    isTall: kind === "apartments" || kind === "school" || kind === "library" || kind === "civic" || kind === "office_plaza",
+  };
 }
 
 /**
  * Generate the full high-craft 16-bit SNES pixel-art tile, prop & hero sprite atlas.
  */
-export function buildSnesSpriteAtlas(paletteName = "snes_classic") {
-  const P = PALETTES[paletteName] || PALETTES.snes_classic;
+export function buildSnesSpriteAtlas(paletteName = "autumn_golden") {
+  const P = PALETTES[paletteName] || PALETTES.autumn_golden;
   const sprites = {};
 
-  // --- 1. Grass & Wildflower Tiles ---
-  for (let v = 0; v < 2; v++) {
+  // --- 1. Residential Lawn Grass & Wildflower Tiles (3 organic variants) ---
+  for (let v = 0; v < 3; v++) {
     const { canvas, ctx } = makeCanvas(16, 16);
     px(ctx, 0, 0, 16, 16, P.grassBase);
     if (v === 0) {
@@ -913,12 +2748,19 @@ export function buildSnesSpriteAtlas(paletteName = "snes_classic") {
       px(ctx, 12, 9, 1, 2, P.grassLight);
       px(ctx, 6, 13, 2, 1, P.grassMid);
       px(ctx, 13, 3, 2, 1, P.grassMid);
-    } else {
+    } else if (v === 1) {
       px(ctx, 4, 8, 2, 1, P.grassLight);
       px(ctx, 5, 7, 1, 2, P.grassLight);
       px(ctx, 10, 3, 2, 1, P.grassMid);
       px(ctx, 1, 13, 2, 1, P.grassMid);
       px(ctx, 12, 13, 2, 1, P.grassLight);
+    } else {
+      // Subtle clover patch & darker shade blades
+      px(ctx, 3, 11, 2, 2, P.grassMid);
+      px(ctx, 4, 10, 1, 1, P.grassLight);
+      px(ctx, 11, 4, 2, 1, P.grassDark);
+      px(ctx, 9, 13, 2, 1, P.grassLight);
+      px(ctx, 14, 9, 1, 2, P.grassMid);
     }
     sprites[`grass_${v}`] = canvas;
   }
@@ -926,7 +2768,6 @@ export function buildSnesSpriteAtlas(paletteName = "snes_classic") {
   for (let f = 0; f < 2; f++) {
     const { canvas, ctx } = makeCanvas(16, 16);
     px(ctx, 0, 0, 16, 16, P.grassBase);
-    // Tiny white & golden daisies
     px(ctx, 3 + f, 5, 1, 2, P.grassDark);
     px(ctx, 2 + f, 4, 3, 2, "#fff9ec");
     px(ctx, 3 + f, 4, 1, 1, "#f4c430");
@@ -934,6 +2775,114 @@ export function buildSnesSpriteAtlas(paletteName = "snes_classic") {
     px(ctx, 10 - f, 10, 3, 2, "#ffe066");
     px(ctx, 11 - f, 10, 1, 1, "#e76f51");
     sprites[`grass_flower_${f}`] = canvas;
+  }
+
+  // --- 1b. Manicured Public Park & Athletic Field Turf (2 mowed-stripe shades + dandelions) ---
+  for (let v = 0; v < 2; v++) {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    const turf = v === 0 ? P.parkStripeLight : P.parkStripeDark;
+    const accent = v === 0 ? P.parkHighlight : P.parkBase;
+    const shade = v === 0 ? P.parkBase : P.parkShadow;
+    px(ctx, 0, 0, 16, 16, turf);
+    // Crisp finely manicured short turf speckles (distinct from residential yard grass)
+    px(ctx, 2, 2, 2, 1, accent);
+    px(ctx, 9, 5, 2, 1, accent);
+    px(ctx, 5, 11, 2, 1, accent);
+    px(ctx, 12, 13, 2, 1, shade);
+    px(ctx, 3, 14, 2, 1, shade);
+    px(ctx, 13, 3, 1, 1, shade);
+    sprites[`park_${v}`] = canvas;
+  }
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    px(ctx, 0, 0, 16, 16, P.parkStripeLight);
+    px(ctx, 4 + f, 6, 1, 2, P.parkShadow);
+    px(ctx, 3 + f, 5, 3, 1, "#ffe666");
+    px(ctx, 11 - f, 11, 1, 2, P.parkShadow);
+    px(ctx, 10 - f, 10, 2, 2, "#fff5cc");
+    sprites[`park_flower_${f}`] = canvas;
+  }
+
+  // --- 1b-spooky. Haunted Mossy Graveyard Turf (eerie indigo-moss grass, fallen leaves & nightshade!) ---
+  for (let v = 0; v < 2; v++) {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    const turf = v === 0 ? "#3f5b4f" : "#375148";
+    const light = v === 0 ? "#537364" : "#49685b";
+    const dark = "#2a3e38";
+    px(ctx, 0, 0, 16, 16, turf);
+    px(ctx, 2, 3, 2, 1, light);
+    px(ctx, 10, 8, 2, 1, light);
+    px(ctx, 5, 13, 2, 1, dark);
+    px(ctx, 12, 3, 2, 1, dark);
+    if (v === 1) {
+      // Subtle fallen autumn leaf & tiny mossy stone speck
+      px(ctx, 7, 5, 2, 1, "#7c5c46");
+      px(ctx, 3, 11, 1, 1, "#6b7382");
+    }
+    sprites[`grave_grass_${v}`] = canvas;
+  }
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    px(ctx, 0, 0, 16, 16, "#3f5b4f");
+    // Glowing lavender nightshade blossom & tiny pale toadstool mushroom!
+    px(ctx, 3 + f, 6, 1, 2, "#243630");
+    px(ctx, 2 + f, 4, 3, 2, "#9a7be0");
+    px(ctx, 3 + f, 4, 1, 1, "#d9c7ff");
+    px(ctx, 11, 11, 2, 2, "#d8d4e0");
+    px(ctx, 10, 10, 4, 2, "#875fa8");
+    px(ctx, 11, 10, 1, 1, "#e8dcff");
+    sprites[`grave_flower_${f}`] = canvas;
+  }
+
+  // --- 1c. Dirt Trails, Baseball Infields & Packed Earth (3 organic variants) ---
+  for (let v = 0; v < 3; v++) {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    px(ctx, 0, 0, 16, 16, P.dirtBase);
+    // Warm sunlit dry-dust patches & earthy ruts
+    px(ctx, 1, 2, 5, 2, P.dirtLight);
+    px(ctx, 9, 9, 5, 2, P.dirtLight);
+    px(ctx, 2, 11, 4, 2, P.dirtMid);
+    px(ctx, 10, 3, 4, 2, P.dirtMid);
+    px(ctx, 6, 6, 3, 1, P.dirtDark);
+    if (v === 1) {
+      px(ctx, 4, 4, 2, 1, P.dirtDark);
+      px(ctx, 12, 13, 3, 1, P.dirtDark);
+      px(ctx, 7, 12, 2, 1, P.dirtLight);
+    } else if (v === 2) {
+      // Crisp tiny trail pebbles with 1px shadow!
+      px(ctx, 4, 5, 2, 2, P.dirtDark);
+      px(ctx, 4, 5, 2, 1, P.dirtPebble);
+      px(ctx, 11, 11, 2, 2, P.dirtDark);
+      px(ctx, 11, 11, 1, 1, P.dirtPebble);
+      px(ctx, 12, 4, 1, 1, P.dirtPebble);
+    }
+    sprites[v === 2 ? "dirt_pebble" : `dirt_${v}`] = canvas;
+  }
+
+  // --- 1d. Sunlit Beach Sand & Playground Sand (3 organic variants) ---
+  for (let v = 0; v < 3; v++) {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    px(ctx, 0, 0, 16, 16, P.sandBase);
+    // Soft wind-blown sand ripples
+    px(ctx, 1, 3, 6, 1, P.sandLight);
+    px(ctx, 2, 4, 5, 1, P.sandMid);
+    px(ctx, 8, 10, 6, 1, P.sandLight);
+    px(ctx, 9, 11, 5, 1, P.sandMid);
+    if (v === 0) {
+      px(ctx, 12, 3, 2, 1, P.sandSparkle);
+      px(ctx, 4, 13, 2, 1, P.sandLight);
+    } else if (v === 1) {
+      px(ctx, 3, 8, 4, 1, P.sandLight);
+      px(ctx, 4, 9, 3, 1, P.sandMid);
+      px(ctx, 13, 14, 1, 1, P.sandSparkle);
+    } else {
+      // Tiny sunlit seashell & pebble glints!
+      px(ctx, 5, 6, 2, 2, P.sandWet);
+      px(ctx, 5, 6, 2, 1, "#fff3e6");
+      px(ctx, 11, 5, 1, 1, P.sandSparkle);
+      px(ctx, 10, 13, 2, 1, "#e6b89c");
+    }
+    sprites[v === 2 ? "sand_shell" : `sand_${v}`] = canvas;
   }
 
   // --- 2. Tall Grass (2 swaying frames) ---
@@ -957,19 +2906,16 @@ export function buildSnesSpriteAtlas(paletteName = "snes_classic") {
     sprites[`tall_grass_${f}`] = canvas;
   }
 
-  // --- 3. Cobblestone Sidewalk Base (2 subtle variants) ---
+  // --- 3. Cobblestone / Concrete Sidewalk Base (2 subtle variants) ---
   for (let v = 0; v < 2; v++) {
     const { canvas, ctx } = makeCanvas(16, 16);
     px(ctx, 0, 0, 16, 16, P.sidewalkBase);
-    // Warm top-left slab bevel highlights
     px(ctx, 1, 1, 6, 1, P.sidewalkLight);
     px(ctx, 9, 1, 6, 1, P.sidewalkLight);
     px(ctx, 1, 9, 6, 1, P.sidewalkLight);
     px(ctx, 9, 9, 6, 1, P.sidewalkLight);
-    // Subtle slab shade
     px(ctx, 1, 6, 6, 1, P.sidewalkMid);
     px(ctx, 9, 14, 6, 1, P.sidewalkMid);
-    // Crisp stone mortar lines
     px(ctx, 0, 7, 16, 1, P.sidewalkMortar);
     px(ctx, 0, 15, 16, 1, P.sidewalkMortar);
     px(ctx, 7, 0, 1, 8, P.sidewalkMortar);
@@ -983,19 +2929,84 @@ export function buildSnesSpriteAtlas(paletteName = "snes_classic") {
     sprites[`sidewalk_${v}`] = canvas;
   }
 
-  // --- 4. Clean Asphalt Bases (Auto-tiled markings layered cleanly in main.js) ---
-  for (const [key, baseCol, darkCol] of [
-    ["road_main_base", P.roadMain, P.roadMainDark],
-    ["road_res_base", P.roadRes, P.roadResDark],
-  ]) {
+  // --- 4. Distinct Road Surfaces: Neighborhood Street vs Town Avenue vs Major Highway ---
+  // Neighborhood Street (lighter weathered gray asphalt with fine aggregate)
+  for (let v = 0; v < 2; v++) {
     const { canvas, ctx } = makeCanvas(16, 16);
-    px(ctx, 0, 0, 16, 16, baseCol);
-    // Subtle asphalt texture pixels
-    px(ctx, 2, 3, 2, 1, darkCol);
-    px(ctx, 11, 12, 2, 1, darkCol);
-    px(ctx, 13, 4, 1, 1, "#5d6575");
-    px(ctx, 5, 13, 1, 1, "#5d6575");
-    sprites[key] = canvas;
+    px(ctx, 0, 0, 16, 16, P.roadRes);
+    px(ctx, 2, 3, 2, 1, P.roadResDark);
+    px(ctx, 10, 11, 2, 1, P.roadResDark);
+    px(ctx, 12, 4, 1, 1, P.roadResLight);
+    px(ctx, 4, 13, 1, 1, P.roadResLight);
+    if (v === 1) {
+      // Subtle neighborhood street hairline seam
+      px(ctx, 6, 7, 3, 1, P.roadResDark);
+      px(ctx, 8, 8, 2, 1, P.roadResDark);
+    }
+    sprites[`road_res_base_${v}`] = canvas;
+  }
+  sprites.road_res_base = sprites.road_res_base_0;
+
+  // Town Avenue / Main Road (darker slate asphalt)
+  {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    px(ctx, 0, 0, 16, 16, P.roadMain);
+    px(ctx, 2, 3, 2, 1, P.roadMainDark);
+    px(ctx, 11, 12, 2, 1, P.roadMainDark);
+    px(ctx, 13, 4, 1, 1, "#555d6e");
+    px(ctx, 5, 13, 1, 1, "#555d6e");
+    sprites.road_main_base = canvas;
+  }
+
+  // Major State Highway (deep charcoal heavy asphalt with subtle tire-track sheen!)
+  for (let v = 0; v < 2; v++) {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    px(ctx, 0, 0, 16, 16, P.highwayBase);
+    // Subtle dual tire-wear sheen bands
+    px(ctx, 0, 4, 16, 2, P.highwayTrack);
+    px(ctx, 0, 10, 16, 2, P.highwayTrack);
+    px(ctx, v === 0 ? 3 : 9, 2, 2, 1, P.highwayDark);
+    px(ctx, v === 0 ? 11 : 4, 13, 2, 1, P.highwayDark);
+    px(ctx, 7, 7, 1, 1, "#454d5c");
+    sprites[`highway_base_${v}`] = canvas;
+  }
+
+  // Divided Highway Concrete Jersey Median Barrier (E-W horizontal & N-S vertical!)
+  {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    px(ctx, 0, 0, 16, 16, P.highwayBase);
+    // Crisp double yellow lines flanking both sides of the median barrier
+    px(ctx, 0, 1, 16, 1, P.highwayYellow);
+    px(ctx, 0, 14, 16, 1, P.highwayYellow);
+    // Cast barrier shadow onto lower asphalt
+    px(ctx, 0, 12, 16, 2, P.highwayDark);
+    // 3D Concrete Jersey Barrier with dark pixel outline, sunlit top cap & sloped concrete face!
+    px(ctx, 0, 3, 16, 9, P.outline);
+    px(ctx, 0, 4, 16, 2, "#e4e8ee"); // sunlit top cap
+    px(ctx, 0, 6, 16, 3, "#b7c0cc"); // upper sloped face
+    px(ctx, 0, 9, 16, 2, "#7f8896"); // lower shaded base
+    // Concrete block expansion seam + bright amber highway reflector!
+    px(ctx, 0, 4, 1, 7, "#646d7a");
+    px(ctx, 7, 4, 3, 2, P.outline);
+    px(ctx, 8, 4, 1, 2, "#ffd54f");
+    sprites.highway_median_h = canvas;
+  }
+  {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    px(ctx, 0, 0, 16, 16, P.highwayBase);
+    // Crisp vertical double yellow lines flanking both sides
+    px(ctx, 1, 0, 1, 16, P.highwayYellow);
+    px(ctx, 14, 0, 1, 16, P.highwayYellow);
+    px(ctx, 12, 0, 2, 16, P.highwayDark);
+    // 3D Vertical Concrete Jersey Barrier
+    px(ctx, 3, 0, 9, 16, P.outline);
+    px(ctx, 4, 0, 2, 16, "#e4e8ee");
+    px(ctx, 6, 0, 3, 16, "#b7c0cc");
+    px(ctx, 9, 0, 2, 16, "#7f8896");
+    px(ctx, 4, 0, 7, 1, "#646d7a");
+    px(ctx, 4, 7, 2, 3, P.outline);
+    px(ctx, 4, 8, 2, 1, "#ffd54f");
+    sprites.highway_median_v = canvas;
   }
 
   // --- 5. Direction-Aware Zebra Crosswalks (Horizontal & Vertical!) ---
@@ -1068,20 +3079,33 @@ export function buildSnesSpriteAtlas(paletteName = "snes_classic") {
     sprites[car.name] = canvas;
   }
 
-  // --- 6. Shimmering Water (2 frames) ---
+  // --- 6. Multi-Depth Shimmering Water (Deep Sapphire & Shallow Turquoise Shore!) ---
   for (let f = 0; f < 2; f++) {
     const { canvas, ctx } = makeCanvas(16, 16);
     px(ctx, 0, 0, 16, 16, P.waterMid);
-    px(ctx, 0, 12, 16, 4, P.waterDeep);
+    px(ctx, 0, 11, 16, 5, P.waterDeep);
+    px(ctx, 0, 0, 16, 2, P.waterDeep);
     const sx = f === 0 ? 2 : 6;
     px(ctx, sx, 4, 5, 1, P.waterLight);
     px(ctx, sx + 1, 4, 3, 1, P.waterShimmer);
     px(ctx, (sx + 7) % 12, 10, 4, 1, P.waterLight);
     px(ctx, (sx + 8) % 12, 10, 2, 1, P.waterShimmer);
+    sprites[`water_deep_${f}`] = canvas;
     sprites[`water_${f}`] = canvas;
   }
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeCanvas(16, 16);
+    px(ctx, 0, 0, 16, 16, P.waterShallow);
+    px(ctx, 0, 12, 16, 4, P.waterMid);
+    const sx = f === 0 ? 1 : 5;
+    px(ctx, sx, 3, 6, 1, P.waterShallowLight);
+    px(ctx, sx + 2, 3, 2, 1, P.waterShimmer);
+    px(ctx, (sx + 6) % 11, 9, 5, 1, P.waterShallowLight);
+    px(ctx, (sx + 8) % 11, 9, 2, 1, P.waterShimmer);
+    sprites[`water_shallow_${f}`] = canvas;
+  }
 
-  // --- 7. Lush 24x28 16-Bit SNES Oak Tree (matching style_1_snes_16bit!) ---
+  // --- 7. Lush 24x28 16-Bit SNES Oak Tree + New England Evergreen Pine + Park Bench + Shore Reeds ---
   {
     const { canvas, ctx } = makeCanvas(24, 28);
     // Oval ground shadow
@@ -1124,6 +3148,613 @@ export function buildSnesSpriteAtlas(paletteName = "snes_classic") {
     px(ctx, 5, 7, 3, 2, P.treeHighlight);
     px(ctx, 10, 9, 2, 2, P.treeHighlight);
     sprites.tree_oak = canvas;
+  }
+
+  // New England Evergreen Pine Tree (22x30) for woods & parks
+  {
+    const { canvas, ctx } = makeCanvas(22, 30);
+    px(ctx, 5, 25, 12, 4, "rgba(16, 30, 18, 0.36)");
+    px(ctx, 8, 20, 6, 7, P.treeOutline);
+    px(ctx, 9, 21, 4, 5, P.treeTrunk);
+    px(ctx, 10, 21, 1, 5, P.treeTrunkLight);
+
+    // 3 layered jagged evergreen bough tiers
+    const tiers = [
+      { y: 14, halfW: 9, h: 8 },
+      { y: 8, halfW: 7, h: 8 },
+      { y: 2, halfW: 5, h: 8 },
+    ];
+    for (const tier of tiers) {
+      for (let r = 0; r < tier.h; r++) {
+        const span = Math.max(1, Math.round(((r + 1) / tier.h) * tier.halfW));
+        const ry = tier.y + r;
+        px(ctx, 11 - span - 1, ry, span * 2 + 2, 1, P.treeOutline);
+        px(ctx, 11 - span, ry, span * 2, 1, r >= tier.h - 2 ? P.pineDark : P.pineMid);
+        if (r < tier.h - 2) {
+          px(ctx, 11 - span, ry, Math.max(1, Math.floor(span * 1.1)), 1, P.pineLight);
+        }
+        if (r === 1 || r === 2) {
+          px(ctx, 11 - Math.max(1, span - 1), ry, Math.max(1, Math.floor(span * 0.6)), 1, P.pineHighlight);
+        }
+      }
+    }
+    px(ctx, 10, 1, 2, 1, P.treeOutline);
+    sprites.tree_pine = canvas;
+  }
+
+  // Park Bench (16x12 wooden slats & dark-iron legs)
+  {
+    const { canvas, ctx } = makeCanvas(16, 12);
+    px(ctx, 2, 9, 12, 2, "rgba(16, 26, 18, 0.35)");
+    px(ctx, 1, 2, 14, 7, P.outline);
+    px(ctx, 2, 3, 12, 2, "#b57c46");
+    px(ctx, 2, 3, 12, 1, "#d99e62");
+    px(ctx, 2, 6, 12, 2, "#9c6638");
+    px(ctx, 2, 6, 12, 1, "#c4884d");
+    // Iron armrests & legs
+    px(ctx, 2, 3, 1, 7, "#2a3038");
+    px(ctx, 13, 3, 1, 7, "#2a3038");
+    sprites.park_bench = canvas;
+  }
+
+  // Lakeside Cattail Reeds (12x16) for natural water/sand shores
+  {
+    const { canvas, ctx } = makeCanvas(12, 16);
+    px(ctx, 2, 12, 8, 2, "rgba(16, 30, 18, 0.25)");
+    px(ctx, 3, 6, 1, 8, "#2a6934");
+    px(ctx, 5, 4, 1, 10, "#3f8c3e");
+    px(ctx, 8, 5, 1, 9, "#2a6934");
+    px(ctx, 6, 7, 1, 7, "#6bb84d");
+    // Brown cattail heads!
+    px(ctx, 4, 3, 3, 4, P.outline);
+    px(ctx, 5, 4, 1, 2, "#7a4626");
+    px(ctx, 7, 4, 3, 4, P.outline);
+    px(ctx, 8, 5, 1, 2, "#7a4626");
+    sprites.shore_reed = canvas;
+  }
+
+  // --- 7b. 16-Bit SNES Park Athletic Props (Basketball Hoops, Soccer Goals, Baseball Backstop, Swings & Slide!) ---
+  // Left-facing & right-facing Basketball Hoops (for full courts) + top hoop (for half-courts)
+  for (const side of ["left", "right"]) {
+    const { canvas, ctx } = makeCanvas(16, 26);
+    const isLeft = side === "left";
+    const poleX = isLeft ? 2 : 12;
+    const armX = isLeft ? 4 : 5;
+    const boardX = isLeft ? 7 : 6;
+    const rimX = isLeft ? 10 : 2;
+    // Ground shadow
+    px(ctx, poleX - 1, 23, 5, 2, "rgba(16, 24, 28, 0.42)");
+    // Steel post
+    px(ctx, poleX - 1, 4, 4, 20, P.outline);
+    px(ctx, poleX, 5, 2, 18, "#8e99a8");
+    px(ctx, poleX, 5, 1, 18, "#ced6e0");
+    // Overhang support arm
+    px(ctx, armX, 5, 5, 2, P.outline);
+    px(ctx, armX, 6, 5, 1, "#aeb8c7");
+    // Crisp white backboard with red target square
+    px(ctx, boardX - 1, 1, 4, 11, P.outline);
+    px(ctx, boardX, 2, 2, 9, "#f5f7fa");
+    px(ctx, boardX, 5, 2, 3, "#d93b36");
+    // Bright orange rim + crisp white pixel net!
+    px(ctx, rimX, 8, 4, 2, P.outline);
+    px(ctx, rimX, 8, 4, 1, "#f26b26");
+    px(ctx, rimX, 10, 1, 3, "#f2f5f7");
+    px(ctx, rimX + 2, 10, 1, 3, "#f2f5f7");
+    px(ctx, rimX + 1, 11, 1, 3, "#d4dde6");
+    sprites[`hoop_${side}`] = canvas;
+  }
+  {
+    // Front-facing half-court Basketball Hoop (north baseline)
+    const { canvas, ctx } = makeCanvas(22, 26);
+    px(ctx, 8, 22, 6, 2, "rgba(16, 24, 28, 0.42)");
+    // Center steel post
+    px(ctx, 9, 10, 4, 13, P.outline);
+    px(ctx, 10, 11, 2, 11, "#9aa5b5");
+    // Wide glass/white backboard
+    px(ctx, 2, 1, 18, 12, P.outline);
+    px(ctx, 3, 2, 16, 10, "#f5f7fa");
+    px(ctx, 4, 3, 14, 8, "#e3eef5");
+    // Red shooter's square
+    px(ctx, 8, 6, 6, 5, "#d93b36");
+    px(ctx, 9, 7, 4, 3, "#f5f7fa");
+    // Orange rim + white net hanging cleanly in front!
+    px(ctx, 8, 11, 6, 2, P.outline);
+    px(ctx, 8, 11, 6, 1, "#f26b26");
+    px(ctx, 9, 13, 4, 3, "#f5f7fa");
+    px(ctx, 10, 13, 1, 3, "#c4cfd9");
+    px(ctx, 12, 13, 1, 2, "#c4cfd9");
+    sprites.hoop_top = canvas;
+  }
+
+  // Left & Right White Mesh Soccer Goals (16x28)
+  for (const side of ["left", "right"]) {
+    const { canvas, ctx } = makeCanvas(16, 28);
+    const isLeft = side === "left";
+    const frontX = isLeft ? 12 : 2;
+    const backX = isLeft ? 2 : 12;
+    const netStartX = Math.min(frontX, backX) + 1;
+    const netW = Math.abs(frontX - backX) - 1;
+    // Soft ground shadow
+    px(ctx, netStartX, 24, netW + 2, 3, "rgba(16, 30, 18, 0.3)");
+    // Semi-transparent checkered pixel net
+    for (let ny = 4; ny < 24; ny += 2) {
+      for (let nx = netStartX; nx < netStartX + netW; nx += 2) {
+        const shift = ((ny / 2) % 2) === 0 ? 0 : 1;
+        px(ctx, nx + shift, ny, 1, 1, "rgba(244, 248, 252, 0.72)");
+      }
+    }
+    // Back frame support bars
+    px(ctx, backX, 4, 2, 21, "#9aa4b0");
+    px(ctx, netStartX, 3, netW, 2, "#dce3eb");
+    px(ctx, netStartX, 23, netW, 2, "#aeb7c2");
+    // Bold outlined front white goalposts & crossbar
+    px(ctx, frontX - 1, 1, 4, 25, P.outline);
+    px(ctx, frontX, 2, 2, 23, "#ffffff");
+    sprites[`soccer_goal_${side}`] = canvas;
+  }
+
+  // Baseball Chain-Link Backstop behind Home Plate (40x18)
+  {
+    const { canvas, ctx } = makeCanvas(40, 18);
+    // Steel posts & arched top rail
+    px(ctx, 2, 4, 2, 13, P.outline);
+    px(ctx, 36, 4, 2, 13, P.outline);
+    px(ctx, 11, 2, 2, 14, P.outline);
+    px(ctx, 27, 2, 2, 14, P.outline);
+    px(ctx, 3, 2, 34, 2, P.outline);
+    px(ctx, 4, 3, 32, 1, "#c8d0db");
+    px(ctx, 3, 5, 1, 11, "#adb6c4");
+    px(ctx, 37, 5, 1, 11, "#adb6c4");
+    px(ctx, 12, 3, 1, 12, "#adb6c4");
+    px(ctx, 28, 3, 1, 12, "#adb6c4");
+    // Fine diamond chain-link fence texture
+    for (let fy = 5; fy < 15; fy += 2) {
+      for (let fx = 5; fx < 35; fx += 2) {
+        const off = ((fy / 2) % 2) === 0 ? 0 : 1;
+        px(ctx, fx + off, fy, 1, 1, "rgba(222, 230, 240, 0.65)");
+      }
+    }
+    // Ground base rail
+    px(ctx, 2, 15, 36, 2, "rgba(24, 32, 26, 0.45)");
+    sprites.baseball_backstop = canvas;
+  }
+
+  // Playground A-Frame Swing Set (28x22)
+  {
+    const { canvas, ctx } = makeCanvas(28, 22);
+    px(ctx, 2, 18, 24, 3, "rgba(18, 28, 20, 0.32)");
+    // Top steel crossbar (vibrant park red!)
+    px(ctx, 4, 2, 20, 3, P.outline);
+    px(ctx, 5, 3, 18, 1, "#e0483e");
+    // Left & right A-frame legs
+    for (let i = 0; i < 15; i++) {
+      const lx = Math.round(5 - i * 0.22);
+      const rx = Math.round(22 + i * 0.22);
+      px(ctx, lx, 4 + i, 2, 1, P.outline);
+      px(ctx, lx, 4 + i, 1, 1, "#3b78b8");
+      px(ctx, rx, 4 + i, 2, 1, P.outline);
+      px(ctx, rx + 1, 4 + i, 1, 1, "#3b78b8");
+    }
+    // Two hanging swings with chains & yellow seats!
+    for (const sx of [9, 16]) {
+      px(ctx, sx, 5, 1, 10, "#cfd6e0");
+      px(ctx, sx + 3, 5, 1, 10, "#cfd6e0");
+      px(ctx, sx - 1, 14, 6, 3, P.outline);
+      px(ctx, sx, 15, 4, 1, "#f4d35e");
+    }
+    sprites.swing_set = canvas;
+  }
+
+  // Cheerful Park Slide (20x20)
+  {
+    const { canvas, ctx } = makeCanvas(20, 20);
+    px(ctx, 2, 17, 16, 2, "rgba(18, 28, 20, 0.32)");
+    // Ladder posts on left
+    px(ctx, 3, 4, 2, 14, P.outline);
+    px(ctx, 6, 4, 2, 14, P.outline);
+    px(ctx, 4, 5, 1, 12, "#4c80bf");
+    px(ctx, 7, 5, 1, 12, "#4c80bf");
+    for (let ry = 7; ry <= 15; ry += 3) px(ctx, 4, ry, 3, 1, "#dce4ee");
+    // Top platform
+    px(ctx, 3, 3, 6, 3, P.outline);
+    px(ctx, 4, 4, 4, 1, "#e0483e");
+    // Yellow curving slide chute descending to the right
+    for (let i = 0; i < 11; i++) {
+      const sx = 8 + i;
+      const sy = 5 + Math.round(i * 1.1);
+      px(ctx, sx, sy - 1, 3, 4, P.outline);
+      px(ctx, sx, sy, 3, 2, "#f4cf4e");
+      px(ctx, sx, sy, 2, 1, "#fff0a6");
+    }
+    sprites.park_slide = canvas;
+  }
+
+  // --- 7c. Landmark Wooden Signpost & Classic Green Street-Corner Road Sign (Wayfinding!) ---
+  {
+    // 14x18 SNES Wooden Landmark Signpost with Gold Star Emblem
+    const { canvas, ctx } = makeCanvas(14, 18);
+    px(ctx, 3, 15, 8, 2, "rgba(16, 26, 18, 0.38)");
+    // Post
+    px(ctx, 5, 9, 4, 8, P.outline);
+    px(ctx, 6, 10, 2, 6, "#8c5730");
+    px(ctx, 6, 10, 1, 6, "#b87a46");
+    // Framed wooden plaque with gold border
+    px(ctx, 0, 1, 14, 10, P.outline);
+    px(ctx, 1, 2, 12, 8, "#e6b84c");
+    px(ctx, 2, 3, 10, 6, "#24573d");
+    // Crisp golden star icon inside sign
+    px(ctx, 6, 4, 2, 4, "#fff0a6");
+    px(ctx, 5, 5, 4, 2, "#f4d35e");
+    sprites.landmark_sign = canvas;
+  }
+  {
+    // 12x18 Classic Massachusetts Green Street-Corner Signpost (Unchecked)
+    const { canvas, ctx } = makeCanvas(12, 18);
+    px(ctx, 4, 15, 4, 2, "rgba(16, 26, 18, 0.36)");
+    px(ctx, 5, 4, 2, 13, P.outline);
+    px(ctx, 5, 5, 1, 11, "#cfd6e0");
+    // Two crossed green street blades with white lettering pixels
+    px(ctx, 0, 1, 12, 4, P.outline);
+    px(ctx, 1, 2, 10, 2, "#1f7a4c");
+    px(ctx, 2, 2, 7, 1, "#f2f7f4");
+    px(ctx, 2, 5, 9, 4, P.outline);
+    px(ctx, 3, 6, 7, 2, "#19633d");
+    px(ctx, 4, 6, 5, 1, "#f2f7f4");
+    sprites.street_sign = canvas;
+  }
+  {
+    // 12x18 Checked Street-Corner Signpost with crisp gold explorer cap & bright trim!
+    const { canvas, ctx } = makeCanvas(12, 18);
+    px(ctx, 4, 15, 4, 2, "rgba(16, 26, 18, 0.36)");
+    px(ctx, 5, 4, 2, 13, P.outline);
+    px(ctx, 5, 5, 1, 11, "#dfe7ef");
+    // Golden top finial cap indicating this intersection is logged in your map!
+    px(ctx, 4, 0, 4, 2, P.outline);
+    px(ctx, 5, 0, 2, 1, "#ffe875");
+    // Two crossed green street blades with subtle gold border accent
+    px(ctx, 0, 2, 12, 4, P.outline);
+    px(ctx, 1, 3, 10, 2, "#248f59");
+    px(ctx, 2, 3, 7, 1, "#ffffff");
+    px(ctx, 2, 6, 9, 4, P.outline);
+    px(ctx, 3, 7, 7, 2, "#1d7548");
+    px(ctx, 4, 7, 5, 1, "#fff3b0");
+    sprites.street_sign_checked = canvas;
+  }
+  {
+    // 11x11 Bobbing green-and-gold interactive signpost indicator bubble ("?" / blade icon)
+    const { canvas, ctx } = makeCanvas(11, 11);
+    px(ctx, 1, 0, 9, 8, P.outline);
+    px(ctx, 0, 1, 11, 6, P.outline);
+    px(ctx, 4, 8, 3, 2, P.outline);
+    px(ctx, 5, 9, 1, 2, P.outline);
+    px(ctx, 1, 1, 9, 6, "#e6b84c");
+    px(ctx, 2, 2, 7, 4, "#1e6e44");
+    // Crisp white '?' / signpost glyph
+    px(ctx, 4, 2, 3, 1, "#ffffff");
+    px(ctx, 6, 3, 1, 1, "#ffffff");
+    px(ctx, 5, 4, 1, 1, "#ffffff");
+    px(ctx, 5, 6, 1, 1, "#fff6c4");
+    sprites.street_sign_prompt = canvas;
+  }
+
+  // --- 7d. 16-Bit SNES Spooky Graveyard Props (Tombstones, Crypts, Gnarled Trees, Pumpkins, Ghosts & Bats!) ---
+  // 1) Classic Rounded Weathered Granite Tombstone (12x16)
+  {
+    const { canvas, ctx } = makeCanvas(12, 16);
+    px(ctx, 1, 13, 10, 3, "rgba(14, 18, 26, 0.45)");
+    // Base pedestal
+    px(ctx, 1, 11, 10, 4, P.outline);
+    px(ctx, 2, 12, 8, 2, "#757c8a");
+    // Rounded arch stone body
+    px(ctx, 2, 3, 8, 9, P.outline);
+    px(ctx, 3, 2, 6, 2, P.outline);
+    px(ctx, 3, 3, 6, 9, "#9aa3b2");
+    px(ctx, 3, 3, 2, 8, "#bcc4d1"); // sunlit edge
+    px(ctx, 8, 4, 1, 8, "#6c7382"); // shadow edge
+    // Carved "RIP" engraving lines + creeping green moss
+    px(ctx, 4, 5, 4, 1, "#4a515e");
+    px(ctx, 4, 7, 3, 1, "#4a515e");
+    px(ctx, 3, 10, 2, 2, "#467554");
+    px(ctx, 7, 3, 2, 1, "#467554");
+    sprites.tombstone_arch = canvas;
+  }
+  // 2) Tall Mossy Celtic Cross Tombstone (12x18)
+  {
+    const { canvas, ctx } = makeCanvas(12, 18);
+    px(ctx, 1, 15, 10, 3, "rgba(14, 18, 26, 0.45)");
+    px(ctx, 2, 13, 8, 4, P.outline);
+    px(ctx, 3, 14, 6, 2, "#6f7785");
+    // Cross vertical shaft + horizontal arms
+    px(ctx, 4, 1, 4, 13, P.outline);
+    px(ctx, 1, 4, 10, 4, P.outline);
+    px(ctx, 5, 2, 2, 12, "#9aa3b2");
+    px(ctx, 2, 5, 8, 2, "#9aa3b2");
+    px(ctx, 5, 2, 1, 11, "#c4ccd9");
+    px(ctx, 2, 5, 7, 1, "#c4ccd9");
+    // Celtic center ring + moss
+    px(ctx, 5, 5, 2, 2, "#59606e");
+    px(ctx, 4, 11, 2, 2, "#3f6e4f");
+    sprites.tombstone_cross = canvas;
+  }
+  // 3) Tilted 1660 Colonial Dark-Slate Headstone (12x16)
+  {
+    const { canvas, ctx } = makeCanvas(12, 16);
+    px(ctx, 1, 13, 10, 3, "rgba(14, 18, 26, 0.45)");
+    // Slight lean to the right!
+    for (let r = 0; r < 10; r++) {
+      const shift = Math.floor(r / 4);
+      px(ctx, 2 + shift, 3 + r, 7, 1, P.outline);
+      px(ctx, 3 + shift, 3 + r, 5, 1, r < 2 ? "#7a8294" : "#5c6475");
+    }
+    px(ctx, 3, 2, 5, 2, P.outline);
+    px(ctx, 4, 3, 3, 1, "#8d96a8");
+    // Tiny colonial winged skull carving + crack
+    px(ctx, 5, 5, 2, 2, "#c2cad9");
+    px(ctx, 4, 6, 1, 1, "#9aa3b5");
+    px(ctx, 7, 6, 1, 1, "#9aa3b5");
+    px(ctx, 6, 9, 2, 1, "#2a2e38");
+    px(ctx, 2, 12, 9, 3, P.outline);
+    px(ctx, 3, 13, 7, 1, "#4f5666");
+    sprites.tombstone_tilted = canvas;
+  }
+  // 4) Tall Ancient Granite Obelisk Monument (14x30)
+  {
+    const { canvas, ctx } = makeCanvas(14, 30);
+    px(ctx, 1, 26, 12, 4, "rgba(14, 18, 26, 0.48)");
+    // Stepped stone plinth
+    px(ctx, 1, 22, 12, 6, P.outline);
+    px(ctx, 2, 23, 10, 4, "#808896");
+    px(ctx, 2, 23, 10, 1, "#aeb6c4");
+    px(ctx, 3, 19, 8, 4, P.outline);
+    px(ctx, 4, 20, 6, 3, "#969fae");
+    // Tapered obelisk spire
+    for (let y = 3; y < 20; y++) {
+      const half = y < 6 ? Math.max(1, Math.floor((y - 2) * 0.8)) : 2;
+      px(ctx, 7 - half - 1, y, half * 2 + 2, 1, P.outline);
+      px(ctx, 7 - half, y, half * 2, 1, "#a4adb8");
+      px(ctx, 7 - half, y, Math.max(1, half), 1, "#cbd3de");
+    }
+    px(ctx, 6, 2, 2, 1, P.outline);
+    // Faint mossy carvings
+    px(ctx, 6, 11, 2, 1, "#57606e");
+    px(ctx, 6, 14, 2, 1, "#57606e");
+    px(ctx, 4, 21, 2, 2, "#467554");
+    sprites.grave_obelisk = canvas;
+  }
+  // 5) Gothic Stone Mausoleum / Family Crypt (28x28)
+  {
+    const { canvas, ctx } = makeCanvas(28, 28);
+    px(ctx, 2, 23, 24, 4, "rgba(12, 16, 24, 0.5)");
+    // Stepped granite base
+    px(ctx, 2, 21, 24, 5, P.outline);
+    px(ctx, 3, 22, 22, 3, "#78808f");
+    px(ctx, 3, 22, 22, 1, "#a2aab8");
+    // Stone crypt walls + corner pillars
+    px(ctx, 4, 10, 20, 12, P.outline);
+    px(ctx, 5, 11, 18, 10, "#8d96a6");
+    px(ctx, 5, 11, 3, 10, "#b2bac9");
+    px(ctx, 20, 11, 3, 10, "#687080");
+    // Triangular Gothic stone pediment roof + iron cross finial!
+    for (let r = 0; r < 8; r++) {
+      const span = 3 + r;
+      px(ctx, 14 - span - 1, 3 + r, span * 2 + 2, 1, P.outline);
+      px(ctx, 14 - span, 3 + r, span * 2, 1, r < 2 ? "#b4bcc9" : "#6b7382");
+    }
+    px(ctx, 13, 0, 2, 4, P.outline);
+    px(ctx, 12, 1, 4, 1, P.outline);
+    // Dark arched iron-barred crypt doorway with eerie purple/teal glow!
+    px(ctx, 10, 13, 8, 9, P.outline);
+    px(ctx, 11, 14, 6, 8, "#221d33");
+    px(ctx, 12, 15, 4, 4, "#4b3878"); // mysterious inner violet glow
+    px(ctx, 13, 16, 2, 2, "#8de8db"); // ghostly lantern glint inside!
+    // Iron vertical gate bars
+    px(ctx, 12, 14, 1, 8, "#161922");
+    px(ctx, 15, 14, 1, 8, "#161922");
+    sprites.grave_mausoleum = canvas;
+  }
+  // 6) Gnarled Haunted Dead Oak Tree with Perched Black Crow & Cobweb (26x32)
+  {
+    const { canvas, ctx } = makeCanvas(26, 32);
+    px(ctx, 5, 27, 16, 4, "rgba(12, 16, 24, 0.48)");
+    // Twisted roots & dark indigo-brown trunk
+    px(ctx, 9, 15, 8, 14, P.outline);
+    px(ctx, 7, 25, 12, 4, P.outline);
+    px(ctx, 10, 16, 6, 12, "#453b4d");
+    px(ctx, 10, 16, 2, 12, "#61546b");
+    px(ctx, 8, 26, 10, 2, "#3a3142");
+    // Twisted bare claw-like branches reaching up & out!
+    const drawBranch = (x0, y0, x1, y1, thick = 2) => {
+      const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+      for (let i = 0; i <= steps; i++) {
+        const bx = Math.round(x0 + ((x1 - x0) * i) / Math.max(1, steps));
+        const by = Math.round(y0 + ((y1 - y0) * i) / Math.max(1, steps));
+        px(ctx, bx - 1, by - 1, thick + 2, thick + 2, P.outline);
+        px(ctx, bx, by, thick, thick, "#4c4157");
+      }
+    };
+    drawBranch(11, 16, 3, 7, 2);
+    drawBranch(6, 10, 2, 4, 1);
+    drawBranch(14, 16, 22, 8, 2);
+    drawBranch(19, 11, 23, 4, 1);
+    drawBranch(12, 15, 10, 4, 2);
+    drawBranch(13, 14, 16, 5, 1);
+    // Delicate silver pixel cobweb strung between left & center branch!
+    px(ctx, 6, 9, 5, 1, "rgba(220, 230, 242, 0.55)");
+    px(ctx, 7, 11, 4, 1, "rgba(220, 230, 242, 0.45)");
+    px(ctx, 8, 8, 1, 5, "rgba(220, 230, 242, 0.5)");
+    // Tiny spooky black crow perched on the right branch with glowing eye!
+    px(ctx, 19, 5, 4, 3, "#14161f");
+    px(ctx, 22, 6, 2, 1, "#d9a441"); // beak
+    px(ctx, 21, 5, 1, 1, "#ffeb6b"); // yellow eye
+    sprites.grave_tree_spooky = canvas;
+  }
+  // 7) Wrought-Iron Spear-Tipped Graveyard Fence (16x14)
+  {
+    const { canvas, ctx } = makeCanvas(16, 14);
+    px(ctx, 0, 11, 16, 2, "rgba(12, 16, 24, 0.36)");
+    // Top & bottom iron rails
+    px(ctx, 0, 4, 16, 2, "#1c2029");
+    px(ctx, 0, 10, 16, 2, "#1c2029");
+    px(ctx, 0, 4, 16, 1, "#414959");
+    // 4 iron vertical pickets with spear tips!
+    for (const fx of [2, 6, 10, 14]) {
+      px(ctx, fx - 1, 2, 2, 11, "#181c24");
+      px(ctx, fx - 1, 2, 1, 10, "#4f586b");
+      px(ctx, fx - 1, 1, 2, 1, "#8590a6"); // spear tip glint
+    }
+    sprites.grave_iron_fence = canvas;
+  }
+  // 8) Grand Wrought-Iron Arched Cemetery Entrance Gate (32x28)
+  {
+    const { canvas, ctx } = makeCanvas(32, 28);
+    px(ctx, 1, 24, 30, 3, "rgba(12, 16, 24, 0.45)");
+    // Left & right weathered stone gateposts
+    for (const gx of [1, 25]) {
+      px(ctx, gx, 8, 6, 18, P.outline);
+      px(ctx, gx + 1, 9, 4, 16, "#858e9e");
+      px(ctx, gx + 1, 9, 2, 16, "#abb3c2");
+      // Flickering eerie teal cap lantern atop each pillar!
+      px(ctx, gx + 1, 4, 4, 5, P.outline);
+      px(ctx, gx + 2, 5, 2, 3, "#6bf0d8");
+      px(ctx, gx + 2, 5, 1, 1, "#ffffff");
+    }
+    // Arched wrought-iron overhead sign arch!
+    for (let x = 6; x <= 25; x++) {
+      const norm = (x - 15.5) / 10;
+      const ay = Math.round(3 + norm * norm * 6);
+      px(ctx, x, ay, 1, 3, "#181c24");
+      px(ctx, x, ay, 1, 1, "#576175");
+    }
+    // Open iron half-gates inviting the explorer inside!
+    px(ctx, 7, 13, 4, 11, "#181c24");
+    px(ctx, 8, 14, 1, 9, "#485263");
+    px(ctx, 21, 13, 4, 11, "#181c24");
+    px(ctx, 23, 14, 1, 9, "#485263");
+    sprites.grave_gate = canvas;
+  }
+  // 9) Animated Flickering Carved Jack-o'-Lantern (12x12, 2 frames!)
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeCanvas(12, 12);
+    // Warm orange candle glow halo on ground
+    px(ctx, 0, 2, 12, 10, f === 0 ? "rgba(255, 166, 48, 0.24)" : "rgba(255, 196, 68, 0.36)");
+    // Stem
+    px(ctx, 5, 0, 2, 3, P.outline);
+    px(ctx, 5, 1, 2, 1, "#3f7d38");
+    // Plump ribbed orange pumpkin
+    px(ctx, 2, 2, 8, 9, P.outline);
+    px(ctx, 1, 4, 10, 6, P.outline);
+    px(ctx, 2, 3, 8, 7, "#e06d1b");
+    px(ctx, 3, 3, 6, 6, "#f28524");
+    px(ctx, 5, 3, 2, 6, "#d15c15");
+    // Glowing carved eyes & cheeky jack-o'-lantern grin!
+    const flame = f === 0 ? "#ffe066" : "#fff7b8";
+    px(ctx, 3, 5, 2, 2, flame);
+    px(ctx, 7, 5, 2, 2, flame);
+    px(ctx, 3, 8, 6, 1, flame);
+    px(ctx, 4, 9, 1, 1, flame);
+    px(ctx, 7, 9, 1, 1, flame);
+    sprites[`grave_pumpkin_${f}`] = canvas;
+  }
+  // 10) Animated Spooky Iron Lantern Post with Ghostly Teal Flame (10x22, 2 frames!)
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeCanvas(10, 22);
+    px(ctx, 3, 19, 4, 2, "rgba(12, 16, 24, 0.42)");
+    // Ghostly teal lantern aura
+    px(ctx, 0, 1, 10, 10, f === 0 ? "rgba(92, 232, 214, 0.22)" : "rgba(130, 255, 238, 0.35)");
+    // Wrought-iron post
+    px(ctx, 4, 8, 2, 13, "#181c24");
+    px(ctx, 4, 9, 1, 11, "#4f586b");
+    px(ctx, 3, 19, 4, 2, "#181c24");
+    // Lantern cage & flickering flame
+    px(ctx, 2, 2, 6, 7, P.outline);
+    px(ctx, 3, 3, 4, 5, f === 0 ? "#4ed9c2" : "#8cffec");
+    px(ctx, 4, 4, 2, 3, "#ffffff");
+    px(ctx, 3, 1, 4, 2, "#181c24");
+    sprites[`grave_lantern_${f}`] = canvas;
+  }
+  // 11) Spooky Black Cat with Glowing Yellow Eyes (12x12)
+  {
+    const { canvas, ctx } = makeCanvas(12, 12);
+    px(ctx, 2, 9, 8, 2, "rgba(12, 16, 24, 0.38)");
+    // Curled tail
+    px(ctx, 9, 4, 2, 5, "#151722");
+    px(ctx, 8, 3, 2, 2, "#242838");
+    // Sitting body
+    px(ctx, 3, 5, 6, 6, "#151722");
+    px(ctx, 4, 6, 3, 4, "#242838");
+    // Head + pointy ears
+    px(ctx, 2, 2, 6, 5, "#151722");
+    px(ctx, 2, 1, 2, 2, "#151722");
+    px(ctx, 6, 1, 2, 2, "#151722");
+    // Bright glowing yellow cat eyes!
+    px(ctx, 3, 4, 1, 1, "#ffe64d");
+    px(ctx, 6, 4, 1, 1, "#ffe64d");
+    sprites.grave_cat = canvas;
+  }
+  // 12) Cute 16-Bit SNES Friendly Floating Ghost (14x18, 2 frames!)
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeCanvas(14, 18);
+    // Soft eerie cyan-lavender glow halo
+    px(ctx, 1, 1, 12, 15, "rgba(182, 232, 255, 0.22)");
+    // Rounded ghostly head & billowing sheet body
+    px(ctx, 4, 1, 6, 2, "#2a354d");
+    px(ctx, 2, 3, 10, 11, "#2a354d");
+    px(ctx, 4, 2, 6, 12, "#eef8ff");
+    px(ctx, 3, 4, 8, 10, "#eef8ff");
+    px(ctx, 3, 4, 2, 9, "#ffffff"); // highlight
+    px(ctx, 9, 5, 2, 8, "#c2e0f5"); // cool ghost shadow
+    // Wavy animated floating bottom hem!
+    if (f === 0) {
+      px(ctx, 2, 14, 3, 2, "#d8f0ff");
+      px(ctx, 6, 14, 3, 3, "#eef8ff");
+      px(ctx, 10, 14, 2, 2, "#c2e0f5");
+    } else {
+      px(ctx, 3, 14, 3, 3, "#eef8ff");
+      px(ctx, 7, 14, 3, 2, "#d8f0ff");
+      px(ctx, 10, 13, 2, 3, "#c2e0f5");
+    }
+    // Cute expressive dark eyes + tiny "Ooo!" mouth + rosy cheeks
+    px(ctx, 4, 6, 2, 2, "#1d2233");
+    px(ctx, 8, 6, 2, 2, "#1d2233");
+    px(ctx, 4, 6, 1, 1, "#ffffff"); // cute eye glint
+    px(ctx, 8, 6, 1, 1, "#ffffff");
+    px(ctx, 6, 9, 2, 2, "#2f3d59"); // tiny 'o' mouth
+    px(ctx, 3, 8, 1, 1, "#ffb5d2");
+    px(ctx, 10, 8, 1, 1, "#ffb5d2");
+    sprites[`grave_ghost_${f}`] = canvas;
+  }
+  // 13) Animated Flapping Pixel Bat (12x8, 2 frames!)
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeCanvas(12, 8);
+    // Body & ears
+    px(ctx, 5, 2, 2, 4, "#1b1829");
+    px(ctx, 4, 3, 4, 3, "#2a243d");
+    px(ctx, 4, 1, 1, 2, "#1b1829");
+    px(ctx, 7, 1, 1, 2, "#1b1829");
+    // Tiny glowing amber/red eyes
+    px(ctx, 5, 3, 1, 1, "#ff6b6b");
+    px(ctx, 6, 3, 1, 1, "#ff6b6b");
+    // Flapping wings (up vs down!)
+    if (f === 0) {
+      px(ctx, 0, 1, 4, 3, "#1b1829");
+      px(ctx, 1, 2, 3, 1, "#473c66");
+      px(ctx, 8, 1, 4, 3, "#1b1829");
+      px(ctx, 8, 2, 3, 1, "#473c66");
+    } else {
+      px(ctx, 0, 4, 4, 3, "#1b1829");
+      px(ctx, 1, 4, 3, 1, "#473c66");
+      px(ctx, 8, 4, 4, 3, "#1b1829");
+      px(ctx, 8, 4, 3, 1, "#473c66");
+    }
+    sprites[`grave_bat_${f}`] = canvas;
+  }
+  // 14) Floating Ghostly Will-o'-the-Wisp Orb (8x8, 2 frames!)
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeCanvas(8, 8);
+    px(ctx, 1, 1, 6, 6, f === 0 ? "rgba(110, 240, 224, 0.35)" : "rgba(176, 140, 255, 0.38)");
+    px(ctx, 2, 2, 4, 4, f === 0 ? "#7cf5e4" : "#c7a8ff");
+    px(ctx, 3, 3, 2, 2, "#ffffff");
+    sprites[`grave_wisp_${f}`] = canvas;
   }
 
   // --- 8. Glowing Green WALK Crosswalk Signal Post (2 states: steady & bright checked!) ---
@@ -1193,83 +3824,36 @@ export function buildSnesSpriteAtlas(paletteName = "snes_classic") {
     sprites.drop_acorn = canvas;
   }
 
-  // --- 11. Pre-Baked Pixel-Outlined 16x24 Hero Sprites ---
+  // --- 11. Pre-Baked Super Mario 3–Detail 24x28 Hero Sprites (Liam: Polo & Kippah + Little League Uniform!) ---
+  for (const outfit of Object.keys(HERO_OUTFITS)) {
+    for (const dir of ["down", "up", "left", "right"]) {
+      for (let step = 0; step < 3; step++) {
+        sprites[`hero_${outfit}_${dir}_${step}`] = bakeSmb3HeroSprite(dir, step, false, outfit);
+      }
+      sprites[`hero_${outfit}_scooter_${dir}`] = bakeSmb3HeroSprite(dir, 0, true, outfit);
+    }
+    sprites[`hero_${outfit}_fanfare`] = bakeSmb3HeroFanfareSprite(outfit);
+  }
+  // Default unprefixed aliases point to Liam's default Everyday Polo & Kippah outfit
   for (const dir of ["down", "up", "left", "right"]) {
     for (let step = 0; step < 3; step++) {
-      sprites[`hero_${dir}_${step}`] = bakeHeroSprite(dir, step, false);
+      sprites[`hero_${dir}_${step}`] = sprites[`hero_polo_${dir}_${step}`];
     }
-    sprites[`hero_scooter_${dir}`] = bakeHeroSprite(dir, 0, true);
+    sprites[`hero_scooter_${dir}`] = sprites[`hero_polo_scooter_${dir}`];
   }
+  sprites.hero_fanfare = sprites.hero_polo_fanfare;
 
-  // --- 12. Phase 3 Celebratory 2-Handed Overhead Item Fanfare Pose ---
-  {
-    const { canvas, ctx } = makeCanvas(20, 26);
-    const cx = 10;
-    const feetY = 22;
-    const O = "#1c1b24";
-    px(ctx, cx - 5, feetY, 10, 3, "rgba(16, 26, 18, 0.42)");
-    // Legs + red sneakers
-    px(ctx, cx - 4, feetY - 5, 4, 6, O);
-    px(ctx, cx - 3, feetY - 4, 2, 3, "#3b598f");
-    px(ctx, cx - 3, feetY - 1, 2, 2, "#d64538");
-    px(ctx, cx, feetY - 5, 4, 6, O);
-    px(ctx, cx + 1, feetY - 4, 2, 3, "#3b598f");
-    px(ctx, cx + 1, feetY - 1, 2, 2, "#d64538");
-    // Torso
-    px(ctx, cx - 5, feetY - 12, 10, 8, O);
-    px(ctx, cx - 4, feetY - 11, 8, 6, "#47c4b4");
-    // Both arms raised high in classic Zelda item-get pose!
-    px(ctx, cx - 7, feetY - 19, 3, 8, O);
-    px(ctx, cx - 6, feetY - 18, 1, 6, "#47c4b4");
-    px(ctx, cx - 6, feetY - 19, 2, 2, "#f7d1ab");
-    px(ctx, cx + 4, feetY - 19, 3, 8, O);
-    px(ctx, cx + 5, feetY - 18, 1, 6, "#47c4b4");
-    px(ctx, cx + 4, feetY - 19, 2, 2, "#f7d1ab");
-    // Happy smiling head
-    const headY = feetY - 21;
-    px(ctx, cx - 5, headY, 10, 10, O);
-    px(ctx, cx - 4, headY + 3, 8, 6, "#f7d1ab");
-    px(ctx, cx - 4, headY, 8, 4, "#8c502b");
-    px(ctx, cx - 3, headY, 6, 2, "#ba713f");
-    px(ctx, cx - 3, headY + 5, 2, 1, "#1c1c26");
-    px(ctx, cx + 1, headY + 5, 2, 1, "#1c1c26");
-    px(ctx, cx - 1, headY + 7, 2, 1, "#c94c4c");
-    sprites.hero_fanfare = canvas;
-  }
-
-  // --- 13. Phase 3 Neighborhood NPCs (4 charming SNES character palettes) ---
+  // --- 13. Phase 3 Neighborhood NPCs (SMB3-detail 22x26 character palettes!) ---
   const npcThemes = [
-    { shirt: "#d95f76", shirtLight: "#f08498", hair: "#4f3222", hat: null },      // Mom / Librarian
-    { shirt: "#4c8c5c", shirtLight: "#6eb57e", hair: "#6e462d", hat: "#c9964c" }, // Ranger / Scout
-    { shirt: "#f2f0ea", shirtLight: "#ffffff", hair: "#3d2e24", hat: "#ffffff" }, // Baker Ben (chef hat!)
-    { shirt: "#5b82c9", shirtLight: "#82a8eb", hair: "#9e6338", hat: "#e85d75" }, // Scooper Maya / Friend
+    { shirt: "#d95f76", shirtLight: "#f2859a", shirtDark: "#a83d52", hair: "#6b422a", hairLight: "#946042", hairDark: "#472919", hat: null }, // 0: Mom / Librarian
+    { shirt: "#4c8c5c", shirtLight: "#6eb57e", shirtDark: "#32633e", hair: "#784c30", hairLight: "#a36c48", hairDark: "#4f301d", hat: "#c9964c", hatLight: "#e6b873", hatRim: "#8a6026" }, // 1: Ranger / Scout
+    { shirt: "#f2f0ea", shirtLight: "#ffffff", shirtDark: "#cbc6ba", hair: "#473529", hairLight: "#6e5442", hairDark: "#2b1f17", hat: "#f5f4f0", hatLight: "#ffffff", hatRim: "#d6d2c9" }, // 2: Baker Ben (chef hat!)
+    { shirt: "#5b82c9", shirtLight: "#82a8eb", shirtDark: "#3b5b99", hair: "#a6693c", hairLight: "#cf8f5d", hairDark: "#704221", hat: "#e85d75", hatLight: "#ff8599", hatRim: "#b53c52" }, // 3: Scooper Maya / Friend
+    { shirt: "#4a386e", shirtLight: "#6c549c", shirtDark: "#2d2147", hair: "#c2c9d6", hairLight: "#e8edf5", hairDark: "#8c94a6", hat: "#2f2547", hatLight: "#4c3e6e", hatRim: "#7cf5e4" }, // 4: Spooky Graveyard Historian
+    { shirt: "#7d1d2e", shirtLight: "#a82d43", shirtDark: "#54111d", hair: "#543a2b", hairLight: "#7a5843", hairDark: "#332117", hat: "#e6b84c", hatLight: "#ffe082", hatRim: "#7d1d2e" }, // 5: Boston College Dean (Maroon & Gold!)
   ];
   npcThemes.forEach((t, idx) => {
-    const { canvas, ctx } = makeCanvas(18, 24);
-    const cx = 9;
-    const fy = 21;
-    const O = "#1c1b24";
-    px(ctx, cx - 4, fy, 8, 2, "rgba(16, 26, 18, 0.38)");
-    px(ctx, cx - 3, fy - 4, 3, 5, O);
-    px(ctx, cx - 2, fy - 3, 1, 3, "#3b4c6b");
-    px(ctx, cx, fy - 4, 3, 5, O);
-    px(ctx, cx + 1, fy - 3, 1, 3, "#3b4c6b");
-    // Torso
-    px(ctx, cx - 4, fy - 11, 8, 8, O);
-    px(ctx, cx - 3, fy - 10, 6, 6, t.shirt);
-    px(ctx, cx - 2, fy - 10, 4, 3, t.shirtLight);
-    // Head
-    const hy = fy - 19;
-    px(ctx, cx - 4, hy, 8, 9, O);
-    px(ctx, cx - 3, hy + 2, 6, 6, "#f7d1ab");
-    px(ctx, cx - 3, hy + 1, 6, 3, t.hair);
-    if (t.hat) {
-      px(ctx, cx - 4, hy - 2, 8, 4, O);
-      px(ctx, cx - 3, hy - 1, 6, 2, t.hat);
-    }
-    px(ctx, cx - 2, hy + 5, 1, 2, "#1c1c26");
-    px(ctx, cx + 1, hy + 5, 1, 2, "#1c1c26");
-    sprites[`npc_${idx}`] = canvas;
+    sprites[`npc_${idx}`] = bakeSmb3NpcSprite(t);
   });
 
   // --- 14. Phase 3 Wooden Chest / Little Free Library Box + Quest Exclamation Bubble + Fanfare Star ---
@@ -1298,6 +3882,29 @@ export function buildSnesSpriteAtlas(paletteName = "snes_classic") {
     px(ctx, 4, 2, 2, 3, "#2b2112");
     px(ctx, 4, 6, 2, 1, "#2b2112");
     sprites.quest_bubble = canvas;
+  }
+
+  // Crisp 11x11 pixel-art Stop & Look Both Ways curb cue above hero!
+  {
+    const { canvas, ctx } = makeCanvas(11, 11);
+    // Octagon outline
+    px(ctx, 3, 0, 5, 11, P.outline);
+    px(ctx, 0, 3, 11, 5, P.outline);
+    px(ctx, 2, 1, 7, 9, P.outline);
+    px(ctx, 1, 2, 9, 7, P.outline);
+    // Crisp white inner rim
+    px(ctx, 3, 1, 5, 9, "#ffffff");
+    px(ctx, 1, 3, 9, 5, "#ffffff");
+    px(ctx, 2, 2, 7, 7, "#ffffff");
+    // Vibrant stop-sign red center
+    px(ctx, 3, 2, 5, 7, "#d9362e");
+    px(ctx, 2, 3, 7, 5, "#d9362e");
+    // Tiny crisp white eyes icon (Look Both Ways!)
+    px(ctx, 3, 4, 2, 3, "#ffffff");
+    px(ctx, 6, 4, 2, 3, "#ffffff");
+    px(ctx, 4, 5, 1, 1, P.outline);
+    px(ctx, 6, 5, 1, 1, P.outline);
+    sprites.curb_stop_cue = canvas;
   }
 
   {
@@ -1377,6 +3984,246 @@ export function buildSnesSpriteAtlas(paletteName = "snes_classic") {
     px(ctx, 4, 4, 4, 4, "#24573d");
     px(ctx, 5, 5, 2, 2, "#fff6b8");
   });
+  sprites.item_pennant = makeIcon((ctx) => {
+    // BC Maroon & Gold campus pennant!
+    px(ctx, 2, 2, 1, 8, "#e6d8b8");
+    px(ctx, 3, 3, 7, 5, "#7d1d2e");
+    px(ctx, 6, 4, 4, 3, "#7d1d2e");
+    px(ctx, 4, 5, 4, 1, "#f4d35e");
+    px(ctx, 3, 3, 2, 5, "#f4d35e");
+  });
+  sprites.item_lantern = makeIcon((ctx) => {
+    // Spooky glowing teal iron lantern!
+    px(ctx, 4, 2, 4, 1, "#4f586b");
+    px(ctx, 3, 3, 6, 6, "#2c3240");
+    px(ctx, 4, 4, 4, 4, "#6bf0d8");
+    px(ctx, 5, 5, 2, 2, "#ffffff");
+    px(ctx, 3, 9, 6, 1, "#4f586b");
+  });
+  sprites.item_ghost = makeIcon((ctx) => {
+    // Friendly glowing ghost charm!
+    px(ctx, 3, 2, 6, 7, "#eef8ff");
+    px(ctx, 3, 9, 2, 1, "#c2e0f5");
+    px(ctx, 7, 9, 2, 1, "#c2e0f5");
+    px(ctx, 4, 4, 1, 2, "#1d2233");
+    px(ctx, 7, 4, 1, 2, "#1d2233");
+  });
+
+  // Upgrade terrain tiles, lush trees, street signs, vehicles & props to 32-bit 2x native pixel detail!
+  upgradeAtlasTo32Bit(sprites, P);
+
+  // Register 32-bit roving wild Newton turkeys, annoying sidewalk protestors & pixel speech bubbles!
+  Object.assign(sprites, bake32BitStreetLifeSprites(PROTEST_CHANTS));
 
   return sprites;
+}
+
+/**
+ * Bake crisp 16-bit SNES athletic field & court ground surfaces (baseball diamonds,
+ * painted basketball courts, mowed soccer pitches, and timber-framed playgrounds)
+ * so parks are unmistakably recognizable from backyard grass!
+ */
+export function bakeParkFieldCanvas(field, tileSize = 16) {
+  const w = field.w * tileSize;
+  const h = field.h * tileSize;
+  const { canvas, ctx } = makeCanvas(w, h);
+  const cx = Math.floor(w / 2);
+  const cy = Math.floor(h / 2);
+
+  if (field.kind === "baseball_diamond") {
+    // 1. Lush mowed outfield grass base with alternating diagonal/vertical sheen
+    for (let x = 0; x < w; x += 8) {
+      px(ctx, x, 0, Math.min(8, w - x), h, (x / 8) % 2 === 0 ? "#4fa84c" : "#449642");
+    }
+    // 2. Curved terracotta dirt infield arc
+    const homeX = cx;
+    const homeY = h - 18;
+    const infieldR = Math.floor(Math.min(w, h) * 0.44);
+    for (let y = 8; y < h - 6; y++) {
+      for (let x = 8; x < w - 8; x++) {
+        const dx = x - homeX;
+        const dy = homeY - y;
+        if (dy < -8) continue;
+        const dist = Math.hypot(dx, dy);
+        // Fan shape between 1st & 3rd foul lines (45 deg diagonals) + rounded home plate dirt circle
+        const inFan = dy >= Math.abs(dx) - 6 && dist <= infieldR;
+        const inHomeCircle = Math.hypot(dx, y - homeY) <= 10;
+        if (inFan || inHomeCircle) {
+          const speck = ((x * 7 + y * 13) & 15) === 0;
+          px(ctx, x, y, 1, 1, speck ? "#c99662" : "#b57f4c");
+        }
+      }
+    }
+    // 3. Inner grass diamond cutout inside the basepaths!
+    const baseDist = Math.floor(infieldR * 0.56);
+    const secondY = homeY - baseDist * 2 + 12;
+    const midInfieldY = Math.floor((homeY + secondY) / 2);
+    const innerR = Math.floor(baseDist * 0.62);
+    for (let dy = -innerR; dy <= innerR; dy++) {
+      const span = innerR - Math.abs(dy);
+      px(ctx, homeX - span, midInfieldY + dy, span * 2, 1, "#58b552");
+    }
+    // 4. Dirt pitcher's mound & crisp white pitcher's rubber
+    for (let dy = -5; dy <= 5; dy++) {
+      for (let dx = -5; dx <= 5; dx++) {
+        if (dx * dx + dy * dy <= 25) {
+          px(ctx, homeX + dx, midInfieldY + dy, 1, 1, "#bd8754");
+        }
+      }
+    }
+    px(ctx, homeX - 2, midInfieldY, 5, 2, "#f7f9fc");
+
+    // 5. Crisp white chalk foul lines extending to outfield corners!
+    const lineLen = Math.floor(Math.min(cx - 6, homeY - 6));
+    for (let i = 0; i < lineLen; i++) {
+      px(ctx, homeX - i, homeY - i, 1, 1, "#f5f8fc");
+      px(ctx, homeX + i, homeY - i, 1, 1, "#f5f8fc");
+    }
+    // 6. Crisp white bases (Home Plate, 1st, 2nd, 3rd!)
+    const bSpan = Math.floor(innerR + 5);
+    // 1st base (right), 3rd base (left), 2nd base (top), Home plate (bottom)
+    const bases = [
+      [homeX + bSpan, midInfieldY],
+      [homeX - bSpan, midInfieldY],
+      [homeX, midInfieldY - bSpan],
+      [homeX, homeY],
+    ];
+    for (const [bx, by] of bases) {
+      px(ctx, bx - 2, by - 2, 5, 5, "#1d2228");
+      px(ctx, bx - 1, by - 1, 3, 3, "#ffffff");
+    }
+    // Batter's boxes flanking home plate
+    px(ctx, homeX - 7, homeY - 2, 3, 5, "rgba(255,255,255,0.65)");
+    px(ctx, homeX + 5, homeY - 2, 3, 5, "rgba(255,255,255,0.65)");
+    return canvas;
+  }
+
+  if (field.kind === "basketball_court") {
+    // Crisp outdoor park basketball court (green/blue painted asphalt, terracotta keys, white lines!)
+    px(ctx, 2, 2, w - 4, h - 4, "#1d2228");
+    px(ctx, 3, 3, w - 6, h - 6, "#3a6b7c"); // outer court apron
+    const mx = 7;
+    const my = 6;
+    const cw = w - mx * 2;
+    const ch = h - my * 2;
+    px(ctx, mx, my, cw, ch, "#4a7c66"); // painted park court green
+    // Subtle asphalt speckle
+    for (let y = my + 2; y < my + ch - 2; y += 6) {
+      for (let x = mx + 2; x < mx + cw - 2; x += 9) {
+        px(ctx, x, y, 2, 1, "#3f6e59");
+      }
+    }
+    // White boundary rectangle
+    px(ctx, mx, my, cw, 1, "#f4f7fa");
+    px(ctx, mx, my + ch - 1, cw, 1, "#f4f7fa");
+    px(ctx, mx, my, 1, ch, "#f4f7fa");
+    px(ctx, mx + cw - 1, my, 1, ch, "#f4f7fa");
+    // Half-court line & center jump circle
+    px(ctx, cx, my, 1, ch, "#f4f7fa");
+    for (let a = 0; a < 360; a += 10) {
+      const rad = (a * Math.PI) / 180;
+      px(ctx, Math.round(cx + Math.cos(rad) * 7), Math.round(cy + Math.sin(rad) * 7), 1, 1, "#f4f7fa");
+    }
+    px(ctx, cx - 2, cy - 2, 5, 5, "#c95c3e");
+    // Painted keys / free-throw lanes on left & right + 3-point arcs!
+    const keyW = Math.min(18, Math.floor(cw * 0.24));
+    const keyH = Math.min(18, Math.floor(ch * 0.36));
+    const keyY = cy - Math.floor(keyH / 2);
+    // Left key
+    px(ctx, mx + 1, keyY, keyW, keyH, "#c95c3e");
+    px(ctx, mx + 1, keyY, keyW, 1, "#f4f7fa");
+    px(ctx, mx + 1, keyY + keyH - 1, keyW, 1, "#f4f7fa");
+    px(ctx, mx + keyW, keyY, 1, keyH, "#f4f7fa");
+    // Right key
+    px(ctx, mx + cw - 1 - keyW, keyY, keyW, keyH, "#c95c3e");
+    px(ctx, mx + cw - 1 - keyW, keyY, keyW, 1, "#f4f7fa");
+    px(ctx, mx + cw - 1 - keyW, keyY + keyH - 1, keyW, 1, "#f4f7fa");
+    px(ctx, mx + cw - 1 - keyW, keyY, 1, keyH, "#f4f7fa");
+    // Crisp 3-point arcs
+    const arcR = Math.min(22, Math.floor(ch * 0.42));
+    for (let a = -72; a <= 72; a += 6) {
+      const rad = (a * Math.PI) / 180;
+      px(ctx, Math.round(mx + 4 + Math.cos(rad) * arcR), Math.round(cy + Math.sin(rad) * arcR), 1, 1, "#f4f7fa");
+      px(ctx, Math.round(mx + cw - 5 - Math.cos(rad) * arcR), Math.round(cy + Math.sin(rad) * arcR), 1, 1, "#f4f7fa");
+    }
+    return canvas;
+  }
+
+  if (field.kind === "half_court") {
+    px(ctx, 2, 2, w - 4, h - 4, "#1d2228");
+    px(ctx, 3, 3, w - 6, h - 6, "#4d698c"); // cool asphalt blue half-court
+    const mx = 6;
+    const my = 5;
+    const cw = w - mx * 2;
+    const ch = h - my * 2;
+    px(ctx, mx, my, cw, 1, "#f4f7fa");
+    px(ctx, mx, my + ch - 1, cw, 1, "#f4f7fa");
+    px(ctx, mx, my, 1, ch, "#f4f7fa");
+    px(ctx, mx + cw - 1, my, 1, ch, "#f4f7fa");
+    // Painted key at top beneath the hoop
+    const keyW = Math.floor(cw * 0.42);
+    const keyH = Math.floor(ch * 0.46);
+    const keyX = cx - Math.floor(keyW / 2);
+    px(ctx, keyX, my + 1, keyW, keyH, "#c95c3e");
+    px(ctx, keyX, my + 1, 1, keyH, "#f4f7fa");
+    px(ctx, keyX + keyW - 1, my + 1, 1, keyH, "#f4f7fa");
+    px(ctx, keyX, my + keyH, keyW, 1, "#f4f7fa");
+    // 3-point arc curving downward
+    const arcR = Math.floor(cw * 0.44);
+    for (let a = 15; a <= 165; a += 6) {
+      const rad = (a * Math.PI) / 180;
+      const ax = Math.round(cx + Math.cos(rad) * arcR);
+      const ay = Math.round(my + 4 + Math.sin(rad) * (ch * 0.72));
+      if (ax > mx && ax < mx + cw - 1 && ay < my + ch - 1) {
+        px(ctx, ax, ay, 1, 1, "#f4f7fa");
+      }
+    }
+    return canvas;
+  }
+
+  if (field.kind === "soccer_field") {
+    // Mowed alternating emerald soccer pitch bands!
+    for (let x = 0; x < w; x += 12) {
+      px(ctx, x, 0, Math.min(12, w - x), h, (x / 12) % 2 === 0 ? "#49a648" : "#5cb854");
+    }
+    const mx = 7;
+    const my = 6;
+    const cw = w - mx * 2;
+    const ch = h - my * 2;
+    // Crisp white chalk touchlines & goal lines
+    px(ctx, mx, my, cw, 2, "#f4f8fc");
+    px(ctx, mx, my + ch - 2, cw, 2, "#f4f8fc");
+    px(ctx, mx, my, 2, ch, "#f4f8fc");
+    px(ctx, mx + cw - 2, my, 2, ch, "#f4f8fc");
+    // Halfway line & center circle
+    px(ctx, cx, my, 2, ch, "#f4f8fc");
+    for (let a = 0; a < 360; a += 8) {
+      const rad = (a * Math.PI) / 180;
+      px(ctx, Math.round(cx + Math.cos(rad) * 11), Math.round(cy + Math.sin(rad) * 11), 1, 1, "#f4f8fc");
+    }
+    px(ctx, cx - 1, cy - 1, 3, 3, "#ffffff");
+    // Left & right penalty boxes
+    const boxW = Math.min(18, Math.floor(cw * 0.17));
+    const boxH = Math.min(34, Math.floor(ch * 0.54));
+    const boxY = cy - Math.floor(boxH / 2);
+    px(ctx, mx + 2, boxY, boxW, 1, "#f4f8fc");
+    px(ctx, mx + 2, boxY + boxH - 1, boxW, 1, "#f4f8fc");
+    px(ctx, mx + 2 + boxW, boxY, 1, boxH, "#f4f8fc");
+    px(ctx, mx + cw - 2 - boxW, boxY, boxW, 1, "#f4f8fc");
+    px(ctx, mx + cw - 2 - boxW, boxY + boxH - 1, boxW, 1, "#f4f8fc");
+    px(ctx, mx + cw - 2 - boxW, boxY, 1, boxH, "#f4f8fc");
+    return canvas;
+  }
+
+  // Playground pad: wooden timber border enclosing warm tan woodchips/sand!
+  px(ctx, 2, 2, w - 4, h - 4, "#1d2228");
+  px(ctx, 3, 3, w - 6, h - 6, "#8a5a36"); // timber curb
+  px(ctx, 5, 5, w - 10, h - 10, "#d9b982"); // warm mulch/sand play surface
+  for (let y = 7; y < h - 7; y += 5) {
+    for (let x = 7; x < w - 7; x += 7) {
+      px(ctx, x, y, 2, 1, "#c49e66");
+      px(ctx, x + 3, y + 2, 1, 1, "#ebd3a4");
+    }
+  }
+  return canvas;
 }

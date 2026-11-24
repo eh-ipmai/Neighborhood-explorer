@@ -4,9 +4,22 @@
  *   - "LOOK BOTH WAYS" curb/crosswalk check with Safety XP rewards
  */
 
+import { DEFAULT_HITBOX, TILE_SIZE } from "./player.js";
+
 export const FASTER_MULTIPLIER = 1.65;
 export const LOOK_DURATION_SEC = 0.65;
-export const SAFE_CROSSING_DURATION_SEC = 4.5;
+export const SAFE_CROSSING_DURATION_SEC = 6.0;
+
+export const ROAD_TILE_TYPES = new Set([
+  "residential_road",
+  "main_road",
+  "crosswalk",
+  "highway",
+]);
+
+export function isRoadTileType(tileType) {
+  return ROAD_TILE_TYPES.has(tileType);
+}
 
 /**
  * Find the closest individual house/building edge distance to tile (tx, ty).
@@ -70,6 +83,7 @@ export function createSafetySystem(worldMap) {
 
   function inspectCrossingContext(tx, ty) {
     let nearCrosswalk = false;
+    let nearHighway = false;
     let nearMainRoad = false;
     let nearResidential = false;
     let nearParking = false;
@@ -78,6 +92,7 @@ export function createSafetySystem(worldMap) {
       for (let dx = -1; dx <= 1; dx++) {
         const type = getTileType(tx + dx, ty + dy);
         if (type === "crosswalk") nearCrosswalk = true;
+        else if (type === "highway") nearHighway = true;
         else if (type === "main_road") nearMainRoad = true;
         else if (type === "residential_road") nearResidential = true;
         else if (type === "parking_lot") nearParking = true;
@@ -89,6 +104,13 @@ export function createSafetySystem(worldMap) {
         context: "crosswalk",
         xpReward: 5,
         message: "👀 Looked Both Ways at Crosswalk! +5 Safety XP",
+      };
+    }
+    if (nearHighway) {
+      return {
+        context: "highway",
+        xpReward: 3,
+        message: "👀 Busy Highway! Always Look Both Ways & Use a Crosswalk (+3 XP)",
       };
     }
     if (nearMainRoad) {
@@ -121,17 +143,123 @@ export function createSafetySystem(worldMap) {
 
   function getSpeedMultiplier(tileType, wantsFaster, safeCrossingActive = false) {
     if (!wantsFaster) return 1;
-    if (tileType === "sidewalk" || tileType === "grass" || tileType === "tall_grass") {
+    if (
+      tileType === "sidewalk" ||
+      tileType === "grass" ||
+      tileType === "tall_grass" ||
+      tileType === "park" ||
+      tileType === "dirt"
+    ) {
       return FASTER_MULTIPLIER;
     }
+    if (tileType === "sand") return 1.35;
     if (tileType === "crosswalk" && safeCrossingActive) return FASTER_MULTIPLIER;
     if ((tileType === "residential_road" || tileType === "parking_lot") && safeCrossingActive) return 1.25;
     return 1;
   }
 
+  const tileSize = worldMap.tileSize || TILE_SIZE;
+
+  function isRoadTile(tx, ty) {
+    return isRoadTileType(getTileType(tx, ty));
+  }
+
+  function isBoxOnRoad(cx, cy, hitbox = DEFAULT_HITBOX) {
+    const halfW = hitbox.width / 2;
+    const halfH = hitbox.height / 2;
+    const left = Math.floor((cx - halfW) / tileSize);
+    const right = Math.floor((cx + halfW - 0.001) / tileSize);
+    const top = Math.floor((cy - halfH) / tileSize);
+    const bottom = Math.floor((cy + halfH - 0.001) / tileSize);
+
+    for (let ty = top; ty <= bottom; ty++) {
+      for (let tx = left; tx <= right; tx++) {
+        if (isRoadTile(tx, ty)) return true;
+      }
+    }
+    return false;
+  }
+
+  function isBoxTouchingTileType(cx, cy, tileType, hitbox = DEFAULT_HITBOX) {
+    const halfW = hitbox.width / 2;
+    const halfH = hitbox.height / 2;
+    const left = Math.floor((cx - halfW) / tileSize);
+    const right = Math.floor((cx + halfW - 0.001) / tileSize);
+    const top = Math.floor((cy - halfH) / tileSize);
+    const bottom = Math.floor((cy + halfH - 0.001) / tileSize);
+
+    for (let ty = top; ty <= bottom; ty++) {
+      for (let tx = left; tx <= right; tx++) {
+        if (getTileType(tx, ty) === tileType) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Wrap the solid-tile collider so the player CANNOT step off a curb/sidewalk onto
+   * any road (street, avenue, highway, crosswalk) without Looking Both Ways first.
+   * If the player is already mid-road, they are never trapped and can finish crossing.
+   * Also reports when the player bumps a solid divided-highway median barrier.
+   */
+  function createRoadAwareBlocker(
+    baseIsBoxBlocked,
+    curX,
+    curY,
+    safeCrossingActive,
+    hitbox = DEFAULT_HITBOX
+  ) {
+    const alreadyOnRoad = isBoxOnRoad(curX, curY, hitbox);
+    let blockedByRoad = false;
+    let blockedByMedian = false;
+
+    function isBoxBlocked(nextX, nextY, box = hitbox) {
+      if (baseIsBoxBlocked(nextX, nextY, box)) {
+        if (isBoxTouchingTileType(nextX, nextY, "highway_median", box)) {
+          blockedByMedian = true;
+        }
+        return true;
+      }
+      if (!safeCrossingActive && !alreadyOnRoad && isBoxOnRoad(nextX, nextY, box)) {
+        blockedByRoad = true;
+        return true;
+      }
+      return false;
+    }
+
+    return {
+      isBoxBlocked,
+      wasBlockedByRoad: () => blockedByRoad,
+      wasBlockedByMedian: () => blockedByMedian,
+      wasAlreadyOnRoad: () => alreadyOnRoad,
+    };
+  }
+
+  /**
+   * Track crossing lifecycle: once the player steps onto a road after looking both ways
+   * and finishes reaching non-road ground on the far side, reset safeCrossingTimer so
+   * the NEXT road crossing requires looking both ways again.
+   */
+  function updateCrossingProgress(state, currentlyOnRoad) {
+    if (currentlyOnRoad) {
+      state.hasEnteredRoadSinceLook = true;
+      return { finishedCrossing: false };
+    }
+    if (state.hasEnteredRoadSinceLook) {
+      state.hasEnteredRoadSinceLook = false;
+      state.safeCrossingTimer = 0;
+      return { finishedCrossing: true };
+    }
+    return { finishedCrossing: false };
+  }
+
   return {
     getTileId,
     getTileType,
+    isRoadTile,
+    isBoxOnRoad,
+    createRoadAwareBlocker,
+    updateCrossingProgress,
     getStreetZoneAt,
     inspectCrossingContext,
     getSpeedMultiplier,

@@ -15,12 +15,34 @@ export const ITEM_CATALOG = {
   library_card: { name: "Newton Library Card", icon: "📚", sprite: "item_book", desc: "Unlocks books & secret reading nooks!" },
   spicy_cholent: { name: "Dad's Spicy Cholent", icon: "🍲", sprite: "item_cholent", desc: "Legendary Kiddush dish with fiery speed energy!" },
   golden_mizuno_glove: { name: "Golden Mizuno Glove", icon: "🧤", sprite: "item_glove", desc: "All-star fielder's mitt from Ward Field!" },
-  coop_badge: { name: "Co-Op Explorer Badge", icon: "🤝", sprite: "item_badge", desc: "Best friends backyard adventure pass!" },
+  coop_badge: { name: "Co-Op Explorer Badge", icon: "🤝", sprite: "item_badge", desc: "Best friends hangout badge from the Salzberg family at 200 Cotton St!" },
+  friendship_bracelet: { name: "Morton Circle Bracelet", icon: "✨", sprite: "item_badge", desc: "Special neighborhood friendship keepsake from Bella & Sydney's family!" },
   running_shoes: { name: "Running Shoes", icon: "👟", sprite: "item_shoes", desc: "Unlocks faster sidewalk jogging (1.75x speed)!" },
   rare_book_stamp: { name: "Rare Book Stamp", icon: "📖", sprite: "item_book", desc: "Found inside the secret Little Free Library!" },
   scooter: { name: "Neighborhood Scooter", icon: "🛴", sprite: "item_scooter", desc: "High-speed sidewalk kick scooter (2.05x speed)!" },
   mountain_bike: { name: "Trek Mountain Bike", icon: "🚲", sprite: "item_scooter", desc: "Top-tier trail & sidewalk cruiser (2.45x speed)!" },
   pogo_stick: { name: "Secret Pogo Stick", icon: "🦘", sprite: "item_badge", desc: "Bouncy surprise hidden behind the gaga pit!" },
+  safety_whistle: { name: "Crossing Guard Whistle", icon: "🦺", sprite: "item_badge", desc: "Official Route 9 Crosswalk Star from Crossing Guard Pat!" },
+  explorer_bandages: { name: "Explorer First-Aid Kit", icon: "🩹", sprite: "item_badge", desc: "Handy pocket kit from 575 Boylston Plaza!" },
+  hilltop_spyglass: { name: "Hilltop Spyglass", icon: "🔭", sprite: "item_compass", desc: "Spot Newton Centre landmarks from Herrick Road Hill!" },
+  chime_keychain: { name: "Chapel Chime Keychain", icon: "🔔", sprite: "item_badge", desc: "Musical keepsake from Wilson Chapel!" },
+  swim_pass: { name: "Crystal Lake Swim Pass", icon: "🏊", sprite: "item_stamp", desc: "Official summer beach pass from Crystal Lake!" },
+  centre_token: { name: "Newton Centre Token", icon: "🏛️", sprite: "item_badge", desc: "Heart-of-the-village compass token!" },
+  golden_bookmark: { name: "Golden Bookmark", icon: "🔖", sprite: "item_book", desc: "Shiny ribbon bookmark from Newtonville Books!" },
+  mini_basketball: { name: "Park Mini Basketball", icon: "🏀", sprite: "item_glove", desc: "Bouncy court ball from Newton Centre Playground!" },
+  fire_badge: { name: "Junior Firefighter Badge", icon: "🚒", sprite: "item_badge", desc: "Awarded by Newton Fire Station #3 & HQ!" },
+  highlands_taco: { name: "Warm Highlands Snack", icon: "🌮", sprite: "item_challah", desc: "Delicious fuel from Anna's Taqueria in Newton Highlands!" },
+  music_note_pin: { name: "St. Paul's Music Pin", icon: "🎻", sprite: "item_badge", desc: "Musical explorer pin from Walnut Street!" },
+  donut_box: { name: "Route 9 Munchkin Box", icon: "🍩", sprite: "item_challah", desc: "Sweet hiking treat from Boylston Street!" },
+  duck_feather: { name: "Pond Duck Feather", icon: "🦆", sprite: "item_compass", desc: "Lucky shimmering feather from Bullough's Pond!" },
+  songbook_star: { name: "Ward Street Star", icon: "⭐", sprite: "item_badge", desc: "Keepsake from Temple Emanuel on Ward Street!" },
+  honey_cake: { name: "Sweet Honey Cake", icon: "🍯", sprite: "item_challah", desc: "Warm treat from Loring Street in Newton Centre!" },
+  pretzel_bag: { name: "Chestnut Hill Pretzel", icon: "🥨", sprite: "item_challah", desc: "Crispy snack from The Mall at Chestnut Hill!" },
+  bc_eagle_pennant: { name: "BC Eagle Pennant", icon: "🦅", sprite: "item_pennant", desc: "Maroon & gold Boston College banner from Stuart Hall!" },
+  bc_gold_notebook: { name: "BC Gold Notebook", icon: "📒", sprite: "item_book", desc: "Collegiate explorer journal from BC Messina Campus!" },
+  spooky_lantern: { name: "Spooky Graveyard Lantern", icon: "🎃", sprite: "item_lantern", desc: "Glowing teal lantern from Newton's 1660 East Parish Burying Ground!" },
+  ghost_charm: { name: "Friendly Ghost Charm", icon: "👻", sprite: "item_ghost", desc: "Shimmering spirit keepsake from Newton Cemetery & Arboretum!" },
+  ghost_lantern_cloak: { name: "Haunted Lantern Cloak", icon: "🕯️", sprite: "item_lantern", desc: "Master Explorer reward from touring BC & Newton's spooky graveyards!" },
 };
 
 export function getItemMeta(itemId) {
@@ -45,14 +67,17 @@ export function snapToWalkableTile(worldMap, targetX, targetY, maxRadius = 10) {
   const base = worldMap.layers.base;
   const collision = worldMap.layers.collision;
 
+  const isRoadId = (id) => id === 2 || id === 3 || id === 4 || id === 12;
+
   const clampX = Math.max(0, Math.min(width - 1, Math.round(targetX)));
   const clampY = Math.max(0, Math.min(height - 1, Math.round(targetY)));
 
-  if (collision[clampY * width + clampX] === 0) {
+  if (collision[clampY * width + clampX] === 0 && !isRoadId(base[clampY * width + clampX])) {
     return { x: clampX, y: clampY };
   }
 
   let fallback = null;
+  let roadFallback = null;
   for (let r = 1; r <= maxRadius; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
@@ -63,13 +88,17 @@ export function snapToWalkableTile(worldMap, targetX, targetY, maxRadius = 10) {
         const idx = ty * width + tx;
         if (collision[idx] === 0) {
           if (base[idx] === 1) return { x: tx, y: ty }; // Prefer front sidewalk
-          if (!fallback) fallback = { x: tx, y: ty };
+          if (!isRoadId(base[idx])) {
+            if (!fallback) fallback = { x: tx, y: ty };
+          } else if (!roadFallback) {
+            roadFallback = { x: tx, y: ty };
+          }
         }
       }
     }
     if (fallback) return fallback;
   }
-  return { x: clampX, y: clampY };
+  return roadFallback || { x: clampX, y: clampY };
 }
 
 /**
@@ -117,7 +146,12 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       ...lm,
       walkTileX: pos.x,
       walkTileY: pos.y,
-      npcSprite: `npc_${index % 4}`,
+      npcSprite:
+        lm.npcStyle === "spooky"
+          ? "npc_4"
+          : lm.npcStyle === "bc"
+            ? "npc_5"
+            : `npc_${index % 4}`,
     };
     landmarkMap.set(lm.id, enriched);
     return enriched;
@@ -155,6 +189,13 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     activeQuestId: quests[0]?.id || null,
     activeStepIndex: 0,
     openedInteractables: new Set(),
+    checkedSigns: new Set(),
+    checkedStreets: new Set(),
+    lastCheckedSignId: null,
+    navMode: "signs", // "signs" (normal North-up) | "hard" (rotating screen + compass) | "gps" (radar assist)
+    gpsAssist: false,
+    hardMode: false,
+    heroOutfit: "polo",
     fogCells: new Uint8Array(FOG_GRID_SIZE * FOG_GRID_SIZE),
   };
 
@@ -191,6 +232,25 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
           obj.opened = state.openedInteractables.has(obj.id);
         }
       }
+      if (Array.isArray(saved.checkedSigns)) {
+        state.checkedSigns = new Set(saved.checkedSigns);
+      }
+      if (Array.isArray(saved.checkedStreets)) {
+        state.checkedStreets = new Set(saved.checkedStreets);
+      }
+      if (typeof saved.lastCheckedSignId === "string" || saved.lastCheckedSignId === null) {
+        state.lastCheckedSignId = saved.lastCheckedSignId;
+      }
+      if (saved.navMode === "signs" || saved.navMode === "hard" || saved.navMode === "gps") {
+        state.navMode = saved.navMode;
+      } else if (typeof saved.gpsAssist === "boolean") {
+        state.navMode = saved.gpsAssist ? "gps" : "signs";
+      }
+      state.gpsAssist = state.navMode === "gps";
+      state.hardMode = state.navMode === "hard";
+      if (saved.heroOutfit === "polo" || saved.heroOutfit === "baseball") {
+        state.heroOutfit = saved.heroOutfit;
+      }
       if (Array.isArray(saved.fogRevealedIndices)) {
         for (const idx of saved.fogRevealedIndices) {
           if (idx >= 0 && idx < state.fogCells.length) state.fogCells[idx] = 1;
@@ -221,6 +281,12 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
           activeQuestId: state.activeQuestId,
           activeStepIndex: state.activeStepIndex,
           openedInteractables: [...state.openedInteractables],
+          checkedSigns: [...state.checkedSigns],
+          checkedStreets: [...state.checkedStreets],
+          lastCheckedSignId: state.lastCheckedSignId,
+          navMode: state.navMode,
+          gpsAssist: state.gpsAssist,
+          heroOutfit: state.heroOutfit,
           fogRevealedIndices,
         })
       );
@@ -240,6 +306,9 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     state.activeQuestId = quests[0]?.id || null;
     state.activeStepIndex = 0;
     state.openedInteractables = new Set();
+    state.checkedSigns = new Set();
+    state.checkedStreets = new Set();
+    state.lastCheckedSignId = null;
     state.fogCells.fill(0);
     for (const obj of interactables) obj.opened = false;
     if (storage) {
@@ -386,7 +455,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
   /**
    * Find closest interactable NPC or hidden chest within reach (<= 3.2 tiles).
    */
-  function findNearbyInteraction(tx, ty, maxDist = 3.2) {
+  function findNearbyInteraction(tx, ty, maxDist = 2.3) {
     let best = null;
 
     for (const lm of npcs) {
@@ -516,6 +585,63 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     };
   }
 
+  /**
+   * Record reading an active street sign: anchors the player's Last Checked Sign
+   * on the Folded Paper Map, unlocks street-name awareness for its crossing streets,
+   * reveals nearby map fog, and awards +2 Navigator XP on first visit.
+   */
+  function recordSignCheck(sign) {
+    if (!sign || !sign.id) return { isNew: false, xpEarned: 0, totalChecked: state.checkedSigns.size };
+    const isNew = !state.checkedSigns.has(sign.id);
+    state.checkedSigns.add(sign.id);
+    state.lastCheckedSignId = sign.id;
+    for (const norm of sign.streetNorms || []) {
+      if (norm) state.checkedStreets.add(norm);
+    }
+    let xpEarned = 0;
+    if (isNew) {
+      xpEarned = 2;
+      state.safetyXP += xpEarned;
+    }
+    revealFogAtTile(sign.tx, sign.ty, 3);
+    save();
+    return { isNew, xpEarned, totalChecked: state.checkedSigns.size };
+  }
+
+  function setNavMode(mode) {
+    if (mode !== "signs" && mode !== "hard" && mode !== "gps") return state.navMode;
+    state.navMode = mode;
+    state.gpsAssist = mode === "gps";
+    state.hardMode = mode === "hard";
+    save();
+    return state.navMode;
+  }
+
+  function cycleNavMode() {
+    const order = ["signs", "hard", "gps"];
+    const next = order[(order.indexOf(state.navMode) + 1) % order.length];
+    return setNavMode(next);
+  }
+
+  function toggleGpsAssist() {
+    return setNavMode(state.gpsAssist ? "signs" : "gps") === "gps";
+  }
+
+  function setActiveQuest(questId) {
+    const target = quests.find((q) => q.id === questId && !state.completedQuests.has(q.id));
+    if (!target) return null;
+    state.activeQuestId = target.id;
+    state.activeStepIndex = 0;
+    save();
+    return target;
+  }
+
+  function toggleHeroOutfit() {
+    state.heroOutfit = state.heroOutfit === "baseball" ? "polo" : "baseball";
+    save();
+    return state.heroOutfit;
+  }
+
   return {
     state,
     npcs,
@@ -529,6 +655,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     getActiveQuest,
     getActiveStep,
     getActiveObjectiveTarget,
+    setActiveQuest,
     getGear: () => getTraversalGear(state.safetyXP, state.inventory),
     formatTargetHint: (tx, ty) => {
       const target = getActiveObjectiveTarget();
@@ -542,5 +669,10 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     findNearbyInteraction,
     interactWithNpc,
     interactWithChest,
+    recordSignCheck,
+    setNavMode,
+    cycleNavMode,
+    toggleGpsAssist,
+    toggleHeroOutfit,
   };
 }

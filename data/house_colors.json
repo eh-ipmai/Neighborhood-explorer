@@ -1,18 +1,21 @@
 {
-  "_comment": "Real-world house & shop colors by street address (St/Street, Rd/Road, Ln/Lane match automatically). Presets: yellow, white, gray, charcoal, navy, slate_blue, sage, cream_stucco, brick, cedar_brown, red_clapboard, tan. Roofs: slate, charcoal, cedar, terracotta, moss. You can also specify custom hex values for wall, roof, shutter, door, trim.",
+  "_comment": "Real-world house & shop colors and styles by street address (St/Street, Rd/Road, Ln/Lane match automatically). Presets: yellow, white, gray, charcoal, navy, slate_blue, sage, cream_stucco, brick, cedar_brown, red_clapboard, tan, forest_green, buttercream. Roofs: slate, charcoal, cedar, terracotta, moss. House arch: colonial, cape, craftsman, gambrel, tudor, victorian, brownstone, stone_manor, saltbox, farmhouse, ranch, modern. Building kind: house, duplex, garage, commercial, bakery_cafe, corner_market, office_plaza, fire_station, greenhouse, apartments, library, school, civic.",
   "565 Boylston St": {
     "preset": "yellow",
     "roof": "slate",
+    "arch": "colonial",
     "label": "Home Base"
   },
   "559 Boylston Street": {
     "preset": "cream_stucco",
     "roof": "charcoal",
+    "arch": "tudor",
     "note": "Stucco & brick exterior"
   },
   "555 Boylston Street": {
     "preset": "white",
-    "roof": "charcoal"
+    "roof": "charcoal",
+    "arch": "cape"
   },
   "575 Boylston Street": {
     "preset": "brick",
@@ -23,13 +26,13 @@
   "46 Langley Road": {
     "preset": "red_clapboard",
     "roof": "charcoal",
-    "kind": "commercial",
+    "kind": "bakery_cafe",
     "label": "J.P. Licks Ice Cream"
   },
   "1280 Centre Street": {
     "preset": "cream_stucco",
     "roof": "terracotta",
-    "kind": "commercial",
+    "kind": "bakery_cafe",
     "label": "Rosenfeld's Bagels"
   },
   "330 Homer Street": {
@@ -43,5 +46,71 @@
     "roof": "charcoal",
     "kind": "civic",
     "label": "Congregation Beth El"
+  },
+  "10 Langley Road": {
+    "preset": "sage",
+    "roof": "charcoal",
+    "kind": "corner_market",
+    "label": "Newtonville Books"
+  },
+  "1164 Centre Street": {
+    "preset": "brick",
+    "roof": "charcoal",
+    "kind": "fire_station",
+    "label": "Newton Fire HQ"
+  },
+  "31 Willow Street": {
+    "preset": "red_clapboard",
+    "roof": "charcoal",
+    "kind": "fire_station",
+    "label": "Newton Fire Station #3"
+  },
+  "27 Lincoln Street": {
+    "preset": "tan",
+    "roof": "terracotta",
+    "kind": "corner_market",
+    "label": "Anna's Taqueria"
+  },
+  "940 Boylston Street": {
+    "preset": "cream_stucco",
+    "roof": "terracotta",
+    "kind": "bakery_cafe",
+    "label": "Dunkin'"
+  },
+  "385 Ward Street": {
+    "preset": "cream_stucco",
+    "roof": "slate",
+    "kind": "civic",
+    "label": "Temple Emanuel"
+  },
+  "885 Centre Street": {
+    "preset": "bc_gothic",
+    "roof": "charcoal",
+    "kind": "school",
+    "label": "Boston College Law"
+  },
+  "855 Centre Street": {
+    "preset": "bc_gothic",
+    "roof": "charcoal",
+    "kind": "school",
+    "label": "BC Cushing Hall"
+  },
+  "300 Hammond Pond Parkway": {
+    "preset": "bc_gothic",
+    "roof": "charcoal",
+    "kind": "school",
+    "label": "BC Messina College"
+  },
+  "60 Tudor Road": {
+    "preset": "bc_gothic",
+    "roof": "charcoal",
+    "kind": "school",
+    "label": "BC Medeiros Hall"
+  },
+  "791 Walnut Street": {
+    "preset": "charcoal",
+    "roof": "charcoal",
+    "kind": "civic",
+    "label": "Newton Cemetery Chapel"
   }
 }

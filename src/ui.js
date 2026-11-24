@@ -1,5 +1,38 @@
-import { HOUSE_COLOR_PRESETS, ROOF_PRESETS } from "./tileset.js";
+import { HOUSE_COLOR_PRESETS, ROOF_PRESETS, BUILDING_STYLE_PRESETS } from "./tileset.js";
 import { getItemMeta } from "./quests.js";
+import { extractHouseNumber, extractStreetFromAddress } from "./streetsigns.js";
+
+const TILE_DISPLAY_LABELS = {
+  grass: "lawn grass",
+  sidewalk: "sidewalk",
+  residential_road: "street",
+  main_road: "town avenue",
+  highway: "highway",
+  highway_median: "highway barrier",
+  crosswalk: "crosswalk",
+  water: "water",
+  tall_grass: "woods",
+  parking_lot: "parking lot",
+  dirt: "dirt trail",
+  sand: "sand",
+  park: "park turf",
+};
+
+const BUILDING_KIND_ICONS = {
+  commercial: "🏪",
+  bakery_cafe: "🥐",
+  corner_market: "🛍️",
+  office_plaza: "🏢",
+  fire_station: "🚒",
+  greenhouse: "🌿",
+  library: "📚",
+  school: "🏫",
+  civic: "🏛️",
+  apartments: "🏬",
+  duplex: "🏘️",
+  garage: "🚗",
+  house: "🏠",
+};
 
 /**
  * Phase 3 UI overlay:
@@ -18,6 +51,11 @@ export function createUI({
   onToggleMute,
   onOpenPaint,
   onToggleMap,
+  onToggleGpsAssist,
+  onToggleOutfit,
+  onSelectQuest,
+  onOpenMapFromSign,
+  onCloseSign,
   onResetProgress,
   onTextBlip,
 } = {}) {
@@ -26,6 +64,7 @@ export function createUI({
   const streetZoneEl = document.getElementById("street-zone");
   const questTrackerEl = document.getElementById("quest-tracker");
   const xpEl = document.getElementById("hud-xp");
+  const heartsEl = document.getElementById("hud-hearts");
   const bagEl = document.getElementById("hud-bag");
   const coordsEl = document.getElementById("hud-coords");
   const tileEl = document.getElementById("hud-tile");
@@ -42,14 +81,31 @@ export function createUI({
 
   const mapModalEl = document.getElementById("map-modal");
   const mapCanvasEl = document.getElementById("paper-map-canvas");
+  const miniMapBtnEl = document.getElementById("mini-map-btn");
+  const miniMapCanvasEl = document.getElementById("mini-map-canvas");
+  const miniMapLabelEl = document.getElementById("mini-map-label");
   const mapStatsEl = document.getElementById("map-stats");
+  const mapLegendEl = document.getElementById("map-legend");
+  const mapDirectionsCardEl = document.getElementById("map-directions-card");
   const mapQuestListEl = document.getElementById("map-quest-list");
   const mapBackpackEl = document.getElementById("map-backpack");
+  const btnMapGps = document.getElementById("btn-map-gps");
   const btnMapClose = document.getElementById("btn-map-close");
   const btnResetProgress = document.getElementById("btn-reset-progress");
 
+  const signModalEl = document.getElementById("sign-modal");
+  const signStampBadgeEl = document.getElementById("sign-stamp-badge");
+  const signBladesEl = document.getElementById("sign-blades");
+  const signDirectionsTitleEl = document.getElementById("sign-directions-title");
+  const signDirectionsListEl = document.getElementById("sign-directions-list");
+  const signNearbyListEl = document.getElementById("sign-nearby-list");
+  const btnSignMap = document.getElementById("btn-sign-map");
+  const btnSignClose = document.getElementById("btn-sign-close");
+
   const dpadEl = document.getElementById("dpad");
   const btnMap = document.getElementById("btn-map");
+  const btnGps = document.getElementById("btn-gps");
+  const btnOutfit = document.getElementById("btn-outfit");
   const btnPaint = document.getElementById("btn-paint");
   const btnMute = document.getElementById("btn-mute");
   const btnDebug = document.getElementById("btn-debug");
@@ -150,21 +206,62 @@ export function createUI({
   }
 
   // --- Folded Paper Map Modal ---
-  function setMapModalOpen(open, questSystem) {
+  function setMapModalOpen(open, questSystem, pocketDirections = null) {
     if (!mapModalEl) return;
     mapModalEl.classList.toggle("open", Boolean(open));
     btnMap?.classList.toggle("active", Boolean(open));
     if (open && questSystem) {
-      refreshMapSidePanels(questSystem);
+      refreshMapSidePanels(questSystem, pocketDirections);
     }
   }
 
-  function refreshMapSidePanels(questSystem) {
+  function refreshMapSidePanels(questSystem, pocketDirections = null) {
+    const navMode = questSystem.state.navMode || (questSystem.state.gpsAssist ? "gps" : "signs");
+    const gpsOn = navMode === "gps";
+    const hardOn = navMode === "hard";
     if (mapStatsEl) {
       const pct = questSystem.getExploredPercent();
       const disc = questSystem.state.discoveredLandmarks.size;
       const total = questSystem.landmarks.length;
-      mapStatsEl.textContent = `Explored: ${pct}% • Landmarks: ${disc}/${total} • Gear: ${questSystem.getGear().label}`;
+      const signsCount = questSystem.state.checkedSigns?.size || 0;
+      mapStatsEl.textContent = `Explored: ${pct}% • Signs: ${signsCount} • Landmarks: ${disc}/${total} • Gear: ${questSystem.getGear().label}`;
+    }
+
+    if (btnMapGps) {
+      btnMapGps.textContent =
+        navMode === "hard"
+          ? "🔥 Mode: Hard"
+          : navMode === "gps"
+            ? "📡 Mode: GPS"
+            : "🧭 Mode: Signs";
+      btnMapGps.classList.toggle("secondary", navMode === "signs");
+    }
+
+    if (mapLegendEl) {
+      mapLegendEl.innerHTML = gpsOn
+        ? `<span>🔴 You</span><span>🟨 Home / Quest</span><span>🟩 Discovered</span><span>🟧 Landmark</span>`
+        : hardOn
+          ? `<span>📍 Last Sign</span><span>🟩 Checked Sign</span><span>🔥 Hard Mode: Match your spinning compass to this North-up map!</span>`
+          : `<span>📍 Last Sign</span><span>🟩 Checked Sign</span><span>🟨 Home</span><span>🧭 Check signs to locate yourself!</span>`;
+    }
+
+    if (mapDirectionsCardEl) {
+      mapDirectionsCardEl.innerHTML = "";
+      if (pocketDirections && Array.isArray(pocketDirections.steps) && pocketDirections.steps.length > 0) {
+        const hdr = document.createElement("div");
+        hdr.style.cssText = "font-size:10.5px; opacity:0.8; margin-bottom:5px;";
+        hdr.textContent = `From ${pocketDirections.fromLabel} → ${pocketDirections.toLabel}:`;
+        mapDirectionsCardEl.appendChild(hdr);
+        pocketDirections.steps.forEach((step, idx) => {
+          const row = document.createElement("div");
+          row.className = `map-dir-step${idx === 0 ? " first" : ""}`;
+          row.textContent = `${step.arrow || "•"} ${step.text}`;
+          mapDirectionsCardEl.appendChild(row);
+        });
+      } else {
+        mapDirectionsCardEl.textContent =
+          "Walk to any green street sign and tap READ SIGN for live turn-by-turn street directions!";
+      }
     }
 
     if (mapQuestListEl) {
@@ -179,7 +276,11 @@ export function createUI({
           ? `✅ <strong>${q.title}</strong>`
           : active
             ? `🎯 <strong>${q.title}</strong><br/><span style="opacity:0.85">${activeStep ? activeStep.instruction : q.description}</span>`
-            : `⬜ <strong>${q.title}</strong> — <span style="opacity:0.75">${q.description}</span>`;
+            : `⬜ <strong>${q.title}</strong> <span style="font-size:10px; color:#174a2e; text-decoration:underline;">(Tap to start)</span><br/><span style="opacity:0.75">${q.description}</span>`;
+        if (!done && !active) {
+          div.style.cursor = "pointer";
+          div.addEventListener("click", () => onSelectQuest?.(q.id));
+        }
         mapQuestListEl.appendChild(div);
       }
     }
@@ -197,7 +298,116 @@ export function createUI({
     }
   }
 
+  // --- Active Street-Sign Wayfinding Overlay ---
+  function formatBranchDirs(dirs = []) {
+    if (!dirs || dirs.length === 0) return "Corner";
+    const arrowMap = { N: "↑ N", S: "↓ S", E: "E →", W: "← W" };
+    const order = ["W", "E", "N", "S"];
+    const sorted = [...dirs].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    return sorted.map((d) => arrowMap[d] || d).join("  •  ");
+  }
+
+  function openSignModal({ sign, checkResult, directions, targetLabel, nearbyLandmarks = [] }) {
+    if (!signModalEl || !sign) return;
+
+    if (signStampBadgeEl) {
+      if (checkResult?.isNew) {
+        signStampBadgeEl.textContent = `★ NEW SIGN LOGGED! +${checkResult.xpEarned} XP`;
+        signStampBadgeEl.classList.add("new-stamp");
+      } else {
+        signStampBadgeEl.textContent = `✓ Checked Sign #${checkResult?.totalChecked || 1}`;
+        signStampBadgeEl.classList.remove("new-stamp");
+      }
+    }
+
+    if (signBladesEl) {
+      signBladesEl.innerHTML = "";
+      for (const br of sign.branches || []) {
+        const blade = document.createElement("div");
+        blade.className = "sign-blade";
+        const nameEl = document.createElement("span");
+        nameEl.className = "sign-blade-name";
+        nameEl.textContent = br.shortStreet || br.street;
+        const dirsEl = document.createElement("span");
+        dirsEl.className = "sign-blade-dirs";
+        dirsEl.textContent = formatBranchDirs(br.dirs);
+        blade.appendChild(nameEl);
+        blade.appendChild(dirsEl);
+        signBladesEl.appendChild(blade);
+      }
+    }
+
+    if (signDirectionsTitleEl) {
+      signDirectionsTitleEl.textContent = targetLabel
+        ? `🧭 Directions to ${targetLabel}`
+        : "🧭 Free Explore — You're Oriented!";
+    }
+
+    if (signDirectionsListEl) {
+      signDirectionsListEl.innerHTML = "";
+      if (directions && Array.isArray(directions.steps) && directions.steps.length > 0) {
+        directions.steps.forEach((step, idx) => {
+          const row = document.createElement("div");
+          row.className = `sign-step${idx === 0 ? " first" : ""}`;
+          const arrowEl = document.createElement("span");
+          arrowEl.className = "sign-step-arrow";
+          arrowEl.textContent = step.arrow || "•";
+          const textEl = document.createElement("span");
+          textEl.textContent = step.text;
+          row.appendChild(arrowEl);
+          row.appendChild(textEl);
+          signDirectionsListEl.appendChild(row);
+        });
+      } else {
+        const row = document.createElement("div");
+        row.className = "sign-step";
+        row.textContent = "All quests complete! Check the Paper Map to see your logged street signs.";
+        signDirectionsListEl.appendChild(row);
+      }
+    }
+
+    if (signNearbyListEl) {
+      signNearbyListEl.innerHTML = "";
+      if (nearbyLandmarks.length === 0) {
+        const chip = document.createElement("span");
+        chip.className = "sign-nearby-chip";
+        chip.textContent = "Quiet residential stretch — keep exploring!";
+        signNearbyListEl.appendChild(chip);
+      } else {
+        for (const lm of nearbyLandmarks) {
+          const chip = document.createElement("span");
+          chip.className = "sign-nearby-chip";
+          chip.textContent = lm.isRightHere
+            ? `★ ${lm.name} (Right here!)`
+            : `${lm.arrow} ${lm.name} (~${lm.blocks} ${lm.blocks === 1 ? "blk" : "blks"} ${lm.dir})`;
+          signNearbyListEl.appendChild(chip);
+        }
+      }
+    }
+
+    signModalEl.classList.add("open");
+  }
+
+  function closeSignModal() {
+    if (!signModalEl?.classList.contains("open")) return;
+    signModalEl.classList.remove("open");
+    onCloseSign?.();
+  }
+
+  btnSignClose?.addEventListener("click", closeSignModal);
+  btnSignMap?.addEventListener("click", () => {
+    closeSignModal();
+    onOpenMapFromSign?.();
+  });
+  signModalEl?.addEventListener("click", (e) => {
+    if (e.target === signModalEl) closeSignModal();
+  });
+
   btnMap?.addEventListener("click", () => onToggleMap?.());
+  btnGps?.addEventListener("click", () => onToggleGpsAssist?.());
+  btnOutfit?.addEventListener("click", () => onToggleOutfit?.());
+  btnMapGps?.addEventListener("click", () => onToggleGpsAssist?.());
+  miniMapBtnEl?.addEventListener("click", () => onToggleMap?.());
   questTrackerEl?.addEventListener("click", () => onToggleMap?.());
   btnMapClose?.addEventListener("click", () => setMapModalOpen(false));
   mapModalEl?.addEventListener("click", (e) => {
@@ -336,6 +546,7 @@ export function createUI({
   const paintTitleEl = document.getElementById("paint-title");
   const wallSwatchesEl = document.getElementById("wall-swatches");
   const roofSwatchesEl = document.getElementById("roof-swatches");
+  const styleSwatchesEl = document.getElementById("style-swatches");
   const btnPaintClose = document.getElementById("btn-paint-close");
   const btnPaintCopy = document.getElementById("btn-paint-copy");
   const btnPaintReset = document.getElementById("btn-paint-reset");
@@ -372,6 +583,27 @@ export function createUI({
           renderSwatches(updated || {});
         });
         roofSwatchesEl.appendChild(btn);
+      }
+    }
+    if (styleSwatchesEl) {
+      styleSwatchesEl.innerHTML = "";
+      const activeKind = currentOverride.kind || activePaintBuilding?.kind || "house";
+      const activeArch = currentOverride.arch || activePaintBuilding?.arch || "colonial";
+      for (const [key, preset] of Object.entries(BUILDING_STYLE_PRESETS)) {
+        const isSelected =
+          preset.mode === "arch"
+            ? activeKind === "house" && activeArch === key
+            : activeKind === key;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `swatch-btn${isSelected ? " active" : ""}`;
+        btn.textContent = preset.label;
+        btn.addEventListener("click", () => {
+          if (!activePaintBuilding) return;
+          const updated = paintHandlers?.onPickStyle?.(activePaintBuilding, key, preset.mode);
+          renderSwatches(updated || {});
+        });
+        styleSwatchesEl.appendChild(btn);
       }
     }
   }
@@ -416,6 +648,7 @@ export function createUI({
     if (e.key === "Escape") {
       setMapModalOpen(false);
       closePaintModal();
+      closeSignModal();
     }
   });
 
@@ -431,95 +664,213 @@ export function createUI({
     nearestBuilding,
     nearbyInteraction,
     questHint,
+    pocketDirections = null,
+    signBanner = null,
+    navMode = "signs",
+    gpsAssist = false,
+    heroOutfit = "polo",
+    checkedSignsCount = 0,
+    checkedStreets = null,
     gearLabel = "FAST",
     debugEnabled,
     muted = false,
     safetyXP = 0,
     coins = 0,
     acorns = 0,
+    hearts = 3,
+    maxHearts = 3,
     isFasterActive = false,
     safeCrossingActive = false,
+    needsLookAtCurb = false,
   }) {
+    if (heartsEl) {
+      const clamped = Math.max(0, Math.min(maxHearts, hearts));
+      heartsEl.textContent = "❤️".repeat(clamped) + "🖤".repeat(Math.max(0, maxHearts - clamped));
+      heartsEl.classList.toggle("low", clamped < maxHearts);
+    }
     if (xpEl) {
       xpEl.textContent = safeCrossingActive
-        ? `Safety XP: ${safetyXP} ✓`
+        ? `Safety XP: ${safetyXP} • Safe to Cross ✓`
         : `Safety XP: ${safetyXP}`;
     }
     if (bagEl) {
       bagEl.textContent = `🪙 ${coins} • 🌰 ${acorns}`;
     }
-    if (coordsEl) coordsEl.textContent = `Tile ${tileX}, ${tileY}`;
+    if (coordsEl) {
+      coordsEl.textContent = debugEnabled ? `Tile ${tileX}, ${tileY}` : `🪧 Signs: ${checkedSignsCount}`;
+    }
+    const prettyTile = TILE_DISPLAY_LABELS[tileType] || tileType;
     if (tileEl) {
-      tileEl.textContent = isFasterActive ? `${tileType} • ${gearLabel}` : tileType;
+      tileEl.textContent = isFasterActive ? `${prettyTile} • ${gearLabel}` : prettyTile;
     }
     if (btnDebug) btnDebug.classList.toggle("active", Boolean(debugEnabled));
+    if (btnGps) {
+      btnGps.textContent =
+        navMode === "hard" ? "🔥 Hard (G)" : navMode === "gps" ? "📡 GPS (G)" : "🧭 Signs (G)";
+      btnGps.classList.toggle("active", navMode !== "signs");
+    }
+    if (btnOutfit) {
+      btnOutfit.textContent = heroOutfit === "baseball" ? "⚾ Uniform (O)" : "👕 Polo (O)";
+      btnOutfit.classList.toggle("active", heroOutfit === "baseball");
+    }
+    if (miniMapLabelEl) {
+      miniMapLabelEl.textContent =
+        navMode === "hard"
+          ? "HARD COMPASS (M)"
+          : navMode === "gps"
+            ? "RADAR • MAP (M)"
+            : "COMPASS • MAP (M)";
+    }
     if (btnMute) {
       btnMute.textContent = muted ? "🔇 Muted" : "🔊 SFX";
       btnMute.classList.toggle("active", Boolean(muted));
     }
     if (btnFaster) btnFaster.classList.toggle("active", Boolean(fasterHeld || isFasterActive));
 
-    // Context-aware Look Both Ways / Talk / Open Chest button label
+    // Context-aware Look Both Ways / Read Sign / Talk / Open Chest button label
     if (btnLook && btnLookIcon && btnLookLabel) {
       if (nearbyInteraction) {
         btnLook.classList.add("talk-ready");
-        btnLookIcon.textContent = nearbyInteraction.kind === "chest" ? "📦" : "💬";
-        btnLookLabel.innerHTML = nearbyInteraction.kind === "chest" ? "OPEN<br/>CHEST" : "TALK /<br/>LOOK";
+        btnLook.classList.remove("need-look");
+        if (nearbyInteraction.kind === "sign") {
+          btnLookIcon.textContent = "🪧";
+          btnLookLabel.innerHTML = "READ<br/>SIGN";
+        } else if (nearbyInteraction.kind === "chest") {
+          btnLookIcon.textContent = "📦";
+          btnLookLabel.innerHTML = "OPEN<br/>CHEST";
+        } else if (nearbyInteraction.kind === "protestor") {
+          btnLookIcon.textContent = "📢";
+          btnLookLabel.innerHTML = nearbyInteraction.target?.isMob
+            ? "DETOUR<br/>MOB!"
+            : "EXCUSE<br/>ME!";
+        } else if (nearbyInteraction.kind === "turkey") {
+          btnLookIcon.textContent = "🦃";
+          btnLookLabel.innerHTML = "SHOO<br/>TURKEY";
+        } else if (nearbyInteraction.kind === "spooky") {
+          btnLookIcon.textContent = "🔦";
+          btnLookLabel.innerHTML = "SPOOK<br/>BACK!";
+        } else {
+          btnLookIcon.textContent = "💬";
+          btnLookLabel.innerHTML = "TALK /<br/>LOOK";
+        }
       } else {
         btnLook.classList.remove("talk-ready");
-        btnLookIcon.textContent = "👀";
+        btnLook.classList.toggle("need-look", Boolean(needsLookAtCurb));
+        btnLookIcon.textContent = needsLookAtCurb ? "🛑" : "👀";
         btnLookLabel.innerHTML = "LOOK<br/>BOTH WAYS";
       }
     }
 
-    // Active Quest Compass Strip
+    // Active Quest Directions Strip (Signpost Mode = Street Directions; GPS Assist = Compass & Meters)
     if (questTrackerEl) {
-      if (questHint) {
+      if (!questHint) {
+        questTrackerEl.textContent = "🏆 All Quests Complete! Free Explore";
+      } else if (gpsAssist) {
         const shortLabel = questHint.label.replace(/\s*\(.*\)/, "");
         questTrackerEl.textContent = `🎯 ${shortLabel} • ${questHint.compass}`;
+      } else if (pocketDirections && pocketDirections.summary) {
+        const shortDest = questHint.label.replace(/\s*\(.*\)/, "");
+        questTrackerEl.textContent = `🧭 ${shortDest}: ${pocketDirections.summary}`;
       } else {
-        questTrackerEl.textContent = "🏆 All Quests Complete! Free Explore";
+        const shortLabel = questHint.label.replace(/\s*\(.*\)/, "");
+        questTrackerEl.textContent = `🎯 ${shortLabel} • Check a Street Sign!`;
       }
     }
 
-    const displayName = streetZone ? streetZone.name : originName || "Newton Centre";
-    const displayTag = streetZone ? streetZone.type : tileType;
-    const key = `${displayName}|${displayTag}`;
+    // Top-left Street Banner:
+    //  - Signpost Mode: only shows street identity from Home Base or an active street sign you checked!
+    //  - GPS Assist Mode: classic live auto-updating street banner.
+    const displayName = gpsAssist
+      ? streetZone
+        ? streetZone.name
+        : originName || "Newton Centre"
+      : signBanner?.title || "UNKNOWN STREET";
+    const displayTag = gpsAssist
+      ? streetZone
+        ? streetZone.type
+        : tileType
+      : signBanner?.tag || "Check a Street Sign!";
+    const isUnknownBanner = !gpsAssist && Boolean(signBanner?.unknown);
+    const key = `${displayName}|${displayTag}|${isUnknownBanner}`;
     if (key !== lastStreetKey) {
       lastStreetKey = key;
       if (streetNameEl) streetNameEl.textContent = displayName;
       if (streetZoneEl) streetZoneEl.textContent = displayTag;
       if (bannerEl) {
+        bannerEl.classList.toggle("unknown", isUnknownBanner);
         bannerEl.classList.add("slide-pop");
         if (bannerTimer) clearTimeout(bannerTimer);
         bannerTimer = setTimeout(() => bannerEl.classList.remove("slide-pop"), 320);
       }
     }
 
-    // Bottom proximity pill (hides cleanly when dialogue box is open)
+    // Bottom proximity pill (hides cleanly when dialogue or sign modal is open)
     if (landmarkPillEl) {
-      if (dialogueState) {
+      if (dialogueState || signModalEl?.classList.contains("open")) {
         landmarkPillEl.classList.remove("visible");
       } else if (nearbyInteraction) {
-        const label = nearbyInteraction.kind === "chest"
-          ? `📦 Tap OPEN / Space — ${nearbyInteraction.target.name}`
-          : `💬 Tap TALK / Space — ${nearbyInteraction.target.npcName} (${nearbyInteraction.target.name})`;
+        let label = "";
+        if (nearbyInteraction.kind === "sign") {
+          const s = nearbyInteraction.target;
+          label =
+            gpsAssist || nearbyInteraction.alreadyChecked
+              ? `🪧 Tap READ SIGN / Space — ${s.label}`
+              : "🪧 Tap READ SIGN / Space — Read Street Sign";
+        } else if (nearbyInteraction.kind === "chest") {
+          label = `📦 Tap OPEN / Space — ${nearbyInteraction.target.name}`;
+        } else if (nearbyInteraction.kind === "protestor") {
+          label = nearbyInteraction.target?.isMob
+            ? `📢 Protestor Mob! "${nearbyInteraction.target.chantText}" — Find a way around!`
+            : `📢 Tap EXCUSE ME / Space — "${nearbyInteraction.target.chantText}"`;
+        } else if (nearbyInteraction.kind === "turkey") {
+          label = "🦃 Tap SHOO / Space — Bold Wild Newton Turkey!";
+        } else if (nearbyInteraction.kind === "spooky") {
+          label = `👻 Tap SPOOK BACK / Space — ${nearbyInteraction.target?.name || "Spooky Graveyard Character"}!`;
+        } else {
+          label = `💬 Tap TALK / Space — ${nearbyInteraction.target.npcName} (${nearbyInteraction.target.name})`;
+        }
         landmarkPillEl.textContent = label;
         landmarkPillEl.classList.add("visible");
-      } else if (nearestLandmark && nearestLandmark.distTiles <= 5) {
-        landmarkPillEl.textContent = `★ ${nearestLandmark.landmark.name}`;
+      } else if (nearestLandmark && nearestLandmark.distTiles <= (gpsAssist ? 10 : 5.5)) {
+        const meters = Math.round(nearestLandmark.distTiles * 6);
+        const distNote = nearestLandmark.distTiles <= 4 || !gpsAssist ? "" : ` (${meters}m away)`;
+        landmarkPillEl.textContent = `★ ${nearestLandmark.landmark.name}${distNote}`;
         landmarkPillEl.classList.add("visible");
       } else if (nearestBuilding && nearestBuilding.distTiles <= 2.2) {
         const b = nearestBuilding.building;
-        const label = b.isHomeBase
-          ? `🏠 ${b.address} — Home Base`
-          : b.name && b.address
-            ? `🏠 ${b.name} (${b.address})`
-            : b.address
-              ? `🏠 ${b.address}`
-              : b.name
-                ? `🏠 ${b.name}`
-                : "";
+        const icon = BUILDING_KIND_ICONS[b.kind] || "🏠";
+        const archTag = b.kind === "house" && b.arch ? ` • ${b.arch}` : b.kind && b.kind !== "house" ? ` • ${b.kind}` : "";
+        const houseStreetNorm = extractStreetFromAddress(b.address);
+        const streetKnown =
+          gpsAssist ||
+          b.isHomeBase ||
+          (checkedStreets && houseStreetNorm && checkedStreets.has(houseStreetNorm));
+        const houseNum = extractHouseNumber(b.address);
+
+        let label = "";
+        if (b.isHomeBase) {
+          label = `🏠 ${b.address} — Home Base`;
+        } else if (streetKnown) {
+          label =
+            b.name && b.address
+              ? `${icon} ${b.name} (${b.address})`
+              : b.address
+                ? `${icon} ${b.address}${archTag}`
+                : b.name
+                  ? `${icon} ${b.name}`
+                  : "";
+        } else {
+          // Signpost Mode: show porch number like real life without spoiling the unchecked street name!
+          label =
+            b.name && houseNum
+              ? `${icon} ${b.name} (${houseNum})`
+              : houseNum
+                ? `${icon} House ${houseNum}${archTag}`
+                : b.name
+                  ? `${icon} ${b.name}`
+                  : "";
+        }
+
         if (label) {
           landmarkPillEl.textContent = label;
           landmarkPillEl.classList.add("visible");
@@ -542,9 +893,13 @@ export function createUI({
     isDialogueOpen: () => Boolean(dialogueState),
     setFanfareBanner,
     getMapCanvas: () => mapCanvasEl,
+    getMiniMapCanvas: () => miniMapCanvasEl,
     isMapOpen: () => Boolean(mapModalEl?.classList.contains("open")),
     setMapModalOpen,
     refreshMapSidePanels,
+    openSignModal,
+    closeSignModal,
+    isSignOpen: () => Boolean(signModalEl?.classList.contains("open")),
     openPaintModal,
     closePaintModal,
     isPaintOpen: () => Boolean(paintModalEl?.classList.contains("open")),

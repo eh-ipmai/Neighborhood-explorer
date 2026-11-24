@@ -10,6 +10,7 @@
     "preview": "vite preview --host",
     "build:map": "node scripts/build_map.mjs",
     "build:map:offline": "node scripts/build_map.mjs --offline",
+    "build:map:enrich": "node scripts/build_map.mjs --enrich",
     "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {

@@ -80,16 +80,19 @@
       }
 
       #street-banner {
-        background: linear-gradient(180deg, var(--snes-green) 0%, var(--snes-green-dark) 100%);
-        border: 3px solid var(--snes-gold);
-        outline: 2px solid #2b2112;
-        border-radius: 5px;
-        padding: 6px 14px;
-        font-size: 13px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
+        background: linear-gradient(180deg, #e0a054 0%, #c47d38 100%);
+        border: 3px solid #2b1810;
+        outline: 2px solid #f7d8a3;
+        outline-offset: -5px;
+        border-radius: 6px;
+        padding: 7px 16px;
+        font-size: 13.5px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        color: #fffaf0;
+        text-shadow: 0 1px 0 #4d2914;
+        box-shadow: 0 4px 12px rgba(26, 12, 8, 0.6), inset 0 2px 0 rgba(255, 232, 184, 0.45);
         transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
         pointer-events: none;
       }
@@ -98,11 +101,18 @@
         transform: translateX(4px) scale(1.03);
       }
 
+      #street-banner.unknown {
+        background: linear-gradient(180deg, #59443e 0%, #3d2d29 100%);
+        border-color: #261814;
+        outline-color: rgba(242, 204, 148, 0.45);
+        color: #f0dfd1;
+      }
+
       #street-banner .zone-tag {
-        color: var(--accent);
+        color: #fff0c2;
         font-size: 10px;
         margin-left: 8px;
-        opacity: 0.92;
+        opacity: 0.94;
       }
 
       #quest-tracker {
@@ -142,6 +152,18 @@
         font-weight: 700;
       }
 
+      #hud-status .hearts {
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        line-height: 1.15;
+        margin-bottom: 1px;
+        text-shadow: 0 1px 0 #1b0a0e;
+      }
+
+      #hud-status .hearts.low {
+        color: #ff9e9e;
+      }
+
       #hud-status .bag {
         color: var(--accent);
         font-weight: 700;
@@ -149,6 +171,52 @@
 
       #hud-status .muted {
         opacity: 0.72;
+      }
+
+      /* Live Corner Neighborhood Radar Mini-Map (clickable to open full Folded Paper Map!) */
+      #mini-map-btn {
+        position: fixed;
+        top: calc(108px + var(--safe-top));
+        right: calc(12px + var(--safe-right));
+        padding: 3px;
+        background: #17271e;
+        border: 2px solid var(--snes-gold);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55);
+        z-index: 20;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+      }
+
+      #mini-map-btn:hover {
+        border-color: #fff0a6;
+      }
+
+      #mini-map-canvas {
+        width: 96px;
+        height: 96px;
+        display: block;
+        border-radius: 4px;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+
+      #mini-map-label {
+        font-family: inherit;
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--accent);
+        letter-spacing: 0.04em;
+      }
+
+      @media (max-width: 520px) {
+        #mini-map-canvas {
+          width: 78px;
+          height: 78px;
+        }
       }
 
       /* Safety & pickup toast */
@@ -417,6 +485,17 @@
         box-shadow: 0 0 14px rgba(244, 211, 94, 0.45);
       }
 
+      .touch-btn.btn-look.need-look {
+        border-color: #ff6b57;
+        background: rgba(168, 36, 28, 0.88);
+        animation: pulseLook 0.9s ease-in-out infinite;
+      }
+
+      @keyframes pulseLook {
+        0%, 100% { box-shadow: 0 0 0 rgba(255, 107, 87, 0.25); }
+        50% { box-shadow: 0 0 16px rgba(255, 107, 87, 0.85); }
+      }
+
       .touch-btn.btn-look.active,
       .touch-btn.btn-look:active {
         background: rgba(110, 231, 168, 0.38);
@@ -654,6 +733,208 @@
         margin-top: 12px;
       }
 
+      /* Active Street-Sign Wayfinding Overlay (Massachusetts Green Street Blades!) */
+      .sign-card {
+        width: min(460px, 95vw);
+        max-height: 92vh;
+        overflow-y: auto;
+        background: linear-gradient(180deg, #162a20 0%, #0f1f17 100%);
+        border: 3px solid var(--snes-gold);
+        outline: 2px solid #2b2112;
+        border-radius: 12px;
+        padding: 14px 16px;
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.72);
+      }
+
+      .sign-top-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .sign-kicker {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .sign-stamp-badge {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: rgba(110, 231, 168, 0.16);
+        border: 1px solid var(--safe);
+        color: var(--safe);
+      }
+
+      .sign-stamp-badge.new-stamp {
+        background: rgba(244, 211, 94, 0.22);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .sign-blades {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .sign-blade {
+        background: linear-gradient(180deg, #1f7a4c 0%, #155c38 100%);
+        border: 2px solid #f4faf6;
+        outline: 2px solid #0d3a23;
+        border-radius: 6px;
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+      }
+
+      .sign-blade-name {
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #ffffff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+      }
+
+      .sign-blade-dirs {
+        font-size: 11px;
+        font-weight: 700;
+        color: #e6ffef;
+        background: rgba(9, 38, 22, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 999px;
+        padding: 3px 8px;
+        white-space: nowrap;
+      }
+
+      .sign-section {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(230, 184, 76, 0.32);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+      }
+
+      .sign-section-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--accent);
+        margin-bottom: 7px;
+      }
+
+      .sign-step {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 12px;
+        line-height: 1.45;
+        color: #e6f0ea;
+        padding: 4px 6px;
+        border-radius: 6px;
+        margin-bottom: 4px;
+      }
+
+      .sign-step.first {
+        background: rgba(244, 211, 94, 0.16);
+        border: 1px solid rgba(244, 211, 94, 0.55);
+        color: #fff6c8;
+        font-weight: 700;
+      }
+
+      .sign-step-arrow {
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+        border-radius: 5px;
+        background: rgba(31, 122, 76, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        color: #ffffff;
+        font-weight: 800;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .sign-step.first .sign-step-arrow {
+        background: var(--snes-gold);
+        color: #1f170a;
+        border-color: #fff5c4;
+      }
+
+      .sign-nearby-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .sign-nearby-chip {
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        color: #eef5ef;
+      }
+
+      .sign-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .sign-primary-btn {
+        flex: 1;
+        height: 36px;
+        border-radius: 999px;
+        border: 2px solid var(--snes-gold);
+        background: linear-gradient(180deg, #277d50 0%, #185736 100%);
+        color: #fff9e6;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .sign-secondary-btn {
+        height: 36px;
+        padding: 0 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(230, 184, 76, 0.55);
+        background: rgba(255, 255, 255, 0.08);
+        color: #f7e9b8;
+        font-family: inherit;
+        font-size: 11.5px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .map-dir-step {
+        font-size: 11px;
+        line-height: 1.4;
+        margin-bottom: 4px;
+        color: #2b2112;
+      }
+
+      .map-dir-step.first {
+        font-weight: 700;
+        color: #174a2e;
+      }
+
       @media (hover: hover) and (pointer: fine) {
         .dpad {
           opacity: 0.5;
@@ -672,10 +953,10 @@
 
     <div id="top-left-stack">
       <div id="street-banner">
-        <span id="street-name">BOYLSTON ST</span>
-        <span id="street-zone" class="zone-tag">sidewalk</span>
+        <span id="street-name">HOME BASE</span>
+        <span id="street-zone" class="zone-tag">565 Boylston St</span>
       </div>
-      <button id="quest-tracker" type="button">🎯 Exploring Newton Centre</button>
+      <button id="quest-tracker" type="button">🧭 Check a Street Sign for directions!</button>
     </div>
 
     <div id="safety-toast"></div>
@@ -686,11 +967,17 @@
     </div>
 
     <div id="hud-status">
+      <div id="hud-hearts" class="hearts" aria-label="Health">❤️❤️❤️</div>
       <div id="hud-xp" class="xp">Safety XP: 0</div>
       <div id="hud-bag" class="bag">🪙 0 • 🌰 0</div>
-      <div id="hud-coords">Tile 0, 0</div>
+      <div id="hud-coords">🪧 Signs: 0</div>
       <div id="hud-tile" class="muted">sidewalk</div>
     </div>
+
+    <button id="mini-map-btn" type="button" aria-label="Explorer Compass (Tap for Folded Paper Map)">
+      <canvas id="mini-map-canvas" width="104" height="104"></canvas>
+      <span id="mini-map-label">COMPASS • MAP (M)</span>
+    </button>
 
     <div id="landmark-pill"></div>
 
@@ -712,6 +999,8 @@
       <div class="action-cluster">
         <div class="utility-row">
           <button id="btn-map" class="mini-btn" type="button" aria-label="Open Folded Paper Map">🗺️ Map (M)</button>
+          <button id="btn-gps" class="mini-btn" type="button" aria-label="Toggle Signpost Mode or GPS Assist">🧭 Signs (G)</button>
+          <button id="btn-outfit" class="mini-btn" type="button" aria-label="Switch Liam's Outfit">👕 Polo (O)</button>
           <button id="btn-paint" class="mini-btn" type="button" aria-label="Paint Nearby House">🎨 Paint</button>
           <button id="btn-mute" class="mini-btn" type="button" aria-label="Toggle Sound">🔊 SFX</button>
           <button id="btn-debug" class="mini-btn" type="button">Grid (C)</button>
@@ -736,21 +1025,29 @@
         <div class="papermap-header">
           <div>
             <h3>🗺️ Folded Paper Map — Newton Centre</h3>
-            <div id="map-stats" class="papermap-stats">Explored: 0% • Landmarks: 1/9</div>
+            <div id="map-stats" class="papermap-stats">Explored: 0% • Signs: 0 • Landmarks: 1/9</div>
           </div>
-          <button id="btn-map-close" class="parchment-btn" type="button">Fold Map ✕</button>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button id="btn-map-gps" class="parchment-btn secondary" type="button">🧭 Mode: Signs</button>
+            <button id="btn-map-close" class="parchment-btn" type="button">Fold Map ✕</button>
+          </div>
         </div>
 
         <div class="papermap-body">
           <div>
             <canvas id="paper-map-canvas" width="256" height="256"></canvas>
-            <div class="map-legend">
-              <span>🔴 You</span>
-              <span>🟨 Home / Quest</span>
-              <span>🟩 Discovered</span>
+            <div id="map-legend" class="map-legend">
+              <span>📍 Last Sign</span>
+              <span>🟩 Checked Sign</span>
+              <span>🟨 Home</span>
+              <span>🧭 Read signs to locate yourself!</span>
             </div>
           </div>
           <div>
+            <div class="map-panel-section">
+              <h4>🧭 Pocket Directions</h4>
+              <div id="map-directions-card">Check any green street sign for turn-by-turn street directions!</div>
+            </div>
             <div class="map-panel-section">
               <h4>📜 Active Quests</h4>
               <div id="map-quest-list"></div>
@@ -767,6 +1064,29 @@
       </div>
     </div>
 
+    <!-- Active Street-Sign Wayfinding Overlay -->
+    <div id="sign-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Street Signpost">
+      <div class="sign-card">
+        <div class="sign-top-row">
+          <span class="sign-kicker">🪧 Street Signpost</span>
+          <span id="sign-stamp-badge" class="sign-stamp-badge">✓ Logged</span>
+        </div>
+        <div id="sign-blades" class="sign-blades"></div>
+        <div class="sign-section">
+          <div id="sign-directions-title" class="sign-section-title">🧭 Directions from this corner</div>
+          <div id="sign-directions-list"></div>
+        </div>
+        <div class="sign-section">
+          <div class="sign-section-title">★ Nearby Landmarks</div>
+          <div id="sign-nearby-list" class="sign-nearby-list"></div>
+        </div>
+        <div class="sign-footer">
+          <button id="btn-sign-map" class="sign-secondary-btn" type="button">🗺️ Check Map</button>
+          <button id="btn-sign-close" class="sign-primary-btn" type="button">Follow Directions ✓</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Real House Color Painter Modal -->
     <div id="paint-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Paint House Real Colors">
       <div class="paint-card">
@@ -778,6 +1098,8 @@
         <div id="wall-swatches" class="swatch-grid"></div>
         <div class="paint-label">Roof Color</div>
         <div id="roof-swatches" class="swatch-grid"></div>
+        <div class="paint-label">House / Building Style</div>
+        <div id="style-swatches" class="swatch-grid"></div>
         <div class="paint-footer">
           <button id="btn-paint-copy" class="mini-btn" type="button">📋 Copy house_colors.json</button>
           <button id="btn-paint-reset" class="mini-btn" type="button">Reset House</button>

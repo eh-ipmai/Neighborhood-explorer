@@ -1,5 +1,30 @@
 [
   {
+    "id": "quest_00_family_meetups",
+    "tier": 1,
+    "title": "Neighborhood Family Meetups",
+    "description": "Navigate across Newton using street signs and your compass to meet up with the Salzberg family at 200 Cotton St and Bella & Sydney's family at Morton Circle!",
+    "steps": [
+      {
+        "stepIndex": 1,
+        "instruction": "Meet up with the Salzberg family at their home (200 Cotton St).",
+        "targetLandmarkId": "salzberg_house",
+        "completionTrigger": "npc_talk"
+      },
+      {
+        "stepIndex": 2,
+        "instruction": "Head west to Morton Circle (Morton Rd) and meet up with Bella & Sydney's family!",
+        "targetLandmarkId": "bella_sydney_house",
+        "completionTrigger": "npc_talk"
+      }
+    ],
+    "rewards": {
+      "xp": 120,
+      "coins": 40,
+      "item": "running_shoes"
+    }
+  },
+  {
     "id": "quest_01_first_steps",
     "tier": 1,
     "title": "Neighborhood Scout",
@@ -66,6 +91,37 @@
       "xp": 300,
       "coins": 100,
       "item": "scooter"
+    }
+  },
+  {
+    "id": "quest_04_bc_spooky_tour",
+    "tier": 4,
+    "title": "BC Eagles & Ghostly Lanterns",
+    "description": "Explore Boston College's Collegiate Gothic campus buildings, then brave Newton's two spooky graveyards!",
+    "steps": [
+      {
+        "stepIndex": 1,
+        "instruction": "Meet Dean Eagle at Boston College Law Campus (885 Centre St) to earn a BC Eagle Pennant!",
+        "targetLandmarkId": "bc_law_campus",
+        "completionTrigger": "npc_talk"
+      },
+      {
+        "stepIndex": 2,
+        "instruction": "Cross Centre St safely to East Parish Burying Ground (1660) and greet Ghostly Historian Oliver!",
+        "targetLandmarkId": "east_parish_burying_ground",
+        "completionTrigger": "npc_talk"
+      },
+      {
+        "stepIndex": 3,
+        "instruction": "Explore west to Newton Cemetery (791 Walnut St) to find Groundskeeper Willow by the misty pond!",
+        "targetLandmarkId": "newton_cemetery",
+        "completionTrigger": "npc_talk"
+      }
+    ],
+    "rewards": {
+      "xp": 250,
+      "coins": 75,
+      "item": "ghost_lantern_cloak"
     }
   }
 ]

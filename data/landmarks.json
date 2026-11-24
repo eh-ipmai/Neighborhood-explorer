@@ -17,6 +17,36 @@
     "rewardItem": "folded_map"
   },
   {
+    "id": "parker_boylston_crossing",
+    "name": "Parker & Boylston Crosswalk",
+    "address": "Parker St & Route 9",
+    "tileX": 255,
+    "tileY": 441,
+    "sprite": "crosswalk_post",
+    "discoveryXP": 25,
+    "npcName": "Crossing Guard Pat",
+    "dialogue": [
+      "Great job walking along the sidewalk to the Route 9 crosswalk!",
+      "Remember: always Look Both Ways before stepping off the curb — you can't climb over the highway barrier!"
+    ],
+    "rewardItem": "safety_whistle"
+  },
+  {
+    "id": "boylston_medical_plaza",
+    "name": "575 Boylston Plaza",
+    "address": "575 Boylston St",
+    "tileX": 270,
+    "tileY": 440,
+    "sprite": "brick_plaza",
+    "discoveryXP": 20,
+    "npcName": "Dr. Avery",
+    "dialogue": [
+      "Hi neighbor! Right next door to Home Base — watch for cars backing out of the little parking lot!",
+      "Here's a pocket bandage kit for your explorer backpack!"
+    ],
+    "rewardItem": "explorer_bandages"
+  },
+  {
     "id": "oakdale_woods_trailhead",
     "name": "Oakdale Woods Trailhead",
     "address": "Oakdale Rd",
@@ -34,7 +64,7 @@
   },
   {
     "id": "weeks_field",
-    "name": "Weeks Field",
+    "name": "Weeks Field & Courts",
     "address": "7 Hereward Rd",
     "lat": 42.3236639,
     "lon": -71.197634,
@@ -44,9 +74,52 @@
     "discoveryXP": 45,
     "npcName": "Park Scout Sam",
     "dialogue": [
-      "Great job crossing safely! Weeks Field is the best shortcut on the way up to Newton Centre!"
+      "Great job crossing safely! Weeks Field has basketball courts, soccer fields, and is the best shortcut north to Newton Centre!"
     ],
     "rewardItem": "field_stamp"
+  },
+  {
+    "id": "franklin_trask_library",
+    "name": "Andover Newton Hill (Trask Library)",
+    "address": "169 Herrick Rd",
+    "tileX": 310,
+    "tileY": 327,
+    "sprite": "library_building",
+    "discoveryXP": 45,
+    "npcName": "Historian Hannah",
+    "dialogue": [
+      "You climbed all the way up Herrick Road Hill! From here you can head northwest to Newton Centre or south back to Boylston Street."
+    ],
+    "rewardItem": "hilltop_spyglass"
+  },
+  {
+    "id": "wilson_chapel",
+    "name": "Wilson Chapel",
+    "address": "234 Herrick Rd",
+    "tileX": 336,
+    "tileY": 351,
+    "sprite": "civic_hall",
+    "discoveryXP": 40,
+    "npcName": "Choir Leader Noah",
+    "dialogue": [
+      "Welcome to Wilson Chapel on the hilltop! Listen closely and you can hear bells echoing toward Weeks Field."
+    ],
+    "rewardItem": "chime_keychain"
+  },
+  {
+    "id": "crystal_lake_beach",
+    "name": "Crystal Lake Beach & Bathhouse",
+    "address": "30 Rogers St",
+    "tileX": 199,
+    "tileY": 292,
+    "sprite": "lake_beach",
+    "discoveryXP": 55,
+    "npcName": "Lifeguard Leo",
+    "dialogue": [
+      "Welcome to Crystal Lake! Feel the warm golden beach sand and shimmering blue water!",
+      "Take a Crystal Lake Swim Pass — remember never to swim without a grown-up!"
+    ],
+    "rewardItem": "swim_pass"
   },
   {
     "id": "rosenfelds_bakery",
@@ -66,6 +139,21 @@
     "rewardItem": "fresh_challah_bag"
   },
   {
+    "id": "first_baptist_plaza",
+    "name": "Newton Centre Square (First Baptist)",
+    "address": "848 Beacon St",
+    "tileX": 237,
+    "tileY": 247,
+    "sprite": "civic_hall",
+    "discoveryXP": 45,
+    "npcName": "Bellringer Eli",
+    "dialogue": [
+      "You're right in the heart of Newton Centre Square where Beacon Street meets Centre Street!",
+      "J.P. Licks and Newtonville Books are just east on Langley Road, and Crystal Lake is right down to the southwest!"
+    ],
+    "rewardItem": "centre_token"
+  },
+  {
     "id": "jp_licks",
     "name": "J.P. Licks Ice Cream Shoppe",
     "address": "46 Langley Rd",
@@ -81,6 +169,93 @@
       "Here's a Double Scoop Waffle Cone for super explorer energy!"
     ],
     "rewardItem": "double_scoop_cone"
+  },
+  {
+    "id": "newtonville_books",
+    "name": "Newtonville Books",
+    "address": "10 Langley Rd",
+    "tileX": 260,
+    "tileY": 217,
+    "sprite": "bookstore",
+    "discoveryXP": 50,
+    "npcName": "Bookseller Tessa",
+    "dialogue": [
+      "Welcome to Newtonville Books in Newton Centre! Have you found the secret Little Free Library near Oakdale Woods yet?",
+      "Here's a golden Explorer Bookmark for your adventures!"
+    ],
+    "rewardItem": "golden_bookmark"
+  },
+  {
+    "id": "newton_centre_playground",
+    "name": "Newton Centre Playground & The Hut",
+    "address": "69 Tyler Ter",
+    "tileX": 214,
+    "tileY": 193,
+    "sprite": "park_field",
+    "discoveryXP": 50,
+    "npcName": "Coach Dani",
+    "dialogue": [
+      "Welcome to the Newton Centre Playground by The Hut! Shoot some hoops or play on the swings right here on the park turf!"
+    ],
+    "rewardItem": "mini_basketball"
+  },
+  {
+    "id": "newton_fire_station",
+    "name": "Newton Fire Station #3 & HQ",
+    "address": "1164 Centre St",
+    "tileX": 266,
+    "tileY": 195,
+    "sprite": "fire_station",
+    "discoveryXP": 60,
+    "npcName": "Firefighter Fiona",
+    "dialogue": [
+      "Welcome to Newton Fire Headquarters! Our shiny red fire engines love when kids look both ways at crosswalks!",
+      "You earned a Junior Firefighter Helmet sticker!"
+    ],
+    "rewardItem": "fire_badge"
+  },
+  {
+    "id": "newton_highlands_annas",
+    "name": "Newton Highlands (Anna's Taqueria)",
+    "address": "27 Lincoln St",
+    "tileX": 75,
+    "tileY": 392,
+    "sprite": "shop_storefront",
+    "discoveryXP": 60,
+    "npcName": "Chef Carlos",
+    "dialogue": [
+      "Bienvenidos to Newton Highlands Village on Lincoln Street!",
+      "Grab a warm quesadilla snack before heading north toward Crystal Lake or the Library!"
+    ],
+    "rewardItem": "highlands_taco"
+  },
+  {
+    "id": "st_pauls_highlands",
+    "name": "St. Paul's Parish (Walnut St)",
+    "address": "1135 Walnut St",
+    "tileX": 74,
+    "tileY": 380,
+    "sprite": "civic_hall",
+    "discoveryXP": 50,
+    "npcName": "Violinist Zoe",
+    "dialogue": [
+      "Walnut Street runs straight north from Newton Highlands right toward Newton Free Library!"
+    ],
+    "rewardItem": "music_note_pin"
+  },
+  {
+    "id": "route9_dunkin",
+    "name": "Dunkin' on Boylston St",
+    "address": "940 Boylston St",
+    "tileX": 40,
+    "tileY": 446,
+    "sprite": "shop_storefront",
+    "discoveryXP": 55,
+    "npcName": "Barista Marco",
+    "dialogue": [
+      "You hiked all the way west along Route 9! Grab a Munchkin box for the walk back!"
+    ],
+    "rewardItem": "donut_box"
   },
   {
     "id": "newton_free_library",
@@ -100,6 +275,20 @@
     "rewardItem": "library_card"
   },
   {
+    "id": "bulloughs_pond",
+    "name": "Bullough's Pond Overlook",
+    "address": "Dexter Rd & Mill St",
+    "tileX": 101,
+    "tileY": 79,
+    "sprite": "lake_beach",
+    "discoveryXP": 65,
+    "npcName": "Birdwatcher Gabe",
+    "dialogue": [
+      "Welcome to Bullough's Pond! Watch the ducks splash in the shallow shoreline water!"
+    ],
+    "rewardItem": "duck_feather"
+  },
+  {
     "id": "beth_el_atereth_israel",
     "name": "Congregation Beth El-Atereth Israel",
     "address": "561 Ward St",
@@ -114,6 +303,34 @@
       "Shabbat Shalom! Try Dad's Spicy Cholent for an explosive speed boost!"
     ],
     "rewardItem": "spicy_cholent"
+  },
+  {
+    "id": "temple_emanuel",
+    "name": "Temple Emanuel",
+    "address": "385 Ward St",
+    "tileX": 329,
+    "tileY": 73,
+    "sprite": "synagogue_building",
+    "discoveryXP": 65,
+    "npcName": "Cantor Rachel",
+    "dialogue": [
+      "Welcome to Temple Emanuel on Ward Street! Head east down Ward Street to reach Ward Elementary Baseball Field!"
+    ],
+    "rewardItem": "songbook_star"
+  },
+  {
+    "id": "chabad_newton",
+    "name": "Chabad of Newton Centre",
+    "address": "32 Loring St",
+    "tileX": 290,
+    "tileY": 84,
+    "sprite": "synagogue_building",
+    "discoveryXP": 60,
+    "npcName": "Neighbor Avi",
+    "dialogue": [
+      "Shalom, Explorer! Loring Street is a quiet residential shortcut between Centre Street and Ward Street!"
+    ],
+    "rewardItem": "honey_cake"
   },
   {
     "id": "ward_baseball_field",
@@ -132,16 +349,124 @@
     "rewardItem": "golden_mizuno_glove"
   },
   {
+    "id": "chestnut_hill_mall",
+    "name": "The Mall at Chestnut Hill",
+    "address": "199 Boylston St",
+    "tileX": 496,
+    "tileY": 405,
+    "sprite": "shop_storefront",
+    "discoveryXP": 75,
+    "npcName": "Shopkeeper Mia",
+    "dialogue": [
+      "Whoa — you explored all the way east down Route 9 to Chestnut Hill!",
+      "Wegmans is right across the highway to the south!"
+    ],
+    "rewardItem": "pretzel_bag"
+  },
+  {
     "id": "salzberg_house",
-    "name": "The Salzberg House",
-    "tileX": 310,
-    "tileY": 270,
+    "name": "The Salzberg Family Home (200 Cotton St)",
+    "address": "200 Cotton St",
+    "lat": 42.3413,
+    "lon": -71.1912,
+    "tileX": 296,
+    "tileY": 33,
     "sprite": "friend_house",
     "discoveryXP": 65,
-    "npcName": "Friend Ross",
+    "npcName": "The Salzberg Family",
     "dialogue": [
-      "Ready for a co-op backyard hangout? Let's stop at J.P. Licks and Rosenfeld's on our way!"
+      "Hey Liam! Welcome to 200 Cotton Street — awesome job navigating up here!",
+      "Let's hang out in the yard and plan our next Newton adventure — take this Co-Op Explorer Badge!"
     ],
     "rewardItem": "coop_badge"
+  },
+  {
+    "id": "bella_sydney_house",
+    "name": "Bella & Sydney's Family (Morton Circle)",
+    "address": "Morton Circle (Morton Rd)",
+    "lat": 42.3392,
+    "lon": -71.2019,
+    "tileX": 148,
+    "tileY": 66,
+    "sprite": "friend_house",
+    "discoveryXP": 65,
+    "npcName": "Bella & Sydney's Family",
+    "dialogue": [
+      "Hi Liam! You found your way all the way to Morton Circle!",
+      "So glad you came over to hang out — take this Morton Circle Friendship Bracelet!"
+    ],
+    "rewardItem": "friendship_bracelet"
+  },
+  {
+    "id": "bc_law_campus",
+    "name": "Boston College Law Campus (Stuart Hall)",
+    "address": "885 Centre St",
+    "lat": 42.3418,
+    "lon": -71.1931,
+    "tileX": 270,
+    "tileY": 25,
+    "sprite": "bc_school",
+    "npcStyle": "bc",
+    "discoveryXP": 75,
+    "npcName": "Dean Eagle",
+    "dialogue": [
+      "Go Eagles! Welcome to Boston College's Newton Campus — home of Stuart Hall, Cushing Hall, Duchesne Hall, and the BC Law Library!",
+      "Cross Centre Street carefully to the east if you're brave enough to visit the spooky 1660 East Parish Burying Ground!"
+    ],
+    "rewardItem": "bc_eagle_pennant"
+  },
+  {
+    "id": "bc_messina_campus",
+    "name": "Boston College — Messina Campus",
+    "address": "300 Hammond Pond Pkwy",
+    "lat": 42.3257,
+    "lon": -71.1765,
+    "tileX": 486,
+    "tileY": 334,
+    "sprite": "bc_school",
+    "npcStyle": "bc",
+    "discoveryXP": 70,
+    "npcName": "Professor Perry",
+    "dialogue": [
+      "Welcome to Boston College's Messina Campus along Hammond Pond Parkway!",
+      "Take this BC Gold Explorer Notebook for your campus journal!"
+    ],
+    "rewardItem": "bc_gold_notebook"
+  },
+  {
+    "id": "east_parish_burying_ground",
+    "name": "East Parish Burying Ground (1660)",
+    "address": "Centre St & Cotton St",
+    "lat": 42.3416,
+    "lon": -71.1912,
+    "tileX": 296,
+    "tileY": 24,
+    "sprite": "spooky_graveyard",
+    "npcStyle": "spooky",
+    "discoveryXP": 75,
+    "npcName": "Ghostly Historian Oliver",
+    "dialogue": [
+      "Booo-jour, brave Explorer! Welcome to Newton's oldest 1660 graveyard — right across Centre Street from Boston College!",
+      "Don't worry, our floating ghosts, black cats, and glowing pumpkins are super friendly — take this Spooky Lantern!"
+    ],
+    "rewardItem": "spooky_lantern"
+  },
+  {
+    "id": "newton_cemetery",
+    "name": "Newton Cemetery & Arboretum",
+    "address": "791 Walnut St",
+    "lat": 42.3332,
+    "lon": -71.2075,
+    "tileX": 60,
+    "tileY": 184,
+    "sprite": "spooky_graveyard",
+    "npcStyle": "spooky",
+    "discoveryXP": 80,
+    "npcName": "Groundskeeper Willow",
+    "dialogue": [
+      "Hoo-hoo! Welcome to Newton Cemetery & Arboretum on Walnut Street!",
+      "Watch for floating ghosts drifting over the misty pond, flapping bats in the gnarled oaks, and glowing Jack-o'-Lanterns by the stone crypts!"
+    ],
+    "rewardItem": "ghost_charm"
   }
 ]

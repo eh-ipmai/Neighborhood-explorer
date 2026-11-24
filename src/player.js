@@ -9,16 +9,17 @@ export const DEFAULT_HITBOX = {
 };
 
 /**
- * Normalize 8-way directional input so diagonal velocity is multiplied by 1/sqrt(2).
+ * Normalize directional movement input into a unit vector.
+ * Zeroes out tiny floating-point trig epsilons (e.g. cos(90°) = 6.12e-17) so cardinal
+ * headings in Hard Mode NEVER drift diagonally, while preserving exact arbitrary-angle
+ * vectors during smooth turns and exact 1/sqrt(2) scaling for 8-way input!
  */
 export function normalizeMoveInput(dx, dy) {
-  const x = Math.sign(dx);
-  const y = Math.sign(dy);
-  if (x !== 0 && y !== 0) {
-    const inv = Math.SQRT1_2;
-    return { x: x * inv, y: y * inv };
-  }
-  return { x, y };
+  const x = Math.abs(dx) < 1e-6 ? 0 : dx;
+  const y = Math.abs(dy) < 1e-6 ? 0 : dy;
+  const len = Math.hypot(x, y);
+  if (len < 1e-6) return { x: 0, y: 0 };
+  return { x: x / len, y: y / len };
 }
 
 /**
@@ -98,13 +99,53 @@ function findCornerSlideOffset(cx, cy, stepX, stepY, isBoxBlocked, hitbox, maxSl
 }
 
 /**
+ * When walking cardinally along a sidewalk/path and hitting a 1-tile diagonal bend
+ * (where the road shifts 1 tile sideways and the sidewalk continues diagonally ahead),
+ * detect the unambiguous continuation direction so the player glides smoothly around
+ * gentle street bends instead of dead-stopping at every step!
+ */
+function findPathBendGlideDir(x, y, axis, stepDir, isBoxBlocked, hitbox, isPreferredPathTile, tileSize) {
+  if (typeof isPreferredPathTile !== "function") return null;
+  const tx = Math.floor(x / tileSize);
+  const ty = Math.floor(y / tileSize);
+  if (!isPreferredPathTile(tx, ty)) return null;
+
+  const probePx = Math.min(4, tileSize / 4);
+  if (axis === "x") {
+    const aheadX = tx + stepDir;
+    const upTarget = isPreferredPathTile(aheadX, ty - 1);
+    const downTarget = isPreferredPathTile(aheadX, ty + 1);
+    // Only glide when EXACTLY ONE diagonal continues the path (never at perpendicular straight curbs!)
+    if (upTarget && !downTarget && !isBoxBlocked(x, y - probePx, hitbox)) {
+      return { dx: 0, dy: -1 };
+    }
+    if (downTarget && !upTarget && !isBoxBlocked(x, y + probePx, hitbox)) {
+      return { dx: 0, dy: 1 };
+    }
+  } else {
+    const aheadY = ty + stepDir;
+    const leftTarget = isPreferredPathTile(tx - 1, aheadY);
+    const rightTarget = isPreferredPathTile(tx + 1, aheadY);
+    if (leftTarget && !rightTarget && !isBoxBlocked(x - probePx, y, hitbox)) {
+      return { dx: -1, dy: 0 };
+    }
+    if (rightTarget && !leftTarget && !isBoxBlocked(x + probePx, y, hitbox)) {
+      return { dx: 1, dy: 0 };
+    }
+  }
+  return null;
+}
+
+/**
  * Move player with 8-way normalized speed, axis-separated tile collision,
- * and sub-tile 4px corner sliding (both cardinal and diagonal).
+ * sub-tile 4px corner sliding, and optional smooth sidewalk bend-gliding.
  */
 export function moveWithCollision(state, rawInput, dt, isBoxBlocked, options = {}) {
   const speed = options.speed ?? PLAYER_SPEED_PX;
   const hitbox = options.hitbox ?? DEFAULT_HITBOX;
   const maxSlidePx = options.maxSlidePx ?? CORNER_SLIDE_MAX_PX;
+  const isPreferredPathTile = options.isPreferredPathTile ?? null;
+  const tileSize = options.tileSize ?? TILE_SIZE;
 
   const norm = normalizeMoveInput(rawInput.x, rawInput.y);
   const facing = resolveCardinalFacing(rawInput.x, rawInput.y, state.facing);
@@ -116,12 +157,14 @@ export function moveWithCollision(state, rawInput, dt, isBoxBlocked, options = {
       facing,
       moving: false,
       slidCorner: false,
+      glidedBend: false,
     };
   }
 
   let x = state.x;
   let y = state.y;
   let slidCorner = false;
+  let glidedBend = false;
 
   const moveX = norm.x * speed * dt;
   const moveY = norm.y * speed * dt;
@@ -142,6 +185,19 @@ export function moveWithCollision(state, rawInput, dt, isBoxBlocked, options = {
           slidCorner = true;
           if (!isBoxBlocked(nextX, y, hitbox)) {
             x = nextX;
+          }
+        }
+      } else if (moveY === 0) {
+        // Smooth sidewalk bend-glide: follow a 1-tile diagonal sidewalk bend without dead-stopping!
+        const bend = findPathBendGlideDir(x, y, "x", Math.sign(moveX), isBoxBlocked, hitbox, isPreferredPathTile, tileSize);
+        if (bend) {
+          const glideY = y + bend.dy * slideSpeed;
+          if (!isBoxBlocked(x, glideY, hitbox)) {
+            y = glideY;
+            glidedBend = true;
+            if (!isBoxBlocked(nextX, y, hitbox)) {
+              x = nextX;
+            }
           }
         }
       }
@@ -165,6 +221,18 @@ export function moveWithCollision(state, rawInput, dt, isBoxBlocked, options = {
             y = nextY;
           }
         }
+      } else if (moveX === 0) {
+        const bend = findPathBendGlideDir(x, y, "y", Math.sign(moveY), isBoxBlocked, hitbox, isPreferredPathTile, tileSize);
+        if (bend) {
+          const glideX = x + bend.dx * slideSpeed;
+          if (!isBoxBlocked(glideX, y, hitbox)) {
+            x = glideX;
+            glidedBend = true;
+            if (!isBoxBlocked(x, nextY, hitbox)) {
+              y = nextY;
+            }
+          }
+        }
       }
     }
   }
@@ -175,5 +243,6 @@ export function moveWithCollision(state, rawInput, dt, isBoxBlocked, options = {
     facing,
     moving: x !== state.x || y !== state.y || norm.x !== 0 || norm.y !== 0,
     slidCorner,
+    glidedBend,
   };
 }

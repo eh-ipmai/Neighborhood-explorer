@@ -89,7 +89,21 @@ test("multi-step quest system discovers landmarks, awards items, advances steps,
   assert.ok(newly > 0);
   assert.ok(qs.getExploredPercent() > 0);
 
-  // Quest 1 Step 1: Talk to Scooper Maya at J.P. Licks
+  // First Mission (Quest 0): Neighborhood Family Meetups -> Salzberg family (200 Cotton St) & Bella & Sydney (Morton Circle)
+  assert.equal(qs.getActiveQuest().id, "quest_00_family_meetups");
+  const salzRes = qs.interactWithNpc("salzberg_house");
+  assert.ok(salzRes.lines.length > 0);
+  assert.ok(qs.state.inventory.has("coop_badge"));
+  assert.equal(salzRes.questEvent.type, "step_advanced");
+  assert.equal(qs.state.activeStepIndex, 1);
+
+  const mortonRes = qs.interactWithNpc("bella_sydney_house");
+  assert.equal(mortonRes.questEvent.type, "quest_completed");
+  assert.ok(qs.state.completedQuests.has("quest_00_family_meetups"));
+  assert.ok(qs.state.inventory.has("friendship_bracelet"));
+  assert.ok(qs.state.inventory.has("running_shoes"));
+
+  // Next Quest (Quest 1): Talk to Scooper Maya at J.P. Licks
   assert.equal(qs.getActiveQuest().id, "quest_01_first_steps");
   const jpRes = qs.interactWithNpc("jp_licks");
   assert.ok(jpRes.lines.length > 0);
@@ -97,12 +111,11 @@ test("multi-step quest system discovers landmarks, awards items, advances steps,
   assert.equal(jpRes.questEvent.type, "step_advanced");
   assert.equal(qs.state.activeStepIndex, 1);
 
-  // Quest 1 Step 2: Talk to Librarian Clara at Newton Free Library -> completes Quest 1 & unlocks running_shoes!
+  // Quest 1 Step 2: Talk to Librarian Clara at Newton Free Library -> completes Quest 1!
   const libRes = qs.interactWithNpc("newton_free_library");
   assert.equal(libRes.questEvent.type, "quest_completed");
   assert.ok(qs.state.completedQuests.has("quest_01_first_steps"));
   assert.ok(qs.state.inventory.has("library_card"));
-  assert.ok(qs.state.inventory.has("running_shoes"));
   assert.equal(qs.getActiveQuest().id, "quest_02_riddle_hunt");
 
   // Quest 2: Open hidden Little Free Library chest -> completes Quest 2 & advances to Quest 3 (Rosenfeld's!)
