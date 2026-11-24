@@ -18,6 +18,9 @@ Guidance for AI coding assistants collaborating on this repository.
    - Do not spawn thousands of individual Kaplay game objects for static map tiles; render only the visible viewport slice (or chunk cache) and perform O(1) tile collision lookups against `world_map.json`.
    - Maintain 8-way normalized movement, 4-way cardinal facing, and 4px sub-tile corner sliding in `src/player.js`.
 6. **Zero Audio Asset Dependencies**: Prefer Web Audio API / ZzFX synthesized retro SFX in `src/audio.js` unless kids explicitly add custom voice/SFX recordings.
+7. **Auto-Commit, Push & Deploy After Verified Edits**: After each round of edits, run `npm test && npm run build` to verify everything passes, then immediately commit with a clear message and `git push origin main` so GitHub Pages deploys automatically without waiting to be asked.
+8. **Kid-Friendly Civic Framing**: Portray real-world neighbors and civic groups (such as marchers/protestors) peacefully — never as hostile enemies that deal damage. Resolve sidewalk crowds with friendly interactions (e.g., sharing snacks). Reserve heart-damage enemy behavior strictly for playful wildlife (turkeys, squirrels, cats, runaway dogs) or whimsical/spooky fiction (graveyard ghosts/skeletons).
+9. **Dedicated Touch + Keyboard Buttons & 2x HD Visuals**: Every major context-sensitive action (e.g., entering a house `I`, sharing a snack `N`, sword `J`, siddur `K`) must provide both a dedicated physical touch button in `.utility-row` and a keyboard hotkey so road-crossing prompts never hide it on iPad or desktop. Render new interiors and hero scenes with detailed 2x HD 32-bit pixel canvases (`__pixelScale = 0.5`) rather than plain primitive rectangles, maintaining full WebGL + Canvas 2D parity.
 
 ## Common Commands
 - `npm run dev` — Start Vite dev server (accessible on LAN / Codespaces HTTPS preview)
