@@ -8,7 +8,13 @@
       "onAutoForward": "openPreview"
     }
   },
-  "postCreateCommand": "npm install",
+  "postCreateCommand": {
+    "npm": "npm install",
+    "agy": "[ -x \"$HOME/.local/bin/agy\" ] || command -v agy >/dev/null 2>&1 || curl -fsSL https://antigravity.google/cli/install.sh | bash"
+  },
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/home/node/.local/bin"
+  },
   "customizations": {
     "vscode": {
       "extensions": [
