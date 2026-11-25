@@ -1,10 +1,10 @@
 {
   "_comment": "Real-world house & shop colors and styles by street address (St/Street, Rd/Road, Ln/Lane match automatically). Presets: yellow, white, gray, charcoal, navy, slate_blue, sage, cream_stucco, brick, cedar_brown, red_clapboard, tan, forest_green, buttercream. Roofs: slate, charcoal, cedar, terracotta, moss. House arch: colonial, cape, craftsman, gambrel, tudor, victorian, brownstone, stone_manor, saltbox, farmhouse, ranch, modern. Building kind: house, duplex, garage, commercial, bakery_cafe, corner_market, office_plaza, fire_station, greenhouse, apartments, library, school, civic.",
   "565 Boylston St": {
-    "preset": "yellow",
+    "preset": "cream_stucco",
     "roof": "slate",
     "arch": "colonial",
-    "label": "Home Base"
+    "label": "Horowitz Home Base"
   },
   "559 Boylston Street": {
     "preset": "cream_stucco",
@@ -18,10 +18,10 @@
     "arch": "cape"
   },
   "575 Boylston Street": {
-    "preset": "brick",
+    "preset": "yellow",
     "roof": "charcoal",
     "kind": "commercial",
-    "label": "575 Boylston Medical"
+    "label": "Plastic Surgeon"
   },
   "46 Langley Road": {
     "preset": "red_clapboard",
