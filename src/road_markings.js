@@ -362,10 +362,15 @@ export function computeRoadTileMarkings(tileAt, tx, ty) {
     const e2 = e === 2;
 
     // Clean intersection box check: if road extends >= 2 in both horizontal and vertical directions,
-    // leave interior asphalt clean without scrambled crisscrossing centerlines!
+    // OR on tight diagonal/corner bends (where ewSpan & nsSpan are both short), keep asphalt clean without broken stub lines!
     const ewSpan = left + 1 + right;
     const nsSpan = up + 1 + down;
-    if (ewSpan >= 4 && nsSpan >= 4) {
+    if ((ewSpan >= 4 && nsSpan >= 4) || (ewSpan <= 2 && nsSpan <= 2)) {
+      return marks;
+    }
+
+    const isOuterCorner = nwOuter || neOuter || swOuter || seOuter;
+    if (isOuterCorner) {
       return marks;
     }
 
@@ -460,8 +465,8 @@ export function computeRoadTileMarkings(tileAt, tx, ty) {
   const spanH = left3 + 1 + right3;
   const spanV = up3 + 1 + down3;
 
-  // Wide junction box where two major town avenues meet -> keep interior clean!
-  if (spanH >= 5 && spanV >= 5) {
+  // Wide junction box where two major town avenues meet, OR rounded outer corner tiles -> keep asphalt clean!
+  if ((spanH >= 5 && spanV >= 5) || nwOuter || neOuter || swOuter || seOuter) {
     return marks;
   }
 

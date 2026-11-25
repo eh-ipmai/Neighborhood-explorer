@@ -12,6 +12,7 @@ import {
   simplifyRoadPolyline,
   simplifyGridPaths,
   regularizeRoadShapes,
+  sanitizeRoadHierarchy,
   carveCommonwealthCarriageway,
   slimOversizedSidewalks,
   enlargeBuildingFootprints,
@@ -916,4 +917,94 @@ test("Commonwealth Avenue features a grassy, tree-lined Olmsted separator and pa
     bethElLotTiles >= 50,
     `Beth El Synagogue parking lot between Commonwealth Ave & Ward St should have >= 50 parking tiles (got ${bethElLotTiles})`
   );
+
+  // 4. Verify graveyards stay STRICTLY inside cemetery bounds — ZERO graves on streets, sidewalks, or opposite yards!
+  const roadOrWalk = new Set([
+    TILE_IDS.SIDEWALK,
+    TILE_IDS.RESIDENTIAL_ROAD,
+    TILE_IDS.MAIN_ROAD,
+    TILE_IDS.CROSSWALK,
+    TILE_IDS.HIGHWAY,
+    TILE_IDS.HIGHWAY_MEDIAN,
+    TILE_IDS.PARKING_LOT,
+  ]);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      if (gf.graveyardGrid[idx] > 0) {
+        assert.equal(
+          roadOrWalk.has(base[idx]),
+          false,
+          `graveyardGrid must NEVER cover road/sidewalk tile at (${x},${y})`
+        );
+      }
+    }
+  }
+  // Zero East Parish Burying Ground spill across Centre St (onto BC Law lawn) or south of Cotton St!
+  for (let y = 0; y <= 16; y++) {
+    for (let x = 284; x <= 295; x++) {
+      assert.equal(
+        gf.graveyardGrid[y * width + x],
+        0,
+        `East Parish Burying Ground must NOT spill across Centre St onto BC Law at (${x},${y})`
+      );
+    }
+  }
+  for (let y = 32; y <= 38; y++) {
+    for (let x = 285; x <= 325; x++) {
+      assert.equal(
+        gf.graveyardGrid[y * width + x],
+        0,
+        `East Parish Burying Ground must NOT spill south across Cotton St at (${x},${y})`
+      );
+    }
+  }
+  // Zero Newton Cemetery spill across Walnut St (x >= 66), south of Beacon St (y >= 206), or into western houses!
+  for (let y = 135; y <= 212; y++) {
+    for (let x = 66; x <= 76; x++) {
+      assert.equal(
+        gf.graveyardGrid[y * width + x],
+        0,
+        `Newton Cemetery must NOT spill onto Walnut St or opposite sidewalks at (${x},${y})`
+      );
+    }
+  }
+  for (let y = 186; y <= 210; y++) {
+    for (let x = 0; x <= 15; x++) {
+      assert.equal(
+        gf.graveyardGrid[y * width + x],
+        0,
+        `Newton Cemetery must NOT spill into western neighborhood yards across the street at (${x},${y})`
+      );
+    }
+  }
+  // Every single tombstone sits strictly inside interior graveyard turf (never directly touching a road/sidewalk!)
+  for (const prop of gf.props) {
+    assert.ok(
+      gf.graveyardGrid[prop.ty * width + prop.tx] > 0,
+      `graveyard prop ${prop.kind} at (${prop.tx},${prop.ty}) must sit inside graveyardGrid`
+    );
+    if (prop.kind === "tombstone") {
+      for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+        assert.equal(
+          roadOrWalk.has(base[(prop.ty + dy) * width + (prop.tx + dx)]),
+          false,
+          `tombstone at (${prop.tx},${prop.ty}) must not sit directly against a road or sidewalk`
+        );
+      }
+    }
+  }
+
+  // 5. Verify sanitizeRoadHierarchy removes residential tiles trapped inside a highway and trims 1-tile road teeth!
+  const hwW = 10;
+  const hwH = 8;
+  const hwGrid = new Array(hwW * hwH).fill(TILE_IDS.SIDEWALK);
+  for (let y = 3; y <= 5; y++) {
+    for (let x = 1; x <= 8; x++) hwGrid[y * hwW + x] = TILE_IDS.HIGHWAY;
+  }
+  hwGrid[4 * hwW + 4] = TILE_IDS.RESIDENTIAL_ROAD; // trapped inside highway
+  hwGrid[2 * hwW + 5] = TILE_IDS.RESIDENTIAL_ROAD; // 1-tile tooth poking north off highway
+  sanitizeRoadHierarchy(hwGrid, hwW, hwH);
+  assert.equal(hwGrid[4 * hwW + 4], TILE_IDS.HIGHWAY, "stray residential tile inside highway must become HIGHWAY");
+  assert.equal(hwGrid[2 * hwW + 5], TILE_IDS.SIDEWALK, "1-tile road tooth sticking off highway must trim to SIDEWALK");
 });

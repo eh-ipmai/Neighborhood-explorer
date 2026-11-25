@@ -14,12 +14,36 @@ const TILE_GRASS = 0;
 const TILE_SIDEWALK = 1;
 const TILE_RES_ROAD = 2;
 const TILE_MAIN_ROAD = 3;
+const TILE_CROSSWALK = 4;
 const TILE_BUILDING = 5;
 const TILE_WATER = 6;
 const TILE_TALL_GRASS = 7;
+const TILE_PARKING = 8;
 const TILE_DIRT = 9;
 const TILE_SAND = 10;
 const TILE_PARK = 11;
+const TILE_HIGHWAY = 12;
+const TILE_HIGHWAY_MEDIAN = 13;
+
+function isOpenGraveTurf(t) {
+  return t === TILE_GRASS || t === TILE_PARK || t === TILE_TALL_GRASS;
+}
+
+function isExteriorRoad(t) {
+  return t === TILE_MAIN_ROAD || t === TILE_HIGHWAY || t === TILE_HIGHWAY_MEDIAN || t === TILE_CROSSWALK;
+}
+
+function isAnyRoadOrWalk(t) {
+  return (
+    t === TILE_SIDEWALK ||
+    t === TILE_RES_ROAD ||
+    t === TILE_MAIN_ROAD ||
+    t === TILE_CROSSWALK ||
+    t === TILE_HIGHWAY ||
+    t === TILE_HIGHWAY_MEDIAN ||
+    t === TILE_PARKING
+  );
+}
 
 function hash2d(x, y) {
   return (((x * 73856093) ^ (y * 19349663)) >>> 0);
@@ -45,10 +69,16 @@ export function getGraveyardZones(worldMap) {
         name: "East Parish Burying Ground",
         founded: 1660,
         subtitle: "Newton's Oldest Graveyard (1660)",
-        entrance: { x: 295, y: 24 },
+        entrance: { x: 299, y: 24 },
+        // Interior seeds strictly EAST of Centre St, NORTH of Cotton St, WEST of Sunset Rd
+        // (one west and one east of the small brook that runs through the burying ground)
+        seeds: [
+          { x: 305, y: 16 },
+          { x: 319, y: 16 },
+        ],
+        allowInternalRoads: false,
         shapes: [
-          // Main historic 1660 colonial yard east of Centre St, north of Cotton St, west of Sunset Rd houses
-          { minX: 291, minY: 4, maxX: 324, maxY: 32 },
+          { minX: 292, minY: 3, maxX: 325, maxY: 31 },
         ],
       },
       {
@@ -56,12 +86,24 @@ export function getGraveyardZones(worldMap) {
         name: "Newton Cemetery & Arboretum",
         founded: 1855,
         subtitle: "Misty Pond & Stone Crypts (1855)",
-        entrance: { x: 68, y: 181 },
+        entrance: { x: 63, y: 181 },
+        // Interior seeds strictly inside Newton Cemetery (west of Walnut St, north of Beacon St,
+        // east of the neighborhood streets west of the cemetery!)
+        seeds: [
+          { x: 36, y: 148 },
+          { x: 28, y: 174 },
+          { x: 52, y: 174 },
+          { x: 52, y: 196 },
+          { x: 30, y: 194 },
+        ],
+        allowInternalRoads: true,
         shapes: [
-          // Main southern & central rolling cemetery grounds west of Walnut St & north of Beacon St houses
-          { minX: 2, minY: 162, maxX: 69, maxY: 207 },
-          // Northern lakeside arboretum grounds east of Cummings Rd houses
-          { minX: 23, minY: 135, maxX: 55, maxY: 162 },
+          // Northern lakeside arboretum grounds
+          { minX: 22, minY: 135, maxX: 54, maxY: 162 },
+          // Central rolling cemetery grounds west of Walnut St (strictly x <= 64 so zero verge/Walnut spill!)
+          { minX: 16, minY: 163, maxX: 64, maxY: 205 },
+          // Western hill inside cemetery north of residential cross-street
+          { minX: 6, minY: 170, maxX: 18, maxY: 184 },
         ],
       },
     ];
@@ -76,6 +118,8 @@ export function getGraveyardZones(worldMap) {
         founded: 1660,
         subtitle: "Spooky Colonial Graveyard",
         entrance: { x: 24, y: 28 },
+        seeds: [{ x: 18, y: 18 }],
+        allowInternalRoads: false,
         shapes: [{ minX: 8, minY: 10, maxX: 28, maxY: 28 }],
       },
     ];
@@ -86,16 +130,19 @@ export function getGraveyardZones(worldMap) {
 
 /**
  * Build a fast O(1) Uint8Array mask of graveyard zones (0 = none, 1..N = 1-based zone index).
- * Automatically excludes any tile inside or immediately hugging an addressed residential house
- * so tombstones never spill into neighbors' front yards!
+ * Uses strict interior flood-filling so graveyards NEVER spill across streets, sidewalks,
+ * or into neighbors' front yards on the opposite side of the road!
+ * Only open cemetery turf tiles (grass/park/tall_grass) receive a non-zero graveyard mask;
+ * roads, sidewalks, crosswalks, parking lots, and exterior verges are ALWAYS 0.
  */
 export function buildGraveyardMask(worldMap) {
   const { width, height } = worldMap.dimensions;
+  const base = worldMap.layers?.base || [];
   const zones = getGraveyardZones(worldMap);
   const graveyardGrid = new Uint8Array(width * height);
   if (zones.length === 0) return { graveyardGrid, zones };
 
-  // Exclude residential houses (keep cemetery chapels/crypts inside!)
+  // Exclude residential houses & shops (keep cemetery chapels/crypts inside!)
   const housePadGrid = new Uint8Array(width * height);
   for (const b of worldMap.buildings || []) {
     if (!b.bounds) continue;
@@ -104,11 +151,11 @@ export function buildGraveyardMask(worldMap) {
       /cemetery|mausoleum|crypt/i.test(b.name || "") ||
       (!b.address && b.kind === "garage");
     if (isCemeteryBldg) continue;
-    // Pad around residential homes & shops by 1 tile so graves never touch neighbor yards
-    const minX = Math.max(0, b.bounds.minX - 1);
-    const maxX = Math.min(width - 1, b.bounds.maxX + 1);
-    const minY = Math.max(0, b.bounds.minY - 1);
-    const maxY = Math.min(height - 1, b.bounds.maxY + 1);
+    // Pad around residential homes & shops by 2 tiles so graves never touch neighbor yards!
+    const minX = Math.max(0, b.bounds.minX - 2);
+    const maxX = Math.min(width - 1, b.bounds.maxX + 2);
+    const minY = Math.max(0, b.bounds.minY - 2);
+    const maxY = Math.min(height - 1, b.bounds.maxY + 2);
     for (let y = minY; y <= maxY; y++) {
       const off = y * width;
       for (let x = minX; x <= maxX; x++) {
@@ -117,22 +164,126 @@ export function buildGraveyardMask(worldMap) {
     }
   }
 
+  const inZoneShapes = (zone, x, y) => {
+    for (const rect of zone.shapes || []) {
+      if (x >= Math.floor(rect.minX) && x <= Math.floor(rect.maxX) && y >= Math.floor(rect.minY) && y <= Math.floor(rect.maxY)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const touchesExteriorRoad = (x, y) => {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        if (isExteriorRoad(base[ny * width + nx])) return true;
+      }
+    }
+    return false;
+  };
+
   zones.forEach((zone, zIdx) => {
     const code = zIdx + 1;
-    for (const rect of zone.shapes || []) {
-      const minX = Math.max(0, Math.floor(rect.minX));
-      const maxX = Math.min(width - 1, Math.floor(rect.maxX));
-      const minY = Math.max(0, Math.floor(rect.minY));
-      const maxY = Math.min(height - 1, Math.floor(rect.maxY));
-      for (let y = minY; y <= maxY; y++) {
-        const off = y * width;
-        for (let x = minX; x <= maxX; x++) {
-          if (housePadGrid[off + x] === 1) continue;
-          graveyardGrid[off + x] = code;
+    const allowInternal = Boolean(zone.allowInternalRoads);
+    const visited = new Uint8Array(width * height);
+    const queue = [];
+
+    const canTraverse = (x, y) => {
+      if (x < 1 || y < 1 || x >= width - 1 || y >= height - 1) return false;
+      if (!inZoneShapes(zone, x, y)) return false;
+      const idx = y * width + x;
+      if (housePadGrid[idx] === 1) return false;
+      const t = base[idx];
+      if (isOpenGraveTurf(t) || t === TILE_DIRT) return true;
+      if (allowInternal && (t === TILE_RES_ROAD || t === TILE_SIDEWALK) && !touchesExteriorRoad(x, y)) {
+        return true;
+      }
+      return false;
+    };
+
+    const seedList = Array.isArray(zone.seeds) && zone.seeds.length > 0
+      ? zone.seeds
+      : (zone.shapes || []).map((r) => ({
+          x: Math.floor((r.minX + r.maxX) / 2),
+          y: Math.floor((r.minY + r.maxY) / 2),
+        }));
+
+    for (const sd of seedList) {
+      let sx = Math.floor(sd.x);
+      let sy = Math.floor(sd.y);
+      // If exact seed lands on a pond/path, nudge cleanly to nearest open turf tile within 5 tiles
+      let found = false;
+      for (let r = 0; r <= 5 && !found; r++) {
+        for (let dy = -r; dy <= r && !found; dy++) {
+          for (let dx = -r; dx <= r && !found; dx++) {
+            const tx = sx + dx;
+            const ty = sy + dy;
+            if (canTraverse(tx, ty) && isOpenGraveTurf(base[ty * width + tx])) {
+              sx = tx;
+              sy = ty;
+              found = true;
+            }
+          }
         }
+      }
+      if (!found) continue;
+      const sIdx = sy * width + sx;
+      if (!visited[sIdx]) {
+        visited[sIdx] = 1;
+        queue.push(sIdx);
+      }
+    }
+
+    for (let qi = 0; qi < queue.length; qi++) {
+      const ci = queue[qi];
+      const cx = ci % width;
+      const cy = (ci - cx) / width;
+      if (isOpenGraveTurf(base[ci])) {
+        graveyardGrid[ci] = code;
+      }
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        const ni = ny * width + nx;
+        if (nx < 1 || ny < 1 || nx >= width - 1 || ny >= height - 1) continue;
+        if (visited[ni]) continue;
+        if (!canTraverse(nx, ny)) continue;
+        visited[ni] = 1;
+        queue.push(ni);
       }
     }
   });
+
+  // Strip narrow 1-tile road-side verges pinched between roads/sidewalks on opposite sides!
+  const snap = graveyardGrid.slice();
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = y * width + x;
+      if (snap[idx] === 0) continue;
+      const n = base[(y - 1) * width + x];
+      const s = base[(y + 1) * width + x];
+      const w = base[y * width + (x - 1)];
+      const e = base[y * width + (x + 1)];
+      const pinchedNS = isAnyRoadOrWalk(n) && isAnyRoadOrWalk(s);
+      const pinchedEW = isAnyRoadOrWalk(w) && isAnyRoadOrWalk(e);
+      if (pinchedNS || pinchedEW) {
+        graveyardGrid[idx] = 0;
+        continue;
+      }
+      // Require at least 2 adjacent graveyard turf tiles (no stray 1-tile turf specks)
+      let gNbs = 0;
+      if (snap[(y - 1) * width + x] === snap[idx]) gNbs++;
+      if (snap[(y + 1) * width + x] === snap[idx]) gNbs++;
+      if (snap[y * width + (x - 1)] === snap[idx]) gNbs++;
+      if (snap[y * width + (x + 1)] === snap[idx]) gNbs++;
+      if (gNbs <= 1) {
+        graveyardGrid[idx] = 0;
+      }
+    }
+  }
 
   return { graveyardGrid, zones };
 }
@@ -163,7 +314,7 @@ export function buildGraveyardFeatures(worldMap) {
 
   const isOpenTurf = (t) => t === TILE_GRASS || t === TILE_PARK || t === TILE_TALL_GRASS;
   const isPathOrRoad = (t) =>
-    t === TILE_SIDEWALK || t === TILE_RES_ROAD || t === TILE_MAIN_ROAD || t === TILE_DIRT;
+    isAnyRoadOrWalk(t) || t === TILE_DIRT;
 
   function inBounds(x, y) {
     return x >= 1 && y >= 1 && x < width - 1 && y < height - 1;
@@ -442,8 +593,8 @@ export function buildGraveyardFeatures(worldMap) {
         continue;
       }
 
-      // Neat historic tombstone rows (every 2 tiles horizontally, every 2 tiles vertically, with organic gaps)
-      if (tx % 2 === 0 && ty % 2 === 0 && h % 10 < 6) {
+      // Neat historic tombstone rows — strictly on interior graveyard turf (never right on a road/sidewalk curb!)
+      if (!touchesRoadOrWalk && tx % 2 === 0 && ty % 2 === 0 && h % 10 < 6) {
         const spr = stoneSprites[h % stoneSprites.length];
         props.push({
           kind: "tombstone",
@@ -484,18 +635,18 @@ export function buildGraveyardFeatures(worldMap) {
         continue;
       }
 
-      // Friendly roaming ghosts & eerie floating will-o'-the-wisps across quiet lawns!
-      if (h % 89 === 0) {
+      // Friendly roaming ghosts & eerie floating will-o'-the-wisps strictly across deep interior cemetery lawns!
+      if (!touchesRoadOrWalk && isTurfClear(tx, ty, 1) && h % 89 === 0) {
         ghosts.push({
           tx,
           ty,
           phase: (h % 628) / 100,
-          radiusX: 15 + (h % 14),
-          radiusY: 9 + (h % 8),
+          radiusX: 11 + (h % 6),
+          radiusY: 7 + (h % 5),
           speed: 0.7 + ((h % 5) * 0.12),
           variant: h % 2,
         });
-      } else if (h % 41 === 0) {
+      } else if (!touchesRoadOrWalk && h % 41 === 0) {
         wisps.push({
           tx,
           ty,

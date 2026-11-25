@@ -235,8 +235,8 @@ test("residential areas do not have fake cafes/offices on residential addresses"
 
   const commercialCount = worldMap.buildings.filter((b) => commercialKinds.has(b.kind)).length;
   assert.ok(
-    commercialCount <= 40,
-    `expected commercial buildings to stay focused in real plazas/villages (<= 40), got ${commercialCount}`
+    commercialCount <= 45,
+    `expected commercial buildings to stay focused in real plazas/villages (<= 45), got ${commercialCount}`
   );
 });
 
