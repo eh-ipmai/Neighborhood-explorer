@@ -2341,109 +2341,236 @@ export function bake32BitStreetLifeSprites(chants = []) {
   out.road_flare_0 = bake32BitRoadFlare(0);
   out.road_flare_1 = bake32BitRoadFlare(1);
 
-  // 32-Bit Hero-Grade Animated Sidewalk Joggers (3 athletic Boston/Newton outfits x 2 running frames x left/right!)
+  // 32-Bit Hero-Grade Animated Annoying Newton Runners / Joggers
+  // (3 ultra-detailed sculpted athletic outfits x 4 fluid stride frames x left/right — zero boxy rectangles!)
   const JOGGER_STYLES = [
     {
-      // 0: Coral Tank & Navy Shorts with Sweatband (classic Newton runner!)
+      // 0: Hi-Vis Neon Coral/Lime Marathoner w/ Ponytail, Oakley Shades & Hydration Belt!
       skin: ["#ffe0bd", "#f2bc91", "#c98b63"],
       hair: ["#5c361c", "#8c542d", "#2e180c"],
-      top: ["#ff6b57", "#e03e31", "#9c1f19"],
-      shorts: ["#2b4878", "#1b2e52"],
-      shoe: ["#42d9a8", "#ffffff"],
-      band: "#fff275",
+      top: ["#ff7861", "#e63b2e", "#991b16"],
+      stripe: "#eaff54",
+      shorts: ["#1e355e", "#122140"],
+      shoe: ["#38e8b0", "#ffffff", "#ff477e"],
+      band: "#eaff54",
+      shades: "#14e8ff",
       ponytail: true,
+      visor: false,
     },
     {
-      // 1: Boston Marathon Royal-Blue & Gold Singlet (#26 bib!)
+      // 1: Boston Marathon Royal-Blue & Gold Singlet (#26 bib, red sweatband, wraparound shades!)
       skin: ["#e3b084", "#c48a5e", "#8f5b38"],
       hair: ["#241c1a", "#3d302c", "#140f0e"],
-      top: ["#4ca0f5", "#246bc2", "#144282"],
-      shorts: ["#1e2430", "#11151f"],
-      shoe: ["#ffd242", "#ffffff"],
-      band: "#ff5c47",
+      top: ["#54a8ff", "#2167c4", "#123e80"],
+      stripe: "#ffd43b",
+      shorts: ["#1c2230", "#0f131c"],
+      shoe: ["#ffd242", "#ffffff", "#246bc2"],
+      band: "#ff4d3d",
+      shades: "#ff9d2e",
       ponytail: false,
+      visor: true,
     },
     {
-      // 2: Mint-Teal Track Jacket & Charcoal Leggings (autumn Comm Ave jogger!)
+      // 2: Electric Mint-Teal Compression Half-Zip & Aero Visor (Comm Ave Strava Segment Hunter!)
       skin: ["#f7cfb0", "#deb08a", "#b07f5b"],
       hair: ["#c78936", "#ebad54", "#7d4f16"],
-      top: ["#5ce0c4", "#28a891", "#166b5c"],
-      shorts: ["#343b4d", "#1e2330"],
-      shoe: ["#ff78a8", "#ffffff"],
-      band: "#ffffff",
+      top: ["#63f0cf", "#23a88e", "#126656"],
+      stripe: "#ffffff",
+      shorts: ["#2e3547", "#181d29"],
+      shoe: ["#ff6ca8", "#ffffff", "#ffe042"],
+      band: "#ff5c8a",
+      shades: "#c6ff42",
       ponytail: true,
+      visor: true,
     },
   ];
-  const bake32BitJoggerRight = (style, frame) => {
-    const w = 44;
-    const h = 56;
-    const g = new PixelGrid(w, h);
-    const cx = 22;
-    const bob = frame === 1 ? -3 : 0;
-    const stride = frame === 1 ? 6 : -5;
-    const backStride = -stride;
 
-    // 1. Dynamic mid-stride running legs & cushioned neon running sneakers!
-    // Back leg
-    g.rect(cx - 2 + backStride, 35 + bob, 4, 8, style.skin[1], "skin");
-    g.rect(cx - 4 + backStride, 42 + bob, 8, 4, style.shoe[0], "shoe");
-    g.rect(cx - 4 + backStride, 45 + bob, 8, 2, style.shoe[1], "shoe");
-    // Athletic running shorts
-    g.rect(cx - 5, 30 + bob, 11, 7, style.shorts[0], "shorts");
-    g.rect(cx - 5, 34 + bob, 11, 3, style.shorts[1], "shorts");
-    // Front driving knee & sneaker!
-    g.rect(cx - 1 + stride, 34 + bob, 5, 8, style.skin[0], "skin");
-    g.rect(cx - 1 + stride, 41 + bob, 9, 4, style.shoe[0], "shoe");
-    g.rect(cx - 1 + stride, 44 + bob, 9, 2, style.shoe[1], "shoe");
-
-    // 2. Athletic Torso (forward-leaning runner's posture!)
-    g.rect(cx - 5, 19 + bob, 11, 12, style.top[1], "top");
-    g.rect(cx - 3, 19 + bob, 7, 10, style.top[0], "top");
-    g.rect(cx - 5, 28 + bob, 11, 3, style.top[2], "top");
-    // Tiny white marathon runner's bib pinned to chest!
-    g.rect(cx - 1, 22 + bob, 6, 5, "#ffffff", "bib");
-    g.rect(cx, 24 + bob, 4, 1, "#263859", "bib");
-
-    // 3. Pumping bent running arms!
-    const armFwd = frame === 1 ? -4 : 5;
-    g.rect(cx - 8 - Math.round(armFwd * 0.5), 21 + bob, 4, 6, style.skin[1], "skin");
-    g.rect(cx + 4 + Math.round(armFwd * 0.5), 20 + bob, 5, 5, style.skin[0], "skin");
-    g.rect(cx + 7 + Math.round(armFwd * 0.5), 18 + bob, 4, 4, style.skin[0], "skin");
-
-    // 4. Expressive 32-bit Head, Hair, Ponytail & Athletic Sweatband!
-    g.ellipse(cx + 1, 12 + bob, 6.2, 6.0, style.skin[0], "skin");
-    g.ellipse(cx - 1, 14 + bob, 4.5, 3.2, style.skin[1], "skin");
-    // Sculpted hair cap + flowing bouncy ponytail!
-    g.ellipse(cx, 8 + bob, 6.4, 4.2, style.hair[0], "hair");
-    g.ellipse(cx + 1, 7 + bob, 4.2, 2.2, style.hair[1], "hair");
-    if (style.ponytail) {
-      g.ellipse(cx - 8, 10 + bob + (frame === 1 ? -1 : 1), 3.6, 2.6, style.hair[0], "hair");
-      g.ellipse(cx - 10, 12 + bob + (frame === 1 ? -1 : 1), 2.5, 2.0, style.hair[1], "hair");
+  // Helper to paint a smooth rounded limb segment (thick line with circular joints -> natural anatomy!)
+  const drawLimb = (g, x0, y0, x1, y1, radius, color, mat) => {
+    const dist = Math.hypot(x1 - x0, y1 - y0);
+    const steps = Math.max(2, Math.ceil(dist * 1.5));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      g.ellipse(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, radius, radius, color, mat);
     }
-    // Crisp athletic sweatband across forehead!
-    g.rect(cx - 5, 9 + bob, 12, 2, style.band, "band");
-    // Bright smiling face facing right!
-    g.rect(cx + 3, 12 + bob, 2, 2, "#1c202b", "eye");
-    g.set(cx + 3, 12 + bob, "#ffffff", "eye");
-    g.rect(cx + 3, 15 + bob, 3, 1, "#b85c48", "skin"); // cheerful runner smile!
+  };
+
+  // Sculpted carbon-plated super-shoe with rocker sole, heel cup & bright swoosh accent!
+  const drawRunningShoe = (g, x, y, tiltDeg, style) => {
+    const rad = (tiltDeg * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const rot = (lx, ly) => [x + lx * cos - ly * sin, y + lx * sin + ly * cos];
+    // Upper mesh body
+    for (const [lx, ly, rx, ry, col] of [
+      [-1.5, -1.2, 2.6, 1.9, style.shoe[0]],
+      [1.8, -0.6, 2.7, 1.7, style.shoe[0]],
+      [3.8, -0.1, 1.8, 1.3, style.shoe[0]],
+      [0.6, -1.0, 1.6, 0.8, style.shoe[2]], // bright racing stripe!
+      [-1.5, 0.9, 2.4, 1.1, style.shoe[1]], // thick cushioned white rocker foam!
+      [1.8, 1.1, 2.8, 1.1, style.shoe[1]],
+      [4.2, 0.6, 1.6, 0.9, style.shoe[1]],
+    ]) {
+      const [px, py] = rot(lx, ly);
+      g.ellipse(px, py, rx, ry, col, "shoe");
+    }
+  };
+
+  const bake32BitJoggerRight = (style, frame) => {
+    const w = 50;
+    const h = 60;
+    const g = new PixelGrid(w, h);
+    // 4-beat smooth athletic sprint cycle:
+    //   0: Right knee high drive, left leg extended back (flight peak!)
+    //   1: Mid-stance transition (legs crossing, body slightly lower)
+    //   2: Left knee high drive, right leg pushing off back (flight peak!)
+    //   3: Opposite mid-stance transition
+    const phases = [
+      {
+        bob: -3, lean: 2.2,
+        fKnee: [5, 39], fFoot: [9, 47], fTilt: -14,
+        bKnee: [-4, 41], bFoot: [-11, 46], bTilt: 32,
+        fElbow: [-4, 28], fHand: [4, 25],
+        bElbow: [7, 26], bHand: [12, 20],
+        ponyWag: -2, mouthOpen: true,
+      },
+      {
+        bob: 0, lean: 1.5,
+        fKnee: [2, 41], fFoot: [1, 50], fTilt: 0,
+        bKnee: [-1, 41], bFoot: [-3, 49], bTilt: 12,
+        fElbow: [1, 29], fHand: [7, 25],
+        bElbow: [0, 28], bHand: [5, 24],
+        ponyWag: 0, mouthOpen: false,
+      },
+      {
+        bob: -3, lean: 2.2,
+        fKnee: [-4, 41], fFoot: [-10, 46], fTilt: 30,
+        bKnee: [6, 39], bFoot: [10, 47], bTilt: -15,
+        fElbow: [7, 26], fHand: [12, 20],
+        bElbow: [-4, 28], bHand: [3, 25],
+        ponyWag: 2, mouthOpen: true,
+      },
+      {
+        bob: 0, lean: 1.5,
+        fKnee: [-1, 41], fFoot: [-3, 49], fTilt: 10,
+        bKnee: [2, 41], bFoot: [2, 50], bTilt: 0,
+        fElbow: [0, 28], fHand: [6, 24],
+        bElbow: [2, 29], bHand: [8, 25],
+        ponyWag: 1, mouthOpen: false,
+      },
+    ];
+    const p = phases[frame % 4];
+    const cx = 24;
+    const hipX = cx - 1;
+    const hipY = 34 + p.bob;
+    const shX = cx + p.lean;
+    const shY = 21 + p.bob;
+
+    // 1. Back pumping arm (behind torso)
+    drawLimb(g, shX - 1, shY + 1, cx + p.bElbow[0], p.bElbow[1] + p.bob, 1.8, style.skin[2], "skin");
+    drawLimb(g, cx + p.bElbow[0], p.bElbow[1] + p.bob, cx + p.bHand[0], p.bHand[1] + p.bob, 1.6, style.skin[1], "skin");
+
+    // 2. Back running leg (curved thigh -> bent knee -> sculpted calf -> carbon shoe!)
+    drawLimb(g, hipX - 1, hipY, cx + p.bKnee[0], p.bKnee[1] + p.bob, 2.5, style.shorts[1], "shorts");
+    drawLimb(g, cx + p.bKnee[0], p.bKnee[1] + p.bob, cx + p.bFoot[0], p.bFoot[1] + p.bob, 2.0, style.skin[2], "skin");
+    drawRunningShoe(g, cx + p.bFoot[0], p.bFoot[1] + p.bob + 1, p.bTilt, style);
+
+    // 3. Athletic shorts pelvis (sculpted rounded hips, zero boxy block!)
+    g.ellipse(hipX, hipY, 5.2, 3.6, style.shorts[0], "shorts");
+    g.ellipse(hipX - 1, hipY + 1.4, 4.4, 2.4, style.shorts[1], "shorts");
+    // Tiny side athletic stripe on shorts
+    g.rect(hipX, hipY - 1, 2, 3, style.stripe, "shorts");
+
+    // 4. Sculpted Forward-Leaning Athletic Torso (tapered shoulder -> athletic chest -> narrow waist!)
+    drawLimb(g, hipX, hipY - 1, shX, shY, 4.4, style.top[1], "top");
+    g.ellipse(shX + 1.2, shY + 2.5, 4.8, 5.2, style.top[1], "top");
+    g.ellipse(shX + 2.0, shY + 1.2, 3.4, 4.0, style.top[0], "top"); // sunlit chest highlight
+    g.ellipse(shX - 2.4, shY + 4.5, 2.6, 3.8, style.top[2], "top"); // back torso shading
+    // Diagonal racing singlet stripe + pinned marathon race bib!
+    g.line(shX - 2, shY + 1, shX + 3, shY + 7, style.stripe, "top");
+    g.rect(shX - 0.5, shY + 3.5, 5, 4, "#ffffff", "bib");
+    g.rect(shX + 0.5, shY + 5, 3, 1, "#223354", "bib");
+    // Hydration fuel belt + mini water flask clipped at waist!
+    g.ellipse(hipX - 0.5, hipY - 2.2, 5.0, 1.4, "#242834", "shorts");
+    g.rect(hipX - 5, hipY - 4, 2, 3, "#54d9ff", "band");
+
+    // 5. Front driving leg (powerful forward thigh -> bent knee -> sunlit calf -> neon super-shoe!)
+    drawLimb(g, hipX + 1, hipY, cx + p.fKnee[0], p.fKnee[1] + p.bob, 2.7, style.shorts[0], "shorts");
+    drawLimb(g, cx + p.fKnee[0], p.fKnee[1] + p.bob, cx + p.fFoot[0], p.fFoot[1] + p.bob, 2.1, style.skin[0], "skin");
+    g.set(cx + p.fKnee[0] + 1, p.fKnee[1] + p.bob, style.skin[0], "skin");
+    // White athletic ankle sock cuff
+    g.ellipse(cx + p.fFoot[0] - 0.5, p.fFoot[1] + p.bob - 1.5, 1.9, 1.4, "#ffffff", "bib");
+    drawRunningShoe(g, cx + p.fFoot[0], p.fFoot[1] + p.bob + 1, p.fTilt, style);
+
+    // 6. Front pumping bent arm + glowing GPS Strava smartwatch on wrist!
+    g.ellipse(shX + 0.5, shY + 1, 2.8, 2.5, style.top[0], "top"); // sculpted shoulder cap
+    drawLimb(g, shX, shY + 2, cx + p.fElbow[0], p.fElbow[1] + p.bob, 2.0, style.skin[1], "skin");
+    drawLimb(g, cx + p.fElbow[0], p.fElbow[1] + p.bob, cx + p.fHand[0], p.fHand[1] + p.bob, 1.8, style.skin[0], "skin");
+    // Glowing cyan GPS sports watch!
+    g.rect(cx + p.fHand[0] - 2, p.fHand[1] + p.bob - 1, 2, 2, "#1c2230", "eye");
+    g.set(cx + p.fHand[0] - 1, p.fHand[1] + p.bob - 1, "#4ef5ff", "band");
+
+    // 7. Neck & Expressive Sculpted 32-Bit Head (contoured jaw, hair/ponytail, wraparound shades, shouting mouth!)
+    const headX = shX + 1.8;
+    const headY = 12 + p.bob;
+    g.rect(shX + 0.5, headY + 4, 3, 4, style.skin[1], "skin"); // neck
+    g.ellipse(headX, headY, 5.8, 6.2, style.skin[0], "skin");
+    g.ellipse(headX - 1.5, headY + 2.2, 4.0, 3.4, style.skin[1], "skin"); // jaw contour shadow
+    g.ellipse(headX + 2.2, headY - 0.5, 3.2, 3.6, style.skin[0], "skin"); // sunlit cheek/brow
+    g.set(headX + 5.8, headY + 0.5, style.skin[0], "skin"); // cute side nose profile!
+
+    // Flowing wind-blown hair + bouncing ponytail + fluttering headband tails!
+    g.ellipse(headX - 1.0, headY - 4.2, 6.0, 3.6, style.hair[0], "hair");
+    g.ellipse(headX - 0.2, headY - 5.2, 4.0, 2.0, style.hair[1], "hair");
+    g.ellipse(headX - 4.8, headY - 1.5, 2.4, 3.2, style.hair[0], "hair");
+    if (style.ponytail) {
+      drawLimb(g, headX - 6, headY - 2, headX - 12, headY + p.ponyWag, 2.3, style.hair[0], "hair");
+      g.ellipse(headX - 10, headY - 1 + p.ponyWag, 2.2, 1.4, style.hair[1], "hair");
+    }
+    // Crisp athletic sweatband + fluttering tails behind head!
+    g.rect(headX - 5.5, headY - 3.2, 11.5, 2.2, style.band, "band");
+    drawLimb(g, headX - 6, headY - 2.5, headX - 10, headY - 4 + p.ponyWag * 0.6, 1.0, style.band, "band");
+    if (style.visor) {
+      // Sleek marathon sun-visor bill jutting forward!
+      g.rect(headX + 2, headY - 3.8, 7, 2, style.band, "band");
+      g.rect(headX + 3, headY - 2.2, 5, 1, "#242836", "eye");
+    }
+
+    // Wraparound mirrored neon sports sunglasses (classic annoying Strava runner look!)
+    g.rect(headX + 0.5, headY - 1.2, 5.8, 2.4, "#151924", "eye");
+    g.rect(headX + 1.5, headY - 0.8, 4.2, 1.5, style.shades, "band");
+    g.set(headX + 4.5, headY - 0.8, "#ffffff", "bib"); // lens glint!
+
+    // Expressive shouting/huffing mouth!
+    if (p.mouthOpen) {
+      g.ellipse(headX + 3.8, headY + 3.2, 1.6, 1.5, "#6b1c24", "eye");
+      g.set(headX + 4.2, headY + 2.4, "#ffffff", "bib");
+    } else {
+      g.rect(headX + 3.0, headY + 3.2, 2.5, 1, "#9c4b3b", "skin");
+    }
+
+    // Tiny flying sweat droplet on sprint peak frames!
+    if (frame === 0 || frame === 2) {
+      g.ellipse(headX - 7.5, headY - 6, 1.2, 1.4, "#80e8ff", "band");
+    }
 
     g.applySelOut({
       skin: "#6e3d24",
       hair: style.hair[2],
       top: style.top[2],
-      shorts: "#121624",
-      shoe: "#1a2030",
-      band: "#544214",
+      shorts: "#101420",
+      shoe: "#181d2b",
+      band: "#2b3847",
       bib: "#4d5970",
       eye: "#14161f",
     });
     return {
-      right: g.toCanvas(0.5, { cx, cy: 50, rx: 9, ry: 2.8 }),
-      left: g.flipHorizontal().toCanvas(0.5, { cx, cy: 50, rx: 9, ry: 2.8 }),
+      right: g.toCanvas(0.5, { cx, cy: 54, rx: 10.5, ry: 2.8 }),
+      left: g.flipHorizontal().toCanvas(0.5, { cx, cy: 54, rx: 10.5, ry: 2.8 }),
     };
   };
   JOGGER_STYLES.forEach((st, idx) => {
-    for (let frame = 0; frame < 2; frame++) {
+    for (let frame = 0; frame < 4; frame++) {
       const pair = bake32BitJoggerRight(st, frame);
       out[`jogger_${idx}_right_${frame}`] = pair.right;
       out[`jogger_${idx}_left_${frame}`] = pair.left;
@@ -2451,20 +2578,30 @@ export function bake32BitStreetLifeSprites(chants = []) {
   });
 
   // Crisp 32-bit pixel speech bubbles!
-  out.bubble_jogger_0 = bakePixelSpeechBubble("ON YOUR LEFT!", {
-    bg: "#e8fff4",
-    accent: "#229c68",
-    textColor: "#113d29",
+  out.bubble_jogger_0 = bakePixelSpeechBubble("ON YOUR LEFT!!", {
+    bg: "#f4ffcf",
+    accent: "#d93820",
+    textColor: "#2e1a06",
   });
-  out.bubble_jogger_1 = bakePixelSpeechBubble("GREAT RUN!", {
-    bg: "#eaf5ff",
-    accent: "#2874d6",
-    textColor: "#122b4f",
+  out.bubble_jogger_1 = bakePixelSpeechBubble("TRACK!! MOVE IT!!", {
+    bg: "#fff0d1",
+    accent: "#e05b19",
+    textColor: "#3b1705",
   });
-  out.bubble_jogger_2 = bakePixelSpeechBubble("MARATHON PREP!", {
-    bg: "#fff6de",
-    accent: "#e07a24",
-    textColor: "#42240c",
+  out.bubble_jogger_2 = bakePixelSpeechBubble("SUB-3 MARATHON PACE!", {
+    bg: "#e6f8ff",
+    accent: "#1c72d9",
+    textColor: "#0e2647",
+  });
+  out.bubble_jogger_3 = bakePixelSpeechBubble("DON'T BREAK MY STRIDE!", {
+    bg: "#ffe8f2",
+    accent: "#d92b70",
+    textColor: "#420d22",
+  });
+  out.bubble_jogger_4 = bakePixelSpeechBubble("STRAVA SEGMENT PR!!", {
+    bg: "#fff4cc",
+    accent: "#fc4c02",
+    textColor: "#381604",
   });
   out.bubble_animal_yum = bakePixelSpeechBubble("YUM! *MUNCH*", {
     bg: "#ebfff0",

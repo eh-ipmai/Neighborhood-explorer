@@ -160,9 +160,28 @@ export function playLookBothWaysChime(earnedXP = false) {
   }
 }
 
-/** Soft ZzFX footstep burst pitch-shifted for sidewalk vs grass vs scooter */
-export function playStepTick(isGrass = false, isFast = false) {
-  const baseFreq = isGrass ? 115 : 185;
+/** Soft ZzFX footstep burst pitch-shifted by surface type & speed */
+export function playStepTick(surfaceOrGrass = false, isFast = false) {
+  let baseFreq = 185;
+  let noise = 0.15;
+  let shape = 1;
+  if (surfaceOrGrass === true || surfaceOrGrass === "grass" || surfaceOrGrass === "park" || surfaceOrGrass === "tall_grass") {
+    baseFreq = 118;
+    noise = 0.45;
+  } else if (surfaceOrGrass === "dirt") {
+    baseFreq = 142;
+    noise = 0.52;
+  } else if (surfaceOrGrass === "sand") {
+    baseFreq = 105;
+    noise = 0.65;
+    shape = 3;
+  } else if (surfaceOrGrass === "indoors" || surfaceOrGrass === "dungeon") {
+    baseFreq = 235;
+    noise = 0.08;
+  } else if (surfaceOrGrass === "residential_road" || surfaceOrGrass === "main_road" || surfaceOrGrass === "highway" || surfaceOrGrass === "parking_lot") {
+    baseFreq = 215;
+    noise = 0.22;
+  }
   zzfx(
     isFast ? 0.055 : 0.04,
     0.08,
@@ -170,10 +189,10 @@ export function playStepTick(isGrass = false, isFast = false) {
     0.002,
     0,
     isFast ? 0.025 : 0.032,
-    1,
+    shape,
     1,
     -0.8,
-    isGrass ? 0.45 : 0.15
+    noise
   );
 }
 
@@ -233,9 +252,78 @@ export function playItemFanfare() {
   });
 }
 
-/** Soft SNES dialogue typewriter text blip */
-export function playTextBlip() {
-  playTone({ freq: 520 + Math.random() * 60, duration: 0.022, type: "triangle", volume: 0.02 });
+/**
+ * Classify a speaker name into a distinct character voice profile so Mom, kids/friends,
+ * coaches, librarians, rabbis/shul hosts, bakers, firefighters, spooky characters, and
+ * marchers all sound genuinely distinct when speaking!
+ */
+export function resolveVoiceProfile(speaker = "") {
+  const s = String(speaker || "").toLowerCase();
+  if (s.includes("mom") || s.includes("dad") || s.includes("kitchen") || s.includes("home")) {
+    return { id: "family", baseFreq: 465, spread: 55, type: "triangle", dur: 0.028, vol: 0.026 };
+  }
+  if (s.includes("coach") || s.includes("fire") || s.includes("chief") || s.includes("guard") || s.includes("police")) {
+    return { id: "coach", baseFreq: 235, spread: 40, type: "sawtooth", dur: 0.032, vol: 0.02 };
+  }
+  if (/\bfriend\b/.test(s) || s.includes("ross") || s.includes("salzberg") || s.includes("bella") || s.includes("sydney") || s.includes("champion") || /\bkid\b/.test(s)) {
+    return { id: "kid", baseFreq: 690, spread: 110, type: "square", dur: 0.02, vol: 0.018 };
+  }
+  if (s.includes("rabbi") || s.includes("kiddush") || s.includes("shul") || s.includes("beth el") || s.includes("shaarei") || s.includes("emanuel") || s.includes("chabad") || s.includes("chapel")) {
+    return { id: "shul", baseFreq: 315, spread: 45, type: "triangle", dur: 0.036, vol: 0.026 };
+  }
+  if (s.includes("librarian") || s.includes("clara") || s.includes("library") || s.includes("book") || s.includes("professor") || s.includes("college") || s.includes("bc")) {
+    return { id: "scholar", baseFreq: 560, spread: 60, type: "sine", dur: 0.026, vol: 0.026 };
+  }
+  if (s.includes("baker") || s.includes("bagel") || s.includes("licks") || s.includes("scoop") || s.includes("cafe") || s.includes("café") || s.includes("taqueria") || s.includes("donut") || s.includes("pretzel")) {
+    return { id: "shop", baseFreq: 610, spread: 90, type: "triangle", dur: 0.024, vol: 0.025 };
+  }
+  if (s.includes("ghost") || s.includes("spooky") || s.includes("grave") || s.includes("dungeon") || s.includes("d&d") || s.includes("secret") || s.includes("cemetery")) {
+    return { id: "spooky", baseFreq: 380, spread: 70, type: "sine", dur: 0.04, vol: 0.024, slide: 0.88 };
+  }
+  if (s.includes("doctor") || s.includes("dr.") || s.includes("clinic") || s.includes("emt") || s.includes("paramedic")) {
+    return { id: "medic", baseFreq: 360, spread: 50, type: "triangle", dur: 0.026, vol: 0.024 };
+  }
+  return { id: "neighbor", baseFreq: 515, spread: 65, type: "triangle", dur: 0.024, vol: 0.022 };
+}
+
+/** Character-specific SNES dialogue typewriter voice blip! */
+export function playTextBlip(speaker = "") {
+  const v = resolveVoiceProfile(speaker);
+  const freq = v.baseFreq + Math.random() * v.spread;
+  playTone({
+    freq,
+    endFreq: v.slide ? freq * v.slide : null,
+    duration: v.dur,
+    type: v.type,
+    volume: v.vol,
+  });
+}
+
+/** Distinct character greeting motif when opening dialogue with different Newton characters! */
+export function playDialogueOpenSfx(speaker = "") {
+  const v = resolveVoiceProfile(speaker);
+  const motifs = {
+    family: [523.25, 659.25],          // Warm C5 -> E5
+    coach: [261.63, 392.0],            // Punchy C4 -> G4
+    kid: [659.25, 880.0, 1046.5],      // Bouncy kid triad
+    shul: [392.0, 440.0, 523.25],      // Warm resonant step
+    scholar: [587.33, 739.99],         // Crisp scholarly D5 -> F#5
+    shop: [659.25, 783.99, 987.77],    // Cheerful shop bell
+    spooky: [493.88, 466.16, 392.0],   // Eerie minor descend
+    medic: [440.0, 587.33],            // Reassuring A4 -> D5
+    neighbor: [493.88, 659.25],        // Friendly B4 -> E5
+  };
+  const notes = motifs[v.id] || motifs.neighbor;
+  notes.forEach((freq, idx) => {
+    setTimeout(() => {
+      playTone({ freq, duration: 0.075, type: v.type === "sawtooth" ? "triangle" : v.type, volume: 0.042 });
+    }, idx * 55);
+  });
+}
+
+/** Crisp subtle page-advance click when advancing dialogue lines */
+export function playDialogueAdvanceSfx() {
+  playTone({ freq: 720, endFreq: 920, duration: 0.038, type: "triangle", volume: 0.032 });
 }
 
 /** Gentle 2-tone curb-stop reminder when trying to cross a road without looking both ways */
@@ -520,4 +608,137 @@ export function playSnackTossSfx() {
   setTimeout(() => {
     playTone({ freq: 880, endFreq: 1174.66, duration: 0.11, type: "sine", volume: 0.055 });
   }, 140);
+}
+
+/** Species-specific delighted munch & happy reaction SFX when Liam feeds a wild animal! */
+export function playAnimalFeedSfx(kind = "turkey") {
+  // Initial snack-toss arc whoosh
+  playTone({ freq: 400, endFreq: 780, duration: 0.09, type: "triangle", volume: 0.048 });
+  if (kind === "turkey") {
+    // Happy warm gobble-munch + grateful sparkle chord!
+    [130, 195, 260].forEach((d, idx) => {
+      setTimeout(() => {
+        playTone({ freq: 420 + idx * 95, endFreq: 520 + idx * 105, duration: 0.06, type: "triangle", volume: 0.05 });
+      }, d);
+    });
+    setTimeout(() => playTone({ freq: 1046.5, duration: 0.14, type: "sine", volume: 0.05 }), 340);
+  } else if (kind === "squirrel") {
+    // Rapid crunchy acorn-nibbling chitter!
+    [120, 165, 210, 255].forEach((d, idx) => {
+      setTimeout(() => {
+        zzfx(0.05, 0.08, 920 + idx * 140, 0.002, 0.008, 0.03, 1, 1, 1.4, 0.25);
+      }, d);
+    });
+    setTimeout(() => playTone({ freq: 1318.5, duration: 0.12, type: "sine", volume: 0.045 }), 320);
+  } else if (kind === "cat") {
+    // Sweet ascending delighted purr-trill ("mrrr-ow! ♥")
+    setTimeout(() => {
+      playTone({ freq: 560, endFreq: 860, duration: 0.12, type: "sine", volume: 0.052 });
+    }, 125);
+    setTimeout(() => {
+      playTone({ freq: 880, endFreq: 1120, duration: 0.15, type: "triangle", volume: 0.05 });
+    }, 240);
+  } else if (kind === "dog") {
+    // Happy bouncy double-yip + cheerful tail-wag ding!
+    [120, 220].forEach((d, idx) => {
+      setTimeout(() => {
+        playTone({ freq: idx === 0 ? 520 : 660, endFreq: idx === 0 ? 740 : 940, duration: 0.07, type: "triangle", volume: 0.052 });
+      }, d);
+    });
+    setTimeout(() => playTone({ freq: 1046.5, duration: 0.14, type: "sine", volume: 0.05 }), 320);
+  } else {
+    playSnackTossSfx();
+  }
+}
+
+/** Obnoxious marathon-bro runner SFX: sharp GPS watch split-beep + loud "HUFF-PUFF! ON YOUR LEFT!" whistle-chirp! */
+export function playAnnoyingJoggerSfx(jostled = false) {
+  // Annoying high-pitched Garmin/Strava split-lap double-beep!
+  playTone({ freq: 2217.46, duration: 0.045, type: "square", volume: 0.036 });
+  setTimeout(() => {
+    playTone({ freq: 2637.02, duration: 0.055, type: "square", volume: 0.038 });
+  }, 60);
+  // Dramatic loud athletic huff-shout / jostle thump!
+  setTimeout(() => {
+    zzfx(jostled ? 0.08 : 0.055, 0.06, jostled ? 310 : 390, 0.004, 0.025, 0.09, 2, 1.2, jostled ? -1.8 : 1.5, 0.3);
+  }, 115);
+}
+
+/** Classic wooden treasure-chest lid creak + bright loot chime */
+export function playChestOpenSfx() {
+  zzfx(0.06, 0.05, 190, 0.01, 0.04, 0.1, 2, 1.1, 2.2, 0.25);
+  [110, 185, 260].forEach((d, idx) => {
+    setTimeout(() => {
+      playTone({ freq: [659.25, 880.0, 1318.51][idx], duration: idx === 2 ? 0.2 : 0.08, type: "triangle", volume: 0.055 });
+    }, d);
+  });
+}
+
+/** Crisp parchment paper fold/unfold rustle when toggling the Folded Paper Map */
+export function playMapToggleSfx(opening = true) {
+  zzfx(0.055, 0.08, opening ? 520 : 380, 0.004, 0.015, 0.075, 3, 1.0, opening ? 2.4 : -2.2, 0.78);
+  playTone({
+    freq: opening ? 440 : 587.33,
+    endFreq: opening ? 659.25 : 392.0,
+    duration: 0.07,
+    type: "triangle",
+    volume: 0.03,
+  });
+}
+
+/** Playful wet-paintbrush swish + bright color sparkle when repainting a neighborhood house */
+export function playPaintHouseSfx() {
+  zzfx(0.065, 0.07, 460, 0.005, 0.02, 0.09, 3, 1.0, 3.0, 0.65);
+  [70, 135].forEach((d, idx) => {
+    setTimeout(() => {
+      playTone({ freq: idx === 0 ? 783.99 : 1174.66, duration: 0.11, type: "sine", volume: 0.048 });
+    }, d);
+  });
+}
+
+/** Distinct outfit-change flair (Link chime, Wetsuit splash, Baseball organ trill, Polo pop!) */
+export function playOutfitSwapSfx(outfit = "polo") {
+  if (outfit === "link") {
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+      setTimeout(() => playTone({ freq: f, duration: 0.09, type: "triangle", volume: 0.052 }), i * 55);
+    });
+  } else if (outfit === "wetsuit") {
+    playWaterSplash(true);
+    setTimeout(() => playTone({ freq: 880, endFreq: 1318.5, duration: 0.12, type: "sine", volume: 0.045 }), 70);
+  } else if (outfit === "baseball") {
+    [523.25, 659.25, 783.99, 659.25, 783.99].forEach((f, i) => {
+      setTimeout(() => playTone({ freq: f, duration: i === 4 ? 0.16 : 0.065, type: "square", volume: 0.036 }), i * 62);
+    });
+  } else {
+    playTone({ freq: 587.33, endFreq: 880.0, duration: 0.09, type: "triangle", volume: 0.045 });
+  }
+}
+
+/** Distinct navigation-mode switch sound (Compass click / GPS radar ping / Hard-mode brass horn) */
+export function playNavModeSwitchSfx(mode = "signs") {
+  if (mode === "hard") {
+    playTone({ freq: 293.66, duration: 0.09, type: "sawtooth", volume: 0.038 });
+    setTimeout(() => playTone({ freq: 440.0, duration: 0.18, type: "sawtooth", volume: 0.042 }), 90);
+  } else if (mode === "gps") {
+    playTone({ freq: 880, endFreq: 1760, duration: 0.11, type: "sine", volume: 0.045 });
+    setTimeout(() => playTone({ freq: 1318.5, duration: 0.12, type: "sine", volume: 0.04 }), 105);
+  } else {
+    playTone({ freq: 659.25, duration: 0.055, type: "triangle", volume: 0.045 });
+    setTimeout(() => playTone({ freq: 523.25, duration: 0.08, type: "triangle", volume: 0.045 }), 60);
+  }
+}
+
+/** Nutty wooden marimba pop when picking up a Lucky Acorn (distinct from metallic coin ding!) */
+export function playAcornPickupSfx() {
+  playTone({ freq: 523.25, endFreq: 698.46, duration: 0.065, type: "triangle", volume: 0.055 });
+  setTimeout(() => {
+    playTone({ freq: 880.0, duration: 0.09, type: "sine", volume: 0.045 });
+  }, 55);
+}
+
+/** Cheerful pretzel-jar snack restock jingle */
+export function playSnackRestockSfx() {
+  [587.33, 739.99, 880.0, 1174.66].forEach((f, i) => {
+    setTimeout(() => playTone({ freq: f, duration: i === 3 ? 0.18 : 0.065, type: "triangle", volume: 0.05 }), i * 55);
+  });
 }

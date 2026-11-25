@@ -33,6 +33,8 @@ import {
   playBoostWhoosh,
   playItemFanfare,
   playTextBlip,
+  playDialogueOpenSfx,
+  playDialogueAdvanceSfx,
   playLandmarkDiscover,
   playCurbStopBoop,
   playSpookyChime,
@@ -42,7 +44,9 @@ import {
   playSquirrelChitter,
   playCatMeow,
   playDogBark,
+  playAnimalFeedSfx,
   playProtestorShout,
+  playAnnoyingJoggerSfx,
   playBumpHurtSfx,
   playSwordSlashSfx,
   playSiddurDispelSfx,
@@ -58,6 +62,13 @@ import {
   playBotwTeleportOutSfx,
   playBotwTeleportInSfx,
   playSnackTossSfx,
+  playChestOpenSfx,
+  playMapToggleSfx,
+  playPaintHouseSfx,
+  playOutfitSwapSfx,
+  playNavModeSwitchSfx,
+  playAcornPickupSfx,
+  playSnackRestockSfx,
 } from "./audio.js";
 import { createHomeInteriorSystem } from "./house_interior.js";
 import {
@@ -70,6 +81,7 @@ import {
 import { buildParkFeatures, buildWoodlandTreeGrid } from "./parks.js";
 import { buildGraveyardFeatures, getGraveyardGhostPos } from "./graveyards.js";
 import {
+  JOGGER_CHANTS,
   buildStreetLife,
   updateStreetLife,
   isBlockedByStreetLife,
@@ -82,6 +94,7 @@ import {
   performSiddurDispel,
 } from "./streetlife.js";
 import { buildRoadTraffic, updateRoadTraffic } from "./traffic.js";
+import { buildParkingLotCars } from "./parking_lots.js";
 import { computeRoadTileMarkings } from "./road_markings.js";
 import { createVectorRoadRenderer } from "./vector_roads.js";
 
@@ -159,13 +172,24 @@ function isGreenGround(id) {
  * Deterministic placement of 32-bit Golden-Hour Autumn trees, crunchy leaf piles,
  * vintage glowing street lamps, boxwood garden shrubs, benches, reeds, hydrants, and parked cars.
  */
-function buildNeighborhoodProps(worldMap, parkOccupiedGrid = null, graveyardGrid = null) {
+function buildNeighborhoodProps(
+  worldMap,
+  parkOccupiedGrid = null,
+  graveyardGrid = null,
+  spawnTile = null,
+  landmarks = []
+) {
   const { width, height } = worldMap.dimensions;
   const base = worldMap.layers.base;
   // 0 = none, 1 = autumn oak/maple tree, 2 = evergreen pine (dense canopies in truly wooded areas!)
   const treeGrid = buildWoodlandTreeGrid(worldMap, parkOccupiedGrid, graveyardGrid);
   const hydrants = [];
-  const parkedCars = [];
+  const parkedCars = buildParkingLotCars(worldMap, {
+    parkOccupiedGrid,
+    graveyardGrid,
+    spawnTile,
+    landmarks,
+  });
   const parkBenches = [];
   const shoreReeds = [];
   const leafPiles = [];
@@ -173,28 +197,12 @@ function buildNeighborhoodProps(worldMap, parkOccupiedGrid = null, graveyardGrid
   const streetLamps = [];
   const gardenShrubs = [];
   const lampBlockUsed = new Set();
-  const carSprites = ["car_red", "car_sage", "car_blue"];
 
   for (let ty = 1; ty < height - 1; ty++) {
     for (let tx = 1; tx < width - 1; tx++) {
       const idx = ty * width + tx;
       const cur = base[idx];
       if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) continue;
-
-      if (cur === 8 && base[(ty + 1) * width + tx] === 8) {
-        const isTopParkingRow = base[(ty - 1) * width + tx] !== 8;
-        const isInteriorParkingRow =
-          !isTopParkingRow &&
-          ty % 3 === 0 &&
-          base[ty * width + (tx - 1)] === 8 &&
-          base[ty * width + (tx + 1)] === 8;
-        if (isTopParkingRow || isInteriorParkingRow) {
-          const h = ((tx * 37 + ty * 91) >>> 0) % 5;
-          if (h === 0 || h === 2) {
-            parkedCars.push({ tx, ty, sprite: carSprites[(tx + ty) % carSprites.length] });
-          }
-        }
-      }
 
       // Park benches neatly placed on park turf bordering a sidewalk or dirt path
       if (cur === 11 && treeGrid[idx] === 0) {
@@ -389,7 +397,9 @@ async function boot() {
   } = buildNeighborhoodProps(
     worldMap,
     combinedOccupied,
-    graveyardFeatures.graveyardGrid
+    graveyardFeatures.graveyardGrid,
+    worldMap.origin?.spawnTile,
+    questSystem.landmarks
   );
   const streetSignSystem = createStreetSignSystem(worldMap, {
     parkOccupiedGrid: combinedOccupied,
@@ -1000,61 +1010,75 @@ async function boot() {
     return res;
   }
 
+  function feedWildAnimal(entry) {
+    if (!entry) return null;
+    const res = tossSnackAtAnimal(entry, playerState.x, playerState.y, {
+      hasSnack: questSystem.hasSnack(),
+      consumeSnack: () => questSystem.useSnack(),
+      hasAcorn: questSystem.state.acorns > 0,
+      consumeAcorn: () => {
+        questSystem.state.acorns = Math.max(0, questSystem.state.acorns - 1);
+        questSystem.save();
+      },
+      isEasyMode: Boolean(questSystem.state.gpsAssist),
+    });
+    if (res?.tossed) {
+      playSnackTossSfx();
+      playAnimalFeedSfx(entry.kind);
+      tossedSnacks.push({
+        startX: playerState.x,
+        startY: playerState.y - 10,
+        targetX: res.targetX,
+        targetY: res.targetY - 6,
+        x: playerState.x,
+        y: playerState.y - 10,
+        t: 0,
+        duration: 0.34,
+        foodKind: res.foodKind || "snack",
+      });
+      if (res.xpReward) {
+        questSystem.state.safetyXP += res.xpReward;
+        questSystem.save();
+      }
+      // Happy pink hearts + golden treat crumbs around the fed animal!
+      for (let i = 0; i < 10; i++) {
+        const ang = (i / 10) * Math.PI * 2;
+        leafParticles.push({
+          x: res.targetX,
+          y: res.targetY - 9,
+          vx: Math.cos(ang) * 24,
+          vy: Math.sin(ang) * 14 - 22,
+          life: 0.52,
+          shade: i % 3 === 0 ? [255, 108, 152] : i % 3 === 1 ? [255, 214, 96] : [114, 236, 158],
+          w: 3,
+          h: 3,
+        });
+      }
+      ui?.showSafetyToast(res.toast, 2800);
+    } else if (res?.toast) {
+      playCurbStopBoop();
+      ui?.showSafetyToast(res.toast, 2600);
+    }
+    return res;
+  }
+
   function triggerGiveSnack() {
     if (botwTeleport || roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
     if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
     if (homeInterior.state.active) {
-      ui?.showSafetyToast("🥨 Grab snacks from the Kitchen Snack Jar inside, then share with marchers or toss to wild animals outside!", 2600);
+      ui?.showSafetyToast("🥨 Grab snacks from the Kitchen Snack Jar inside, then share with marchers or feed wild animals outside!", 2600);
       return;
     }
-    const nearTarget = findNearbySnackTarget(streetLife, playerState.x, playerState.y, 56);
+    const nearTarget = findNearbySnackTarget(streetLife, playerState.x, playerState.y, 72);
     if (nearTarget?.kind === "protestor") {
       shareSnackWithProtestor(nearTarget);
     } else if (nearTarget) {
-      const res = tossSnackAtAnimal(nearTarget, playerState.x, playerState.y, {
-        hasSnack: questSystem.hasSnack(),
-        consumeSnack: () => questSystem.useSnack(),
-        isEasyMode: Boolean(questSystem.state.gpsAssist),
-      });
-      if (res?.tossed) {
-        playSnackTossSfx();
-        tossedSnacks.push({
-          startX: playerState.x,
-          startY: playerState.y - 10,
-          targetX: res.targetX,
-          targetY: res.targetY - 6,
-          x: playerState.x,
-          y: playerState.y - 10,
-          t: 0,
-          duration: 0.36,
-        });
-        if (res.xpReward) {
-          questSystem.state.safetyXP += res.xpReward;
-          questSystem.save();
-        }
-        for (let i = 0; i < 8; i++) {
-          const ang = (i / 8) * Math.PI * 2;
-          leafParticles.push({
-            x: res.targetX,
-            y: res.targetY - 8,
-            vx: Math.cos(ang) * 26,
-            vy: Math.sin(ang) * 18 - 18,
-            life: 0.44,
-            shade: i % 2 === 0 ? [255, 214, 96] : [114, 236, 158],
-            w: 3,
-            h: 3,
-          });
-        }
-        ui?.showSafetyToast(res.toast, 2600);
-      } else if (res?.toast) {
-        playCurbStopBoop();
-        ui?.showSafetyToast(res.toast, 2600);
-      }
-    } else if (questSystem.hasSnack()) {
+      feedWildAnimal(nearTarget);
+    } else if (questSystem.hasSnack() || questSystem.state.acorns > 0) {
       const countLabel = questSystem.state.gpsAssist ? "∞" : questSystem.state.snacks;
-      ui?.showSafetyToast(`🥨 You have ${countLabel} snacks ready! Walk near marchers or wild animals and press N to share or toss!`, 2600);
+      ui?.showSafetyToast(`🥨 You have ${countLabel} snacks & ${questSystem.state.acorns} acorns ready! Walk near marchers or wild animals and press N to feed!`, 2600);
     } else {
-      ui?.showSafetyToast("🥨 Out of snacks! Visit Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's Bagels to restock!", 2600);
+      ui?.showSafetyToast("🥨 Out of snacks & acorns! Visit Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's Bagels to restock!", 2600);
     }
   }
 
@@ -1244,7 +1268,7 @@ async function boot() {
     }
     if (outcome.action === "kitchen_snacks") {
       healPlayerHearts(outcome.healHearts || 5, "Home Kitchen");
-      playCoinPickup();
+      playSnackRestockSfx();
       ui?.showSafetyToast(outcome.toast, 2600);
       return;
     }
@@ -1401,6 +1425,20 @@ async function boot() {
         nearby.kind === "turkey" ||
         nearby.kind === "squirrel" ||
         nearby.kind === "cat" ||
+        nearby.kind === "dog"
+      ) {
+        const hasFood = Boolean(
+          questSystem.state.gpsAssist || questSystem.hasSnack() || questSystem.state.acorns > 0
+        );
+        if (hasFood) {
+          feedWildAnimal(nearby);
+          return;
+        }
+      }
+      if (
+        nearby.kind === "turkey" ||
+        nearby.kind === "squirrel" ||
+        nearby.kind === "cat" ||
         nearby.kind === "dog" ||
         nearby.kind === "spooky"
       ) {
@@ -1429,6 +1467,9 @@ async function boot() {
         }
         return;
       }
+      if (nearby.kind === "chest") {
+        playChestOpenSfx();
+      }
       const outcome =
         nearby.kind === "chest"
           ? questSystem.interactWithChest(nearby.target.id)
@@ -1445,9 +1486,9 @@ async function boot() {
               healPlayerHearts(outcome.healHearts, outcome.questEvent?.type === "quest_completed" ? "Quest Complete" : nearby.target.name?.replace(/\s*\(.*\)/, ""));
             }
             if (outcome.gainedSnacks > 0) {
-              playCoinPickup();
+              playSnackRestockSfx();
               ui?.showSafetyToast(
-                `🥨 Packed +${outcome.gainedSnacks} snacks! (${questSystem.state.snacks}/${questSystem.getMaxSnacks()}) — share with marchers (N)!`,
+                `🥨 Packed +${outcome.gainedSnacks} snacks! (${questSystem.state.snacks}/${questSystem.getMaxSnacks()}) — share with marchers or feed wild animals (N)!`,
                 2500
               );
             }
@@ -1534,6 +1575,7 @@ async function boot() {
   function togglePaperMap() {
     if (ui?.isDialogueOpen() || ui?.isPaintOpen() || ui?.isSignOpen()) return;
     const nextOpen = !ui?.isMapOpen();
+    playMapToggleSfx(nextOpen);
     ui?.setMapModalOpen(nextOpen, questSystem, pocketDirections);
     if (nextOpen) {
       const tx = Math.floor(playerState.x / tileSize);
@@ -1551,6 +1593,7 @@ async function boot() {
 
   function cycleNavModeAction() {
     const mode = questSystem.cycleNavMode();
+    playNavModeSwitchSfx(mode);
     if (mode === "hard") {
       playerState.facing = "up";
       playerState.targetHeadingDeg = Math.round(playerState.headingDeg / 45) * 45 % 360;
@@ -1591,7 +1634,7 @@ async function boot() {
       return;
     }
     const next = questSystem.toggleHeroOutfit();
-    playCoinPickup();
+    playOutfitSwapSfx(next);
     ui?.showSafetyToast(
       next === "link"
         ? "🗡️ Hyah! Liam put on his Legend of Zelda Link Tunic, Hylian Cap & Shield!"
@@ -1626,7 +1669,7 @@ async function boot() {
         rebuildNormalizedColorMap();
         persistLocalColors();
         invalidateHouseSprite(building);
-        playCoinPickup();
+        playPaintHouseSfx();
         return rawColorEntries[key];
       },
       onPickRoof: (building, roofKey) => {
@@ -1635,7 +1678,7 @@ async function boot() {
         rebuildNormalizedColorMap();
         persistLocalColors();
         invalidateHouseSprite(building);
-        playCoinPickup();
+        playPaintHouseSfx();
         return rawColorEntries[key];
       },
       onPickStyle: (building, styleKey, mode) => {
@@ -1652,7 +1695,7 @@ async function boot() {
         rebuildNormalizedColorMap();
         persistLocalColors();
         invalidateHouseSprite(building);
-        playCoinPickup();
+        playPaintHouseSfx();
         return rawColorEntries[key];
       },
       onResetHouse: (building) => {
@@ -1727,7 +1770,9 @@ async function boot() {
       ui?.refreshMapSidePanels(questSystem, pocketDirections);
       ui?.showSafetyToast("Adventure progress reset!");
     },
-    onTextBlip: playTextBlip,
+    onTextBlip: (speaker) => playTextBlip(speaker),
+    onDialogueOpen: (speaker) => playDialogueOpenSfx(speaker),
+    onDialogueAdvance: () => playDialogueAdvanceSfx(),
   });
 
   k.onKeyPress("c", () => {
@@ -2398,13 +2443,14 @@ async function boot() {
       if (d.age > 0.25 && dist < 14) {
         if (d.kind === "coin") {
           questSystem.state.coins += 1;
+          playCoinPickup();
           ui.showSafetyToast("🪙 Found a Neighborhood Coin!", 1500);
         } else {
           questSystem.state.acorns += 1;
-          ui.showSafetyToast("🌰 Found a Lucky Acorn!", 1500);
+          playAcornPickupSfx();
+          ui.showSafetyToast("🌰 Found a Lucky Acorn! (Great for feeding wild animals with N!)", 1800);
         }
         questSystem.save();
-        playCoinPickup();
         groundDrops.splice(i, 1);
       } else if (d.age > 15) {
         groundDrops.splice(i, 1);
@@ -2436,8 +2482,9 @@ async function boot() {
         playerState.walkTimer += dt * 9;
         playerState.stepSoundCooldown -= dt;
         if (playerState.stepSoundCooldown <= 0) {
-          playStepTick(false, false);
-          playerState.stepSoundCooldown = 0.24;
+          const curRoom = homeInterior.getRoom();
+          playStepTick(curRoom.id === "dnd_basement" ? "dungeon" : "indoors", input.wantsFaster);
+          playerState.stepSoundCooldown = input.wantsFaster ? 0.19 : 0.24;
         }
       } else {
         playerState.walkTimer = 0;
@@ -2735,13 +2782,7 @@ async function boot() {
             );
             playerState.stepSoundCooldown = isFastWadingNow ? 0.22 : 0.34;
           } else {
-            const onSoftGround =
-              curTileType === "grass" ||
-              curTileType === "tall_grass" ||
-              curTileType === "park" ||
-              curTileType === "dirt" ||
-              curTileType === "sand";
-            playStepTick(onSoftGround, isFasterNow);
+            playStepTick(curTileType, isFasterNow);
             playerState.stepSoundCooldown = isFasterNow ? 0.15 : 0.24;
           }
         }
@@ -2812,6 +2853,37 @@ async function boot() {
       onProtestorShout: () => playProtestorShout(),
       onSpookyChime: () => playSpookyChime(),
       onFeatherBurst: (fx, fy) => spawnFeatherBurst(fx, fy),
+      onJoggerAnnoy: (jg, jostled) => {
+        playAnnoyingJoggerSfx(jostled);
+        // Flying cyan sweat drops & bright neon Garmin/Strava watch flashes!
+        const count = jostled ? 8 : 4;
+        for (let i = 0; i < count; i++) {
+          leafParticles.push({
+            x: jg.x + (Math.random() * 8 - 4),
+            y: jg.y - 16 + (Math.random() * 6 - 3),
+            vx: -jg.dx * (14 + Math.random() * 20) + (Math.random() - 0.5) * 18,
+            vy: -16 - Math.random() * 18,
+            life: 0.34 + Math.random() * 0.18,
+            shade: i % 3 === 0 ? [126, 232, 255] : i % 3 === 1 ? [255, 232, 82] : [235, 250, 255],
+            w: 2,
+            h: 2,
+          });
+        }
+        if (jostled) {
+          // Gentle comedic sidewalk shoulder-nudge (strictly collision-safe & 0 heart damage!)
+          const perpX = -jg.dy || (playerState.x >= jg.x ? 1 : -1);
+          const perpY = jg.dx || (playerState.y >= jg.y ? 1 : -1);
+          const nudgeX = playerState.x + perpX * 4.5;
+          const nudgeY = playerState.y + perpY * 4.5;
+          const nudgeRoadCheck = safety.isBoxOnRoad(nudgeX, nudgeY, DEFAULT_HITBOX);
+          if (!nudgeRoadCheck && !baseMapBlocker(nudgeX, nudgeY, DEFAULT_HITBOX)) {
+            playerState.x = nudgeX;
+            playerState.y = nudgeY;
+          }
+          const chant = JOGGER_CHANTS[(jg.chantIndex ?? 0) % JOGGER_CHANTS.length] || "ON YOUR LEFT!!";
+          ui.showSafetyToast(`🏃 "${chant}" An annoying marathoner zoomed right past you!`, 2200);
+        }
+      },
       onPlayerBump: (bump) => {
         if (bump.kind === "spooky") {
           playSpookyBooSfx();
@@ -2985,7 +3057,7 @@ async function boot() {
     const nearbyInteract = actionIntent.mode === "interact" ? actionIntent.interaction : null;
     const signBanner = resolveSignBanner(tx, ty, streetZone, activeGraveyard);
 
-    const nearSnackTarget = findNearbySnackTarget(streetLife, playerState.x, playerState.y, 56);
+    const nearSnackTarget = findNearbySnackTarget(streetLife, playerState.x, playerState.y, 72);
     ui.updateHUD({
       tileX: tx,
       tileY: ty,
@@ -4478,12 +4550,18 @@ async function boot() {
       }
     }
 
-    for (const car of propIndices.parkedCars.query(startX - 1, startY - 1, endX + 1, endY + 1)) {
-      const cx = car.tx * tileSize + 1;
-      const cy = car.ty * tileSize - 1;
+    for (const car of propIndices.parkedCars.query(startX - 2, startY - 2, endX + 2, endY + 2)) {
+      const sprCanvas = atlas[car.sprite];
+      const sprScale = sprCanvas?.__pixelScale || 0.5;
+      const halfW = sprCanvas ? (sprCanvas.width * sprScale) / 2 : 10;
+      const halfH = sprCanvas ? (sprCanvas.height * sprScale) / 2 : 14;
+      const cx = typeof car.x === "number" ? car.x : car.tx * tileSize + tileSize / 2;
+      const cy = typeof car.y === "number" ? car.y : car.ty * tileSize + tileSize / 2;
+      const drawX = Math.round(cx - halfW);
+      const drawY = Math.round(cy - halfH);
       drawables.push({
-        sortY: depthOf(cx + 7, (car.ty + 1) * tileSize),
-        draw: () => k.drawSprite(car.sprite, cx, cy),
+        sortY: depthOf(cx, cy + halfH * 0.65),
+        draw: () => k.drawSprite(car.sprite, drawX, drawY),
       });
     }
 
@@ -4889,25 +4967,59 @@ async function boot() {
       });
     }
 
+    // Highlight the nearest feedable wild animal so kids immediately see they can feed it (N or Space)!
+    const canFeedAnyAnimal = Boolean(
+      questSystem.state.gpsAssist || questSystem.hasSnack() || questSystem.state.acorns > 0
+    );
+    const nearestFeedAnimal = canFeedAnyAnimal
+      ? findNearbySnackTarget(streetLife, playerState.x, playerState.y, 72)
+      : null;
+    const drawMunchHeart = (hx, hy) => {
+      const rise = Math.round(Math.sin(tSec * 12) * 1.5);
+      k.drawRect({ pos: k.vec2(hx - 3, hy - 2 + rise), width: 2, height: 2, color: k.rgb(255, 86, 134) });
+      k.drawRect({ pos: k.vec2(hx + 1, hy - 2 + rise), width: 2, height: 2, color: k.rgb(255, 86, 134) });
+      k.drawRect({ pos: k.vec2(hx - 3, hy + rise), width: 6, height: 2, color: k.rgb(255, 86, 134) });
+      k.drawRect({ pos: k.vec2(hx - 2, hy + 2 + rise), width: 4, height: 1, color: k.rgb(232, 46, 98) });
+      k.drawRect({ pos: k.vec2(hx - 1, hy + 3 + rise), width: 2, height: 1, color: k.rgb(232, 46, 98) });
+      k.drawRect({ pos: k.vec2(hx - 2, hy - 1 + rise), width: 1, height: 1, color: k.rgb(255, 226, 236) });
+    };
+
     // Roving Wild Newton Turkeys (strutting, puffing autumn tail fans & gobbling!)
     for (const tk of streetLife.turkeys) {
       const tkTx = tk.x / tileSize;
       const tkTy = tk.y / tileSize;
       if (tkTx < startX - 2 || tkTx > endX + 2 || tkTy < startY - 2 || tkTy > endY + 2) continue;
       const isPuffed = tk.puffedTimer > 0;
+      const isMunching = (tk.munchTimer || 0) > 0;
       const step = Math.floor(tk.animTimer) % 2;
       const spr = isPuffed
         ? `turkey_puff_${tk.facing}`
         : `turkey_${tk.facing}_${step}`;
       const drawW = isPuffed ? 20 : 18;
+      const munchHop = isMunching ? Math.round(Math.abs(Math.sin(tSec * 18)) * -2) : 0;
       const txPx = Math.round(tk.x - drawW / 2);
-      const tyPx = Math.round(tk.y - 16);
+      const tyPx = Math.round(tk.y - 16 + munchHop);
       const footX = Math.round(tk.x);
       const footY = Math.round(tk.y + 2);
+      const isFeedHighlight = nearestFeedAnimal?.kind === "turkey" && nearestFeedAnimal.target?.id === tk.id;
       drawables.push({
         sortY: depthOf(footX, footY),
         draw: () => {
+          if (isFeedHighlight) {
+            const pulse = 0.55 + Math.sin(tSec * 8) * 0.25;
+            k.drawRect({
+              pos: k.vec2(footX - 9, footY - 4),
+              width: 18,
+              height: 7,
+              color: k.rgb(114, 232, 156),
+              opacity: pulse * 0.36,
+              outline: { width: 1, color: k.rgb(255, 236, 126), opacity: pulse },
+            });
+          }
           k.drawSprite(spr, txPx, tyPx, 1, bbAngle, footX, footY);
+          if (isMunching) {
+            drawMunchHeart(footX + 7, tyPx - 2);
+          }
           if (tk.gobbleBubbleTimer > 0) {
             const bob = Math.round(Math.sin(tSec * 10 + tk.x) * 1.2);
             const bKey = tk.bubbleSprite || "bubble_gobble";
@@ -4926,33 +5038,50 @@ async function boot() {
       if (crTx < startX - 2 || crTx > endX + 2 || crTy < startY - 2 || crTy > endY + 2) continue;
       const step = Math.floor(cr.animTimer) % 2;
       const isAlert = cr.alertTimer > 0;
+      const isMunching = (cr.munchTimer || 0) > 0;
+      const munchHop = isMunching ? Math.round(Math.abs(Math.sin(tSec * 18)) * -2) : 0;
       let spr;
       let drawX;
       let drawY;
       if (cr.kind === "squirrel") {
         spr = isAlert ? `squirrel_alert_${cr.facing}` : `squirrel_${cr.facing}_${step}`;
         drawX = Math.round(cr.x - 9);
-        drawY = Math.round(cr.y - 14);
+        drawY = Math.round(cr.y - 14 + munchHop);
       } else if (cr.kind === "cat") {
         spr = isAlert
           ? `cat_${cr.variant}_alert_${cr.facing}`
           : `cat_${cr.variant}_${cr.facing}_${step}`;
         drawX = Math.round(cr.x - 10);
-        drawY = Math.round(cr.y - 15);
+        drawY = Math.round(cr.y - 15 + munchHop);
       } else {
         // Runaway dog with animated trailing leash behind collar (58x38 native -> 29x19 logical)
         spr = isAlert
           ? `dog_${cr.variant}_alert_${cr.facing}`
           : `dog_${cr.variant}_${cr.facing}_${step}`;
         drawX = Math.round(cr.x + (cr.facing === "right" ? -18 : -11));
-        drawY = Math.round(cr.y - 17);
+        drawY = Math.round(cr.y - 17 + munchHop);
       }
       const footX = Math.round(cr.x);
       const footY = Math.round(cr.y + 2);
+      const isFeedHighlight = nearestFeedAnimal?.kind === cr.kind && nearestFeedAnimal.target?.id === cr.id;
       drawables.push({
         sortY: depthOf(footX, footY),
         draw: () => {
+          if (isFeedHighlight) {
+            const pulse = 0.55 + Math.sin(tSec * 8) * 0.25;
+            k.drawRect({
+              pos: k.vec2(footX - 9, footY - 4),
+              width: 18,
+              height: 7,
+              color: k.rgb(114, 232, 156),
+              opacity: pulse * 0.36,
+              outline: { width: 1, color: k.rgb(255, 236, 126), opacity: pulse },
+            });
+          }
           k.drawSprite(spr, drawX, drawY, 1, bbAngle, footX, footY);
+          if (isMunching) {
+            drawMunchHeart(footX + 7, drawY - 2);
+          }
           if (cr.bubbleTimer > 0) {
             const bob = Math.round(Math.sin(tSec * 10 + cr.x) * 1.2);
             const bKey = cr.bubbleSprite || "bubble_woof";
@@ -4964,15 +5093,15 @@ async function boot() {
       });
     }
 
-    // Friendly 32-Bit Sidewalk Joggers cruising along sidewalks & Commonwealth Ave's Carriage Lane Mall!
+    // Over-Competitive 32-Bit Annoying Marathon Runners (4-frame athletic stride + Strava chants!)
     for (const jg of streetLife.joggers || []) {
       const jgTx = jg.x / tileSize;
       const jgTy = jg.y / tileSize;
       if (jgTx < startX - 2 || jgTx > endX + 2 || jgTy < startY - 2 || jgTy > endY + 2) continue;
-      const runFrame = Math.floor(jg.animTimer) % 2;
+      const runFrame = Math.floor(jg.animTimer) % 4;
       const spr = `jogger_${jg.variant}_${jg.facing}_${runFrame}`;
-      const jxDraw = Math.round(jg.x - 11);
-      const jyDraw = Math.round(jg.y - 25);
+      const jxDraw = Math.round(jg.x - 12);
+      const jyDraw = Math.round(jg.y - 27);
       const footX = Math.round(jg.x);
       const footY = Math.round(jg.y + 3);
       drawables.push({
@@ -4980,7 +5109,7 @@ async function boot() {
         draw: () => {
           k.drawSprite(spr, jxDraw, jyDraw, 1, bbAngle, footX, footY);
           if (jg.bubbleTimer > 0) {
-            const bob = Math.round(Math.sin(tSec * 10 + jg.x) * 1.2);
+            const bob = Math.round(Math.sin(tSec * 12 + jg.x) * 1.4);
             const bKey = jg.bubbleSprite || "bubble_jogger_0";
             const bSpr = atlas[bKey];
             const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 34;
@@ -5090,16 +5219,24 @@ async function boot() {
       });
     }
 
-    // Flying tossed pretzel snacks arcing cleanly toward wild neighborhood animals!
+    // Flying tossed pretzel snacks & Lucky Acorns arcing cleanly toward wild neighborhood animals!
     for (const sn of tossedSnacks) {
       const sx = Math.round(sn.x);
       const sy = Math.round(sn.y);
       const spin = Math.floor(sn.t * 18) % 2;
-      // Dark outline + warm golden-brown baked pretzel knot + salt crystal sparkles
-      k.drawRect({ pos: k.vec2(sx - 4, sy - 3), width: 8, height: 6, color: k.rgb(66, 36, 14) });
-      k.drawRect({ pos: k.vec2(sx - 3, sy - 2), width: 6, height: 4, color: k.rgb(214, 138, 52) });
-      k.drawRect({ pos: k.vec2(sx - 2 + spin, sy - 1), width: 2, height: 1, color: k.rgb(255, 246, 212) });
-      k.drawRect({ pos: k.vec2(sx + 1 - spin, sy), width: 2, height: 1, color: k.rgb(255, 246, 212) });
+      if (sn.foodKind === "acorn") {
+        // Crunchy golden-brown Lucky Acorn with dark oak cap
+        k.drawRect({ pos: k.vec2(sx - 3, sy - 4), width: 6, height: 7, color: k.rgb(54, 30, 14) });
+        k.drawRect({ pos: k.vec2(sx - 3, sy - 3), width: 6, height: 2, color: k.rgb(118, 72, 34) });
+        k.drawRect({ pos: k.vec2(sx - 2, sy - 1), width: 4, height: 3, color: k.rgb(198, 134, 62) });
+        k.drawRect({ pos: k.vec2(sx - 1 + spin, sy - 1), width: 1, height: 1, color: k.rgb(255, 232, 168) });
+      } else {
+        // Dark outline + warm golden-brown baked pretzel knot + salt crystal sparkles
+        k.drawRect({ pos: k.vec2(sx - 4, sy - 3), width: 8, height: 6, color: k.rgb(66, 36, 14) });
+        k.drawRect({ pos: k.vec2(sx - 3, sy - 2), width: 6, height: 4, color: k.rgb(214, 138, 52) });
+        k.drawRect({ pos: k.vec2(sx - 2 + spin, sy - 1), width: 2, height: 1, color: k.rgb(255, 246, 212) });
+        k.drawRect({ pos: k.vec2(sx + 1 - spin, sy), width: 2, height: 1, color: k.rgb(255, 246, 212) });
+      }
     }
 
     // Legend of Zelda: Breath of the Wild Sheikah Fast-Travel Blue/Cyan Energy Teleport VFX!

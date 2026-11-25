@@ -109,6 +109,14 @@ export const PROTESTOR_QUIPS = [
   "Thanks for saying hi, neighbor! If you have a snack to share, we'll gladly clear the sidewalk!",
 ];
 
+export const JOGGER_CHANTS = [
+  "ON YOUR LEFT!!",
+  "TRACK!! MOVE IT!!",
+  "SUB-3 MARATHON PACE!",
+  "DON'T BREAK MY STRIDE!",
+  "STRAVA SEGMENT PR!!",
+];
+
 const WALKABLE_TURKEY_TILES = new Set([0, 1, 2, 4, 7, 9, 10, 11]);
 const WALKABLE_GRAVEYARD_TILES = new Set([0, 7, 9, 11]);
 const SIDEWALK_TILE = 1;
@@ -241,6 +249,9 @@ export function buildStreetLife(
       dirTimer: 1.5 + (h % 25) * 0.1,
       puffedTimer: 0,
       fleeTimer: 0,
+      munchTimer: 0,
+      fedTimer: 0,
+      fedBy: null,
       gobbleBubbleTimer: 0,
       gobbleSoundCooldown: 0,
       shooedCount: 0,
@@ -274,6 +285,9 @@ export function buildStreetLife(
       dirTimer: 1.3 + (h % 22) * 0.1,
       alertTimer: 0,
       fleeTimer: 0,
+      munchTimer: 0,
+      fedTimer: 0,
+      fedBy: null,
       bubbleTimer: 0,
       bubbleSprite: arch.bubble,
       soundCooldown: 0,
@@ -734,6 +748,7 @@ function buildSidewalkJoggers(worldMap, spawnTile = null) {
     ].filter((d) => isJogTile(tx + d.dx, ty + d.dy));
     if (dirs.length === 0) return false;
     const d0 = dirs[h % dirs.length];
+    const chantIdx = joggers.length % JOGGER_CHANTS.length;
     joggers.push({
       id: `jogger_${joggers.length}`,
       variant: joggers.length % 3,
@@ -741,12 +756,16 @@ function buildSidewalkJoggers(worldMap, spawnTile = null) {
       y: ty * tileSize + tileSize / 2,
       dx: d0.dx,
       dy: d0.dy,
-      speed: 36 + (h % 10),
+      speed: 44 + (h % 11),
       facing: d0.dx < 0 ? "left" : "right",
       animTimer: (h % 10) * 0.25,
       bubbleTimer: 0,
-      bubbleSprite: `bubble_jogger_${joggers.length % 3}`,
+      chantIndex: chantIdx,
+      bubbleSprite: `bubble_jogger_${chantIdx}`,
       greetCooldown: 0,
+      jostleCooldown: 0,
+      sprintTimer: 0,
+      annoying: true,
     });
     for (let oy = -4; oy <= 4; oy++) {
       for (let ox = -4; ox <= 4; ox++) used.add(`${tx + ox},${ty + oy}`);
@@ -888,21 +907,21 @@ export function findNearbyHungryProtestor(streetLife, px, py, maxDistPx = 44) {
 
 /**
  * Find the closest snackable neighbor OR wild animal (protestor, turkey, squirrel, cat, or leash-dog)
- * within generous snack-tossing reach for the physical Give/Toss Snack (N) button & hotkey!
+ * within generous snack-tossing / feeding reach for the physical Feed/Snack (N) button & hotkey!
  */
-export function findNearbySnackTarget(streetLife, px, py, maxDistPx = 56) {
+export function findNearbySnackTarget(streetLife, px, py, maxDistPx = 72) {
   if (!streetLife) return null;
   const nearPr = findNearbyHungryProtestor(streetLife, px, py, Math.min(48, maxDistPx));
   let best = nearPr;
   for (const tk of streetLife.turkeys || []) {
-    if (tk.fleeTimer > 0) continue;
+    if (tk.fleeTimer > 0 || (tk.munchTimer || 0) > 0 || (tk.fedTimer || 0) > 0) continue;
     const d = Math.hypot(px - tk.x, py - tk.y);
     if (d <= maxDistPx && (!best || d < best.dist)) {
       best = { kind: "turkey", target: tk, dist: d };
     }
   }
   for (const cr of streetLife.critters || []) {
-    if (cr.fleeTimer > 0) continue;
+    if (cr.fleeTimer > 0 || (cr.munchTimer || 0) > 0 || (cr.fedTimer || 0) > 0) continue;
     const d = Math.hypot(px - cr.x, py - cr.y);
     if (d <= maxDistPx && (!best || d < best.dist)) {
       best = { kind: cr.kind, target: cr, dist: d };
@@ -912,57 +931,78 @@ export function findNearbySnackTarget(streetLife, px, py, maxDistPx = 56) {
 }
 
 /**
- * Toss a snack to a wild neighborhood animal (turkey, squirrel, cat, or runaway dog) so it
- * happily snatches the treat and scampers away peacefully instead of chasing Liam!
+ * Feed a wild neighborhood animal (turkey, squirrel, cat, or runaway dog) with a Snack OR a Lucky Acorn!
+ * The animal pauses happily to munch the treat with hearts/crumbs, then trots away peacefully for a long
+ * calm period instead of chasing Liam!
  */
 export function tossSnackAtAnimal(entry, playerX, playerY, options = {}) {
   if (!entry || !entry.target) return null;
   const kind = entry.kind;
   if (kind !== "turkey" && kind !== "squirrel" && kind !== "cat" && kind !== "dog") return null;
-  const { hasSnack = false, consumeSnack = null, isEasyMode = false } = options || {};
-  const canToss = Boolean(isEasyMode || hasSnack);
-  if (!canToss) {
+  const {
+    hasSnack = false,
+    consumeSnack = null,
+    hasAcorn = false,
+    consumeAcorn = null,
+    isEasyMode = false,
+  } = options || {};
+  const canUseSnack = Boolean(isEasyMode || hasSnack);
+  const canUseAcorn = Boolean(!canUseSnack && hasAcorn);
+  if (!canUseSnack && !canUseAcorn) {
     return {
       kind,
       tossed: false,
+      fed: false,
       needsSnack: true,
-      toast: "🥨 Out of snacks to toss! Grab snacks at Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's — or swing your Sword (J)!",
+      toast: "🥨 Out of snacks & acorns! Grab snacks at Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's — or find Lucky Acorns in tall grass!",
     };
   }
-  if (!isEasyMode && typeof consumeSnack === "function") {
-    consumeSnack();
+  const usedFood = canUseSnack ? "snack" : "acorn";
+  if (!isEasyMode) {
+    if (usedFood === "snack" && typeof consumeSnack === "function") {
+      consumeSnack();
+    } else if (usedFood === "acorn" && typeof consumeAcorn === "function") {
+      consumeAcorn();
+    }
   }
   const target = entry.target;
   const dx = target.x - playerX;
   const dy = target.y - playerY;
   const len = Math.hypot(dx, dy) || 1;
-  const fleeSpeed = kind === "dog" ? 72 : kind === "squirrel" ? 68 : 62;
-  target.vx = (dx / len) * fleeSpeed;
-  target.vy = (dy / len) * fleeSpeed;
+  const trotSpeed = kind === "dog" ? 56 : kind === "squirrel" ? 54 : 46;
+  target.vx = (dx / len) * trotSpeed;
+  target.vy = (dy / len) * trotSpeed;
   target.facing = target.vx >= 0 ? "right" : "left";
-  target.fleeTimer = 8.0;
+  target.munchTimer = 0.95;
+  target.fedTimer = 20.0;
+  target.fleeTimer = 16.0;
+  target.fedBy = usedFood;
   if (kind === "turkey") {
     target.puffedTimer = 0;
-    target.gobbleBubbleTimer = 2.6;
+    target.gobbleBubbleTimer = 3.2;
     target.bubbleSprite = "bubble_animal_yum";
   } else {
     target.alertTimer = 0;
-    target.bubbleTimer = 2.6;
+    target.bubbleTimer = 3.2;
     target.bubbleSprite = "bubble_animal_yum";
   }
-  const names = {
-    turkey: "wild turkey",
-    squirrel: "wild squirrel",
-    cat: "prowling cat",
-    dog: "runaway dog",
+  const foodIcon = usedFood === "acorn" ? "🌰" : "🥨";
+  const foodWord = usedFood === "acorn" ? "crunchy Lucky Acorn" : "tasty snack";
+  const toasts = {
+    turkey: `${foodIcon} Fed the wild turkey a ${foodWord}! It happily gobbled it up and waddled off peacefully! (+5 XP)`,
+    squirrel: `${foodIcon} Fed the wild squirrel a ${foodWord}! It stuffed its cheeks and scampered up a tree! (+5 XP)`,
+    cat: `${foodIcon} Fed the prowling cat a ${foodWord}! It purred loudly and trotted happily away! (+5 XP)`,
+    dog: `${foodIcon} Fed the runaway dog a ${foodWord}! It wagged its tail and bounded happily home! (+5 XP)`,
   };
   return {
     kind,
     tossed: true,
+    fed: true,
+    foodKind: usedFood,
     xpReward: 5,
     targetX: target.x,
     targetY: target.y,
-    toast: `🥨 Tossed a snack! The ${names[kind]} happily munched it and scampered away! (+5 XP)`,
+    toast: toasts[kind] || `${foodIcon} Fed the wild animal! It happily munched it and wandered off peacefully! (+5 XP)`,
   };
 }
 
@@ -1126,7 +1166,7 @@ export function checkStreetLifeContact(
   };
 
   for (const tk of streetLife.turkeys || []) {
-    if (tk.fleeTimer > 0) continue;
+    if (tk.fleeTimer > 0 || (tk.munchTimer || 0) > 0 || (tk.fedTimer || 0) > 0) continue;
     const dx = px - tk.x;
     const dy = py - tk.y;
     const dist = Math.hypot(dx, dy);
@@ -1150,7 +1190,7 @@ export function checkStreetLifeContact(
 
   // Wild squirrels, prowling cats & runaway leash-trailing dogs act as nimble neighborhood enemies like turkeys!
   for (const cr of streetLife.critters || []) {
-    if (cr.fleeTimer > 0) continue;
+    if (cr.fleeTimer > 0 || (cr.munchTimer || 0) > 0 || (cr.fedTimer || 0) > 0) continue;
     const arch = CRITTER_ARCHETYPES[cr.kind];
     const dx = px - cr.x;
     const dy = py - cr.y;
@@ -1252,6 +1292,7 @@ export function updateStreetLife(
     onSpookyChime = null,
     onFeatherBurst = null,
     onPlayerBump = null,
+    onJoggerAnnoy = null,
   } = {}
 ) {
   if (!streetLife) return;
@@ -1318,17 +1359,30 @@ export function updateStreetLife(
     // Skip expensive updates for turkeys far across Newton (> 26 tiles away)
     if (dist > 420) continue;
 
-    tk.animTimer += dt * (tk.fleeTimer > 0 ? 14 : 6.5);
+    if ((tk.munchTimer || 0) > 0) tk.munchTimer = Math.max(0, tk.munchTimer - dt);
+    if ((tk.fedTimer || 0) > 0) tk.fedTimer = Math.max(0, tk.fedTimer - dt);
+    const isMunching = (tk.munchTimer || 0) > 0;
+    const isFed = (tk.fedTimer || 0) > 0;
+
+    tk.animTimer += dt * (isMunching ? 12 : tk.fleeTimer > 0 ? 14 : 6.5);
     if (tk.puffedTimer > 0) tk.puffedTimer = Math.max(0, tk.puffedTimer - dt);
-    if (tk.fleeTimer > 0) tk.fleeTimer = Math.max(0, tk.fleeTimer - dt);
+    if (tk.fleeTimer > 0 && !isMunching) tk.fleeTimer = Math.max(0, tk.fleeTimer - dt);
     if (tk.gobbleBubbleTimer > 0) tk.gobbleBubbleTimer = Math.max(0, tk.gobbleBubbleTimer - dt);
     if (tk.gobbleSoundCooldown > 0) tk.gobbleSoundCooldown = Math.max(0, tk.gobbleSoundCooldown - dt);
 
-    if (tk.fleeTimer <= 0) {
+    if (isMunching) {
+      // Happily pausing & munching the treat Liam tossed!
+      tk.puffedTimer = 0;
+      tk.gobbleBubbleTimer = Math.max(tk.gobbleBubbleTimer, 0.5);
+      continue;
+    }
+
+    if (tk.fleeTimer <= 0 && !isFed) {
       if (dist < 48) {
         // Bold Newton Turkey spots Liam! Puff up tail fan and gobble!
         tk.puffedTimer = Math.max(tk.puffedTimer, 0.9);
         if (tk.gobbleSoundCooldown <= 0) {
+          tk.bubbleSprite = "bubble_gobble";
           tk.gobbleBubbleTimer = 1.9;
           tk.gobbleSoundCooldown = 3.8;
           onTurkeyGobble?.(tk);
@@ -1375,6 +1429,15 @@ export function updateStreetLife(
           tk.dirTimer = 1.8 + Math.random() * 2.4;
         }
       }
+    } else if (isFed && tk.fleeTimer <= 0) {
+      // Happily full & peaceful — casually wanders away without bothering Liam
+      tk.dirTimer -= dt;
+      if (tk.dirTimer <= 0) {
+        const angle = Math.random() * Math.PI * 2;
+        tk.vx = Math.cos(angle) * 14;
+        tk.vy = Math.sin(angle) * 14;
+        tk.dirTimer = 1.8 + Math.random() * 2.0;
+      }
     }
 
     const nx = tk.x + tk.vx * dt;
@@ -1400,18 +1463,30 @@ export function updateStreetLife(
     const dist = Math.hypot(px - cr.x, py - cr.y);
     if (dist > 420) continue;
 
+    if ((cr.munchTimer || 0) > 0) cr.munchTimer = Math.max(0, cr.munchTimer - dt);
+    if ((cr.fedTimer || 0) > 0) cr.fedTimer = Math.max(0, cr.fedTimer - dt);
+    const isMunching = (cr.munchTimer || 0) > 0;
+    const isFed = (cr.fedTimer || 0) > 0;
+
     const arch = CRITTER_ARCHETYPES[cr.kind];
-    cr.animTimer += dt * (cr.fleeTimer > 0 ? 15 : cr.kind === "dog" ? 10 : 8.5);
+    cr.animTimer += dt * (isMunching ? 12 : cr.fleeTimer > 0 ? 15 : cr.kind === "dog" ? 10 : 8.5);
     if (cr.alertTimer > 0) cr.alertTimer = Math.max(0, cr.alertTimer - dt);
-    if (cr.fleeTimer > 0) cr.fleeTimer = Math.max(0, cr.fleeTimer - dt);
+    if (cr.fleeTimer > 0 && !isMunching) cr.fleeTimer = Math.max(0, cr.fleeTimer - dt);
     if (cr.bubbleTimer > 0) cr.bubbleTimer = Math.max(0, cr.bubbleTimer - dt);
     if (cr.soundCooldown > 0) cr.soundCooldown = Math.max(0, cr.soundCooldown - dt);
 
-    if (cr.fleeTimer <= 0) {
+    if (isMunching) {
+      cr.alertTimer = 0;
+      cr.bubbleTimer = Math.max(cr.bubbleTimer, 0.5);
+      continue;
+    }
+
+    if (cr.fleeTimer <= 0 && !isFed) {
       const detectRadius = cr.kind === "dog" ? 64 : 50;
       if (dist < detectRadius) {
         cr.alertTimer = Math.max(cr.alertTimer, 0.85);
         if (cr.soundCooldown <= 0) {
+          cr.bubbleSprite = arch?.bubble || cr.bubbleSprite;
           cr.bubbleTimer = 1.9;
           cr.soundCooldown = 3.8;
           onCritterSound?.(cr);
@@ -1445,6 +1520,15 @@ export function updateStreetLife(
           cr.vy = Math.sin(angle) * spd;
           cr.dirTimer = 1.4 + Math.random() * 2.2;
         }
+      }
+    } else if (isFed && cr.fleeTimer <= 0) {
+      cr.dirTimer -= dt;
+      if (cr.dirTimer <= 0) {
+        const angle = Math.random() * Math.PI * 2;
+        const baseSpd = (arch?.roamSpeed || 18) * 0.85;
+        cr.vx = Math.cos(angle) * baseSpd;
+        cr.vy = Math.sin(angle) * baseSpd;
+        cr.dirTimer = 1.6 + Math.random() * 2.0;
       }
     }
 
@@ -1659,7 +1743,7 @@ export function updateStreetLife(
     }
   }
 
-  // --- 4. Update Friendly Newton Sidewalk Joggers (stay on sidewalks, Comm Ave mall & trails!) ---
+  // --- 4. Update Over-Competitive Annoying Newton Marathon Runners (stay on sidewalks & Comm Ave mall — NEVER deal heart damage!) ---
   const isJogTile = (tx, ty) => {
     if (tx < 2 || ty < 2 || tx >= width - 2 || ty >= height - 2) return false;
     const idx = ty * width + tx;
@@ -1670,17 +1754,39 @@ export function updateStreetLife(
   for (const jg of streetLife.joggers || []) {
     const dist = Math.hypot(px - jg.x, py - jg.y);
     if (dist > 440) continue;
-    jg.animTimer += dt * 11;
     if (jg.bubbleTimer > 0) jg.bubbleTimer = Math.max(0, jg.bubbleTimer - dt);
     if (jg.greetCooldown > 0) jg.greetCooldown = Math.max(0, jg.greetCooldown - dt);
+    if ((jg.jostleCooldown || 0) > 0) jg.jostleCooldown = Math.max(0, jg.jostleCooldown - dt);
+    if ((jg.sprintTimer || 0) > 0) jg.sprintTimer = Math.max(0, jg.sprintTimer - dt);
 
-    if (dist < 46 && jg.greetCooldown <= 0) {
-      jg.bubbleTimer = 2.0;
-      jg.greetCooldown = 7.0;
+    // Annoying runners surge into a dramatic Strava-PR sprint & yell when closing in on Liam!
+    if (dist < 76) {
+      jg.sprintTimer = Math.max(jg.sprintTimer || 0, 0.55);
+    }
+    const sprinting = (jg.sprintTimer || 0) > 0;
+    jg.animTimer += dt * (sprinting ? 17 : 13.5);
+
+    if (dist < 62 && jg.greetCooldown <= 0) {
+      jg.chantIndex = ((jg.chantIndex ?? 0) + 1) % JOGGER_CHANTS.length;
+      jg.bubbleSprite = `bubble_jogger_${jg.chantIndex}`;
+      jg.bubbleTimer = 2.6;
+      jg.greetCooldown = 4.2;
+      onJoggerAnnoy?.(jg, false);
     }
 
-    const nx = jg.x + jg.dx * jg.speed * dt;
-    const ny = jg.y + jg.dy * jg.speed * dt;
+    // Comedic shoulder-zoom jostle if an obnoxious marathoner blasts right past Liam (strictly 0 heart damage!)
+    if (dist < 15 && (jg.jostleCooldown || 0) <= 0) {
+      jg.jostleCooldown = 4.0;
+      jg.chantIndex = ((jg.chantIndex ?? 0) + 1) % JOGGER_CHANTS.length;
+      jg.bubbleSprite = `bubble_jogger_${jg.chantIndex}`;
+      jg.bubbleTimer = 2.8;
+      jg.greetCooldown = Math.max(jg.greetCooldown, 3.0);
+      onJoggerAnnoy?.(jg, true);
+    }
+
+    const curSpeed = jg.speed * (sprinting ? 1.25 : 1.0);
+    const nx = jg.x + jg.dx * curSpeed * dt;
+    const ny = jg.y + jg.dy * curSpeed * dt;
     const ntx = Math.floor((nx + jg.dx * 5) / tileSize);
     const nty = Math.floor((ny + jg.dy * 5) / tileSize);
     if (isJogTile(ntx, nty)) {

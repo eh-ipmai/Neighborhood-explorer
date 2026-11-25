@@ -81,6 +81,8 @@ export function createUI({
   onCloseSign,
   onResetProgress,
   onTextBlip,
+  onDialogueOpen,
+  onDialogueAdvance,
 } = {}) {
   const bannerEl = document.getElementById("street-banner");
   const streetNameEl = document.getElementById("street-name");
@@ -179,6 +181,7 @@ export function createUI({
     if (dialogueSpeakerEl) dialogueSpeakerEl.textContent = speaker;
     if (dialogueTextEl) dialogueTextEl.textContent = "";
     dialogueBoxEl.classList.add("open");
+    onDialogueOpen?.(speaker);
   }
 
   function advanceDialogue() {
@@ -195,12 +198,14 @@ export function createUI({
       dialogueState.charIndex = 0;
       dialogueState.charTimer = 0;
       if (dialogueTextEl) dialogueTextEl.textContent = "";
+      onDialogueAdvance?.();
       return true;
     }
     // Close dialogue & fire completion callback (e.g. Overhead Item Fanfare!)
     const done = dialogueState.onComplete;
     dialogueState = null;
     dialogueBoxEl?.classList.remove("open");
+    onDialogueAdvance?.();
     done?.();
     return true;
   }
@@ -215,7 +220,7 @@ export function createUI({
     if (targetChars > dialogueState.charIndex) {
       dialogueState.charIndex = targetChars;
       if (dialogueTextEl) dialogueTextEl.textContent = fullLine.slice(0, dialogueState.charIndex);
-      if (dialogueState.charIndex % 3 === 0) onTextBlip?.();
+      if (dialogueState.charIndex % 3 === 0) onTextBlip?.(dialogueState.speaker);
     }
   }
 
@@ -814,13 +819,36 @@ export function createUI({
     setText(btnInside, "insideTxt", isInsideHouse ? "🚪 Outside (I)" : "🏠 Inside (I)");
     setClass(btnInside, "insideAct", "active", isInsideHouse || canEnterHouse);
     setDisplay(btnSnack, "snackDisp", canGiveSnack ? "inline-flex" : "none");
-    const snackActionVerb = snackTargetKind && snackTargetKind !== "protestor" ? "Toss Snack" : "Give Snack";
-    setText(
-      btnSnack,
-      "snackTxt",
-      hasSnack ? `🥨 ${snackActionVerb} (${gpsAssist ? "∞" : snacks}) [N]` : "🥨 Need Snacks [N]"
-    );
-    setClass(btnSnack, "snackAct", "active", canGiveSnack && hasSnack);
+    const isWildAnimalTarget =
+      snackTargetKind === "turkey" ||
+      snackTargetKind === "squirrel" ||
+      snackTargetKind === "cat" ||
+      snackTargetKind === "dog";
+    const canFeedAnimal = Boolean(gpsAssist || hasSnack || acorns > 0);
+    const animalLabelMap = {
+      turkey: "Turkey",
+      squirrel: "Squirrel",
+      cat: "Cat",
+      dog: "Pup",
+    };
+    if (isWildAnimalTarget) {
+      const targetName = animalLabelMap[snackTargetKind] || "Animal";
+      if (gpsAssist || hasSnack) {
+        setText(btnSnack, "snackTxt", `🥨 Feed ${targetName} (${gpsAssist ? "∞" : snacks}) [N]`);
+      } else if (acorns > 0) {
+        setText(btnSnack, "snackTxt", `🌰 Feed ${targetName} (${acorns}) [N]`);
+      } else {
+        setText(btnSnack, "snackTxt", `🥨 Need Food [N]`);
+      }
+      setClass(btnSnack, "snackAct", "active", canGiveSnack && canFeedAnimal);
+    } else {
+      setText(
+        btnSnack,
+        "snackTxt",
+        hasSnack ? `🥨 Give Snack (${gpsAssist ? "∞" : snacks}) [N]` : "🥨 Need Snacks [N]"
+      );
+      setClass(btnSnack, "snackAct", "active", canGiveSnack && hasSnack);
+    }
     setDisplay(btnSword, "swordDisp", hasSword ? "inline-flex" : "none");
     setDisplay(btnSiddur, "siddurDisp", hasSiddur ? "inline-flex" : "none");
     setText(
@@ -903,17 +931,17 @@ export function createUI({
           setText(btnLookIcon, "lookIcon", hasSnack ? "🥨" : "💬");
           setHtml(btnLookLabel, "lookLbl", hasSnack ? "SHARE<br/>SNACK" : "SAY<br/>HI!");
         } else if (nearbyInteraction.kind === "turkey") {
-          setText(btnLookIcon, "lookIcon", "🦃");
-          setHtml(btnLookLabel, "lookLbl", "SHOO<br/>TURKEY");
+          setText(btnLookIcon, "lookIcon", canFeedAnimal ? (hasSnack || gpsAssist ? "🥨" : "🌰") : "🦃");
+          setHtml(btnLookLabel, "lookLbl", canFeedAnimal ? "FEED<br/>TURKEY" : "SHOO<br/>TURKEY");
         } else if (nearbyInteraction.kind === "squirrel") {
-          setText(btnLookIcon, "lookIcon", "🐿️");
-          setHtml(btnLookLabel, "lookLbl", "SHOO<br/>SQUIRREL");
+          setText(btnLookIcon, "lookIcon", canFeedAnimal ? (hasSnack || gpsAssist ? "🥨" : "🌰") : "🐿️");
+          setHtml(btnLookLabel, "lookLbl", canFeedAnimal ? "FEED<br/>SQUIRREL" : "SHOO<br/>SQUIRREL");
         } else if (nearbyInteraction.kind === "cat") {
-          setText(btnLookIcon, "lookIcon", "🐱");
-          setHtml(btnLookLabel, "lookLbl", "SHOO<br/>CAT");
+          setText(btnLookIcon, "lookIcon", canFeedAnimal ? (hasSnack || gpsAssist ? "🥨" : "🌰") : "🐱");
+          setHtml(btnLookLabel, "lookLbl", canFeedAnimal ? "FEED<br/>CAT" : "SHOO<br/>CAT");
         } else if (nearbyInteraction.kind === "dog") {
-          setText(btnLookIcon, "lookIcon", "🐕");
-          setHtml(btnLookLabel, "lookLbl", "SHOO<br/>PUP");
+          setText(btnLookIcon, "lookIcon", canFeedAnimal ? (hasSnack || gpsAssist ? "🥨" : "🌰") : "🐕");
+          setHtml(btnLookLabel, "lookLbl", canFeedAnimal ? "FEED<br/>PUP" : "SHOO<br/>PUP");
         } else if (nearbyInteraction.kind === "spooky") {
           setText(btnLookIcon, "lookIcon", "🔦");
           setHtml(btnLookLabel, "lookLbl", "SPOOK<br/>BACK!");
@@ -1006,13 +1034,21 @@ export function createUI({
             ? `🥨 Tap Give Snack (N) or Space — Share a snack with the marchers ("${nearbyInteraction.target.chantText}")!`
             : `🥨 Marching makes them hungry! Grab snacks at Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's!`;
         } else if (nearbyInteraction.kind === "turkey") {
-          label = "🦃 Wild Turkey! Press N to Toss Snack, J to Swing Sword, or Space to Shoo!";
+          label = canFeedAnimal
+            ? "🥨 Wild Turkey! Tap FEED / N / Space to feed it a snack or acorn so it leaves peacefully!"
+            : "🦃 Wild Turkey! Press Space to Shoo, J to Swing Sword, or grab snacks/acorns to feed it!";
         } else if (nearbyInteraction.kind === "squirrel") {
-          label = "🐿️ Wild Squirrel! Press N to Toss Snack, J to Swing Sword, or Space to Shoo!";
+          label = canFeedAnimal
+            ? "🌰 Wild Squirrel! Tap FEED / N / Space to feed it a snack or acorn so it leaves peacefully!"
+            : "🐿️ Wild Squirrel! Press Space to Shoo, J to Swing Sword, or grab snacks/acorns to feed it!";
         } else if (nearbyInteraction.kind === "cat") {
-          label = "🐱 Prowling Cat! Press N to Toss Snack, J to Swing Sword, or Space to Shoo!";
+          label = canFeedAnimal
+            ? "🥨 Prowling Cat! Tap FEED / N / Space to feed it a snack or acorn so it purrs & leaves!"
+            : "🐱 Prowling Cat! Press Space to Shoo, J to Swing Sword, or grab snacks/acorns to feed it!";
         } else if (nearbyInteraction.kind === "dog") {
-          label = "🐕 Runaway Dog! Press N to Toss Snack, J to Swing Sword, or Space to Shoo!";
+          label = canFeedAnimal
+            ? "🥨 Runaway Dog! Tap FEED / N / Space to feed it a treat so it wags its tail & leaves!"
+            : "🐕 Runaway Dog! Press Space to Shoo, J to Swing Sword, or grab snacks/acorns to feed it!";
         } else if (nearbyInteraction.kind === "spooky") {
           label = `👻 Tap SPOOK BACK / Space — ${nearbyInteraction.target?.name || "Spooky Graveyard Character"}!`;
         } else {
