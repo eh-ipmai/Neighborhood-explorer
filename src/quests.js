@@ -50,8 +50,8 @@ export const ITEM_CATALOG = {
   outfit_baseball: { name: "Little League Uniform", icon: "⚾", sprite: "item_glove", desc: "Quest-earned Team Giants baseball outfit — press O to wear it!" },
   outfit_wetsuit: { name: "Summer Wetsuit & Snorkel", icon: "🤿", sprite: "item_stamp", desc: "Quest-earned swim outfit — lets you wade through lakes & ponds! Press O to wear it anytime!" },
   outfit_link: { name: "Hero of Hyrule (Link) Outfit", icon: "🗡️", sprite: "item_sword", desc: "Quest-earned Legend of Zelda Link tunic, cap & shield — press O to wear it!" },
-  golden_d20: { name: "Golden D20", icon: "🎲", sprite: "item_badge", desc: "Found in Home Base's secret upstairs reading nook! Roll for lucky bonus coins!" },
-  bag_of_holding: { name: "Bag of Holding", icon: "🎒", sprite: "item_badge", desc: "Earned in the 8-bit D&D Basement! Expands your snack pocket up to 12 snacks!" },
+  golden_d20: { name: "Golden D20", icon: "🎲", sprite: "item_d20", desc: "Found in Home Base's secret upstairs reading nook! Roll for lucky bonus coins!" },
+  bag_of_holding: { name: "Bag of Holding", icon: "🎒", sprite: "item_bag", desc: "Earned in the D&D Basement! Expands your snack pocket up to 12 snacks!" },
 };
 
 const ALL_OUTFIT_ORDER = ["polo", "baseball", "wetsuit", "link"];

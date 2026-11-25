@@ -12,6 +12,8 @@
  *    fluted green Massachusetts street signs, cedar benches, hydrants & Little Free Library chests
  */
 
+import { upgradeItemsAndFxTo32Bit } from "./items32bit.js";
+
 function makeHdCanvas(w, h) {
   const canvas = document.createElement("canvas");
   canvas.width = w;
@@ -1241,4 +1243,7 @@ export function upgradeAtlasTo32Bit(sprites, P) {
     px(ctx, 7, 7, 2, 2, dark);
     sprites[`fx_leaf_${i}`] = canvas;
   });
+
+  // Upgrade all 19 pickup items, collectibles, 5-frame sword swings, interaction FX & graveyard props to 2x HD!
+  upgradeItemsAndFxTo32Bit(sprites);
 }

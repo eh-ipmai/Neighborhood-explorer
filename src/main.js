@@ -1036,9 +1036,31 @@ async function boot() {
     }
     if (playerState.swordCooldown > 0) return;
 
-    playerState.swordSwingTimer = 0.24;
-    playerState.swordCooldown = 0.32;
+    playerState.swordSwingTimer = 0.28;
+    playerState.swordCooldown = 0.34;
     playSwordSlashSfx();
+
+    // Gleaming cyan-gold blade trail sparkles fanning out in Liam's swing arc!
+    const swBaseAng =
+      playerState.facing === "right"
+        ? 0
+        : playerState.facing === "left"
+          ? Math.PI
+          : playerState.facing === "down"
+            ? Math.PI / 2
+            : -Math.PI / 2;
+    for (let i = 0; i < 4; i++) {
+      const a = swBaseAng - 0.9 + (i / 3) * 1.8;
+      leafParticles.push({
+        x: playerState.x + Math.cos(a) * 14,
+        y: playerState.y - 8 + Math.sin(a) * 12,
+        vx: Math.cos(a) * 32,
+        vy: Math.sin(a) * 24 - 8,
+        life: 0.28,
+        sprite: i % 2 === 0 ? "fx_sparkle_cyan" : "fx_sparkle_gold",
+        noGravity: true,
+      });
+    }
 
     const res = performSwordAttack(streetLife, playerState, {
       graveyardGhosts: graveyardFeatures.ghosts,
@@ -1052,12 +1074,15 @@ async function boot() {
       if (defeatedCount > 0) {
         questSystem.state.coins += defeatedCount;
         playCoinPickup();
+        playerState.hurtShakeTimer = Math.max(playerState.hurtShakeTimer, 0.1);
       }
       questSystem.save();
       for (const foe of res.defeated) {
+        worldFx.push({ kind: "hit_slash", x: foe.x, y: foe.y - 10, t: 0, duration: 0.24 });
         spawnSpookyDefeatEffect(foe.x, foe.y, foe.spookyKind || (foe.kind === "ghost" ? "ghost" : "skeleton"), false);
       }
       for (const animal of scaredList) {
+        worldFx.push({ kind: "hit_slash", x: animal.x, y: animal.y - 8, t: 0, duration: 0.2 });
         if (animal.kind === "turkey") {
           playTurkeyGobble();
           spawnFeatherBurst(animal.x, animal.y);
@@ -3698,6 +3723,9 @@ async function boot() {
     let sprName;
     if (activeFanfare) {
       sprName = `hero_${outfit}_fanfare`;
+    } else if (playerState.swordSwingTimer > 0 && !isWading) {
+      // Dynamic forward lunge stride while swinging the Graveyard Sword!
+      sprName = `hero_${outfit}_${playerState.facing}_1`;
     } else if (isFasterNow && !isWading) {
       sprName = `hero_${outfit}_scooter_${playerState.facing}`;
     } else if (!playerState.moving) {
@@ -3729,7 +3757,7 @@ async function boot() {
     let lungeX = 0;
     let lungeY = 0;
     if (playerState.swordSwingTimer > 0) {
-      const lp = Math.sin((1 - playerState.swordSwingTimer / 0.24) * Math.PI);
+      const lp = Math.sin(Math.max(0, 1 - playerState.swordSwingTimer / 0.28) * Math.PI);
       const distL = Math.round(lp * 3);
       if (playerState.facing === "right") lungeX = distL;
       else if (playerState.facing === "left") lungeX = -distL;
@@ -3822,21 +3850,30 @@ async function boot() {
       });
     }
 
-    // Gleaming 3-Frame 32-Bit Sweeping Graveyard Explorer Sword Slash Arc!
+    // Gleaming 5-Frame 32-Bit 56x64 Hero Sword Swing Arc (*Minish Cap* / *ALttP* Grade!)
     if (playerState.swordSwingTimer > 0) {
       const f = playerState.facing;
-      const swP = 1 - playerState.swordSwingTimer / 0.24;
-      const swFrame = Math.min(2, Math.floor(swP * 3));
-      const sx = (f === "right" ? pxPos + 3 : f === "left" ? pxPos - 22 : pxPos - 11) + lungeX;
-      const sy = (f === "down" ? pyPos - 3 : f === "up" ? pyPos - 28 : pyPos - 18) + lungeY;
+      const swP = Math.min(0.999, Math.max(0, 1 - playerState.swordSwingTimer / 0.28));
+      const swFrame = Math.min(4, Math.floor(swP * 5));
       const swKey = atlas[`sword_slash_${f}_${swFrame}`] ? `sword_slash_${f}_${swFrame}` : `sword_slash_${f}`;
+      const swSpr = atlas[swKey];
+      const swW = swSpr ? swSpr.width * (swSpr.__pixelScale || 0.5) : 28;
+      const swH = swSpr ? swSpr.height * (swSpr.__pixelScale || 0.5) : 32;
+      const sx =
+        (f === "right" ? pxPos - 2 : f === "left" ? pxPos - swW + 2 : Math.round(pxPos - swW / 2)) + lungeX;
+      const sy =
+        (f === "down" ? pyPos - 10 : f === "up" ? pyPos - swH - 4 : Math.round(pyPos - swH / 2 - 9)) + lungeY;
       k.drawSprite(swKey, sx, sy, 1, heroAngle, pxPos, pyPos);
     }
 
-    // Overhead glowing Pocket Siddur held aloft during dispel wave!
+    // Overhead Glowing Open Pocket Siddur + Golden Sunburst Halo held aloft during dispel wave!
     if (playerState.siddurAuraTimer > 0) {
-      const lift = Math.round(Math.sin((1 - playerState.siddurAuraTimer / 0.78) * Math.PI) * 5);
-      k.drawSprite("item_siddur", pxPos - 6, pyPos - 35 - lift, 1, heroAngle, pxPos, pyPos);
+      const sProg = 1 - playerState.siddurAuraTimer / 0.78;
+      const lift = Math.round(Math.sin(sProg * Math.PI) * 5);
+      const auraF = Math.floor(playerState.elapsedTime * 10) % 2;
+      k.drawSprite(`fx_fanfare_aura_${auraF}`, pxPos - 11, pyPos - 43 - lift, Math.max(0.25, 1 - sProg * 0.6));
+      const sidKey = atlas.item_siddur_open ? "item_siddur_open" : "item_siddur";
+      k.drawSprite(sidKey, pxPos - 9, pyPos - 39 - lift, 1, heroAngle, pxPos, pyPos);
     }
 
     // Classic SNES red/white hit-flash silhouette + spinning dizzy stars + floating OUCH/BONK & hearts!
@@ -3897,17 +3934,22 @@ async function boot() {
       }
     }
 
-    // Overhead Item Fanfare floating item + orbiting golden sparkles!
+    // Overhead 2x HD Item Fanfare floating item + golden sunburst halo + orbiting sparkles!
     if (activeFanfare) {
       const floatBob = Math.sin(playerState.elapsedTime * 6) * 2;
-      const itemY = pyPos - 36 + floatBob;
-      k.drawSprite(activeFanfare.itemMeta.sprite || "item_badge", pxPos - 6, itemY, 1, heroAngle, pxPos, pyPos);
+      const itemY = pyPos - 39 + floatBob;
+      const auraF = Math.floor(playerState.elapsedTime * 8) % 2;
+      k.drawSprite(`fx_fanfare_aura_${auraF}`, pxPos - 11, itemY - 4, 0.92, heroAngle, pxPos, pyPos);
+      const itKey = activeFanfare.itemMeta.sprite || "item_badge";
+      const itSpr = atlas[itKey];
+      const itW = itSpr ? itSpr.width * (itSpr.__pixelScale || 0.5) : 16;
+      k.drawSprite(itKey, Math.round(pxPos - itW / 2), Math.round(itemY), 1, heroAngle, pxPos, pyPos);
 
       const angle = playerState.elapsedTime * 4;
       for (let i = 0; i < 4; i++) {
         const a = angle + (i * Math.PI) / 2;
-        const sx = pxPos - 4 + Math.cos(a) * 11;
-        const sy = itemY + 2 + Math.sin(a) * 7;
+        const sx = pxPos - 4 + Math.cos(a) * 13;
+        const sy = itemY + 4 + Math.sin(a) * 8;
         k.drawSprite("fanfare_star", sx, sy, 1, heroAngle, pxPos, pyPos);
       }
     }
@@ -5205,9 +5247,10 @@ async function boot() {
 
     for (const d of groundDrops) {
       const bounce = Math.abs(Math.sin(d.age * 7)) * 3;
+      const coinSpr = d.kind === "coin" ? (Math.floor(d.age * 7) % 2 === 0 ? "drop_coin" : "drop_coin_1") : "drop_acorn";
       drawables.push({
         sortY: depthOf(d.x, d.y + 4),
-        draw: () => k.drawSprite(d.kind === "coin" ? "drop_coin" : "drop_acorn", d.x - 4, d.y - 4 - bounce, 1, bbAngle, d.x, d.y + 4),
+        draw: () => k.drawSprite(coinSpr, d.x - 4.5, d.y - 5 - bounce, 1, bbAngle, d.x, d.y + 4),
       });
     }
 
@@ -5344,30 +5387,14 @@ async function boot() {
       drawables.push({
         sortY: depthOf(footX, footY),
         draw: () => {
-          // Crisp anime/SNES trailing speedlines & dust puffs when sprinting past Liam!
+          // Crisp 2x HD tapered speedlines & fluffy pixel dust puffs when sprinting past Liam!
           if (isSprinting || (jg.jostledBurstTimer || 0) > 0) {
             const dirSign = jg.facing === "right" ? -1 : 1;
-            const pulseX = Math.floor(tSec * 24) % 4;
-            const lineCol = (jg.jostledBurstTimer || 0) > 0 ? k.rgb(255, 224, 92) : k.rgb(218, 246, 255);
-            for (let l = 0; l < 3; l++) {
-              const ly = jyDraw + 8 + l * 6;
-              const lx = footX + dirSign * (9 + l * 2 + pulseX);
-              k.drawRect({
-                pos: k.vec2(Math.round(lx - (dirSign > 0 ? 0 : 7)), ly),
-                width: 7 - l,
-                height: 1,
-                color: lineCol,
-                opacity: 0.72 - l * 0.14,
-              });
-            }
+            const streakKey = (jg.jostledBurstTimer || 0) > 0 ? "fx_speed_streak_1" : "fx_speed_streak_0";
+            const sxPos = jg.facing === "right" ? footX - 20 : footX + 6;
+            k.drawSprite(streakKey, sxPos, jyDraw + 7, 0.82, jg.facing === "right" ? 0 : 180);
             if (runFrame === 0 || runFrame === 2) {
-              k.drawRect({
-                pos: k.vec2(footX + dirSign * 7, footY - 2),
-                width: 3,
-                height: 2,
-                color: k.rgb(240, 232, 214),
-                opacity: 0.65,
-              });
+              k.drawSprite("fx_dust_1", footX + dirSign * 6 - 4, footY - 6, 0.72);
             }
           }
           k.drawSprite(spr, jxDraw, jyDraw, 1, bbAngle, footX, footY);
@@ -5477,14 +5504,8 @@ async function boot() {
       sortY: depthOf(playerState.x, playerState.y + 4),
       draw: () => {
         for (const p of dustPuffs) {
-          const tint = p.tint || [244, 240, 224];
-          k.drawRect({
-            pos: k.vec2(p.x - 1, p.y - 1),
-            width: 3,
-            height: 3,
-            color: k.rgb(tint[0], tint[1], tint[2]),
-            opacity: Math.max(0.1, p.life * 3),
-          });
+          const dFrame = p.life > 0.18 ? 0 : p.life > 0.09 ? 1 : 2;
+          k.drawSprite(`fx_dust_${dFrame}`, Math.round(p.x - 4), Math.round(p.y - 4), Math.min(0.88, p.life * 3.2));
         }
         drawHero();
       },
@@ -5515,53 +5536,22 @@ async function boot() {
         // Fiery jack-o'-lantern ember pop & violet mist!
         k.drawSprite("fx_ember", Math.round(fx.x - 3), Math.round(fx.y - 14 - p * 18), fade);
         k.drawSprite("fx_grave_mist", Math.round(fx.x - 14), Math.round(fx.y - 8), fade * 0.75);
+      } else if (fx.kind === "hit_slash") {
+        // Crisp 2x HD comic/SNES sword hit impact cross-flash!
+        const hf = p < 0.5 ? 0 : 1;
+        k.drawSprite(`fx_hit_slash_${hf}`, Math.round(fx.x - 9), Math.round(fx.y - 9), fade);
       } else if (fx.kind === "siddur_beam") {
-        // Peaceful golden-blue rising light pillar!
-        const bw = Math.max(4, Math.round((1 - p * 0.65) * 18));
-        const bh = Math.round(42 + p * 36);
-        k.drawRect({
-          pos: k.vec2(Math.round(fx.x - bw / 2), Math.round(fx.y - bh)),
-          width: bw,
-          height: bh + 2,
-          color: k.rgb(126, 214, 255),
-          opacity: fade * 0.45,
-        });
-        k.drawRect({
-          pos: k.vec2(Math.round(fx.x - Math.max(1, bw / 4)), Math.round(fx.y - bh)),
-          width: Math.max(2, Math.round(bw / 2)),
-          height: bh + 2,
-          color: k.rgb(255, 242, 168),
-          opacity: fade * 0.72,
-        });
+        // Tapered 2x HD golden-sapphire peaceful blessing pillar!
+        k.drawSprite("fx_siddur_beam", Math.round(fx.x - 9), Math.round(fx.y - 46), fade * 0.92);
       } else if (fx.kind === "flashlight_cone") {
-        // Bright golden flashlight beam flash from Liam toward startled graveyard enemy!
-        for (let step = 1; step <= 4; step++) {
-          const frac = step / 4;
-          const bx = Math.round(fx.x + (fx.tx - fx.x) * frac);
-          const by = Math.round(fx.y + (fx.ty - fx.y) * frac);
-          const sz = 4 + step * 3;
-          k.drawRect({
-            pos: k.vec2(bx - Math.floor(sz / 2), by - Math.floor(sz / 2)),
-            width: sz,
-            height: sz,
-            color: k.rgb(255, 240, 148),
-            opacity: fade * (0.48 - step * 0.06),
-          });
-        }
+        // Smooth tapered 2x HD golden flashlight beam rotated toward the startled foe!
+        const angDeg = (Math.atan2(fx.ty - fx.y, fx.tx - fx.x) * 180) / Math.PI;
+        k.drawSprite("fx_flashlight_beam", Math.round(fx.x), Math.round(fx.y - 9), fade * 0.95, angDeg, fx.x, fx.y);
       } else if (fx.kind === "jostle_wind") {
-        // Swirling comic wind gust streaks when a marathon runner zooms past Liam!
-        const spread = p * 14;
-        for (let w = -1; w <= 1; w++) {
-          const wx = Math.round(fx.x + fx.dx * spread - 5);
-          const wy = Math.round(fx.y + w * 5 + Math.sin(p * Math.PI * 2 + w) * 2);
-          k.drawRect({
-            pos: k.vec2(wx, wy),
-            width: Math.max(3, Math.round(12 * fade)),
-            height: 2,
-            color: k.rgb(228, 250, 255),
-            opacity: fade * 0.85,
-          });
-        }
+        // Curved 2x HD comic wind-gust swirl when a marathon runner zooms past Liam!
+        const wf = Math.floor(p * 4) % 2;
+        const wDeg = (Math.atan2(fx.dy, fx.dx) * 180) / Math.PI;
+        k.drawSprite(`fx_wind_swirl_${wf}`, Math.round(fx.x - 8), Math.round(fx.y - 6), fade * 0.92, wDeg);
       }
     }
 

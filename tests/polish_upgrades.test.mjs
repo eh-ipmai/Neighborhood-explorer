@@ -428,12 +428,32 @@ test("NPC wave frames, spooky attack poses, 3-frame sword arcs, 2x HD FX sprites
       }
     }
     for (const dir of ["down", "up", "left", "right"]) {
-      for (let f = 0; f < 3; f++) {
-        assert.ok(sprites[`sword_slash_${dir}_${f}`], `missing 3-frame sword slash sword_slash_${dir}_${f}`);
+      for (let f = 0; f < 5; f++) {
+        const key = `sword_slash_${dir}_${f}`;
+        assert.ok(sprites[key], `missing 5-frame hero sword slash ${key}`);
+        assert.equal(sprites[key].__pixelScale, 0.5);
+        assert.ok(Math.max(sprites[key].width, sprites[key].height) >= 64, `${key} should be 2x HD (>=64px native)`);
       }
       assert.ok(sprites[`sword_slash_${dir}`], `backwards-compat sword_slash_${dir} must exist`);
     }
+    for (const itemKey of [
+      "item_siddur", "item_siddur_open", "item_sword", "item_map", "item_icecream",
+      "item_challah", "item_book", "item_shoes", "item_scooter", "item_compass",
+      "item_stamp", "item_cholent", "item_glove", "item_badge", "item_pennant",
+      "item_lantern", "item_ghost", "item_d20", "item_bag",
+    ]) {
+      assert.ok(sprites[itemKey], `missing 2x HD pickup item sprite ${itemKey}`);
+      assert.equal(sprites[itemKey].__pixelScale, 0.5, `${itemKey} must be 2x HD (not 1x 8-bit)`);
+      assert.ok(sprites[itemKey].width >= 32, `${itemKey} should be >= 32px native width`);
+    }
     for (const key of [
+      "drop_coin", "drop_coin_1", "drop_acorn",
+      "fx_hit_slash_0", "fx_hit_slash_1", "fx_fanfare_aura_0", "fx_fanfare_aura_1",
+      "fx_siddur_beam", "fx_flashlight_beam", "fx_dust_0", "fx_dust_1", "fx_dust_2",
+      "fx_wind_swirl_0", "fx_wind_swirl_1", "fx_speed_streak_0", "fx_speed_streak_1",
+      "grave_ghost_0", "grave_ghost_1", "grave_bat_0", "grave_bat_1",
+      "grave_wisp_0", "grave_wisp_1", "grave_pumpkin_0", "grave_pumpkin_1",
+      "grave_lantern_0", "grave_lantern_1", "tombstone_arch", "tombstone_cross", "tombstone_tilted",
       "fx_ring_gold_0", "fx_ring_gold_1", "fx_ring_green_0", "fx_ring_safe_0",
       "prop_welcome_mat", "prop_welcome_mat_glow",
       "fx_lantern_glow_0", "fx_siddur_ring_0", "fx_siddur_ring_2",
