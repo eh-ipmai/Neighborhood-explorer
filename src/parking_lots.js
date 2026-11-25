@@ -9,6 +9,8 @@
  * Pure JS (zero DOM dependencies) so it can be thoroughly unit tested in Node.
  */
 
+import { getNavigationSubgrid } from "./subgrid.js";
+
 const PARKING_LOT_TILE = 8;
 
 // Weighted civilian vehicle mix (10 realistic cars/SUVs/minivans/EVs + pickup truck; rare taxi)
@@ -56,6 +58,8 @@ export function buildParkingLotCars(
   const { width, height } = worldMap.dimensions;
   const base = worldMap.layers.base;
   const tileSize = worldMap.tileSize || 16;
+  const subgrid = getNavigationSubgrid(worldMap);
+  const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
 
   const isParkingTile = (tx, ty) => {
     if (tx < 1 || ty < 1 || tx >= width - 1 || ty >= height - 1) return false;
@@ -63,6 +67,9 @@ export function buildParkingLotCars(
     if (base[idx] !== PARKING_LOT_TILE) return false;
     if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) return false;
     if (graveyardGrid && graveyardGrid[idx] !== 0) return false;
+    if (useSub && subgrid.isRoadAtPx(tx * tileSize + tileSize * 0.5, ty * tileSize + tileSize * 0.5)) {
+      return false;
+    }
     return true;
   };
 
@@ -145,6 +152,9 @@ export function buildParkingLotCars(
     ];
     for (const [sx, sy] of samples) {
       if (!isParkingTile(Math.floor(sx / tileSize), Math.floor(sy / tileSize))) {
+        return false;
+      }
+      if (useSub && (subgrid.isRoadAtPx(sx, sy) || subgrid.isSolidAtSub(Math.floor(sx / subgrid.subCellSize), Math.floor(sy / subgrid.subCellSize)))) {
         return false;
       }
     }

@@ -7,6 +7,8 @@
  * destination while respecting solid buildings, water, and highway median barriers.
  */
 
+import { getNavigationSubgrid } from "./subgrid.js";
+
 const CHUNK_SIZE = 16;
 
 const DIR_VECTORS = [
@@ -295,9 +297,48 @@ export function createStreetSignSystem(worldMap, { parkOccupiedGrid = null, land
   const { width, height } = worldMap.dimensions;
   const base = worldMap.layers.base;
   const collision = worldMap.layers.collision;
+  const tileSize = worldMap.tileSize || 16;
   const scaleMeters = worldMap.scaleMetersPerTile || 6;
   const streetZones = worldMap.streetZones || [];
   const zoneIndex = buildStreetZoneSpatialIndex(streetZones);
+  const subgrid = getNavigationSubgrid(worldMap);
+  const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
+
+  const isSignTileClear = (tx, ty) => {
+    if (tx < 2 || ty < 2 || tx >= width - 2 || ty >= height - 2) return false;
+    const idx = ty * width + tx;
+    if (collision[idx] !== 0) return false;
+    if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) return false;
+    if (useSub) {
+      const px = tx * tileSize + tileSize * 0.5;
+      const py = ty * tileSize + tileSize * 0.5;
+      if (subgrid.isRoadAtPx(px, py)) return false;
+      const sx = Math.floor(px / subgrid.subCellSize);
+      const sy = Math.floor(py / subgrid.subCellSize);
+      if (subgrid.isSolidAtSub(sx, sy)) return false;
+    }
+    return true;
+  };
+
+  // If a candidate intersection corner tile got paved over by a curved vector road,
+  // nudge the sign 1-2 tiles onto the nearest clean non-road sidewalk/lawn edge!
+  const resolveCleanSignTile = (tx, ty) => {
+    if (isSignTileClear(tx, ty)) return { tx, ty };
+    if (!useSub) return null;
+    for (let r = 1; r <= 2; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const nx = tx + dx;
+          const ny = ty + dy;
+          if (!isSignTileClear(nx, ny)) continue;
+          const nt = base[ny * width + nx];
+          if (nt === 1 || nt === 0 || nt === 11) return { tx: nx, ty: ny };
+        }
+      }
+    }
+    return null;
+  };
 
   const signs = [];
   const signById = new Map();
@@ -402,10 +443,12 @@ export function createStreetSignSystem(worldMap, { parkOccupiedGrid = null, land
       const prevLocs = placedIntersectionPairs.get(pairKey) || [];
       // Keep street corners clean & uncluttered: one sign per intersection (or across wide divided highways >11 tiles)
       if (prevLocs.some((p) => Math.hypot(p.tx - tx, p.ty - ty) < 11)) continue;
-      if (hasSignWithin(tx, ty, 9)) continue;
+      const cleanPos = resolveCleanSignTile(tx, ty);
+      if (!cleanPos) continue;
+      if (hasSignWithin(cleanPos.tx, cleanPos.ty, 9)) continue;
 
-      addSign(tx, ty, chosen, true);
-      prevLocs.push({ tx, ty });
+      addSign(cleanPos.tx, cleanPos.ty, chosen, true);
+      prevLocs.push({ tx: cleanPos.tx, ty: cleanPos.ty });
       placedIntersectionPairs.set(pairKey, prevLocs);
     }
   }
@@ -423,11 +466,13 @@ export function createStreetSignSystem(worldMap, { parkOccupiedGrid = null, land
       const w = base[ty * width + (tx - 1)];
       const e = base[ty * width + (tx + 1)];
       if (!(isRoadTileId(n) || isRoadTileId(s) || isRoadTileId(w) || isRoadTileId(e))) continue;
-      if (hasSignWithin(tx, ty, 14)) continue;
+      const cleanPos = resolveCleanSignTile(tx, ty);
+      if (!cleanPos) continue;
+      if (hasSignWithin(cleanPos.tx, cleanPos.ty, 14)) continue;
 
-      const nearbyStreets = zoneIndex.queryStreetsNear(tx, ty, 2);
+      const nearbyStreets = zoneIndex.queryStreetsNear(cleanPos.tx, cleanPos.ty, 2);
       if (nearbyStreets.length === 0) continue;
-      addSign(tx, ty, nearbyStreets, nearbyStreets.length >= 2);
+      addSign(cleanPos.tx, cleanPos.ty, nearbyStreets, nearbyStreets.length >= 2);
     }
   }
 
@@ -443,6 +488,7 @@ export function createStreetSignSystem(worldMap, { parkOccupiedGrid = null, land
           if (tx < 1 || ty < 1 || tx >= width - 1 || ty >= height - 1) continue;
           const idx = ty * width + tx;
           if (base[idx] !== 1 || collision[idx] !== 0) continue;
+          if (!isSignTileClear(tx, ty)) continue;
           const touchesRoad =
             isRoadTileId(base[(ty - 1) * width + tx]) ||
             isRoadTileId(base[(ty + 1) * width + tx]) ||

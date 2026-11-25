@@ -3,6 +3,8 @@
  * and Fog-of-War Exploration State (loaded dynamically from data/landmarks.json & data/quests.json).
  */
 
+import { getNavigationSubgrid } from "./subgrid.js";
+
 export const SAVE_STORAGE_KEY = "neighborhood_explorer_save_v1";
 export const FOG_GRID_SIZE = 32; // 32x32 cells over the map (16x16 tiles per cell on 512x512)
 
@@ -82,8 +84,30 @@ export function snapToWalkableTile(worldMap, targetX, targetY, maxRadius = 10, a
   const { width, height } = worldMap.dimensions;
   const base = worldMap.layers.base;
   const collision = worldMap.layers.collision;
+  const tileSize = worldMap.tileSize || 16;
+  const subgrid = getNavigationSubgrid(worldMap);
+  const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
 
   const isRoadId = (id) => id === 2 || id === 3 || id === 4 || id === 12 || id === 13;
+
+  // When 4px vectorRoads subgrid is active, verify the player's 10x10 hitbox centered on (tx, ty)
+  // is completely clear of solid sub-cells (walls/medians/water) AND paved vector road lanes!
+  const isTileSubgridClear = (tx, ty) => {
+    if (!useSub) return true;
+    const cx = tx * tileSize + tileSize * 0.5;
+    const cy = ty * tileSize + tileSize * 0.5;
+    const sc = subgrid.subCellSize;
+    const left = Math.floor((cx - 5) / sc);
+    const right = Math.floor((cx + 4.999) / sc);
+    const top = Math.floor((cy - 5) / sc);
+    const bottom = Math.floor((cy + 4.999) / sc);
+    for (let sy = top; sy <= bottom; sy++) {
+      for (let sx = left; sx <= right; sx++) {
+        if (subgrid.isSolidAtSub(sx, sy) || subgrid.isRoadAtSub(sx, sy)) return false;
+      }
+    }
+    return true;
+  };
 
   const clampX = Math.max(0, Math.min(width - 1, Math.round(targetX)));
   const clampY = Math.max(0, Math.min(height - 1, Math.round(targetY)));
@@ -126,6 +150,7 @@ export function snapToWalkableTile(worldMap, targetX, targetY, maxRadius = 10, a
   if (
     collision[clampY * width + clampX] === 0 &&
     !isRoadId(base[clampY * width + clampX]) &&
+    isTileSubgridClear(clampX, clampY) &&
     !isTooCloseToAvoid(clampX, clampY)
   ) {
     const cl = measureRoadClearance(clampX, clampY);
@@ -142,8 +167,10 @@ export function snapToWalkableTile(worldMap, targetX, targetY, maxRadius = 10, a
   const considerTile = (tx, ty) => {
     const idx = ty * width + tx;
     if (collision[idx] !== 0) return;
-    if (isRoadId(base[idx])) {
-      if (!roadFallback) roadFallback = { x: tx, y: ty };
+    if (isRoadId(base[idx]) || !isTileSubgridClear(tx, ty)) {
+      if (!roadFallback && (!useSub || !subgrid.isSolidAtSub(tx * subgrid.div + 2, ty * subgrid.div + 2))) {
+        roadFallback = { x: tx, y: ty };
+      }
       return;
     }
     const dist = Math.hypot(tx - clampX, ty - clampY);
@@ -752,22 +779,28 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     const fanfareQueue = [];
     const lines = [];
 
-    if (obj.opened) {
+    const step = getActiveStep();
+    const matchesActiveStep =
+      step &&
+      step.completionTrigger === "interact_object" &&
+      getActiveQuest()?.id === obj.questId;
+
+    if (obj.opened && !matchesActiveStep) {
       lines.push("The little wooden book chest is already open — full of neighborhood stories!");
       return { speaker: obj.name, lines, fanfareQueue, questEvent: null };
     }
 
+    const wasAlreadyOpened = obj.opened;
     obj.opened = true;
     state.openedInteractables.add(obj.id);
-    lines.push("You opened the hidden Little Free Library chest beneath the tall green oaks!");
+    lines.push(
+      wasAlreadyOpened
+        ? "You checked the hidden Little Free Library chest again — your Rare Book Stamp completes the riddle!"
+        : "You opened the hidden Little Free Library chest beneath the tall green oaks!"
+    );
 
-    const step = getActiveStep();
     let questEvent = null;
-    if (
-      step &&
-      step.completionTrigger === "interact_object" &&
-      getActiveQuest()?.id === obj.questId
-    ) {
+    if (matchesActiveStep) {
       questEvent = advanceQuestStep();
       if (questEvent?.type === "quest_completed") {
         lines.push(`★ Quest Complete: ${questEvent.quest.title}! (+${questEvent.rewardXP} XP, +${questEvent.rewardCoins} Coins)`);

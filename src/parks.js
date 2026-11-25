@@ -8,6 +8,7 @@
  */
 
 import { buildGraveyardMask } from "./graveyards.js";
+import { getNavigationSubgrid } from "./subgrid.js";
 
 const TILE_PARK = 11;
 const TILE_DIRT = 9;
@@ -238,6 +239,20 @@ export function buildWoodlandTreeGrid(worldMap, parkOccupiedGrid = null, graveya
   const { width, height } = worldMap.dimensions;
   const base = worldMap.layers.base;
   const treeGrid = new Uint8Array(width * height);
+  const subgrid = getNavigationSubgrid(worldMap);
+  const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
+  const isTileTouchedByVectorRoad = (tx, ty) => {
+    if (!useSub) return false;
+    const sx0 = tx * subgrid.div;
+    const sy0 = ty * subgrid.div;
+    for (let dy = 0; dy < subgrid.div; dy++) {
+      for (let dx = 0; dx < subgrid.div; dx++) {
+        const s = subgrid.getSurfaceIdAtSub(sx0 + dx, sy0 + dy);
+        if (s === 2 || s === 3 || s === 4 || s === 12 || s === 13) return true;
+      }
+    }
+    return false;
+  };
 
   const isUrban = (t) =>
     t === 1 || t === 2 || t === 3 || t === 4 || t === 5 || t === 8 || t === 12 || t === 13;
@@ -288,6 +303,7 @@ export function buildWoodlandTreeGrid(worldMap, parkOccupiedGrid = null, graveya
       if (!isWoodOrGrass(cur)) continue;
       if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) continue;
       if (graveyardGrid && graveyardGrid[idx] !== 0) continue;
+      if (isTileTouchedByVectorRoad(tx, ty)) continue;
 
       const isExplicitWoods = cur === 7;
       const isDeepWoods = cur === 0 && urbanNear3[idx] === 0;

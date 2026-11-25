@@ -97,6 +97,7 @@ import { buildRoadTraffic, updateRoadTraffic } from "./traffic.js";
 import { buildParkingLotCars } from "./parking_lots.js";
 import { computeRoadTileMarkings } from "./road_markings.js";
 import { createVectorRoadRenderer } from "./vector_roads.js";
+import { getNavigationSubgrid } from "./subgrid.js";
 
 const VIEW_W = 320;
 const VIEW_H = 180;
@@ -181,6 +182,18 @@ function buildNeighborhoodProps(
 ) {
   const { width, height } = worldMap.dimensions;
   const base = worldMap.layers.base;
+  const tileSize = worldMap.tileSize || 16;
+  const subgrid = getNavigationSubgrid(worldMap);
+  const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
+  const isPropOnVectorRoad = (tx, ty) => {
+    if (!useSub) return false;
+    const cx = tx * tileSize + tileSize * 0.5;
+    const cy = ty * tileSize + tileSize * 0.5;
+    if (subgrid.isRoadAtPx(cx, cy)) return true;
+    const sx = Math.floor(cx / subgrid.subCellSize);
+    const sy = Math.floor(cy / subgrid.subCellSize);
+    return subgrid.isSolidAtSub(sx, sy);
+  };
   // 0 = none, 1 = autumn oak/maple tree, 2 = evergreen pine (dense canopies in truly wooded areas!)
   const treeGrid = buildWoodlandTreeGrid(worldMap, parkOccupiedGrid, graveyardGrid);
   const hydrants = [];
@@ -205,7 +218,7 @@ function buildNeighborhoodProps(
       if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) continue;
 
       // Park benches neatly placed on park turf bordering a sidewalk or dirt path
-      if (cur === 11 && treeGrid[idx] === 0) {
+      if (cur === 11 && treeGrid[idx] === 0 && !isPropOnVectorRoad(tx, ty)) {
         const n = base[(ty - 1) * width + tx];
         const s = base[(ty + 1) * width + tx];
         if ((s === 1 || s === 9 || n === 1 || n === 9) && ((tx * 29 + ty * 43) % 19 === 0)) {
@@ -214,7 +227,7 @@ function buildNeighborhoodProps(
       }
 
       // Lakeside cattail reeds on sandy/grassy pond edges
-      if (cur === 10 || cur === 0) {
+      if ((cur === 10 || cur === 0) && !isPropOnVectorRoad(tx, ty)) {
         const nearWater =
           base[(ty - 1) * width + tx] === 6 ||
           base[(ty + 1) * width + tx] === 6 ||
@@ -226,7 +239,7 @@ function buildNeighborhoodProps(
       }
 
       // Green boxwood garden shrubs tucked beside houses & lawns for lush autumn contrast
-      if (cur === 0 && treeGrid[idx] === 0 && (!graveyardGrid || graveyardGrid[idx] === 0)) {
+      if (cur === 0 && treeGrid[idx] === 0 && (!graveyardGrid || graveyardGrid[idx] === 0) && !isPropOnVectorRoad(tx, ty)) {
         const n = base[(ty - 1) * width + tx];
         const s = base[(ty + 1) * width + tx];
         const w = base[ty * width + (tx - 1)];
@@ -237,8 +250,8 @@ function buildNeighborhoodProps(
         }
       }
 
-      // Crunchy autumn leaf piles along road curbs & sidewalks!
-      if ((cur === 2 || cur === 3) && (!graveyardGrid || graveyardGrid[idx] === 0)) {
+      // Crunchy autumn leaf piles along road curbs & sidewalks (never sitting mid-asphalt on vector roads!)
+      if ((cur === 2 || cur === 3) && (!graveyardGrid || graveyardGrid[idx] === 0) && !isPropOnVectorRoad(tx, ty)) {
         const n = base[(ty - 1) * width + tx];
         const s = base[(ty + 1) * width + tx];
         const w = base[ty * width + (tx - 1)];
@@ -251,7 +264,7 @@ function buildNeighborhoodProps(
         }
       }
 
-      if (cur === 1) {
+      if (cur === 1 && !isPropOnVectorRoad(tx, ty)) {
         const n = base[(ty - 1) * width + tx];
         const s = base[(ty + 1) * width + tx];
         const w = base[ty * width + (tx - 1)];
@@ -821,7 +834,9 @@ async function boot() {
   }
 
   function performLookBothWays() {
+    if (botwTeleport || roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
     if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
+    if (homeInterior.state.active) return;
     if (playerState.lookTimer > 0) return;
 
     const tx = Math.floor(playerState.x / tileSize);
@@ -920,8 +935,9 @@ async function boot() {
   }
 
   function triggerSwordSlash() {
-    if (roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
+    if (botwTeleport || roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
     if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
+    if (homeInterior.state.active) return;
     if (!questSystem.hasSword()) {
       ui?.showSafetyToast("⚔️ Visit the Salzberg Family Home (200 Cotton St) to get the Graveyard Sword!", 2400);
       return;
@@ -937,11 +953,12 @@ async function boot() {
       elapsedTime: playerState.elapsedTime,
       tileSize,
     });
+    const defeatedCount = res.defeatedCount ?? res.defeated?.length ?? 0;
     const scaredList = res.scaredAnimals || [];
-    if (res.hitCount > 0 || scaredList.length > 0) {
-      questSystem.state.safetyXP += res.hitCount * 10 + scaredList.length * 5;
-      if (res.hitCount > 0) {
-        questSystem.state.coins += res.hitCount;
+    if (defeatedCount > 0 || scaredList.length > 0) {
+      questSystem.state.safetyXP += defeatedCount * 10 + scaredList.length * 5;
+      if (defeatedCount > 0) {
+        questSystem.state.coins += defeatedCount;
         playCoinPickup();
       }
       questSystem.save();
@@ -1086,8 +1103,9 @@ async function boot() {
   }
 
   function triggerSiddurDispel() {
-    if (roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
+    if (botwTeleport || roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
     if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
+    if (homeInterior.state.active) return;
     if (!questSystem.hasSiddur()) {
       ui?.showSafetyToast("📖 Visit Beth El, Shaarei Tefillah, Temple Emanuel, or Chabad for a Pocket Siddur!", 2600);
       return;
@@ -1236,7 +1254,7 @@ async function boot() {
   }
 
   function toggleHouseInside() {
-    if (roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
+    if (botwTeleport || roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
     if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
     if (homeInterior.state.active) {
       leaveHouseToOutdoor();
@@ -1576,6 +1594,7 @@ async function boot() {
   }
 
   function togglePaperMap() {
+    if (botwTeleport || roadHitCutscene || playerState.koRespawnTimer > 0 || ui?.isGameOverOpen()) return;
     if (ui?.isDialogueOpen() || ui?.isPaintOpen() || ui?.isSignOpen()) return;
     const nextOpen = !ui?.isMapOpen();
     playMapToggleSfx(nextOpen);
@@ -1651,7 +1670,8 @@ async function boot() {
   }
 
   function openPaintForNearbyHouse() {
-    if (ui?.isDialogueOpen() || ui?.isMapOpen()) return;
+    if (botwTeleport || roadHitCutscene || homeInterior.state.active || ui?.isGameOverOpen()) return;
+    if (ui?.isDialogueOpen() || ui?.isMapOpen() || ui?.isSignOpen()) return;
     const tx = Math.floor(playerState.x / tileSize);
     const ty = Math.floor(playerState.y / tileSize);
     const nearbyCandidates = buildingIndex.queryBounds(tx - 6, ty - 6, tx + 6, ty + 6);
@@ -1717,8 +1737,14 @@ async function boot() {
       showDebug = !showDebug;
       return showDebug;
     },
-    onResetHome: resetToHome,
-    onResetSalzberg: resetToSalzberg,
+    onResetHome: () => {
+      if (botwTeleport || roadHitCutscene) return;
+      resetToHome();
+    },
+    onResetSalzberg: () => {
+      if (botwTeleport) return;
+      resetToSalzberg();
+    },
     onLookOrInteract: triggerLookOrInteract,
     onToggleMute: () => toggleMute(),
     onOpenPaint: openPaintForNearbyHouse,
@@ -1785,8 +1811,14 @@ async function boot() {
   k.onKeyPress("o", toggleHeroOutfitMode);
   k.onKeyPress("i", toggleHouseInside);
   k.onKeyPress("n", triggerGiveSnack);
-  k.onKeyPress("h", resetToHome);
-  k.onKeyPress("s", resetToSalzberg);
+  k.onKeyPress("h", () => {
+    if (botwTeleport || roadHitCutscene) return;
+    resetToHome();
+  });
+  k.onKeyPress("s", () => {
+    if (botwTeleport) return;
+    resetToSalzberg();
+  });
   k.onKeyPress("m", togglePaperMap);
   k.onKeyPress("tab", togglePaperMap);
   k.onKeyPress("p", openPaintForNearbyHouse);
@@ -2592,17 +2624,10 @@ async function boot() {
         playerState.safeCrossingTimer > 0,
         DEFAULT_HITBOX
       );
-      let kbMoved = moveWithCollision(playerState, kbInput, dt, kbRoadBlocker.isBoxBlocked, {
+      const kbMoved = moveWithCollision(playerState, kbInput, dt, kbRoadBlocker.isBoxBlocked, {
         speed: kbSpeed,
         tileSize,
       });
-      // If pinned against a curb, slide cleanly using solid-wall-only check so knockback never stalls completely
-      if (Math.hypot(kbMoved.x - playerState.x, kbMoved.y - playerState.y) < 0.05) {
-        kbMoved = moveWithCollision(playerState, kbInput, dt, baseMapBlocker, {
-          speed: kbSpeed * 0.7,
-          tileSize,
-        });
-      }
       playerState.x = kbMoved.x;
       playerState.y = kbMoved.y;
       playerState.moving = false;
@@ -3678,20 +3703,20 @@ async function boot() {
     if (activeFanfare) {
       const floatBob = Math.sin(playerState.elapsedTime * 6) * 2;
       const itemY = pyPos - 36 + floatBob;
-      k.drawSprite(activeFanfare.itemMeta.sprite || "item_badge", pxPos - 6, itemY);
+      k.drawSprite(activeFanfare.itemMeta.sprite || "item_badge", pxPos - 6, itemY, 1, heroAngle, pxPos, pyPos);
 
       const angle = playerState.elapsedTime * 4;
       for (let i = 0; i < 4; i++) {
         const a = angle + (i * Math.PI) / 2;
         const sx = pxPos - 4 + Math.cos(a) * 11;
         const sy = itemY + 2 + Math.sin(a) * 7;
-        k.drawSprite("fanfare_star", sx, sy);
+        k.drawSprite("fanfare_star", sx, sy, 1, heroAngle, pxPos, pyPos);
       }
     }
 
     if (playerState.curbStopCueTimer > 0 && playerState.lookTimer <= 0 && !activeFanfare) {
       const cueBob = Math.sin(playerState.elapsedTime * 10) * 1.5;
-      k.drawSprite("curb_stop_cue", pxPos - 5, pyPos - 31 + cueBob);
+      k.drawSprite("curb_stop_cue", pxPos - 5, pyPos - 31 + cueBob, 1, heroAngle, pxPos, pyPos);
     }
 
     if (playerState.lookTimer > 0) {
@@ -3902,6 +3927,19 @@ async function boot() {
 
     const animatedTiles = [];
     const graveGrid = graveyardFeatures.graveyardGrid;
+    const chunkSubgrid = useVectorRoads ? safety.subgrid : null;
+    const tileHasVectorRoad = (tx, ty) => {
+      if (!chunkSubgrid) return false;
+      const sx0 = tx * chunkSubgrid.div;
+      const sy0 = ty * chunkSubgrid.div;
+      for (let dy = 0; dy < chunkSubgrid.div; dy++) {
+        for (let dx = 0; dx < chunkSubgrid.div; dx++) {
+          const s = chunkSubgrid.getSurfaceIdAtSub(sx0 + dx, sy0 + dy);
+          if (s === 2 || s === 3 || s === 4 || s === 12 || s === 13) return true;
+        }
+      }
+      return false;
+    };
 
     for (let ty = ty0; ty <= ty1; ty++) {
       const rowOff = ty * mapW;
@@ -3925,7 +3963,7 @@ async function boot() {
         }
 
         if (inGraveyard && (tileId === 0 || tileId === 11 || tileId === 7 || (tileId === 5 && hasPerAddressBuildings))) {
-          if (tileId !== 5 && pattern === 0) {
+          if (tileId !== 5 && pattern === 0 && !tileHasVectorRoad(tx, ty)) {
             blitAtlasToCtx(ctx, "grave_flower_0", lx, ly);
             animatedTiles.push({ tx, ty, tileId });
           } else {
@@ -3935,7 +3973,7 @@ async function boot() {
         }
 
         if (tileId === 0 || (tileId === 5 && hasPerAddressBuildings)) {
-          if (tileId === 0 && rawTileId === 0 && pattern === 0) {
+          if (tileId === 0 && rawTileId === 0 && pattern === 0 && !tileHasVectorRoad(tx, ty)) {
             blitAtlasToCtx(ctx, "grass_flower_0", lx, ly);
             animatedTiles.push({ tx, ty, tileId });
           } else {
@@ -3946,7 +3984,7 @@ async function boot() {
         }
 
         if (tileId === 11) {
-          if (rawTileId === 11 && pattern === 1 && ((tx + ty) & 3) === 0) {
+          if (rawTileId === 11 && pattern === 1 && ((tx + ty) & 3) === 0 && !tileHasVectorRoad(tx, ty)) {
             blitAtlasToCtx(ctx, "park_flower_0", lx, ly);
             animatedTiles.push({ tx, ty, tileId });
           } else {
@@ -3958,7 +3996,9 @@ async function boot() {
 
         if (tileId === 7) {
           blitAtlasToCtx(ctx, "tall_grass_0", lx, ly);
-          animatedTiles.push({ tx, ty, tileId });
+          if (!tileHasVectorRoad(tx, ty)) {
+            animatedTiles.push({ tx, ty, tileId });
+          }
           continue;
         }
 
@@ -4606,7 +4646,7 @@ async function boot() {
             const bSpr = atlas[bKey];
             const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 34;
             const bob = Math.round(Math.sin(tSec * 12 + v.x) * 1.4);
-            k.drawSprite(bKey, Math.round(v.x - bwLog / 2), drawY - 12 + bob);
+            k.drawSprite(bKey, Math.round(v.x - bwLog / 2), drawY - 12 + bob, 1, bbAngle, v.x, v.y);
           }
         },
       });

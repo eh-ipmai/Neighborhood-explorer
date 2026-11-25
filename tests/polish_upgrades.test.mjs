@@ -30,7 +30,13 @@ import {
 } from "../src/streetlife.js";
 import { buildParkingLotCars } from "../src/parking_lots.js";
 import { buildGraveyardFeatures } from "../src/graveyards.js";
-import { buildParkFeatures } from "../src/parks.js";
+import { buildParkFeatures, buildWoodlandTreeGrid } from "../src/parks.js";
+import { getNavigationSubgrid } from "../src/subgrid.js";
+import { createStreetSignSystem } from "../src/streetsigns.js";
+import { createQuestSystem, snapToWalkableTile } from "../src/quests.js";
+import { checkTrafficCollision, updateRoadTraffic } from "../src/traffic.js";
+import { createMapCollider } from "../src/player.js";
+import { createSafetySystem } from "../src/safety.js";
 
 function loadWorldData() {
   const worldMap = JSON.parse(
@@ -290,4 +296,113 @@ test("parking lots are populated densely with realistic non-overlapping 32-bit c
       );
     }
   }
+});
+
+test("playtest invariants: zero props/signs/streetlife on vector roads, accurate N/S traffic OBB, safe fast-travel, and no Quest 2 chest soft-lock", () => {
+  const { worldMap, landmarks } = loadWorldData();
+  const quests = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "data", "quests.json"), "utf8"));
+  const subgrid = getNavigationSubgrid(worldMap);
+  const collider = createMapCollider(worldMap);
+  const safety = createSafetySystem(worldMap);
+  const gf = buildGraveyardFeatures(worldMap);
+  const pf = buildParkFeatures(worldMap, gf.graveyardGrid);
+  const combinedOccupied = new Uint8Array(worldMap.dimensions.width * worldMap.dimensions.height);
+  for (let i = 0; i < combinedOccupied.length; i++) {
+    if (pf.occupiedGrid[i] === 1 || gf.occupiedGrid[i] === 1) combinedOccupied[i] = 1;
+  }
+
+  // 1. Zero trees, street signs, parked cars, protestors, joggers, turkeys, or critters on paved vector roads!
+  const treeGrid = buildWoodlandTreeGrid(worldMap, combinedOccupied, gf.graveyardGrid);
+  const { width, height } = worldMap.dimensions;
+  let treesOnRoad = 0;
+  for (let ty = 0; ty < height; ty++) {
+    for (let tx = 0; tx < width; tx++) {
+      if (treeGrid[ty * width + tx] > 0 && subgrid.isRoadAtPx(tx * 16 + 8, ty * 16 + 8)) treesOnRoad++;
+    }
+  }
+  assert.equal(treesOnRoad, 0, "no woodland/median trees should grow on paved vector road asphalt");
+
+  const signSys = createStreetSignSystem(worldMap, { parkOccupiedGrid: combinedOccupied, landmarks });
+  const signsOnRoad = signSys.signs.filter((s) => subgrid.isRoadAtPx(s.tx * 16 + 8, s.ty * 16 + 8)).length;
+  assert.equal(signsOnRoad, 0, "no street signs should stand in the middle of paved vector roads");
+
+  const parkedCars = buildParkingLotCars(worldMap, {
+    parkOccupiedGrid: combinedOccupied,
+    graveyardGrid: gf.graveyardGrid,
+    spawnTile: worldMap.origin.spawnTile,
+    landmarks,
+  });
+  const parkedOnRoad = parkedCars.filter((c) => subgrid.isRoadAtPx(c.x, c.y)).length;
+  assert.equal(parkedOnRoad, 0, "no parked lot cars should overlap paved vector roads");
+
+  const sl = buildStreetLife(worldMap, {
+    parkOccupiedGrid: combinedOccupied,
+    graveyardGrid: gf.graveyardGrid,
+    graveyardZones: gf.zones,
+    spawnTile: worldMap.origin.spawnTile,
+    landmarks,
+  });
+  assert.equal(sl.protestors.filter((p) => subgrid.isRoadAtPx(p.x, p.y)).length, 0, "zero protestors on vector roads");
+  assert.equal(sl.joggers.filter((j) => subgrid.isRoadAtPx(j.x, j.y)).length, 0, "zero joggers on vector roads");
+  assert.equal(sl.turkeys.filter((t) => subgrid.isRoadAtPx(t.x, t.y)).length, 0, "zero turkeys spawning on vector roads");
+  assert.equal(sl.critters.filter((c) => subgrid.isRoadAtPx(c.x, c.y)).length, 0, "zero critters spawning on vector roads");
+
+  // Every jogger should be able to move freely without getting stuck in place
+  let stuckJoggers = 0;
+  for (const j of sl.joggers) {
+    const sx = j.x;
+    const sy = j.y;
+    let maxDist = 0;
+    const fakePlayer = { x: j.x + 120, y: j.y + 120, hearts: 5, maxHearts: 5, hurtTimer: 0 };
+    for (let step = 0; step < 40; step++) {
+      updateStreetLife(sl, 0.05, fakePlayer, worldMap, { tileSize: 16 });
+      const d = Math.hypot(j.x - sx, j.y - sy);
+      if (d > maxDist) maxDist = d;
+    }
+    if (maxDist < 6) stuckJoggers++;
+  }
+  assert.equal(stuckJoggers, 0, `all joggers should run smoothly along sidewalks (stuck=${stuckJoggers})`);
+
+  // 2. Pure North/South vehicle OBB collision accuracy (dx === 0 must not warp hitbox by 45 deg!)
+  const nsCar = { kind: "car", x: 100, y: 100, dx: 0, dy: 1 };
+  assert.ok(checkTrafficCollision({ vehicles: [nsCar] }, { x: 100, y: 110 }), "N/S car must collide head-on at dy=10");
+  assert.equal(checkTrafficCollision({ vehicles: [nsCar] }, { x: 110, y: 100 }), null, "N/S car must not clip sidewalk at dx=10");
+
+  // 3. Crosswalk yielding holds even at close range (dist <= 16) and trailing cars queue politely
+  const cw = worldMap.vectorRoads.crosswalks[0];
+  const cwPx = cw.x * 16;
+  const cwPy = cw.y * 16;
+  const leadCar = {
+    id: "lead", kind: "car", variant: 0, roadClass: 3,
+    x: cwPx - 14, y: cwPy, dx: 1, dy: 0, dir: "e", rotDeg: 0, speed: 50, yielded: false,
+  };
+  const tailCar = {
+    id: "tail", kind: "car", variant: 1, roadClass: 3,
+    x: cwPx - 38, y: cwPy, dx: 1, dy: 0, dir: "e", rotDeg: 0, speed: 50, yielded: false,
+  };
+  const cwTraffic = { mode: "tile", vehicles: [leadCar, tailCar] };
+  updateRoadTraffic(cwTraffic, 0.05, { x: cwPx, y: cwPy }, worldMap, { safeCrossingActive: true });
+  assert.equal(leadCar.yielded, true, "lead car should remain yielded even at 14px from crosswalk pedestrian");
+  assert.equal(tailCar.yielded, true, "trailing car should queue politely behind yielded lead car");
+
+  // 4. Fast-travel snapToWalkableTile never drops Liam onto a vector road or solid median
+  for (let i = 0; i < 60; i++) {
+    const rx = 20 + ((i * 73) % (width - 40));
+    const ry = 20 + ((i * 137) % (height - 40));
+    const s = snapToWalkableTile(worldMap, rx, ry, 18);
+    const px = s.x * 16 + 8;
+    const py = s.y * 16 + 8;
+    assert.equal(collider.isBoxBlocked(px, py), false, `snap (${s.x},${s.y}) must not be blocked`);
+    assert.equal(safety.isBoxOnRoad(px, py), false, `snap (${s.x},${s.y}) must not land on a vector road`);
+  }
+
+  // 5. Opening the Little Free Library chest early before Quest 2 must NEVER soft-lock Quest 2!
+  const qs = createQuestSystem({ landmarks, quests, worldMap });
+  const chest = qs.interactables[0];
+  qs.interactWithChest(chest.id);
+  assert.equal(chest.opened, true);
+  qs.setActiveQuest("quest_02_riddle_hunt");
+  const revisit = qs.interactWithChest(chest.id);
+  assert.equal(revisit.questEvent?.type, "quest_completed", "revisiting already-opened chest should complete Quest 2");
+  assert.ok(qs.state.completedQuests.has("quest_02_riddle_hunt"));
 });

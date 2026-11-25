@@ -690,9 +690,11 @@ export function checkTrafficCollision(traffic, playerState) {
     const relY = py - v.y;
     if (Math.abs(relY) > 20) continue;
 
-    const len = Math.hypot(v.dx || 0, v.dy || 0) || 1;
-    const ux = (v.dx || 1) / len;
-    const uy = (v.dy || 0) / len;
+    const rawDx = v.dx || 0;
+    const rawDy = v.dy || 0;
+    const len = Math.hypot(rawDx, rawDy);
+    const ux = len > 1e-5 ? rawDx / len : 1;
+    const uy = len > 1e-5 ? rawDy / len : 0;
     const along = Math.abs(relX * ux + relY * uy);
     const across = Math.abs(relX * -uy + relY * ux);
 
@@ -771,10 +773,36 @@ export function updateRoadTraffic(
     // Cars & trucks politely yield at crosswalks ONLY if Liam Looked Both Ways!
     // Annoying spandex bikers NEVER yield politely — they yell "ON YOUR LEFT!" and sprint right through!
     v.yielded = false;
-    if (v.kind !== "bike" && playerOnCrosswalk && distToPlayer < 52 && distToPlayer > 16) {
-      const aheadDot = (px - v.x) * v.dx + (py - v.y) * v.dy;
-      const lateral = Math.abs((px - v.x) * -v.dy + (py - v.y) * v.dx);
-      if (aheadDot > 0 && lateral < 22) {
+    if (v.kind !== "bike" && playerOnCrosswalk && distToPlayer < 58) {
+      const lenV = Math.hypot(v.dx || 0, v.dy || 0);
+      const vux = lenV > 1e-5 ? (v.dx || 0) / lenV : 1;
+      const vuy = lenV > 1e-5 ? (v.dy || 0) / lenV : 0;
+      const aheadDot = (px - v.x) * vux + (py - v.y) * vuy;
+      const lateral = Math.abs((px - v.x) * -vuy + (py - v.y) * vux);
+      if (aheadDot > -4 && lateral < 24) {
+        v.yielded = true;
+        continue;
+      }
+    }
+    // Queue politely behind another yielded car/truck directly ahead in the same lane!
+    if (v.kind !== "bike" && playerOnCrosswalk && distToPlayer < 120) {
+      const lenV = Math.hypot(v.dx || 0, v.dy || 0);
+      const vux = lenV > 1e-5 ? (v.dx || 0) / lenV : 1;
+      const vuy = lenV > 1e-5 ? (v.dy || 0) / lenV : 0;
+      let blockedByYielded = false;
+      for (const other of traffic.vehicles) {
+        if (other === v || !other.yielded) continue;
+        const odx = other.x - v.x;
+        const ody = other.y - v.y;
+        if (Math.abs(odx) > 46 || Math.abs(ody) > 46) continue;
+        const oAhead = odx * vux + ody * vuy;
+        const oLat = Math.abs(odx * -vuy + ody * vux);
+        if (oAhead > 4 && oAhead < 42 && oLat < 12) {
+          blockedByYielded = true;
+          break;
+        }
+      }
+      if (blockedByYielded) {
         v.yielded = true;
         continue;
       }

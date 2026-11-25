@@ -146,11 +146,19 @@ function isSpookyGraveyardTile(base, collision, graveGrid, width, height, tx, ty
   return WALKABLE_GRAVEYARD_TILES.has(base[idx]);
 }
 
-function isBusySidewalk(base, collision, width, height, tx, ty) {
+function isBusySidewalk(base, collision, width, height, tx, ty, subgrid = null, tileSize = 16) {
   if (tx < 3 || ty < 3 || tx >= width - 3 || ty >= height - 3) return false;
   const idx = ty * width + tx;
   if (base[idx] !== SIDEWALK_TILE) return false;
   if (collision && collision[idx] === 1) return false;
+  if (subgrid && subgrid.hasVectorRoads) {
+    const px = tx * tileSize + tileSize * 0.5;
+    const py = ty * tileSize + tileSize * 0.5;
+    if (subgrid.isRoadAtPx(px, py)) return false;
+    const sx = Math.floor(px / subgrid.subCellSize);
+    const sy = Math.floor(py / subgrid.subCellSize);
+    if (subgrid.isSolidAtSub(sx, sy)) return false;
+  }
   // Must border a real street/highway so protestors stand on visible sidewalks
   const n = base[(ty - 1) * width + tx];
   const s = base[(ty + 1) * width + tx];
@@ -159,17 +167,17 @@ function isBusySidewalk(base, collision, width, height, tx, ty) {
   return ROAD_TILES.has(n) || ROAD_TILES.has(s) || ROAD_TILES.has(w) || ROAD_TILES.has(e);
 }
 
-function measureSidewalkPatrol(base, collision, width, height, tx, ty) {
+function measureSidewalkPatrol(base, collision, width, height, tx, ty, subgrid = null, tileSize = 16) {
   // Check horizontal sidewalk run length vs vertical sidewalk run length
   let hMin = tx;
   let hMax = tx;
-  while (hMin > tx - 3 && isBusySidewalk(base, collision, width, height, hMin - 1, ty)) hMin--;
-  while (hMax < tx + 3 && isBusySidewalk(base, collision, width, height, hMax + 1, ty)) hMax++;
+  while (hMin > tx - 3 && isBusySidewalk(base, collision, width, height, hMin - 1, ty, subgrid, tileSize)) hMin--;
+  while (hMax < tx + 3 && isBusySidewalk(base, collision, width, height, hMax + 1, ty, subgrid, tileSize)) hMax++;
 
   let vMin = ty;
   let vMax = ty;
-  while (vMin > ty - 3 && isBusySidewalk(base, collision, width, height, tx, vMin - 1)) vMin--;
-  while (vMax < ty + 3 && isBusySidewalk(base, collision, width, height, tx, vMax + 1)) vMax++;
+  while (vMin > ty - 3 && isBusySidewalk(base, collision, width, height, tx, vMin - 1, subgrid, tileSize)) vMin--;
+  while (vMax < ty + 3 && isBusySidewalk(base, collision, width, height, tx, vMax + 1, subgrid, tileSize)) vMax++;
 
   const hSpan = hMax - hMin;
   const vSpan = vMax - vMin;
@@ -192,6 +200,17 @@ export function buildStreetLife(
   const collision = worldMap.layers.collision;
   const tileSize = worldMap.tileSize || 16;
   const home = spawnTile || worldMap.origin?.spawnTile || { x: Math.floor(width / 2), y: Math.floor(height / 2) };
+  const subgrid = getNavigationSubgrid(worldMap);
+  const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
+  const isClearOffVectorRoad = (tx, ty) => {
+    if (!useSub) return true;
+    const px = tx * tileSize + tileSize * 0.5;
+    const py = ty * tileSize + tileSize * 0.5;
+    if (subgrid.isRoadAtPx(px, py)) return false;
+    const sx = Math.floor(px / subgrid.subCellSize);
+    const sy = Math.floor(py / subgrid.subCellSize);
+    return !subgrid.isSolidAtSub(sx, sy);
+  };
 
   let effectiveGraveGrid = graveyardGrid;
   let effectiveGraveZones = graveyardZones;
@@ -303,11 +322,15 @@ export function buildStreetLife(
 
   const addProtestor = (tx, ty, idx, opts = {}) => {
     const { isMob = false, mobId = null, offsetX = 0, offsetY = 0, markRadius = 4, axisOverride = null } = opts;
-    const patrol = measureSidewalkPatrol(base, collision, width, height, tx, ty);
+    const patrol = measureSidewalkPatrol(base, collision, width, height, tx, ty, subgrid, tileSize);
     const h = hash2(tx, ty, 709 + idx);
     const chantIdx = idx % PROTEST_CHANTS.length;
-    const ax = tx * tileSize + tileSize / 2 + offsetX;
-    const ay = ty * tileSize + tileSize / 2 + offsetY;
+    let ax = tx * tileSize + tileSize / 2 + offsetX;
+    let ay = ty * tileSize + tileSize / 2 + offsetY;
+    if (useSub && subgrid.isRoadAtPx(ax, ay)) {
+      ax = tx * tileSize + tileSize / 2;
+      ay = ty * tileSize + tileSize / 2;
+    }
     const axis = axisOverride || patrol.axis;
     const pr = {
       id: isMob ? `mob_${mobId}_${idx}` : `protestor_${idx}`,
@@ -349,11 +372,11 @@ export function buildStreetLife(
    */
   const trySpawnProtestorMob = (tx, ty) => {
     if (usedSpots.has(`${tx},${ty}`)) return false;
-    if (!isBusySidewalk(base, collision, width, height, tx, ty)) return false;
+    if (!isBusySidewalk(base, collision, width, height, tx, ty, subgrid, tileSize)) return false;
     if (Math.hypot(tx - home.x, ty - home.y) < 12) return false;
     if (nearAnyLandmark(tx, ty, 4)) return false;
 
-    const patrol = measureSidewalkPatrol(base, collision, width, height, tx, ty);
+    const patrol = measureSidewalkPatrol(base, collision, width, height, tx, ty, subgrid, tileSize);
     if (patrol.span < 2) return false;
 
     // Collect 2-4 contiguous sidewalk tiles along the patrol axis to pack 3-5 picket signs tightly!
@@ -361,7 +384,7 @@ export function buildStreetLife(
     for (let t = patrol.minT; t <= patrol.maxT && tiles.length < 4; t++) {
       const mx = patrol.axis === "h" ? t : tx;
       const my = patrol.axis === "h" ? ty : t;
-      if (isBusySidewalk(base, collision, width, height, mx, my) && !nearAnyLandmark(mx, my, 3)) {
+      if (isBusySidewalk(base, collision, width, height, mx, my, subgrid, tileSize) && !nearAnyLandmark(mx, my, 3)) {
         tiles.push({ x: mx, y: my });
       }
     }
@@ -407,9 +430,9 @@ export function buildStreetLife(
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const tx = home.x + dx;
         const ty = home.y + dy;
-        if (!isBusySidewalk(base, collision, width, height, tx, ty)) continue;
+        if (!isBusySidewalk(base, collision, width, height, tx, ty, subgrid, tileSize)) continue;
         if (usedSpots.has(`${tx},${ty}`)) continue;
-        const patrol = measureSidewalkPatrol(base, collision, width, height, tx, ty);
+        const patrol = measureSidewalkPatrol(base, collision, width, height, tx, ty, subgrid, tileSize);
         if (patrol.span >= 2) {
           nearSidewalkCandidates.push({ tx, ty, dist: Math.hypot(dx, dy) });
         }
@@ -455,6 +478,7 @@ export function buildStreetLife(
         if (usedSpots.has(`${tx},${ty}`)) continue;
         if (!isTurkeyTile(base, collision, width, height, tx, ty)) continue;
         if (base[ty * width + tx] === 2) continue; // start off the road
+        if (!isClearOffVectorRoad(tx, ty)) continue;
         if (parkOccupiedGrid && parkOccupiedGrid[ty * width + tx] === 1) continue;
         if (effectiveGraveGrid && effectiveGraveGrid[ty * width + tx] !== 0) continue;
         addTurkey(tx, ty, turkeys.length);
@@ -474,6 +498,7 @@ export function buildStreetLife(
           if (usedSpots.has(`${tx},${ty}`)) continue;
           if (!isTurkeyTile(base, collision, width, height, tx, ty)) continue;
           if (base[ty * width + tx] === 2) continue;
+          if (!isClearOffVectorRoad(tx, ty)) continue;
           if (parkOccupiedGrid && parkOccupiedGrid[ty * width + tx] === 1) continue;
           if (effectiveGraveGrid && effectiveGraveGrid[ty * width + tx] !== 0) continue;
           addCritter(kind, tx, ty);
@@ -503,12 +528,12 @@ export function buildStreetLife(
             const cy = seedY + dy;
             if (cx < cx0 || cx >= cx0 + cellW || cy < cy0 || cy >= cy0 + cellH) continue;
             if (usedSpots.has(`${cx},${cy}`)) continue;
-            if (!isBusySidewalk(base, collision, width, height, cx, cy)) continue;
+            if (!isBusySidewalk(base, collision, width, height, cx, cy, subgrid, tileSize)) continue;
             if (wantsMob && trySpawnProtestorMob(cx, cy)) {
               placed = true;
               continue;
             }
-            const patrol = measureSidewalkPatrol(base, collision, width, height, cx, cy);
+            const patrol = measureSidewalkPatrol(base, collision, width, height, cx, cy, subgrid, tileSize);
             if (patrol.span >= 2) {
               addProtestor(cx, cy, protestors.length);
               placed = true;
@@ -543,6 +568,7 @@ export function buildStreetLife(
               if (usedSpots.has(`${ox},${oy}`)) continue;
               if (!isTurkeyTile(base, collision, width, height, ox, oy)) continue;
               if (base[oy * width + ox] === 2) continue;
+              if (!isClearOffVectorRoad(ox, oy)) continue;
               if (parkOccupiedGrid && parkOccupiedGrid[oy * width + ox] === 1) continue;
               if (effectiveGraveGrid && effectiveGraveGrid[oy * width + ox] !== 0) continue;
               addTurkey(ox, oy, turkeys.length);
@@ -581,6 +607,7 @@ export function buildStreetLife(
               if (usedSpots.has(`${ox},${oy}`)) continue;
               if (!isTurkeyTile(base, collision, width, height, ox, oy)) continue;
               if (base[oy * width + ox] === 2) continue;
+              if (!isClearOffVectorRoad(ox, oy)) continue;
               if (parkOccupiedGrid && parkOccupiedGrid[oy * width + ox] === 1) continue;
               if (effectiveGraveGrid && effectiveGraveGrid[oy * width + ox] !== 0) continue;
               addCritter(kind, ox, oy);
@@ -727,26 +754,63 @@ function buildSidewalkJoggers(worldMap, spawnTile = null) {
   const collision = worldMap.layers.collision;
   const tileSize = worldMap.tileSize || 16;
   const home = spawnTile || worldMap.origin?.spawnTile || { x: Math.floor(width / 2), y: Math.floor(height / 2) };
+  const subgrid = getNavigationSubgrid(worldMap);
+  const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
+  const isClearOffVectorRoad = (tx, ty) => {
+    if (!useSub) return true;
+    const px = tx * tileSize + tileSize * 0.5;
+    const py = ty * tileSize + tileSize * 0.5;
+    if (subgrid.isRoadAtPx(px, py)) return false;
+    const sx = Math.floor(px / subgrid.subCellSize);
+    const sy = Math.floor(py / subgrid.subCellSize);
+    return !subgrid.isSolidAtSub(sx, sy);
+  };
 
   const joggers = [];
   const used = new Set();
+  const isJogPxAt = (jx, jy) => {
+    if (useSub) {
+      const sx = Math.floor(jx / subgrid.subCellSize);
+      const sy = Math.floor(jy / subgrid.subCellSize);
+      if (sx < 8 || sy < 8 || sx >= subgrid.subW - 8 || sy >= subgrid.subH - 8) return false;
+      if (subgrid.isSolidAtSub(sx, sy)) return false;
+      const t = subgrid.getSurfaceIdAtSub(sx, sy);
+      return t === 1 || t === 11 || t === 9;
+    }
+    const tx = Math.floor(jx / tileSize);
+    const ty = Math.floor(jy / tileSize);
+    if (tx < 3 || ty < 3 || tx >= width - 3 || ty >= height - 3) return false;
+    const idx = ty * width + tx;
+    if (collision && collision[idx] === 1) return false;
+    const t = base[idx];
+    return t === 1 || t === 11 || t === 9;
+  };
   const isJogTile = (tx, ty) => {
     if (tx < 3 || ty < 3 || tx >= width - 3 || ty >= height - 3) return false;
     const idx = ty * width + tx;
     if (collision && collision[idx] === 1) return false;
     const t = base[idx];
-    return t === 1 || t === 11 || t === 9; // sidewalks, Comm Ave grassy park mall, dirt trails!
+    if (!(t === 1 || t === 11 || t === 9)) return false;
+    return isJogPxAt(tx * tileSize + tileSize * 0.5, ty * tileSize + tileSize * 0.5);
   };
 
   const addJogger = (tx, ty) => {
     if (used.has(`${tx},${ty}`) || !isJogTile(tx, ty)) return false;
+    const cx = tx * tileSize + tileSize / 2;
+    const cy = ty * tileSize + tileSize / 2;
     const h = hash2(tx, ty, 617 + joggers.length);
     const dirs = [
       { dx: 1, dy: 0 },
       { dx: -1, dy: 0 },
       { dx: 0, dy: 1 },
       { dx: 0, dy: -1 },
-    ].filter((d) => isJogTile(tx + d.dx, ty + d.dy));
+    ].filter(
+      (d) =>
+        isJogPxAt(cx + d.dx * 4, cy + d.dy * 4) &&
+        isJogPxAt(cx + d.dx * 8, cy + d.dy * 8) &&
+        isJogPxAt(cx + d.dx * 12, cy + d.dy * 12) &&
+        isJogPxAt(cx + d.dx * 16, cy + d.dy * 16)
+    );
     if (dirs.length === 0) return false;
     const d0 = dirs[h % dirs.length];
     const chantIdx = joggers.length % JOGGER_CHANTS.length;
@@ -1302,6 +1366,7 @@ export function updateStreetLife(
   const collision = worldMap.layers.collision;
   const px = playerState.x;
   const py = playerState.y;
+  const subgridUpdate = getNavigationSubgrid(worldMap);
 
   // --- 0. Check direct contact knockback & damage flash! ---
   const bump = checkStreetLifeContact(streetLife, playerState, {
@@ -1445,7 +1510,13 @@ export function updateStreetLife(
     const ny = tk.y + tk.vy * dt;
     const ntx = Math.floor(nx / tileSize);
     const nty = Math.floor(ny / tileSize);
-    if (isTurkeyTile(base, collision, width, height, ntx, nty)) {
+    const turkeySubOk = (() => {
+      if (!subgridUpdate || !subgridUpdate.hasVectorRoads) return true;
+      const s = subgridUpdate.getSurfaceIdAtPx(nx, ny);
+      if (s === 12 || s === 13 || s === 3) return false;
+      return !subgridUpdate.isSolidAtSub(Math.floor(nx / subgridUpdate.subCellSize), Math.floor(ny / subgridUpdate.subCellSize));
+    })();
+    if (isTurkeyTile(base, collision, width, height, ntx, nty) && turkeySubOk) {
       tk.x = nx;
       tk.y = ny;
     } else {
@@ -1537,7 +1608,13 @@ export function updateStreetLife(
     const ny = cr.y + cr.vy * dt;
     const ntx = Math.floor(nx / tileSize);
     const nty = Math.floor(ny / tileSize);
-    if (isTurkeyTile(base, collision, width, height, ntx, nty)) {
+    const critterSubOk = (() => {
+      if (!subgridUpdate || !subgridUpdate.hasVectorRoads) return true;
+      const s = subgridUpdate.getSurfaceIdAtPx(nx, ny);
+      if (s === 12 || s === 13 || s === 3) return false;
+      return !subgridUpdate.isSolidAtSub(Math.floor(nx / subgridUpdate.subCellSize), Math.floor(ny / subgridUpdate.subCellSize));
+    })();
+    if (isTurkeyTile(base, collision, width, height, ntx, nty) && critterSubOk) {
       cr.x = nx;
       cr.y = ny;
     } else {

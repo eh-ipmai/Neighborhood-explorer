@@ -1096,7 +1096,7 @@ export function createUI({
               ? `${icon} ${b.name} (${houseNum})`
               : houseNum
                 ? b.kind && b.kind !== "house"
-                  ? `${icon} ${kindLabel} #${houseNum}`
+                  ? `${icon} ${kindLabel} ${houseNum}`
                   : `${icon} House ${houseNum}${archTag}`
                 : b.name
                   ? `${icon} ${b.name}`

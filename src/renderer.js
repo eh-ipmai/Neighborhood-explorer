@@ -271,6 +271,7 @@ export function createRenderer({
       const dynamicReady = new Set();
       const dynamicLoading = new Set();
       const spriteScales = new Map();
+      const spriteSizes = new Map();
       let camX = width / 2;
       let camY = height / 2;
       let camRotDeg = 0;
@@ -332,16 +333,23 @@ export function createRenderer({
         registerSprites: async (spriteCanvases) => {
           const loads = Object.entries(spriteCanvases).map(([name, sprCanvas]) => {
             spriteScales.set(name, sprCanvas?.__pixelScale || 1);
+            spriteSizes.set(name, {
+              w: sprCanvas?.width || 0,
+              h: sprCanvas?.height || 0,
+            });
             return k.loadSprite(name, sprCanvas.toDataURL("image/png"));
           });
           await Promise.all(loads);
         },
         drawSprite: (name, x, y, opacity = 1, angleDeg = 0, pivotX = null, pivotY = null) => {
           const ps = spriteScales.get(name) || 1;
+          const sz = spriteSizes.get(name);
+          const dw = sz ? sz.w * ps : 0;
+          const dh = sz ? sz.h * ps : 0;
           const scaleOpt = ps !== 1 ? { scale: k.vec2(ps, ps) } : {};
           if (angleDeg) {
-            const px = pivotX !== null ? pivotX : Math.round(x);
-            const py = pivotY !== null ? pivotY : Math.round(y);
+            const px = pivotX !== null ? pivotX : Math.round(x) + dw / 2;
+            const py = pivotY !== null ? pivotY : Math.round(y) + dh / 2;
             k.pushTransform();
             k.pushTranslate(px, py);
             k.pushRotate(angleDeg);
