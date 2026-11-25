@@ -1,3 +1,5 @@
+import { getNavigationSubgrid } from "./subgrid.js";
+
 export const TILE_SIZE = 16;
 export const PLAYER_SPEED_PX = 68; // pixels per second (~4.25 tiles/sec)
 export const CORNER_SLIDE_MAX_PX = 4;
@@ -43,7 +45,9 @@ export function resolveCardinalFacing(dx, dy, currentFacing = "down") {
 }
 
 /**
- * Create an O(1) tile collision checker bound to world_map.json.
+ * Create an O(1) collision checker bound to world_map.json.
+ * Uses the 4px x 4px sub-cell grid (1/4 of 16px tiles) whenever vectorRoads are present so
+ * collision hugs exact road medians and curbs cleanly, while keeping full tile compatibility.
  */
 export function createMapCollider(worldMap) {
   const { width, height } = worldMap.dimensions;
@@ -53,6 +57,9 @@ export function createMapCollider(worldMap) {
   const legend = worldMap.legend || {};
   const waterEntry = Object.entries(legend).find(([, name]) => name === "water");
   const waterTileId = waterEntry ? Number(waterEntry[0]) : 6;
+  const subgrid = getNavigationSubgrid(worldMap);
+  const useSubgrid = Boolean(subgrid && subgrid.hasVectorRoads);
+  const subCellSize = subgrid ? subgrid.subCellSize : tileSize / 4;
 
   function isSolidTile(tx, ty, options = {}) {
     if (tx < 0 || ty < 0 || tx >= width || ty >= height) return true;
@@ -64,12 +71,35 @@ export function createMapCollider(worldMap) {
     return true;
   }
 
+  function isSolidSubCell(sx, sy, options = {}) {
+    if (!subgrid) {
+      const tx = Math.floor((sx * subCellSize) / tileSize);
+      const ty = Math.floor((sy * subCellSize) / tileSize);
+      return isSolidTile(tx, ty, options);
+    }
+    return subgrid.isSolidAtSub(sx, sy, options);
+  }
+
   /**
-   * Check whether an axis-aligned box centered at (cx, cy) overlaps any solid tile.
+   * Check whether an axis-aligned box centered at (cx, cy) overlaps any solid cell.
    */
   function isBoxBlocked(cx, cy, hitbox = DEFAULT_HITBOX, options = {}) {
     const halfW = hitbox.width / 2;
     const halfH = hitbox.height / 2;
+    if (useSubgrid) {
+      const left = Math.floor((cx - halfW) / subCellSize);
+      const right = Math.floor((cx + halfW - 0.001) / subCellSize);
+      const top = Math.floor((cy - halfH) / subCellSize);
+      const bottom = Math.floor((cy + halfH - 0.001) / subCellSize);
+
+      for (let sy = top; sy <= bottom; sy++) {
+        for (let sx = left; sx <= right; sx++) {
+          if (subgrid.isSolidAtSub(sx, sy, options)) return true;
+        }
+      }
+      return false;
+    }
+
     const left = Math.floor((cx - halfW) / tileSize);
     const right = Math.floor((cx + halfW - 0.001) / tileSize);
     const top = Math.floor((cy - halfH) / tileSize);
@@ -83,7 +113,7 @@ export function createMapCollider(worldMap) {
     return false;
   }
 
-  return { isSolidTile, isBoxBlocked, tileSize };
+  return { isSolidTile, isSolidSubCell, isBoxBlocked, tileSize, subCellSize, subgrid };
 }
 
 /**
@@ -108,12 +138,54 @@ function findCornerSlideOffset(cx, cy, stepX, stepY, isBoxBlocked, hitbox, maxSl
 }
 
 /**
- * When walking cardinally along a sidewalk/path and hitting a 1-tile diagonal bend
- * (where the road shifts 1 tile sideways and the sidewalk continues diagonally ahead),
- * detect the unambiguous continuation direction so the player glides smoothly around
- * gentle street bends instead of dead-stopping at every step!
+ * When walking cardinally along a curved or diagonal sidewalk/path and hitting a 4px sub-cell
+ * curb bend (or 1-tile diagonal bend), detect the unambiguous continuation direction so Liam
+ * glides smoothly along curved streets instead of dead-stopping at every pixel bend!
+ * Straight perpendicular road curbs remain blocked on both perpendicular sides so he still
+ * stops cleanly to Look Both Ways.
  */
-function findPathBendGlideDir(x, y, axis, stepDir, isBoxBlocked, hitbox, isPreferredPathTile, tileSize) {
+function findPathBendGlideDir(
+  x,
+  y,
+  axis,
+  stepDir,
+  isBoxBlocked,
+  hitbox,
+  isPreferredPathTile,
+  tileSize,
+  isPreferredPathPx = null
+) {
+  if (typeof isPreferredPathPx === "function") {
+    if (!isPreferredPathPx(x, y)) return null;
+    const aheadDist = 5;
+    for (const shift of [4, 7, 10]) {
+      if (axis === "x") {
+        const upClear =
+          !isBoxBlocked(x, y - shift, hitbox) &&
+          !isBoxBlocked(x + stepDir * aheadDist, y - shift, hitbox) &&
+          isPreferredPathPx(x + stepDir * aheadDist, y - shift);
+        const downClear =
+          !isBoxBlocked(x, y + shift, hitbox) &&
+          !isBoxBlocked(x + stepDir * aheadDist, y + shift, hitbox) &&
+          isPreferredPathPx(x + stepDir * aheadDist, y + shift);
+        if (upClear && !downClear) return { dx: 0, dy: -1 };
+        if (downClear && !upClear) return { dx: 0, dy: 1 };
+      } else {
+        const leftClear =
+          !isBoxBlocked(x - shift, y, hitbox) &&
+          !isBoxBlocked(x - shift, y + stepDir * aheadDist, hitbox) &&
+          isPreferredPathPx(x - shift, y + stepDir * aheadDist);
+        const rightClear =
+          !isBoxBlocked(x + shift, y, hitbox) &&
+          !isBoxBlocked(x + shift, y + stepDir * aheadDist, hitbox) &&
+          isPreferredPathPx(x + shift, y + stepDir * aheadDist);
+        if (leftClear && !rightClear) return { dx: -1, dy: 0 };
+        if (rightClear && !leftClear) return { dx: 1, dy: 0 };
+      }
+    }
+    return null;
+  }
+
   if (typeof isPreferredPathTile !== "function") return null;
   const tx = Math.floor(x / tileSize);
   const ty = Math.floor(y / tileSize);
@@ -146,14 +218,15 @@ function findPathBendGlideDir(x, y, axis, stepDir, isBoxBlocked, hitbox, isPrefe
 }
 
 /**
- * Move player with 8-way normalized speed, axis-separated tile collision,
- * sub-tile 4px corner sliding, and optional smooth sidewalk bend-gliding.
+ * Move player with 8-way normalized speed, axis-separated collision,
+ * sub-tile corner sliding, and smooth curved-sidewalk bend-gliding.
  */
 export function moveWithCollision(state, rawInput, dt, isBoxBlocked, options = {}) {
   const speed = options.speed ?? PLAYER_SPEED_PX;
   const hitbox = options.hitbox ?? DEFAULT_HITBOX;
   const maxSlidePx = options.maxSlidePx ?? CORNER_SLIDE_MAX_PX;
   const isPreferredPathTile = options.isPreferredPathTile ?? null;
+  const isPreferredPathPx = options.isPreferredPathPx ?? null;
   const tileSize = options.tileSize ?? TILE_SIZE;
 
   const norm = normalizeMoveInput(rawInput.x, rawInput.y);
@@ -197,8 +270,18 @@ export function moveWithCollision(state, rawInput, dt, isBoxBlocked, options = {
           }
         }
       } else if (moveY === 0) {
-        // Smooth sidewalk bend-glide: follow a 1-tile diagonal sidewalk bend without dead-stopping!
-        const bend = findPathBendGlideDir(x, y, "x", Math.sign(moveX), isBoxBlocked, hitbox, isPreferredPathTile, tileSize);
+        // Smooth sidewalk bend-glide: follow curved/diagonal sidewalk bends without dead-stopping!
+        const bend = findPathBendGlideDir(
+          x,
+          y,
+          "x",
+          Math.sign(moveX),
+          isBoxBlocked,
+          hitbox,
+          isPreferredPathTile,
+          tileSize,
+          isPreferredPathPx
+        );
         if (bend) {
           const glideY = y + bend.dy * slideSpeed;
           if (!isBoxBlocked(x, glideY, hitbox)) {
@@ -231,7 +314,17 @@ export function moveWithCollision(state, rawInput, dt, isBoxBlocked, options = {
           }
         }
       } else if (moveX === 0) {
-        const bend = findPathBendGlideDir(x, y, "y", Math.sign(moveY), isBoxBlocked, hitbox, isPreferredPathTile, tileSize);
+        const bend = findPathBendGlideDir(
+          x,
+          y,
+          "y",
+          Math.sign(moveY),
+          isBoxBlocked,
+          hitbox,
+          isPreferredPathTile,
+          tileSize,
+          isPreferredPathPx
+        );
         if (bend) {
           const glideX = x + bend.dx * slideSpeed;
           if (!isBoxBlocked(glideX, y, hitbox)) {

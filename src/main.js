@@ -685,6 +685,8 @@ async function boot() {
     return resolveActionIntent({
       playerTileX: tx,
       playerTileY: ty,
+      playerX: playerState.x,
+      playerY: playerState.y,
       facing: playerState.facing,
       headingDeg: playerState.headingDeg,
       hardMode: questSystem.state.navMode === "hard",
@@ -693,6 +695,7 @@ async function boot() {
       curbStopCueTimer: playerState.curbStopCueTimer,
       nearbyInteraction: rawNear,
       isRoadTileFn: safety.isRoadTile,
+      isRoadAtPxFn: safety.isRoadAtPx,
       tileSize,
     });
   }
@@ -823,7 +826,7 @@ async function boot() {
 
     const tx = Math.floor(playerState.x / tileSize);
     const ty = Math.floor(playerState.y / tileSize);
-    const result = safety.inspectCrossingContext(tx, ty);
+    const result = safety.inspectCrossingContextAtPx(playerState.x, playerState.y);
 
     playerState.lookSavedFacing = playerState.facing;
     playerState.lookTimer = LOOK_DURATION_SEC;
@@ -2558,9 +2561,7 @@ async function boot() {
       return;
     }
 
-    const curTx = Math.floor(playerState.x / tileSize);
-    const curTy = Math.floor(playerState.y / tileSize);
-    const curTileType = safety.getTileType(curTx, curTy);
+    const curTileType = safety.getTileTypeAtPx(playerState.x, playerState.y);
     const alreadyInWater = safety.isBoxTouchingTileType(
       playerState.x,
       playerState.y,
@@ -2700,6 +2701,11 @@ async function boot() {
         return t === "sidewalk" || t === "dirt" || t === "park" || t === "sand";
       };
 
+      const isPreferredPathPx = (ppx, ppy) => {
+        const t = safety.getTileTypeAtPx(ppx, ppy);
+        return t === "sidewalk" || t === "dirt" || t === "park" || t === "sand" || t === "grass";
+      };
+
       const combinedBlocker = (nx, ny, hb) =>
         roadBlocker.isBoxBlocked(nx, ny, hb) ||
         isBlockedByStreetLife(streetLife, nx, ny, hb, playerState.x, playerState.y);
@@ -2711,7 +2717,9 @@ async function boot() {
         combinedBlocker,
         {
           speed: PLAYER_SPEED_PX * speedMult,
+          maxSlidePx: 6,
           isPreferredPathTile,
+          isPreferredPathPx,
           tileSize,
         }
       );
@@ -2960,7 +2968,7 @@ async function boot() {
 
     const tx = Math.floor(playerState.x / tileSize);
     const ty = Math.floor(playerState.y / tileSize);
-    const tileType = safety.getTileType(tx, ty);
+    const tileType = safety.getTileTypeAtPx(playerState.x, playerState.y);
     const streetZone = safety.getStreetZoneAt(tx, ty);
 
     // Update Fog-of-War & passive landmark/quest triggers whenever tile changes
@@ -3038,7 +3046,12 @@ async function boot() {
       cachedNearbyHouses = buildingIndex.queryBounds(tx - 5, ty - 5, tx + 5, ty + 5);
       cachedNearestBuilding = findNearestBuilding(cachedNearbyHouses, tx, ty);
       cachedNearestLandmark = findNearestLandmark(tx, ty);
-      cachedCurbContext = safety.inspectCrossingContext(tx, ty);
+    }
+    const subCellSz = safety.subCellSize || 4;
+    const hudSubKey = `${Math.floor(playerState.x / subCellSz)},${Math.floor(playerState.y / subCellSz)}`;
+    if (hudSubKey !== playerState.lastCurbSubKey) {
+      playerState.lastCurbSubKey = hudSubKey;
+      cachedCurbContext = safety.inspectCrossingContextAtPx(playerState.x, playerState.y);
     }
     const nearUncheckedRoad =
       playerState.safeCrossingTimer <= 0 &&
@@ -4583,10 +4596,11 @@ async function boot() {
       const halfH = sprCanvas ? (sprCanvas.height * sprScale) / 2 : 10;
       const drawX = Math.round(v.x - halfW);
       const drawY = Math.round(v.y - halfH);
+      const vRot = v.rotDeg || 0;
       drawables.push({
         sortY: depthOf(v.x, v.y + halfH * 0.65),
         draw: () => {
-          k.drawSprite(spr, drawX, drawY);
+          k.drawSprite(spr, drawX, drawY, 1, vRot, v.x, v.y);
           if (v.kind === "bike" && v.bubbleTimer > 0) {
             const bKey = `bubble_biker_${v.chantIndex % 5}`;
             const bSpr = atlas[bKey];
@@ -5410,27 +5424,89 @@ async function boot() {
     }
 
     if (showDebug) {
-      for (let ty = startY; ty <= endY; ty++) {
-        const rowOffset = ty * mapW;
-        for (let tx = startX; tx <= endX; tx++) {
-          const idx = rowOffset + tx;
-          if (collisionLayer[idx] === 1) {
-            const wadeable = questSystem.canWadeWater() && baseLayer[idx] === 6;
+      const sg = safety.subgrid;
+      if (sg && sg.hasVectorRoads) {
+        const sc = sg.subCellSize;
+        const sx0 = Math.max(0, startX * sg.div);
+        const sx1 = Math.min(sg.subW - 1, (endX + 1) * sg.div - 1);
+        const sy0 = Math.max(0, startY * sg.div);
+        const sy1 = Math.min(sg.subH - 1, (endY + 1) * sg.div - 1);
+        const canWade = questSystem.canWadeWater();
+        for (let sy = sy0; sy <= sy1; sy++) {
+          const sRow = sy * sg.subW;
+          for (let sx = sx0; sx <= sx1; sx++) {
+            const idx = sRow + sx;
+            const surf = sg.surface[idx];
+            if (sg.collision[idx] === 1) {
+              const wadeable = canWade && surf === 6;
+              k.drawRect({
+                pos: k.vec2(sx * sc, sy * sc),
+                width: sc,
+                height: sc,
+                color: wadeable ? k.rgb(76, 198, 240) : k.rgb(235, 64, 52),
+                opacity: wadeable ? 0.24 : 0.34,
+              });
+            } else if (surf === 4) {
+              k.drawRect({
+                pos: k.vec2(sx * sc, sy * sc),
+                width: sc,
+                height: sc,
+                color: k.rgb(88, 232, 136),
+                opacity: 0.24,
+              });
+            } else if (surf === 2 || surf === 3 || surf === 12) {
+              k.drawRect({
+                pos: k.vec2(sx * sc, sy * sc),
+                width: sc,
+                height: sc,
+                color: k.rgb(245, 196, 62),
+                opacity: 0.16,
+              });
+            }
+          }
+        }
+        // Subtle 4px sub-cell grid lines across visible viewport
+        for (let sy = sy0; sy <= sy1; sy++) {
+          k.drawRect({
+            pos: k.vec2(sx0 * sc, sy * sc),
+            width: (sx1 - sx0 + 1) * sc,
+            height: 0.5,
+            color: k.rgb(0, 0, 0),
+            opacity: sy % sg.div === 0 ? 0.22 : 0.09,
+          });
+        }
+        for (let sx = sx0; sx <= sx1; sx++) {
+          k.drawRect({
+            pos: k.vec2(sx * sc, sy0 * sc),
+            width: 0.5,
+            height: (sy1 - sy0 + 1) * sc,
+            color: k.rgb(0, 0, 0),
+            opacity: sx % sg.div === 0 ? 0.22 : 0.09,
+          });
+        }
+      } else {
+        for (let ty = startY; ty <= endY; ty++) {
+          const rowOffset = ty * mapW;
+          for (let tx = startX; tx <= endX; tx++) {
+            const idx = rowOffset + tx;
+            if (collisionLayer[idx] === 1) {
+              const wadeable = questSystem.canWadeWater() && baseLayer[idx] === 6;
+              k.drawRect({
+                pos: k.vec2(tx * tileSize, ty * tileSize),
+                width: tileSize,
+                height: tileSize,
+                color: wadeable ? k.rgb(76, 198, 240) : k.rgb(235, 64, 52),
+                opacity: wadeable ? 0.22 : 0.3,
+              });
+            }
             k.drawRect({
               pos: k.vec2(tx * tileSize, ty * tileSize),
               width: tileSize,
               height: tileSize,
-              color: wadeable ? k.rgb(76, 198, 240) : k.rgb(235, 64, 52),
-              opacity: wadeable ? 0.22 : 0.3,
+              fill: false,
+              outline: { width: 0.5, color: k.rgb(0, 0, 0), opacity: 0.2 },
             });
           }
-          k.drawRect({
-            pos: k.vec2(tx * tileSize, ty * tileSize),
-            width: tileSize,
-            height: tileSize,
-            fill: false,
-            outline: { width: 0.5, color: k.rgb(0, 0, 0), opacity: 0.2 },
-          });
         }
       }
       k.drawRect({
@@ -5447,6 +5523,7 @@ async function boot() {
   window.__NEIGHBORHOOD_EXPLORER__ = {
     rendererMode: k.mode,
     worldMap,
+    subgrid: safety.subgrid,
     landmarks,
     quests,
     questSystem,

@@ -5,6 +5,7 @@
  */
 
 import { DEFAULT_HITBOX, TILE_SIZE } from "./player.js";
+import { getNavigationSubgrid } from "./subgrid.js";
 
 export const FASTER_MULTIPLIER = 1.65;
 export const LOOK_DURATION_SEC = 0.65;
@@ -64,6 +65,11 @@ export function createSafetySystem(worldMap) {
     }
   }
 
+  const tileSize = worldMap.tileSize || TILE_SIZE;
+  const subgrid = getNavigationSubgrid(worldMap);
+  const useSubgrid = Boolean(subgrid && subgrid.hasVectorRoads);
+  const subCellSize = subgrid ? subgrid.subCellSize : tileSize / 4;
+
   function getTileId(tx, ty) {
     if (tx < 0 || ty < 0 || tx >= width || ty >= height) return 5;
     return base[ty * width + tx];
@@ -74,6 +80,24 @@ export function createSafetySystem(worldMap) {
     return legend[String(id)] || "grass";
   }
 
+  function getTileIdAtPx(px, py) {
+    if (useSubgrid) {
+      return subgrid.getSurfaceIdAtPx(px, py);
+    }
+    return getTileId(Math.floor(px / tileSize), Math.floor(py / tileSize));
+  }
+
+  function getTileTypeAtPx(px, py) {
+    if (useSubgrid) {
+      return subgrid.getSurfaceTypeAtPx(px, py);
+    }
+    return getTileType(Math.floor(px / tileSize), Math.floor(py / tileSize));
+  }
+
+  function isRoadAtPx(px, py) {
+    return isRoadTileType(getTileTypeAtPx(px, py));
+  }
+
   function getStreetZoneAt(tx, ty) {
     if (tx < 0 || ty < 0 || tx >= width || ty >= height) return null;
     const idx = zoneIndexGrid[ty * width + tx];
@@ -81,24 +105,7 @@ export function createSafetySystem(worldMap) {
     return streetZones[idx];
   }
 
-  function inspectCrossingContext(tx, ty) {
-    let nearCrosswalk = false;
-    let nearHighway = false;
-    let nearMainRoad = false;
-    let nearResidential = false;
-    let nearParking = false;
-
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        const type = getTileType(tx + dx, ty + dy);
-        if (type === "crosswalk") nearCrosswalk = true;
-        else if (type === "highway") nearHighway = true;
-        else if (type === "main_road") nearMainRoad = true;
-        else if (type === "residential_road") nearResidential = true;
-        else if (type === "parking_lot") nearParking = true;
-      }
-    }
-
+  function formatCrossingContext(nearCrosswalk, nearHighway, nearMainRoad, nearResidential, nearParking) {
     if (nearCrosswalk) {
       return {
         context: "crosswalk",
@@ -141,6 +148,55 @@ export function createSafetySystem(worldMap) {
     };
   }
 
+  function inspectCrossingContextAtPx(px, py) {
+    if (!useSubgrid) {
+      return inspectCrossingContext(Math.floor(px / tileSize), Math.floor(py / tileSize));
+    }
+    const csx = Math.floor(px / subCellSize);
+    const csy = Math.floor(py / subCellSize);
+    let nearCrosswalk = false;
+    let nearHighway = false;
+    let nearMainRoad = false;
+    let nearResidential = false;
+    let nearParking = false;
+
+    // 4 sub-cells = 16px curb-inspection radius around Liam's feet!
+    for (let dy = -4; dy <= 4; dy++) {
+      for (let dx = -4; dx <= 4; dx++) {
+        const type = subgrid.getSurfaceTypeAtSub(csx + dx, csy + dy);
+        if (type === "crosswalk") nearCrosswalk = true;
+        else if (type === "highway") nearHighway = true;
+        else if (type === "main_road") nearMainRoad = true;
+        else if (type === "residential_road") nearResidential = true;
+        else if (type === "parking_lot") nearParking = true;
+      }
+    }
+    return formatCrossingContext(nearCrosswalk, nearHighway, nearMainRoad, nearResidential, nearParking);
+  }
+
+  function inspectCrossingContext(tx, ty) {
+    if (useSubgrid) {
+      return inspectCrossingContextAtPx((tx + 0.5) * tileSize, (ty + 0.5) * tileSize);
+    }
+    let nearCrosswalk = false;
+    let nearHighway = false;
+    let nearMainRoad = false;
+    let nearResidential = false;
+    let nearParking = false;
+
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const type = getTileType(tx + dx, ty + dy);
+        if (type === "crosswalk") nearCrosswalk = true;
+        else if (type === "highway") nearHighway = true;
+        else if (type === "main_road") nearMainRoad = true;
+        else if (type === "residential_road") nearResidential = true;
+        else if (type === "parking_lot") nearParking = true;
+      }
+    }
+    return formatCrossingContext(nearCrosswalk, nearHighway, nearMainRoad, nearResidential, nearParking);
+  }
+
   function getSpeedMultiplier(tileType, wantsFaster, safeCrossingActive = false) {
     if (tileType === "water") {
       return wantsFaster ? 1.08 : 0.72;
@@ -161,8 +217,6 @@ export function createSafetySystem(worldMap) {
     return 1;
   }
 
-  const tileSize = worldMap.tileSize || TILE_SIZE;
-
   function isRoadTile(tx, ty) {
     return isRoadTileType(getTileType(tx, ty));
   }
@@ -170,6 +224,20 @@ export function createSafetySystem(worldMap) {
   function isBoxOnRoad(cx, cy, hitbox = DEFAULT_HITBOX) {
     const halfW = hitbox.width / 2;
     const halfH = hitbox.height / 2;
+    if (useSubgrid) {
+      const left = Math.floor((cx - halfW) / subCellSize);
+      const right = Math.floor((cx + halfW - 0.001) / subCellSize);
+      const top = Math.floor((cy - halfH) / subCellSize);
+      const bottom = Math.floor((cy + halfH - 0.001) / subCellSize);
+
+      for (let sy = top; sy <= bottom; sy++) {
+        for (let sx = left; sx <= right; sx++) {
+          if (subgrid.isRoadAtSub(sx, sy)) return true;
+        }
+      }
+      return false;
+    }
+
     const left = Math.floor((cx - halfW) / tileSize);
     const right = Math.floor((cx + halfW - 0.001) / tileSize);
     const top = Math.floor((cy - halfH) / tileSize);
@@ -186,6 +254,20 @@ export function createSafetySystem(worldMap) {
   function isBoxTouchingTileType(cx, cy, tileType, hitbox = DEFAULT_HITBOX) {
     const halfW = hitbox.width / 2;
     const halfH = hitbox.height / 2;
+    if (useSubgrid) {
+      const left = Math.floor((cx - halfW) / subCellSize);
+      const right = Math.floor((cx + halfW - 0.001) / subCellSize);
+      const top = Math.floor((cy - halfH) / subCellSize);
+      const bottom = Math.floor((cy + halfH - 0.001) / subCellSize);
+
+      for (let sy = top; sy <= bottom; sy++) {
+        for (let sx = left; sx <= right; sx++) {
+          if (subgrid.getSurfaceTypeAtSub(sx, sy) === tileType) return true;
+        }
+      }
+      return false;
+    }
+
     const left = Math.floor((cx - halfW) / tileSize);
     const right = Math.floor((cx + halfW - 0.001) / tileSize);
     const top = Math.floor((cy - halfH) / tileSize);
@@ -264,15 +346,21 @@ export function createSafetySystem(worldMap) {
   }
 
   return {
+    subgrid,
+    subCellSize,
     getTileId,
     getTileType,
+    getTileIdAtPx,
+    getTileTypeAtPx,
     isRoadTile,
+    isRoadAtPx,
     isBoxOnRoad,
     isBoxTouchingTileType,
     createRoadAwareBlocker,
     updateCrossingProgress,
     getStreetZoneAt,
     inspectCrossingContext,
+    inspectCrossingContextAtPx,
     getSpeedMultiplier,
   };
 }
@@ -285,13 +373,15 @@ export function createSafetySystem(worldMap) {
  * Facing-aware rule:
  *   - If Liam just bumped a road curb (curbStopCueTimer > 0), Look Both Ways ALWAYS wins.
  *   - If Liam is standing off-road FACING directly into an unchecked road/crosswalk
- *     (the exact tile ahead of him is an unchecked road), Look Both Ways ALWAYS wins so
+ *     (the exact sub-cell/tile ahead of him is an unchecked road), Look Both Ways ALWAYS wins so
  *     corner street signs or nearby NPCs never hijack crossing the street!
  *   - Turn away from the road / toward the NPC or sign -> Interact wins cleanly!
  */
 export function resolveActionIntent({
   playerTileX,
   playerTileY,
+  playerX = null,
+  playerY = null,
   facing = "down",
   headingDeg = 0,
   hardMode = false,
@@ -300,6 +390,7 @@ export function resolveActionIntent({
   curbStopCueTimer = 0,
   nearbyInteraction = null,
   isRoadTileFn,
+  isRoadAtPxFn = null,
 }) {
   let fx = 0;
   let fy = 1;
@@ -324,10 +415,18 @@ export function resolveActionIntent({
     fy = 0;
   }
 
-  const aheadTx = Math.round(playerTileX + fx);
-  const aheadTy = Math.round(playerTileY + fy);
-  const facingUncheckedRoad =
-    !isOnRoad && !safeCrossingActive && Boolean(isRoadTileFn?.(aheadTx, aheadTy));
+  let roadDirectlyAhead = false;
+  if (typeof playerX === "number" && typeof playerY === "number" && typeof isRoadAtPxFn === "function") {
+    roadDirectlyAhead =
+      Boolean(isRoadAtPxFn(playerX + fx * 7, playerY + fy * 7)) ||
+      Boolean(isRoadAtPxFn(playerX + fx * 12, playerY + fy * 12));
+  } else {
+    const aheadTx = Math.round(playerTileX + fx);
+    const aheadTy = Math.round(playerTileY + fy);
+    roadDirectlyAhead = Boolean(isRoadTileFn?.(aheadTx, aheadTy));
+  }
+
+  const facingUncheckedRoad = !isOnRoad && !safeCrossingActive && roadDirectlyAhead;
 
   if (curbStopCueTimer > 0 || facingUncheckedRoad) {
     return {

@@ -13,6 +13,7 @@
  */
 
 import { buildGraveyardMask, getGraveyardGhostPos } from "./graveyards.js";
+import { getNavigationSubgrid } from "./subgrid.js";
 
 export const CRITTER_ARCHETYPES = {
   squirrel: {
@@ -1744,7 +1745,19 @@ export function updateStreetLife(
   }
 
   // --- 4. Update Over-Competitive Annoying Newton Marathon Runners (stay on sidewalks & Comm Ave mall — NEVER deal heart damage!) ---
-  const isJogTile = (tx, ty) => {
+  const subgrid = getNavigationSubgrid(worldMap);
+  const useSubJog = Boolean(subgrid && subgrid.hasVectorRoads);
+  const isJogPx = (jx, jy) => {
+    if (useSubJog) {
+      const sx = Math.floor(jx / subgrid.subCellSize);
+      const sy = Math.floor(jy / subgrid.subCellSize);
+      if (sx < 8 || sy < 8 || sx >= subgrid.subW - 8 || sy >= subgrid.subH - 8) return false;
+      if (subgrid.isSolidAtSub(sx, sy)) return false;
+      const t = subgrid.getSurfaceIdAtSub(sx, sy);
+      return t === 1 || t === 4 || t === 11 || t === 9;
+    }
+    const tx = Math.floor(jx / tileSize);
+    const ty = Math.floor(jy / tileSize);
     if (tx < 2 || ty < 2 || tx >= width - 2 || ty >= height - 2) return false;
     const idx = ty * width + tx;
     if (collision && collision[idx] === 1) return false;
@@ -1787,20 +1800,17 @@ export function updateStreetLife(
     const curSpeed = jg.speed * (sprinting ? 1.25 : 1.0);
     const nx = jg.x + jg.dx * curSpeed * dt;
     const ny = jg.y + jg.dy * curSpeed * dt;
-    const ntx = Math.floor((nx + jg.dx * 5) / tileSize);
-    const nty = Math.floor((ny + jg.dy * 5) / tileSize);
-    if (isJogTile(ntx, nty)) {
+    if (isJogPx(nx + jg.dx * 5, ny + jg.dy * 5)) {
       jg.x = nx;
       jg.y = ny;
     } else {
       // Pick a clean continuing sidewalk turn (prefer turning 90°, else reverse)
-      const curTx = Math.floor(jg.x / tileSize);
-      const curTy = Math.floor(jg.y / tileSize);
+      const stepProbe = useSubJog ? 8 : tileSize;
       const turns = [
         { dx: -jg.dy, dy: jg.dx },
         { dx: jg.dy, dy: -jg.dx },
         { dx: -jg.dx, dy: -jg.dy },
-      ].filter((d) => isJogTile(curTx + d.dx, curTy + d.dy));
+      ].filter((d) => isJogPx(jg.x + d.dx * stepProbe, jg.y + d.dy * stepProbe));
       if (turns.length > 0) {
         const chosen = turns[Math.floor(jg.animTimer) % turns.length];
         jg.dx = chosen.dx;

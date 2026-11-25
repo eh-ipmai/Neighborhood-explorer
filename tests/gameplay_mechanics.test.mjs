@@ -16,6 +16,7 @@ import {
   updateRoadTraffic,
   checkTrafficCollision,
 } from "../src/traffic.js";
+import { getNavigationSubgrid } from "../src/subgrid.js";
 import { HERO_OUTFITS } from "../src/characters.js";
 import { computeRoadTileMarkings } from "../src/road_markings.js";
 import { createSafetySystem, resolveActionIntent } from "../src/safety.js";
@@ -186,11 +187,13 @@ test("road traffic has heavy highway cars & trucks, lighter side-street traffic,
   );
   assert.ok(sideStreetVehicles.length >= 3, "side streets should still have some occasional traffic");
 
-  // Every vehicle starts on a drivable road tile
+  // Every vehicle starts strictly on a drivable 4px vector-road sub-cell (NEVER on a sidewalk!)
+  const subgrid = getNavigationSubgrid(worldMap);
   for (const v of traffic.vehicles) {
-    const tx = Math.floor(v.x / 16);
-    const ty = Math.floor(v.y / 16);
-    assert.ok(drivable.has(base[ty * width + tx]), `vehicle ${v.id} must spawn on a road tile`);
+    assert.ok(
+      subgrid.isDrivableAtPx(v.x, v.y),
+      `vehicle ${v.id} at (${v.x.toFixed(1)}, ${v.y.toFixed(1)}) must spawn strictly on drivable road asphalt, not sidewalk`
+    );
   }
 
   // Annoying bikers shout chants and trigger onBikerAnnoy when near Liam!
