@@ -91,11 +91,47 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
       const tx = Math.min(width - 1, Math.floor(px * stepX));
       const idx = rowOffset + tx;
       const id = base[idx];
+      const isRoadId = id === 2 || id === 3 || id === 4 || id === 12 || id === 13;
       const isGraveTurf = graveyardGrid[idx] !== 0 && (id === 0 || id === 7 || id === 11);
+      // When vectorRoads is available, let crisp curved vector roads paint over soft parchment ground!
+      const fallbackId = worldMap.vectorRoads?.roads?.length && isRoadId ? 1 : id;
       bCtx.fillStyle =
-        buildingInkGrid[idx] || (isGraveTurf ? "#8a8ea3" : MAP_TILE_INK[id] || MAP_TILE_INK[0]);
+        buildingInkGrid[idx] || (isGraveTurf ? "#8a8ea3" : MAP_TILE_INK[fallbackId] || MAP_TILE_INK[0]);
       bCtx.fillRect(px, py, 1, 1);
     }
+  }
+
+  // Draw crisp, true-curve OpenStreetMap vector roads onto the Folded Paper Map when available!
+  if (worldMap.vectorRoads?.roads?.length) {
+    const scaleX = MAP_PX / width;
+    const scaleY = MAP_PX / height;
+    const classOrder = { residential: 0, main: 1, highway: 2 };
+    const sortedRoads = worldMap.vectorRoads.roads
+      .slice()
+      .sort((a, b) => (classOrder[a.cls] || 0) - (classOrder[b.cls] || 0));
+
+    bCtx.save();
+    bCtx.imageSmoothingEnabled = true;
+    bCtx.lineCap = "round";
+    bCtx.lineJoin = "round";
+    for (const r of sortedRoads) {
+      const pts = r.pts;
+      if (!pts || pts.length < 4) continue;
+      bCtx.strokeStyle =
+        r.cls === "highway"
+          ? MAP_TILE_INK[12]
+          : r.cls === "main"
+            ? MAP_TILE_INK[3]
+            : MAP_TILE_INK[2];
+      bCtx.lineWidth = r.cls === "highway" ? 2.4 : r.cls === "main" ? 1.8 : 1.05;
+      bCtx.beginPath();
+      bCtx.moveTo(pts[0] * scaleX, pts[1] * scaleY);
+      for (let i = 2; i + 1 < pts.length; i += 2) {
+        bCtx.lineTo(pts[i] * scaleX, pts[i + 1] * scaleY);
+      }
+      bCtx.stroke();
+    }
+    bCtx.restore();
   }
 
   // Stamp non-residential building footprints directly onto baseCanvas so even narrow 1-tile schools

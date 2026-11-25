@@ -83,6 +83,7 @@ import {
 } from "./streetlife.js";
 import { buildRoadTraffic, updateRoadTraffic } from "./traffic.js";
 import { computeRoadTileMarkings } from "./road_markings.js";
+import { createVectorRoadRenderer } from "./vector_roads.js";
 
 const VIEW_W = 320;
 const VIEW_H = 180;
@@ -3619,23 +3620,61 @@ async function boot() {
     }
   }
 
-  // --- 16x16-tile Offscreen Ground Chunk Cache (300x fewer draw calls for 60 FPS on iPad!) ---
-  const GROUND_CHUNK_TILES = 16;
-  const MAX_GROUND_CHUNKS = 56;
+  // --- 8x8-tile Offscreen 4x HD Ground Chunk Cache (512x512 native HD px = 10.67 px/m for crisp vector streets!) ---
+  const GROUND_CHUNK_TILES = 8;
+  const CHUNK_SCALE = 4;
+  const MAX_GROUND_CHUNKS = 48;
   const groundChunkCache = new Map();
+  const vectorRoadRenderer = createVectorRoadRenderer(worldMap, GROUND_CHUNK_TILES);
+  const useVectorRoads = vectorRoadRenderer.hasVectorRoads();
 
   function blitAtlasToCtx(ctx, name, xLog, yLog) {
     const spr = atlas[name];
     if (!spr) return;
     const ps = spr.__pixelScale || 1;
-    ctx.drawImage(spr, xLog * 2, yLog * 2, spr.width * ps * 2, spr.height * ps * 2);
+    ctx.drawImage(
+      spr,
+      xLog * CHUNK_SCALE,
+      yLog * CHUNK_SCALE,
+      spr.width * ps * CHUNK_SCALE,
+      spr.height * ps * CHUNK_SCALE
+    );
   }
 
   function fillRectHD(ctx, xLog, yLog, wLog, hLog, css, alpha = 1) {
     if (alpha < 1) ctx.globalAlpha = alpha;
     ctx.fillStyle = css;
-    ctx.fillRect(xLog * 2, yLog * 2, wLog * 2, hLog * 2);
+    ctx.fillRect(xLog * CHUNK_SCALE, yLog * CHUNK_SCALE, wLog * CHUNK_SCALE, hLog * CHUNK_SCALE);
     if (alpha < 1) ctx.globalAlpha = 1;
+  }
+
+  /**
+   * When 4x HD vector roads are active, infer clean underlying natural ground/sidewalk beneath
+   * legacy tile-grid road cells so zero jagged square asphalt corners peek out around smooth curves!
+   */
+  function inferVectorRoadUnderlayTile(tx, ty) {
+    let parkVotes = 0;
+    let grassVotes = 0;
+    let sidewalkVotes = 0;
+    let graveVotes = 0;
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = tx + dx;
+        const ny = ty + dy;
+        if (nx < 0 || ny < 0 || nx >= mapW || ny >= mapH) continue;
+        const nt = baseLayer[ny * mapW + nx];
+        const w = Math.abs(dx) <= 1 && Math.abs(dy) <= 1 ? 2 : 1;
+        if (nt === 1) sidewalkVotes += w;
+        else if (nt === 11 || nt === 7) parkVotes += w;
+        else if (nt === 0 || nt === 5) grassVotes += w;
+        if (graveyardFeatures.graveyardGrid[ny * mapW + nx] !== 0) graveVotes += w;
+      }
+    }
+    if (graveVotes >= 4) return "grave";
+    if (parkVotes >= sidewalkVotes && parkVotes >= grassVotes && parkVotes > 0) return 11;
+    if (sidewalkVotes >= grassVotes && sidewalkVotes > 0) return 1;
+    return 0;
   }
 
   function roadAsphaltCss(roadId) {
@@ -3652,12 +3691,12 @@ async function boot() {
     return "#cfc4ba"; // crisp concrete sidewalk
   }
 
-  // Smooth 2x HD curved outer corner on a road tile (turns jagged 90° stair-step bends into real curved asphalt!)
+  // Smooth curved outer corner on a road tile (legacy tile-road fallback when vectorRoads is absent)
   function drawRoadOuterCornerHD(ctx, lx, ly, corner, outerTileId, showShoulder) {
-    const x0 = lx * 2;
-    const y0 = ly * 2;
-    const S = tileSize * 2; // 32 HD px
-    const r = 10; // 5 logical px corner rounding radius
+    const x0 = lx * CHUNK_SCALE;
+    const y0 = ly * CHUNK_SCALE;
+    const S = tileSize * CHUNK_SCALE;
+    const r = 5 * CHUNK_SCALE; // 5 logical px corner rounding radius
     let vx, vy, cx, cy, a0, a1;
     if (corner === "nw") {
       vx = x0; vy = y0; cx = x0 + r; cy = y0 + r; a0 = Math.PI; a1 = Math.PI * 1.5;
@@ -3669,41 +3708,38 @@ async function boot() {
       vx = x0 + S; vy = y0 + S; cx = x0 + S - r; cy = y0 + S - r; a0 = 0; a1 = Math.PI * 0.5;
     }
     ctx.save();
-    // 1. Fill outside of the curve with the adjacent sidewalk/park grass color
     ctx.beginPath();
     ctx.moveTo(vx, vy);
     ctx.arc(cx, cy, r, a0, a1);
     ctx.closePath();
     ctx.fillStyle = outerGroundCss(outerTileId);
     ctx.fill();
-    // 2. Curved 3D granite curb + dark gutter arc!
     ctx.beginPath();
     ctx.arc(cx, cy, r, a0, a1);
     ctx.strokeStyle = "rgb(66,52,54)";
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 1.25 * CHUNK_SCALE;
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(cx, cy, r + 1.5, a0, a1);
+    ctx.arc(cx, cy, r + 0.75 * CHUNK_SCALE, a0, a1);
     ctx.strokeStyle = "rgb(223,208,200)";
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = 0.7 * CHUNK_SCALE;
     ctx.stroke();
-    // 3. Smooth curved white shoulder arc for avenues & highways
     if (showShoulder) {
       ctx.beginPath();
-      ctx.arc(cx, cy, Math.max(2, r - 2.6), a0, a1);
+      ctx.arc(cx, cy, Math.max(2, r - 1.3 * CHUNK_SCALE), a0, a1);
       ctx.strokeStyle = "rgba(242,246,250,0.85)";
-      ctx.lineWidth = 1.8;
+      ctx.lineWidth = 0.9 * CHUNK_SCALE;
       ctx.stroke();
     }
     ctx.restore();
   }
 
-  // Smooth 2x HD curved inner asphalt fillet on a sidewalk/grass corner tucked inside a 90° road bend!
+  // Smooth curved inner asphalt fillet on a sidewalk/grass corner (legacy tile-road fallback)
   function drawRoadInnerFilletHD(ctx, lx, ly, corner, roadTileId) {
-    const x0 = lx * 2;
-    const y0 = ly * 2;
-    const S = tileSize * 2;
-    const r = 10;
+    const x0 = lx * CHUNK_SCALE;
+    const y0 = ly * CHUNK_SCALE;
+    const S = tileSize * CHUNK_SCALE;
+    const r = 5 * CHUNK_SCALE;
     let vx, vy, cx, cy, a0, a1;
     if (corner === "se") {
       vx = x0 + S; vy = y0 + S; cx = x0 + S - r; cy = y0 + S - r; a0 = 0; a1 = Math.PI * 0.5;
@@ -3721,16 +3757,15 @@ async function boot() {
     ctx.closePath();
     ctx.fillStyle = roadAsphaltCss(roadTileId);
     ctx.fill();
-    // Curved granite curb bevel hugging the inner corner of the sidewalk/median!
     ctx.beginPath();
     ctx.arc(cx, cy, r, a0, a1);
     ctx.strokeStyle = "rgb(66,52,54)";
-    ctx.lineWidth = 2.4;
+    ctx.lineWidth = 1.2 * CHUNK_SCALE;
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(cx, cy, Math.max(2, r - 2), a0, a1);
+    ctx.arc(cx, cy, Math.max(2, r - CHUNK_SCALE), a0, a1);
     ctx.strokeStyle = "rgb(223,208,200)";
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = 0.7 * CHUNK_SCALE;
     ctx.stroke();
     ctx.restore();
   }
@@ -3772,9 +3807,9 @@ async function boot() {
     const tilesH = Math.max(1, ty1 - ty0 + 1);
 
     const canvas = document.createElement("canvas");
-    canvas.width = tilesW * tileSize * 2;
-    canvas.height = tilesH * tileSize * 2;
-    canvas.__pixelScale = 0.5;
+    canvas.width = tilesW * tileSize * CHUNK_SCALE;
+    canvas.height = tilesH * tileSize * CHUNK_SCALE;
+    canvas.__pixelScale = 1 / CHUNK_SCALE;
     const ctx = canvas.getContext("2d", { alpha: false });
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = "#3e2a24";
@@ -3788,9 +3823,21 @@ async function boot() {
       const ly = (ty - ty0) * tileSize;
       for (let tx = tx0; tx <= tx1; tx++) {
         const lx = (tx - tx0) * tileSize;
-        const tileId = baseLayer[rowOff + tx];
+        const rawTileId = baseLayer[rowOff + tx];
         const pattern = (tx * 7 + ty * 13) & 15;
         const inGraveyard = graveGrid[rowOff + tx] !== 0;
+
+        // When 4x HD vector roads are active, paint clean underlying sidewalk/turf beneath road cells
+        // so the vector road pass can stroke silky-smooth curved asphalt, curbs & yellow lines cleanly on top!
+        let tileId = rawTileId;
+        if (useVectorRoads && isRoadTile(rawTileId)) {
+          const underlay = inferVectorRoadUnderlayTile(tx, ty);
+          if (underlay === "grave") {
+            blitAtlasToCtx(ctx, ((tx + ty) & 1) === 0 ? "grave_grass_0" : "grave_grass_1", lx, ly);
+            continue;
+          }
+          tileId = underlay;
+        }
 
         if (inGraveyard && (tileId === 0 || tileId === 11 || tileId === 7 || (tileId === 5 && hasPerAddressBuildings))) {
           if (tileId !== 5 && pattern === 0) {
@@ -3803,24 +3850,24 @@ async function boot() {
         }
 
         if (tileId === 0 || (tileId === 5 && hasPerAddressBuildings)) {
-          if (tileId === 0 && pattern === 0) {
+          if (tileId === 0 && rawTileId === 0 && pattern === 0) {
             blitAtlasToCtx(ctx, "grass_flower_0", lx, ly);
             animatedTiles.push({ tx, ty, tileId });
           } else {
             blitAtlasToCtx(ctx, `grass_${pattern % 3}`, lx, ly);
           }
-          if (tileId === 0) drawParkwayMedianCurbsHD(ctx, lx, ly, tx, ty);
+          if (tileId === 0 && !useVectorRoads) drawParkwayMedianCurbsHD(ctx, lx, ly, tx, ty);
           continue;
         }
 
         if (tileId === 11) {
-          if (pattern === 1 && ((tx + ty) & 3) === 0) {
+          if (rawTileId === 11 && pattern === 1 && ((tx + ty) & 3) === 0) {
             blitAtlasToCtx(ctx, "park_flower_0", lx, ly);
             animatedTiles.push({ tx, ty, tileId });
           } else {
             blitAtlasToCtx(ctx, ((tx >> 1) & 1) === 0 ? "park_0" : "park_1", lx, ly);
           }
-          drawParkwayMedianCurbsHD(ctx, lx, ly, tx, ty);
+          if (!useVectorRoads) drawParkwayMedianCurbsHD(ctx, lx, ly, tx, ty);
           continue;
         }
 
@@ -3886,7 +3933,7 @@ async function boot() {
         if (tileId === 1) {
           blitAtlasToCtx(ctx, (tx + ty) % 2 === 0 ? "sidewalk_0" : "sidewalk_1", lx, ly);
           const isEarth = (id) => id === 9 || id === 10;
-          if (isRoadTile(s)) {
+          if (!useVectorRoads && isRoadTile(s)) {
             fillRectHD(ctx, lx, ly + 13, 16, 1, "rgb(223,208,200)");
             fillRectHD(ctx, lx, ly + 14, 16, 1, "rgb(107,89,91)");
             fillRectHD(ctx, lx, ly + 15, 16, 1, "rgb(66,52,54)");
@@ -3895,7 +3942,7 @@ async function boot() {
           } else if (isEarth(s)) {
             fillRectHD(ctx, lx, ly + 15, 16, 1, "rgb(142,108,72)", 0.4);
           }
-          if (isRoadTile(n)) {
+          if (!useVectorRoads && isRoadTile(n)) {
             fillRectHD(ctx, lx, ly, 16, 1, "rgb(66,52,54)");
             fillRectHD(ctx, lx, ly + 1, 16, 1, "rgb(107,89,91)");
             fillRectHD(ctx, lx, ly + 2, 16, 1, "rgb(223,208,200)");
@@ -3904,7 +3951,7 @@ async function boot() {
           } else if (isEarth(n)) {
             fillRectHD(ctx, lx, ly, 16, 1, "rgb(142,108,72)", 0.4);
           }
-          if (isRoadTile(e)) {
+          if (!useVectorRoads && isRoadTile(e)) {
             fillRectHD(ctx, lx + 13, ly, 1, 16, "rgb(223,208,200)");
             fillRectHD(ctx, lx + 14, ly, 1, 16, "rgb(107,89,91)");
             fillRectHD(ctx, lx + 15, ly, 1, 16, "rgb(66,52,54)");
@@ -3913,7 +3960,7 @@ async function boot() {
           } else if (isEarth(e)) {
             fillRectHD(ctx, lx + 15, ly, 1, 16, "rgb(142,108,72)", 0.4);
           }
-          if (isRoadTile(w)) {
+          if (!useVectorRoads && isRoadTile(w)) {
             fillRectHD(ctx, lx, ly, 1, 16, "rgb(66,52,54)");
             fillRectHD(ctx, lx + 1, ly, 1, 16, "rgb(107,89,91)");
             fillRectHD(ctx, lx + 2, ly, 1, 16, "rgb(223,208,200)");
@@ -3922,11 +3969,13 @@ async function boot() {
           } else if (isEarth(w)) {
             fillRectHD(ctx, lx, ly, 1, 16, "rgb(142,108,72)", 0.4);
           }
-          // Smooth curved inner sidewalk fillets wherever roads bend cleanly around this sidewalk corner!
-          if (isRoadTile(s) && isRoadTile(e) && isRoadTile(tileAt(tx + 1, ty + 1))) drawRoadInnerFilletHD(ctx, lx, ly, "se", s);
-          if (isRoadTile(s) && isRoadTile(w) && isRoadTile(tileAt(tx - 1, ty + 1))) drawRoadInnerFilletHD(ctx, lx, ly, "sw", s);
-          if (isRoadTile(n) && isRoadTile(e) && isRoadTile(tileAt(tx + 1, ty - 1))) drawRoadInnerFilletHD(ctx, lx, ly, "ne", n);
-          if (isRoadTile(n) && isRoadTile(w) && isRoadTile(tileAt(tx - 1, ty - 1))) drawRoadInnerFilletHD(ctx, lx, ly, "nw", n);
+          if (!useVectorRoads) {
+            // Smooth curved inner sidewalk fillets wherever roads bend cleanly around this sidewalk corner!
+            if (isRoadTile(s) && isRoadTile(e) && isRoadTile(tileAt(tx + 1, ty + 1))) drawRoadInnerFilletHD(ctx, lx, ly, "se", s);
+            if (isRoadTile(s) && isRoadTile(w) && isRoadTile(tileAt(tx - 1, ty + 1))) drawRoadInnerFilletHD(ctx, lx, ly, "sw", s);
+            if (isRoadTile(n) && isRoadTile(e) && isRoadTile(tileAt(tx + 1, ty - 1))) drawRoadInnerFilletHD(ctx, lx, ly, "ne", n);
+            if (isRoadTile(n) && isRoadTile(w) && isRoadTile(tileAt(tx - 1, ty - 1))) drawRoadInnerFilletHD(ctx, lx, ly, "nw", n);
+          }
           continue;
         }
 
@@ -4027,6 +4076,19 @@ async function boot() {
           fillRectHD(ctx, lx, ly, tileSize, tileSize, "rgb(140,109,98)");
         }
       }
+    }
+
+    // Paint silky-smooth 4x HD real-geometry OpenStreetMap vector roads, curbs, double-yellow
+    // centerlines, multi-lane white dashes, highway Jersey medians & angled zebra crosswalks!
+    if (useVectorRoads) {
+      vectorRoadRenderer.renderChunkRoads(ctx, {
+        tx0,
+        ty0,
+        tilesW,
+        tilesH,
+        tileSize,
+        scale: CHUNK_SCALE,
+      });
     }
 
     return {

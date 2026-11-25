@@ -11,6 +11,7 @@
     "build:map": "node scripts/build_map.mjs",
     "build:map:offline": "node scripts/build_map.mjs --offline",
     "build:map:enrich": "node scripts/build_map.mjs --enrich",
+    "build:map:roads": "node scripts/build_map.mjs --enrich-roads",
     "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {

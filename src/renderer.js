@@ -46,12 +46,12 @@ function normalizeKey(key) {
 
 /**
  * Pure HTML5 2D Canvas fallback renderer with identical API to our Kaplay wrapper.
- * Renders at 2x HD pixel density (640x360 for 320x180 logical world) so 32-bit
- * pixel-driven character sprites shine at full crisp 1:1 pixel resolution while
- * keeping all world tile coordinates & physics cleanly in 320x180 space!
+ * Renders at 4x HD pixel density (1280x720 for 320x180 logical world) so HD vector
+ * streets, smooth curved curbs, double-yellow centerlines & crosswalks render at
+ * razor-sharp 720p while 16-bit & 32-bit pixel sprites stay crisp exact integer scales!
  */
 function createCanvas2DRenderer({ canvas, width, height, background }) {
-  const HD = 2;
+  const HD = 4;
   canvas.width = width * HD;
   canvas.height = height * HD;
   const ctx = canvas.getContext("2d", { alpha: false });
@@ -209,8 +209,9 @@ function createCanvas2DRenderer({ canvas, width, height, background }) {
       const ps = offscreenCanvas.__pixelScale || 1;
       const dw = offscreenCanvas.width * ps;
       const dh = offscreenCanvas.height * ps;
-      const dx = ps === 0.5 ? Math.round(x * 2) / 2 : Math.round(x);
-      const dy = ps === 0.5 ? Math.round(y * 2) / 2 : Math.round(y);
+      const step = ps < 1 ? Math.round(1 / ps) : 1;
+      const dx = step > 1 ? Math.round(x * step) / step : Math.round(x);
+      const dy = step > 1 ? Math.round(y * step) / step : Math.round(y);
       if (opacity < 1) {
         ctx.save();
         ctx.globalAlpha = opacity;
@@ -255,7 +256,7 @@ export function createRenderer({
 }) {
   if (!isIPadOrIOSDevice() && isWebGLSupported()) {
     try {
-      const HD = 2;
+      const HD = 4;
       const k = kaplay({
         width: width * HD,
         height: height * HD,
@@ -364,8 +365,9 @@ export function createRenderer({
           if (!offscreenCanvas) return;
           const ps = offscreenCanvas.__pixelScale || 1;
           const scaleOpt = ps !== 1 ? { scale: k.vec2(ps, ps) } : {};
-          const dx = ps === 0.5 ? Math.round(x * 2) / 2 : Math.round(x);
-          const dy = ps === 0.5 ? Math.round(y * 2) / 2 : Math.round(y);
+          const step = ps < 1 ? Math.round(1 / ps) : 1;
+          const dx = step > 1 ? Math.round(x * step) / step : Math.round(x);
+          const dy = step > 1 ? Math.round(y * step) / step : Math.round(y);
           if (dynamicReady.has(key)) {
             k.drawSprite({
               sprite: key,

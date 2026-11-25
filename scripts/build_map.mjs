@@ -17,6 +17,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { extractVectorRoadsFromOsm, buildOfflineVectorRoads } from "../src/vector_roads.js";
 
 dns.setDefaultResultOrder("ipv4first");
 
@@ -4691,6 +4692,14 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     }
   }
 
+  const vectorRoads = extractVectorRoadsFromOsm(elements, {
+    width,
+    height,
+    mapCenter,
+    origin,
+    scaleMetersPerTile,
+  });
+
   return {
     tileSize,
     scaleMetersPerTile,
@@ -4707,6 +4716,7 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     },
     streetZones,
     buildings: cleanBuildings,
+    vectorRoads,
   };
 }
 
@@ -4908,7 +4918,7 @@ export function buildOfflineMap(config = {}) {
     },
   ];
 
-  return {
+  const offlineMap = {
     tileSize,
     scaleMetersPerTile,
     origin: {
@@ -4921,6 +4931,8 @@ export function buildOfflineMap(config = {}) {
     streetZones,
     buildings: cleanOfflineBuildings,
   };
+  offlineMap.vectorRoads = buildOfflineVectorRoads(offlineMap);
+  return offlineMap;
 }
 
 async function fetchOsmChunk(bbox, label = "") {
@@ -5004,11 +5016,98 @@ out tags geom;
 }
 
 /**
+ * Fetch complete raw OpenStreetMap elements via the official OSM API v0.6 tiled bbox endpoint.
+ * Fast, globally portable, and avoids Overpass gateway timeouts when splitting into ~600m tiles.
+ */
+async function fetchOsmApiGrid(bbox, gridMeters) {
+  const cacheKey = `${bbox.south.toFixed(5)}_${bbox.west.toFixed(5)}_${bbox.north.toFixed(5)}_${bbox.east.toFixed(5)}`;
+  const cacheDir = path.join(os.tmpdir(), "neighborhood_explorer_osm_api_cache_v1");
+  const cacheFile = path.join(cacheDir, `${cacheKey}.json`);
+  if (fs.existsSync(cacheFile)) {
+    try {
+      const cached = JSON.parse(fs.readFileSync(cacheFile, "utf8"));
+      if (Array.isArray(cached) && cached.length > 0) {
+        console.log(`Using cached OSM API grid (${cached.length} features)`);
+        return cached;
+      }
+    } catch {
+      // Ignore corrupt cache
+    }
+  }
+
+  // Also reuse local temp full-OSM cache if present for matching Newton bbox
+  const quickCache = path.join(os.tmpdir(), "newton_osm_full.json");
+  if (
+    Math.abs(bbox.south - 42.3154) < 0.001 &&
+    Math.abs(bbox.north - 42.343) < 0.001 &&
+    fs.existsSync(quickCache)
+  ) {
+    try {
+      const cached = JSON.parse(fs.readFileSync(quickCache, "utf8"));
+      if (Array.isArray(cached) && cached.length > 0) {
+        console.log(`Using pre-fetched Newton OSM cache (${cached.length} features)`);
+        return cached;
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  const tilesPerSide = gridMeters > 2400 ? 5 : gridMeters > 1400 ? 3 : 2;
+  const total = tilesPerSide * tilesPerSide;
+  const latStep = (bbox.north - bbox.south) / tilesPerSide;
+  const lonStep = (bbox.east - bbox.west) / tilesPerSide;
+  const dedup = new Map();
+
+  let n = 0;
+  for (let r = 0; r < tilesPerSide; r++) {
+    for (let c = 0; c < tilesPerSide; c++) {
+      n++;
+      const s = bbox.south + r * latStep;
+      const north = bbox.south + (r + 1) * latStep;
+      const w = bbox.west + c * lonStep;
+      const e = bbox.west + (c + 1) * lonStep;
+      const url = `https://api.openstreetmap.org/api/0.6/map.json?bbox=${w.toFixed(6)},${s.toFixed(6)},${e.toFixed(6)},${north.toFixed(6)}`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30000);
+      const res = await fetch(url, {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "NeighborhoodExplorerRPG/0.1 (educational kid RPG project)",
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error(`OSM API tile ${n}/${total} HTTP ${res.status}`);
+      const data = await res.json();
+      for (const el of data.elements || []) {
+        dedup.set(`${el.type}:${el.id}`, el);
+      }
+      if (n % 5 === 0 || n === total) {
+        console.log(`  OSM API tile ${n}/${total} done (${dedup.size} unique features)`);
+      }
+    }
+  }
+
+  const all = Array.from(dedup.values());
+  fs.mkdirSync(cacheDir, { recursive: true });
+  fs.writeFileSync(cacheFile, JSON.stringify(all), "utf8");
+  return all;
+}
+
+/**
  * Automatically split large bounding boxes into ~1km x 1km Overpass tiles so
  * big neighborhood maps (e.g., 3km x 3km covering Home Base -> Newton Free Library)
  * fetch reliably without Overpass gateway timeouts, deduplicating elements by type+id.
+ * Falls back cleanly to official OSM API v0.6 tiled grid if Overpass is overloaded.
  */
 async function fetchOsmElements(bbox, gridMeters) {
+  try {
+    return await fetchOsmApiGrid(bbox, gridMeters);
+  } catch (apiErr) {
+    console.warn(`OSM API grid fetch failed (${apiErr.message}); falling back to Overpass API...`);
+  }
+
   const chunksPerSide = gridMeters > 2100 ? 3 : gridMeters > 1100 ? 2 : 1;
   if (chunksPerSide === 1) {
     return fetchOsmChunk(bbox);
@@ -5698,6 +5797,7 @@ function parseCliArgs(argv) {
   const args = {
     offline: false,
     enrich: false,
+    enrichRoads: false,
     lat: DEFAULT_CONFIG.origin.lat,
     lon: DEFAULT_CONFIG.origin.lon,
     centerLat: DEFAULT_CONFIG.mapCenter.lat,
@@ -5715,6 +5815,7 @@ function parseCliArgs(argv) {
     const a = argv[i];
     if (a === "--offline") args.offline = true;
     else if (a === "--enrich") args.enrich = true;
+    else if (a === "--enrich-roads") args.enrichRoads = true;
     else if (a === "--lat" && argv[i + 1]) { args.lat = Number(argv[++i]); args.customOrigin = true; }
     else if (a === "--lon" && argv[i + 1]) { args.lon = Number(argv[++i]); args.customOrigin = true; }
     else if (a === "--center-lat" && argv[i + 1]) { args.centerLat = Number(argv[++i]); args.customCenter = true; }
@@ -5750,7 +5851,31 @@ async function main() {
   };
 
   let worldMap;
-  if (args.enrich) {
+  if (args.enrichRoads) {
+    console.log(`Enriching ${args.out} with real-geometry OpenStreetMap HD vectorRoads...`);
+    const existing = JSON.parse(fs.readFileSync(args.out, "utf8"));
+    const mc = existing.mapCenter || existing.origin || config.mapCenter;
+    const w = existing.dimensions.width;
+    const h = existing.dimensions.height;
+    const scale = existing.scaleMetersPerTile || config.scaleMetersPerTile;
+    const bbox = computeBoundingBox(mc.lat, mc.lon, w, h, scale);
+    const gridMeters = Math.max(w, h) * scale;
+    const elements = await fetchOsmElements(bbox, gridMeters);
+    const vectorRoads = extractVectorRoadsFromOsm(elements, {
+      width: w,
+      height: h,
+      mapCenter: mc,
+      origin: existing.origin,
+      scaleMetersPerTile: scale,
+    });
+    console.log(
+      `Extracted vectorRoads: ${vectorRoads.roads.length} road polylines, ${vectorRoads.crosswalks.length} angled crosswalks, ${vectorRoads.turningCircles.length} cul-de-sacs, ${vectorRoads.medians.length} divided-highway medians`
+    );
+    worldMap = {
+      ...existing,
+      vectorRoads,
+    };
+  } else if (args.enrich) {
     console.log(`Enriching existing ${args.out} with high-fidelity terrain & building varieties...`);
     const existing = JSON.parse(fs.readFileSync(args.out, "utf8"));
     worldMap = enrichWorldMap(existing);
