@@ -70,8 +70,8 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
     }
   }
 
-  // Bake full miniature parchment base map ONCE (256x256 px) so opening the map is instant
-  const MAP_PX = 256;
+  // Bake full miniature parchment base map ONCE (512x512 px = 1:1 world fidelity) so large full-screen map stays razor-sharp!
+  const MAP_PX = 512;
   const baseCanvas = document.createElement("canvas");
   baseCanvas.width = MAP_PX;
   baseCanvas.height = MAP_PX;
@@ -123,7 +123,7 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
           : r.cls === "main"
             ? MAP_TILE_INK[3]
             : MAP_TILE_INK[2];
-      bCtx.lineWidth = r.cls === "highway" ? 2.4 : r.cls === "main" ? 1.8 : 1.05;
+      bCtx.lineWidth = r.cls === "highway" ? 4.4 : r.cls === "main" ? 3.2 : 1.9;
       bCtx.beginPath();
       bCtx.moveTo(pts[0] * scaleX, pts[1] * scaleY);
       for (let i = 2; i + 1 < pts.length; i += 2) {
@@ -135,7 +135,7 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
   }
 
   // Stamp non-residential building footprints directly onto baseCanvas so even narrow 1-tile schools
-  // or fire stations never vanish during 512->256 downsampling!
+  // or fire stations pop crisply on the full-size parchment map!
   for (const b of worldMap.buildings || []) {
     if (!b.bounds) continue;
     const cat = getBuildingVisualCategory(b, colorOverrideMap);
@@ -143,8 +143,8 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
     if (!ink || cat === "apartments" || cat === "greenhouse") continue;
     const rx = Math.floor((b.bounds.minX / width) * MAP_PX);
     const ry = Math.floor((b.bounds.minY / height) * MAP_PX);
-    const rw = Math.max(2, Math.ceil(((b.bounds.maxX - b.bounds.minX + 1) / width) * MAP_PX));
-    const rh = Math.max(2, Math.ceil(((b.bounds.maxY - b.bounds.minY + 1) / height) * MAP_PX));
+    const rw = Math.max(4, Math.ceil(((b.bounds.maxX - b.bounds.minX + 1) / width) * MAP_PX));
+    const rh = Math.max(4, Math.ceil(((b.bounds.maxY - b.bounds.minY + 1) / height) * MAP_PX));
     bCtx.fillStyle = "#2b2112";
     bCtx.fillRect(rx - 1, ry - 1, rw + 2, rh + 2);
     bCtx.fillStyle = ink;
@@ -188,8 +188,8 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
         // Soft ink-dotted fog motif
         if ((gx * 7 + gy * 11) % 5 === 0) {
           ctx.fillStyle = "rgba(138, 114, 78, 0.25)";
-          ctx.fillRect(x + 2, y + 3, 3, 1);
-          ctx.fillRect(x + 3, y + 2, 2, 1);
+          ctx.fillRect(x + 4, y + 6, 6, 2);
+          ctx.fillRect(x + 6, y + 4, 4, 2);
         }
       }
     }
@@ -197,15 +197,15 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
     // 3. Hand-folded paper creases (3 vertical panels x 2 horizontal folds)
     for (const fx of [Math.floor(MAP_PX / 3), Math.floor((MAP_PX * 2) / 3)]) {
       ctx.fillStyle = "rgba(74, 54, 28, 0.2)";
-      ctx.fillRect(fx, 0, 1, MAP_PX);
+      ctx.fillRect(fx, 0, 2, MAP_PX);
       ctx.fillStyle = "rgba(255, 250, 236, 0.3)";
-      ctx.fillRect(fx + 1, 0, 1, MAP_PX);
+      ctx.fillRect(fx + 2, 0, 2, MAP_PX);
     }
     const fy = Math.floor(MAP_PX / 2);
     ctx.fillStyle = "rgba(74, 54, 28, 0.2)";
-    ctx.fillRect(0, fy, MAP_PX, 1);
+    ctx.fillRect(0, fy, MAP_PX, 2);
     ctx.fillStyle = "rgba(255, 250, 236, 0.3)";
-    ctx.fillRect(0, fy + 1, MAP_PX, 1);
+    ctx.fillRect(0, fy + 2, MAP_PX, 2);
 
     // 4. Checked Street-Sign Pins (green corner stamps logged by the explorer!)
     const checkedSigns = questSystem.state.checkedSigns || new Set();
@@ -220,9 +220,9 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
         const sx = Math.round((s.tx / width) * MAP_PX);
         const sy = Math.round((s.ty / height) * MAP_PX);
         ctx.fillStyle = "#163a28";
-        ctx.fillRect(sx - 2, sy - 2, 5, 5);
+        ctx.fillRect(sx - 4, sy - 4, 9, 9);
         ctx.fillStyle = "#2ecc71";
-        ctx.fillRect(sx - 1, sy - 1, 3, 3);
+        ctx.fillRect(sx - 2, sy - 2, 5, 5);
       }
     }
 
@@ -231,25 +231,26 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
     if (gpsAssist && objective) {
       const ox = Math.round((objective.tileX / width) * MAP_PX);
       const oy = Math.round((objective.tileY / height) * MAP_PX);
-      const pulse = 5 + Math.sin(timeSec * 5) * 2;
+      const pulse = 10 + Math.sin(timeSec * 5) * 4;
       ctx.strokeStyle = "#e09f24";
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.arc(ox, oy, pulse, 0, Math.PI * 2);
       ctx.stroke();
 
       ctx.fillStyle = "#f4d35e";
-      ctx.fillRect(ox - 2, oy - 2, 5, 5);
+      ctx.fillRect(ox - 4, oy - 4, 9, 9);
       ctx.strokeStyle = "#2e2010";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(ox - 2.5, oy - 2.5, 6, 6);
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(ox - 4.5, oy - 4.5, 10, 10);
     }
 
     // 6. Landmark pins:
     //    In Signpost Mode: only Home Base and discovered landmarks appear so directions stay exciting!
     //    In GPS Assist Mode: undiscovered landmarks also show as subtle amber stars.
-    ctx.font = "bold 7px monospace";
+    ctx.font = "bold 11px monospace";
     ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
     for (const lm of questSystem.landmarks) {
       const discovered = questSystem.state.discoveredLandmarks.has(lm.id);
       const isObjective = gpsAssist && objective && objective.landmarkId === lm.id;
@@ -260,24 +261,24 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
       if (!discovered && !isObjective) {
         if (!gpsAssist) continue;
         ctx.fillStyle = "#2b2112";
-        ctx.fillRect(lx - 2, ly - 2, 5, 5);
+        ctx.fillRect(lx - 4, ly - 4, 9, 9);
         ctx.fillStyle = "#f4a261";
-        ctx.fillRect(lx - 1, ly - 1, 3, 3);
+        ctx.fillRect(lx - 2, ly - 2, 5, 5);
         continue;
       }
 
       ctx.fillStyle = "#1d2228";
-      ctx.fillRect(lx - 3, ly - 3, 7, 7);
+      ctx.fillRect(lx - 5, ly - 5, 11, 11);
       ctx.fillStyle = lm.id === "home_base" ? "#f4d35e" : discovered ? "#52b788" : "#f4a261";
-      ctx.fillRect(lx - 2, ly - 2, 5, 5);
+      ctx.fillRect(lx - 3, ly - 3, 7, 7);
 
       const shortName =
-        lm.id === "home_base" ? "Home" : lm.name.replace(/\s*\(.*\)/, "").slice(0, 14);
-      const labelY = ly > 16 ? ly - 6 : ly + 13;
-      ctx.fillStyle = "rgba(28, 22, 14, 0.82)";
-      const tw = ctx.measureText(shortName).width + 6;
-      const clampedX = Math.max(tw / 2 + 2, Math.min(MAP_PX - tw / 2 - 2, lx));
-      ctx.fillRect(Math.round(clampedX - tw / 2), labelY - 7, Math.round(tw), 9);
+        lm.id === "home_base" ? "Home" : lm.name.replace(/\s*\(.*\)/, "").slice(0, 18);
+      const labelY = ly > 28 ? ly - 10 : ly + 22;
+      ctx.fillStyle = "rgba(28, 22, 14, 0.85)";
+      const tw = ctx.measureText(shortName).width + 10;
+      const clampedX = Math.max(tw / 2 + 4, Math.min(MAP_PX - tw / 2 - 4, lx));
+      ctx.fillRect(Math.round(clampedX - tw / 2), labelY - 11, Math.round(tw), 15);
       ctx.fillStyle = lm.id === "home_base" ? "#f4d35e" : "#f7f3e8";
       ctx.fillText(shortName, clampedX, labelY);
     }
@@ -289,76 +290,76 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
       const px = Math.round((playerTileX / width) * MAP_PX);
       const py = Math.round((playerTileY / height) * MAP_PX);
       ctx.fillStyle = "#1d2228";
-      ctx.fillRect(px - 3, py - 3, 7, 7);
+      ctx.fillRect(px - 6, py - 6, 13, 13);
       ctx.fillStyle = "#e63946";
-      ctx.fillRect(px - 2, py - 2, 5, 5);
+      ctx.fillRect(px - 4, py - 4, 9, 9);
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(px - 1, py - 1, 2, 2);
+      ctx.fillRect(px - 2, py - 2, 4, 4);
     } else if (lastSignObj) {
       const sx = Math.round((lastSignObj.tx / width) * MAP_PX);
       const sy = Math.round((lastSignObj.ty / height) * MAP_PX);
-      const pulse = 5 + Math.sin(timeSec * 4) * 1.5;
+      const pulse = 9 + Math.sin(timeSec * 4) * 3;
       ctx.strokeStyle = "#2b7de9";
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.arc(sx, sy, pulse, 0, Math.PI * 2);
       ctx.stroke();
 
       ctx.fillStyle = "#142238";
-      ctx.fillRect(sx - 3, sy - 3, 7, 7);
+      ctx.fillRect(sx - 5, sy - 5, 11, 11);
       ctx.fillStyle = "#4ea8ff";
-      ctx.fillRect(sx - 2, sy - 2, 5, 5);
+      ctx.fillRect(sx - 3, sy - 3, 7, 7);
       ctx.fillStyle = "#fff4b8";
-      ctx.fillRect(sx - 1, sy - 1, 2, 2);
+      ctx.fillRect(sx - 1, sy - 1, 3, 3);
 
       // Crisp green street-sign tag showing the last checked intersection!
-      const tag = `🪧 ${lastSignObj.shortLabel.slice(0, 18)}`;
-      ctx.font = "bold 7px monospace";
-      const tw = ctx.measureText(tag).width + 6;
-      const clampedX = Math.max(tw / 2 + 2, Math.min(MAP_PX - tw / 2 - 2, sx));
-      const tagY = sy > 20 ? sy - 8 : sy + 15;
+      const tag = `🪧 ${lastSignObj.shortLabel.slice(0, 22)}`;
+      ctx.font = "bold 11px monospace";
+      const tw = ctx.measureText(tag).width + 12;
+      const clampedX = Math.max(tw / 2 + 4, Math.min(MAP_PX - tw / 2 - 4, sx));
+      const tagY = sy > 34 ? sy - 14 : sy + 24;
       ctx.fillStyle = "#174a2e";
-      ctx.fillRect(Math.round(clampedX - tw / 2), tagY - 7, Math.round(tw), 9);
+      ctx.fillRect(Math.round(clampedX - tw / 2), tagY - 12, Math.round(tw), 16);
       ctx.strokeStyle = "#e6b84c";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(Math.round(clampedX - tw / 2) + 0.5, tagY - 6.5, Math.round(tw) - 1, 8);
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(Math.round(clampedX - tw / 2) + 0.5, tagY - 11.5, Math.round(tw) - 1, 15);
       ctx.fillStyle = "#ffffff";
       ctx.fillText(tag, clampedX, tagY);
     }
 
     // 8. Hand-drawn Vintage Compass Rose (top-right corner)
-    const rx = MAP_PX - 18;
-    const ry = 18;
-    ctx.fillStyle = "rgba(232, 216, 181, 0.88)";
+    const rx = MAP_PX - 32;
+    const ry = 32;
+    ctx.fillStyle = "rgba(232, 216, 181, 0.9)";
     ctx.beginPath();
-    ctx.arc(rx, ry, 13, 0, Math.PI * 2);
+    ctx.arc(rx, ry, 23, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = "#5c4328";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 2;
     ctx.stroke();
 
     ctx.fillStyle = "#b53c30";
-    ctx.fillRect(rx - 1, ry - 9, 2, 8); // North needle
+    ctx.fillRect(rx - 2, ry - 15, 4, 14); // North needle
     ctx.fillStyle = "#5c4328";
-    ctx.fillRect(rx - 1, ry, 2, 8);
-    ctx.fillRect(rx - 8, ry - 1, 16, 2);
-    ctx.font = "bold 7px monospace";
+    ctx.fillRect(rx - 2, ry, 4, 14);
+    ctx.fillRect(rx - 14, ry - 2, 28, 4);
+    ctx.font = "bold 11px monospace";
     ctx.textAlign = "center";
     ctx.fillStyle = "#2c1e10";
-    ctx.fillText("N", rx, ry - 9);
+    ctx.fillText("N", rx, ry - 16);
 
     // 9. Easy / GPS Mode Sheikah Fast-Travel Banner right on the map!
     if (gpsAssist) {
       const pulseGlow = 0.78 + Math.sin(timeSec * 5) * 0.22;
-      ctx.fillStyle = "rgba(12, 32, 48, 0.86)";
-      ctx.fillRect(18, MAP_PX - 17, MAP_PX - 36, 13);
+      ctx.fillStyle = "rgba(12, 32, 48, 0.88)";
+      ctx.fillRect(36, MAP_PX - 32, MAP_PX - 72, 24);
       ctx.strokeStyle = `rgba(92, 232, 255, ${pulseGlow.toFixed(2)})`;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(18.5, MAP_PX - 16.5, MAP_PX - 37, 12);
-      ctx.font = "bold 7px monospace";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(37, MAP_PX - 31, MAP_PX - 74, 22);
+      ctx.font = "bold 12px monospace";
       ctx.textAlign = "center";
       ctx.fillStyle = "#8ef6ff";
-      ctx.fillText("✨ TAP ANYWHERE TO FAST-TRAVEL!", MAP_PX / 2, MAP_PX - 8);
+      ctx.fillText("✨ TAP ANYWHERE TO FAST-TRAVEL!", MAP_PX / 2, MAP_PX - 16);
     }
   }
 

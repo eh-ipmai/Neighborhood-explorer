@@ -639,28 +639,35 @@
         display: flex;
       }
 
-      /* Phase 3: Folded Paper Map & Quest/Backpack Parchment Overlay */
+      /* Phase 3: Large Full-Screen Folded Paper Map & Quest/Backpack Parchment Overlay */
+      #map-modal {
+        padding: 8px;
+      }
+
       .papermap-card {
-        width: min(680px, 95vw);
-        max-height: 92vh;
-        overflow-y: auto;
+        width: min(1320px, 96vw);
+        height: min(94vh, 920px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
         background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-dark) 100%);
         color: var(--ink);
         border: 4px solid #7a5428;
         outline: 2px solid #2b2112;
         border-radius: 12px;
-        padding: 14px 16px;
+        padding: 10px 14px 12px;
         box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
       }
 
       .papermap-header {
+        flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
         border-bottom: 2px dashed rgba(92, 67, 40, 0.4);
-        padding-bottom: 8px;
-        margin-bottom: 12px;
+        padding-bottom: 6px;
+        margin-bottom: 10px;
       }
 
       .papermap-header h3 {
@@ -674,21 +681,52 @@
       }
 
       .papermap-body {
+        flex: 1;
+        min-height: 0;
         display: grid;
-        grid-template-columns: minmax(220px, 280px) 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(230px, 290px);
         gap: 14px;
-        align-items: start;
+        align-items: stretch;
       }
 
-      @media (max-width: 620px) {
+      .papermap-map-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        min-height: 0;
+        gap: 6px;
+      }
+
+      .papermap-side-col {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+
+      @media (max-width: 760px) {
+        .papermap-card {
+          height: auto;
+          max-height: 94vh;
+          overflow-y: auto;
+        }
         .papermap-body {
           grid-template-columns: 1fr;
+        }
+        .papermap-side-col {
+          overflow-y: visible;
         }
       }
 
       #paper-map-canvas {
-        width: 100%;
+        width: min(100%, calc(94vh - 118px));
+        height: auto;
         aspect-ratio: 1 / 1;
+        max-height: calc(94vh - 118px);
+        display: block;
         border: 3px solid #5c4328;
         border-radius: 6px;
         image-rendering: pixelated;
@@ -1268,8 +1306,8 @@
         </div>
 
         <div class="papermap-body">
-          <div>
-            <canvas id="paper-map-canvas" width="256" height="256"></canvas>
+          <div class="papermap-map-col">
+            <canvas id="paper-map-canvas" width="512" height="512"></canvas>
             <div id="map-legend" class="map-legend">
               <span>📍 Last Sign</span>
               <span>🟩 Checked Sign</span>
@@ -1277,7 +1315,7 @@
               <span>🧭 Read signs to locate yourself!</span>
             </div>
           </div>
-          <div>
+          <div class="papermap-side-col">
             <div class="map-panel-section">
               <h4>🧭 Pocket Directions</h4>
               <div id="map-directions-card">Check any green street sign for turn-by-turn street directions!</div>

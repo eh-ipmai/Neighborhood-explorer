@@ -552,4 +552,6 @@ test("NPC wave frames, spooky attack poses, 3-frame sword arcs, 2x HD FX sprites
   assert.ok(!mainSrc.includes('onKeyPress("s"'), 'k.onKeyPress("s") Salzberg shortcut must be removed');
   assert.ok(mainSrc.includes('k.isKeyDown("s")'), 'WASD "s" key should walk south cleanly');
   assert.ok(mainSrc.includes("fx_dest_pointer_"), "GPS destination pointer should render 2x HD fx_dest_pointer sprites");
+  assert.ok(html.includes('id="paper-map-canvas" width="512" height="512"'), "Folded Paper Map canvas should render at full 512x512 resolution");
+  assert.ok(html.includes("width: min(1320px, 96vw)"), "Folded Paper Map modal should expand to fill the majority of the viewport");
 });
