@@ -853,4 +853,392 @@ export function upgradeAtlasTo32Bit(sprites, P) {
     px(ctx, 6, 12, 2, 4, "#78462a");
     sprites.shore_reed = canvas;
   }
+
+  // =========================================================================
+  // 6. 2x HD 32-BIT INTERACTION RINGS, HALOS, EMOTES & PARTICLE VFX SPRITES
+  // =========================================================================
+  const drawRingEllipse = (ctx, cx, cy, rx, ry, fillCss, ringCss, innerCss = null) => {
+    const x0 = Math.floor(cx - rx - 1);
+    const x1 = Math.ceil(cx + rx + 1);
+    const y0 = Math.floor(cy - ry - 1);
+    const y1 = Math.ceil(cy + ry + 1);
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const dx = (x - cx) / rx;
+        const dy = (y - cy) / ry;
+        const d = Math.hypot(dx, dy);
+        if (d <= 1.0 && d >= 0.78) {
+          ctx.fillStyle = ringCss;
+          ctx.fillRect(x, y, 1, 1);
+        } else if (innerCss && d < 0.78 && d >= 0.64 && (x + y) % 2 === 0) {
+          ctx.fillStyle = innerCss;
+          ctx.fillRect(x, y, 1, 1);
+        } else if (fillCss && d < 0.78) {
+          ctx.fillStyle = fillCss;
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+  };
+
+  // Elliptical glowing ground interaction rings (gold for NPC/sign, emerald for snack/feed, mint for Safe Crossing!)
+  for (let f = 0; f < 2; f++) {
+    const rx = f === 0 ? 18 : 20;
+    const ry = f === 0 ? 8 : 9;
+    {
+      const { canvas, ctx } = makeHdCanvas(44, 22);
+      drawRingEllipse(ctx, 22, 11, rx, ry, "rgba(244, 211, 94, 0.24)", "rgba(255, 240, 148, 0.92)", "rgba(255, 255, 220, 0.65)");
+      sprites[`fx_ring_gold_${f}`] = canvas;
+    }
+    {
+      const { canvas, ctx } = makeHdCanvas(44, 22);
+      drawRingEllipse(ctx, 22, 11, rx, ry, "rgba(114, 232, 156, 0.24)", "rgba(166, 255, 192, 0.92)", "rgba(255, 242, 156, 0.68)");
+      sprites[`fx_ring_green_${f}`] = canvas;
+    }
+    {
+      const { canvas, ctx } = makeHdCanvas(40, 20);
+      drawRingEllipse(ctx, 20, 10, f === 0 ? 15 : 17, f === 0 ? 6.5 : 7.5, "rgba(110, 231, 168, 0.26)", "rgba(156, 255, 204, 0.88)");
+      sprites[`fx_ring_safe_${f}`] = canvas;
+    }
+  }
+
+  // Detailed 2x HD Woven Coir Home Base Welcome Mat (+ golden porch-glow variant!)
+  for (const glowing of [false, true]) {
+    const { canvas, ctx } = makeHdCanvas(34, 22);
+    if (glowing) {
+      drawRingEllipse(ctx, 17, 11, 16, 10, "rgba(255, 228, 122, 0.26)", "rgba(255, 246, 184, 0.9)");
+    }
+    px(ctx, 4, 4, 26, 14, "#3b2010");
+    px(ctx, 5, 5, 24, 12, glowing ? "#d99242" : "#b87333");
+    px(ctx, 6, 6, 22, 10, glowing ? "#f2b85c" : "#d4924c");
+    // Woven border stripe
+    px(ctx, 7, 7, 20, 1, "#7a421c");
+    px(ctx, 7, 14, 20, 1, "#7a421c");
+    px(ctx, 7, 7, 1, 8, "#7a421c");
+    px(ctx, 26, 7, 1, 8, "#7a421c");
+    // Tiny woven coir fiber texture + cozy "HOME" center emblem
+    for (let x = 9; x <= 24; x += 3) {
+      px(ctx, x, 9, 2, 1, glowing ? "#fff2c2" : "#e8b474");
+      px(ctx, x + 1, 12, 2, 1, "#9c5b28");
+    }
+    px(ctx, 13, 10, 8, 2, "#592d14");
+    px(ctx, 14, 10, 6, 1, glowing ? "#fff7d6" : "#f0c888");
+    sprites[glowing ? "prop_welcome_mat_glow" : "prop_welcome_mat"] = canvas;
+  }
+
+  // Circular 2x HD Radial Golden Lantern Glow Halo (replaces blocky yellow rectangles in graveyards!)
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeHdCanvas(116, 84);
+    const cx = 58;
+    const cy = 42;
+    const scale = f === 0 ? 1 : 1.04;
+    pxEllipse(ctx, cx, cy, 52 * scale, 36 * scale, "rgba(255, 208, 92, 0.10)");
+    pxEllipse(ctx, cx, cy, 38 * scale, 26 * scale, "rgba(255, 224, 122, 0.14)");
+    pxEllipse(ctx, cx, cy, 22 * scale, 15 * scale, "rgba(255, 242, 178, 0.18)");
+    drawRingEllipse(ctx, cx, cy, 48 * scale, 33 * scale, null, "rgba(255, 238, 162, 0.28)");
+    sprites[`fx_lantern_glow_${f}`] = canvas;
+  }
+
+  // Circular 2x HD Radiant Pocket Siddur Blessing Waves (3 expanding stages!)
+  for (let f = 0; f < 3; f++) {
+    const size = 56 + f * 38;
+    const h = Math.round(size * 0.72);
+    const { canvas, ctx } = makeHdCanvas(size, h);
+    const cx = Math.floor(size / 2);
+    const cy = Math.floor(h / 2);
+    const rx = Math.floor(size / 2) - 3;
+    const ry = Math.floor(h / 2) - 3;
+    drawRingEllipse(
+      ctx,
+      cx,
+      cy,
+      rx,
+      ry,
+      f === 0 ? "rgba(120, 206, 255, 0.22)" : "rgba(120, 206, 255, 0.08)",
+      "rgba(136, 218, 255, 0.9)",
+      "rgba(255, 236, 130, 0.85)"
+    );
+    drawRingEllipse(ctx, cx, cy, Math.max(6, rx - 5), Math.max(4, ry - 4), null, "rgba(255, 236, 138, 0.88)");
+    sprites[`fx_siddur_ring_${f}`] = canvas;
+  }
+
+  // Circular 2x HD BotW Sheikah Ground Sigil Ring
+  {
+    const { canvas, ctx } = makeHdCanvas(96, 52);
+    drawRingEllipse(ctx, 48, 26, 44, 22, "rgba(26, 184, 238, 0.22)", "rgba(88, 242, 255, 0.94)", "rgba(232, 254, 255, 0.85)");
+    drawRingEllipse(ctx, 48, 26, 32, 16, null, "rgba(220, 252, 255, 0.88)");
+    drawRingEllipse(ctx, 48, 26, 18, 9, "rgba(88, 242, 255, 0.16)", "rgba(148, 248, 255, 0.85)");
+    sprites.fx_sheikah_ring = canvas;
+  }
+
+  // Elliptical 2x HD Wading Water Ripples (3 expanding frames)
+  for (let f = 0; f < 3; f++) {
+    const { canvas, ctx } = makeHdCanvas(56, 26);
+    const rx = 14 + f * 5;
+    const ry = 5 + f * 2;
+    drawRingEllipse(ctx, 28, 13, rx, ry, null, f === 2 ? "rgba(224, 248, 255, 0.45)" : "rgba(232, 252, 255, 0.82)");
+    if (f > 0) {
+      drawRingEllipse(ctx, 28, 13, rx - 5, Math.max(2, ry - 2), null, "rgba(156, 224, 248, 0.58)");
+    }
+    sprites[`fx_water_ripple_${f}`] = canvas;
+  }
+
+  // Soft Tapered 2x HD Graveyard Ground Mist Wisp
+  {
+    const { canvas, ctx } = makeHdCanvas(56, 16);
+    pxEllipse(ctx, 28, 8, 24, 5, "rgba(186, 206, 238, 0.14)");
+    pxEllipse(ctx, 24, 8, 16, 3.5, "rgba(210, 226, 250, 0.16)");
+    pxEllipse(ctx, 35, 9, 12, 3, "rgba(176, 198, 234, 0.15)");
+    sprites.fx_grave_mist = canvas;
+  }
+
+  // Crisp 2x HD Sidewalk Chalk Directional Chevron (points right; rotated cleanly to any heading!)
+  {
+    const { canvas, ctx } = makeHdCanvas(18, 18);
+    // Dark outline chevron + bright sunlit chalk fill
+    for (let i = 0; i < 6; i++) {
+      px(ctx, 4 + i, 2 + i, 5, 2, "#1c3828");
+      px(ctx, 4 + i, 14 - i, 5, 2, "#1c3828");
+    }
+    for (let i = 0; i < 6; i++) {
+      px(ctx, 5 + i, 3 + i, 3, 2, "#f7dc72");
+      px(ctx, 5 + i, 13 - i, 3, 2, "#f7dc72");
+    }
+    px(ctx, 11, 8, 3, 2, "#fff8cf");
+    sprites.fx_chalk_arrow = canvas;
+  }
+
+  // 2x HD Upgrade for Quest '!' Bubble, Curb Stop Cue & Fanfare Star!
+  {
+    const { canvas, ctx } = makeHdCanvas(22, 26);
+    const O = "#241712";
+    px(ctx, 3, 1, 16, 17, O);
+    px(ctx, 1, 3, 20, 13, O);
+    px(ctx, 8, 18, 6, 3, O);
+    px(ctx, 10, 21, 2, 3, O);
+    px(ctx, 3, 2, 16, 15, "#e0a22e");
+    px(ctx, 2, 3, 18, 13, "#ffe066");
+    px(ctx, 4, 3, 14, 3, "#fff6ba");
+    px(ctx, 9, 18, 4, 2, "#e0a22e");
+    px(ctx, 9, 4, 4, 7, "#2b1c10");
+    px(ctx, 9, 13, 4, 3, "#2b1c10");
+    px(ctx, 10, 5, 1, 5, "#5c3b1e");
+    sprites.quest_bubble = canvas;
+  }
+  {
+    const { canvas, ctx } = makeHdCanvas(22, 22);
+    const O = "#1d1414";
+    px(ctx, 6, 0, 10, 22, O);
+    px(ctx, 0, 6, 22, 10, O);
+    px(ctx, 4, 2, 14, 18, O);
+    px(ctx, 2, 4, 18, 14, O);
+    px(ctx, 6, 2, 10, 18, "#ffffff");
+    px(ctx, 2, 6, 18, 10, "#ffffff");
+    px(ctx, 4, 4, 14, 14, "#ffffff");
+    px(ctx, 6, 4, 10, 14, "#d9362e");
+    px(ctx, 4, 6, 14, 10, "#d9362e");
+    px(ctx, 6, 5, 10, 2, "#ff685e");
+    // Expressive Look-Both-Ways eyes inside red octagon
+    px(ctx, 6, 8, 4, 6, "#ffffff");
+    px(ctx, 12, 8, 4, 6, "#ffffff");
+    px(ctx, 8, 10, 2, 3, O);
+    px(ctx, 12, 10, 2, 3, O);
+    px(ctx, 8, 10, 1, 1, "#ffffff");
+    px(ctx, 12, 10, 1, 1, "#ffffff");
+    sprites.curb_stop_cue = canvas;
+  }
+  {
+    const { canvas, ctx } = makeHdCanvas(18, 18);
+    px(ctx, 8, 1, 2, 16, "#fff6b8");
+    px(ctx, 1, 8, 16, 2, "#fff6b8");
+    px(ctx, 6, 4, 6, 10, "#f4d35e");
+    px(ctx, 4, 6, 10, 6, "#f4d35e");
+    px(ctx, 7, 7, 4, 4, "#ffffff");
+    sprites.fanfare_star = canvas;
+  }
+
+  // Crisp 2x HD Pixel Emote & Particle Sprites (hearts, bones, skull, embers, sparkles, notes, pretzel, acorn, feathers, leaves!)
+  const makeHeartSprite = (fill, hi, shade, out) => {
+    const { canvas, ctx } = makeHdCanvas(16, 14);
+    px(ctx, 2, 1, 4, 2, out); px(ctx, 10, 1, 4, 2, out);
+    px(ctx, 1, 2, 14, 5, out);
+    px(ctx, 2, 7, 12, 2, out);
+    px(ctx, 4, 9, 8, 2, out);
+    px(ctx, 6, 11, 4, 2, out);
+    px(ctx, 7, 13, 2, 1, out);
+    px(ctx, 2, 2, 4, 4, fill); px(ctx, 10, 2, 4, 4, fill);
+    px(ctx, 3, 3, 10, 4, fill);
+    px(ctx, 4, 7, 8, 2, shade);
+    px(ctx, 6, 9, 4, 2, shade);
+    px(ctx, 7, 11, 2, 1, shade);
+    px(ctx, 3, 3, 2, 2, hi);
+    return canvas;
+  };
+  sprites.fx_heart_pink = makeHeartSprite("#ff5c93", "#ffd4e5", "#d92b6b", "#451024");
+  sprites.fx_heart_red = makeHeartSprite("#eb3442", "#ffc4c4", "#b51928", "#2e0d12");
+  sprites.fx_heart_empty = makeHeartSprite("#594952", "#826f78", "#3d3038", "#1f161b");
+
+  // 4-point twinkling pixel sparkles (gold & cyan)
+  for (const [key, outer, mid] of [
+    ["fx_sparkle_gold", "#f4c438", "#fff6b8"],
+    ["fx_sparkle_cyan", "#38d9f5", "#d8fbff"],
+  ]) {
+    const { canvas, ctx } = makeHdCanvas(14, 14);
+    px(ctx, 6, 1, 2, 12, outer);
+    px(ctx, 1, 6, 12, 2, outer);
+    px(ctx, 5, 4, 4, 6, mid);
+    px(ctx, 4, 5, 6, 4, mid);
+    px(ctx, 6, 6, 2, 2, "#ffffff");
+    sprites[key] = canvas;
+  }
+
+  // Comic startled '!' alert icon
+  {
+    const { canvas, ctx } = makeHdCanvas(14, 20);
+    px(ctx, 4, 1, 6, 12, "#2e0c0e");
+    px(ctx, 4, 14, 6, 5, "#2e0c0e");
+    px(ctx, 5, 2, 4, 10, "#ff4b3e");
+    px(ctx, 6, 2, 2, 8, "#ffe066");
+    px(ctx, 5, 15, 4, 3, "#ff4b3e");
+    px(ctx, 6, 15, 2, 2, "#ffe066");
+    sprites.fx_alert_bang = canvas;
+  }
+
+  // Flying cyan sweat droplet (joggers & startled reactions)
+  {
+    const { canvas, ctx } = makeHdCanvas(10, 14);
+    px(ctx, 4, 1, 2, 3, "#1a4d6e");
+    px(ctx, 3, 4, 4, 3, "#1a4d6e");
+    px(ctx, 2, 7, 6, 4, "#1a4d6e");
+    px(ctx, 3, 11, 4, 2, "#1a4d6e");
+    px(ctx, 4, 3, 2, 4, "#6be6ff");
+    px(ctx, 3, 7, 4, 4, "#6be6ff");
+    px(ctx, 4, 6, 1, 3, "#ffffff");
+    sprites.fx_sweat_drop = canvas;
+  }
+
+  // Cheerful floating pixel musical note (NPC greeting wave & cheer!)
+  {
+    const { canvas, ctx } = makeHdCanvas(14, 16);
+    px(ctx, 5, 1, 8, 4, "#24180c");
+    px(ctx, 5, 4, 3, 8, "#24180c");
+    px(ctx, 10, 4, 3, 7, "#24180c");
+    px(ctx, 2, 10, 6, 5, "#24180c");
+    px(ctx, 8, 9, 6, 5, "#24180c");
+    px(ctx, 6, 2, 6, 2, "#ffe066");
+    px(ctx, 6, 4, 1, 7, "#ffe066");
+    px(ctx, 11, 4, 1, 6, "#ffe066");
+    px(ctx, 3, 11, 4, 3, "#ff87ab");
+    px(ctx, 9, 10, 4, 3, "#6ee7a8");
+    px(ctx, 4, 11, 1, 1, "#ffffff");
+    px(ctx, 10, 10, 1, 1, "#ffffff");
+    sprites.fx_music_note = canvas;
+  }
+
+  // Spinning skeleton bones (2 orientations) & bouncing skull poof for skeleton defeat!
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeHdCanvas(16, 16);
+    if (f === 0) {
+      px(ctx, 2, 5, 12, 6, "#272e3a");
+      px(ctx, 1, 4, 4, 8, "#272e3a");
+      px(ctx, 11, 4, 4, 8, "#272e3a");
+      px(ctx, 3, 6, 10, 4, "#edf2eb");
+      px(ctx, 2, 5, 2, 2, "#ffffff");
+      px(ctx, 2, 9, 2, 2, "#d8e0d5");
+      px(ctx, 12, 5, 2, 2, "#ffffff");
+      px(ctx, 12, 9, 2, 2, "#d8e0d5");
+    } else {
+      px(ctx, 5, 2, 6, 12, "#272e3a");
+      px(ctx, 4, 1, 8, 4, "#272e3a");
+      px(ctx, 4, 11, 8, 4, "#272e3a");
+      px(ctx, 6, 3, 4, 10, "#edf2eb");
+      px(ctx, 5, 2, 2, 2, "#ffffff");
+      px(ctx, 9, 2, 2, 2, "#d8e0d5");
+      px(ctx, 5, 12, 2, 2, "#ffffff");
+      px(ctx, 9, 12, 2, 2, "#d8e0d5");
+    }
+    sprites[`fx_bone_${f}`] = canvas;
+  }
+  {
+    const { canvas, ctx } = makeHdCanvas(18, 18);
+    pxEllipse(ctx, 9, 8, 7, 6, "#272e3a");
+    pxEllipse(ctx, 9, 8, 6, 5, "#edf2eb");
+    pxEllipse(ctx, 8, 6, 3.5, 2.5, "#ffffff");
+    px(ctx, 5, 12, 8, 4, "#272e3a");
+    px(ctx, 6, 12, 6, 3, "#dbe3d8");
+    px(ctx, 5, 7, 3, 3, "#1b202e");
+    px(ctx, 10, 7, 3, 3, "#1b202e");
+    px(ctx, 6, 8, 1, 1, "#59f2a8");
+    px(ctx, 11, 8, 1, 1, "#59f2a8");
+    px(ctx, 7, 13, 1, 2, "#272e3a");
+    px(ctx, 10, 13, 1, 2, "#272e3a");
+    sprites.fx_skull_poof = canvas;
+  }
+
+  // Fiery Jack-o'-Lantern ember (Pumpkin Ghoul defeat & attack sparks)
+  {
+    const { canvas, ctx } = makeHdCanvas(12, 14);
+    pxEllipse(ctx, 6, 9, 4.5, 4.5, "#9e260c");
+    pxEllipse(ctx, 6, 8, 3.5, 4.2, "#ff7824");
+    pxEllipse(ctx, 6, 9, 2.2, 2.6, "#ffe466");
+    px(ctx, 5, 8, 2, 2, "#ffffff");
+    px(ctx, 5, 2, 2, 3, "#ff9933");
+    sprites.fx_ember = canvas;
+  }
+
+  // 2x HD Tossed Pretzel & Lucky Acorn sprites!
+  {
+    const { canvas, ctx } = makeHdCanvas(18, 16);
+    pxEllipse(ctx, 9, 8, 7.5, 6, "#42210b");
+    pxEllipse(ctx, 9, 8, 6.2, 4.8, "#d48432");
+    pxEllipse(ctx, 9, 7, 4.8, 3.4, "#f0a94c");
+    // Pretzel knot holes
+    px(ctx, 5, 6, 3, 3, "#42210b");
+    px(ctx, 10, 6, 3, 3, "#42210b");
+    px(ctx, 7, 9, 4, 2, "#42210b");
+    // Crisp white salt crystals!
+    px(ctx, 4, 5, 2, 1, "#fff8e8");
+    px(ctx, 11, 4, 2, 1, "#fff8e8");
+    px(ctx, 8, 7, 2, 1, "#fff8e8");
+    px(ctx, 12, 10, 2, 1, "#fff8e8");
+    sprites.fx_pretzel = canvas;
+  }
+  {
+    const { canvas, ctx } = makeHdCanvas(14, 16);
+    px(ctx, 6, 1, 2, 3, "#361e0d");
+    px(ctx, 2, 3, 10, 5, "#361e0d");
+    px(ctx, 3, 4, 8, 3, "#7a4922");
+    px(ctx, 4, 4, 6, 1, "#a66838");
+    px(ctx, 3, 8, 8, 5, "#361e0d");
+    px(ctx, 5, 13, 4, 2, "#361e0d");
+    px(ctx, 4, 8, 6, 4, "#c9853c");
+    px(ctx, 5, 9, 2, 2, "#f5be6e");
+    px(ctx, 6, 12, 2, 2, "#a86728");
+    sprites.fx_acorn = canvas;
+  }
+
+  // Crisp 2x HD Turkey Feathers & Drifting Autumn Maple Leaves!
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeHdCanvas(14, 10);
+    const col = f === 0 ? "#a85224" : "#d98234";
+    px(ctx, 1, 3, 12, 5, "#2b160e");
+    px(ctx, 2, 4, 10, 3, col);
+    px(ctx, 9, 4, 3, 3, "#f0d8b2");
+    px(ctx, 3, 5, 7, 1, "#592d18");
+    sprites[`fx_feather_${f}`] = canvas;
+  }
+  const leafColors = [
+    ["#7a1816", "#cf3626", "#ff7842"],
+    ["#8c4212", "#e08424", "#ffd252"],
+    ["#6e1e18", "#b83024", "#f06834"],
+  ];
+  leafColors.forEach(([dark, mid, hi], i) => {
+    const { canvas, ctx } = makeHdCanvas(10, 10);
+    px(ctx, 4, 1, 2, 8, dark);
+    px(ctx, 2, 3, 6, 4, dark);
+    px(ctx, 3, 3, 4, 4, mid);
+    px(ctx, 4, 2, 2, 4, hi);
+    px(ctx, 7, 7, 2, 2, dark);
+    sprites[`fx_leaf_${i}`] = canvas;
+  });
 }

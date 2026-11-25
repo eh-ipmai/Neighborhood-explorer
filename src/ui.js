@@ -128,6 +128,8 @@ export function createUI({
   const btnSignClose = document.getElementById("btn-sign-close");
 
   const dpadEl = document.getElementById("dpad");
+  const btnToolsMenu = document.getElementById("btn-tools-menu");
+  const toolsDrawerEl = document.getElementById("tools-drawer");
   const btnInside = document.getElementById("btn-inside");
   const btnSnack = document.getElementById("btn-snack");
   const btnMap = document.getElementById("btn-map");
@@ -147,6 +149,25 @@ export function createUI({
   const btnLook = document.getElementById("btn-look");
   const btnLookIcon = document.getElementById("btn-look-icon");
   const btnLookLabel = document.getElementById("btn-look-label");
+
+  function setToolsDrawerOpen(open) {
+    if (!toolsDrawerEl || !btnToolsMenu) return;
+    const next = Boolean(open);
+    toolsDrawerEl.classList.toggle("open", next);
+    btnToolsMenu.classList.toggle("open", next);
+    btnToolsMenu.setAttribute("aria-expanded", String(next));
+  }
+
+  btnToolsMenu?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setToolsDrawerOpen(!toolsDrawerEl?.classList.contains("open"));
+  });
+
+  document.addEventListener("pointerdown", (e) => {
+    if (!toolsDrawerEl?.classList.contains("open")) return;
+    if (toolsDrawerEl.contains(e.target) || btnToolsMenu?.contains(e.target)) return;
+    setToolsDrawerOpen(false);
+  });
 
   const dpadButtons = {
     up: dpadEl?.querySelector('[data-dir="up"]'),
@@ -593,11 +614,14 @@ export function createUI({
     btnLook.addEventListener("pointercancel", () => btnLook.classList.remove("active"));
   }
 
-  btnPaint?.addEventListener("click", () => onOpenPaint?.());
+  btnPaint?.addEventListener("click", () => {
+    setToolsDrawerOpen(false);
+    onOpenPaint?.();
+  });
   btnMute?.addEventListener("click", () => {
     const isNowMuted = onToggleMute?.();
     if (btnMute) {
-      btnMute.textContent = isNowMuted ? "🔇 Muted" : "🔊 SFX";
+      btnMute.textContent = isNowMuted ? "🔇 Sound: Off" : "🔊 Sound: On";
       btnMute.classList.toggle("active", Boolean(isNowMuted));
     }
   });
@@ -605,8 +629,14 @@ export function createUI({
     const enabled = onToggleDebug?.();
     btnDebug.classList.toggle("active", Boolean(enabled));
   });
-  btnHome?.addEventListener("click", () => onResetHome?.());
-  btnSalzberg?.addEventListener("click", () => onResetSalzberg?.());
+  btnHome?.addEventListener("click", () => {
+    setToolsDrawerOpen(false);
+    onResetHome?.();
+  });
+  btnSalzberg?.addEventListener("click", () => {
+    setToolsDrawerOpen(false);
+    onResetSalzberg?.();
+  });
 
   function showSafetyToast(message, durationMs = 2200) {
     if (!safetyToastEl) return;
@@ -723,6 +753,7 @@ export function createUI({
 
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      setToolsDrawerOpen(false);
       setMapModalOpen(false);
       closePaintModal();
       closeSignModal();
@@ -834,18 +865,18 @@ export function createUI({
     if (isWildAnimalTarget) {
       const targetName = animalLabelMap[snackTargetKind] || "Animal";
       if (gpsAssist || hasSnack) {
-        setText(btnSnack, "snackTxt", `🥨 Feed ${targetName} (${gpsAssist ? "∞" : snacks}) [N]`);
+        setText(btnSnack, "snackTxt", `🥨 Feed ${targetName} (N)`);
       } else if (acorns > 0) {
-        setText(btnSnack, "snackTxt", `🌰 Feed ${targetName} (${acorns}) [N]`);
+        setText(btnSnack, "snackTxt", `🌰 Feed ${targetName} (N)`);
       } else {
-        setText(btnSnack, "snackTxt", `🥨 Need Food [N]`);
+        setText(btnSnack, "snackTxt", `🥨 Need Food (N)`);
       }
       setClass(btnSnack, "snackAct", "active", canGiveSnack && canFeedAnimal);
     } else {
       setText(
         btnSnack,
         "snackTxt",
-        hasSnack ? `🥨 Give Snack (${gpsAssist ? "∞" : snacks}) [N]` : "🥨 Need Snacks [N]"
+        hasSnack ? `🥨 Give Snack (N)` : "🥨 Need Snacks (N)"
       );
       setClass(btnSnack, "snackAct", "active", canGiveSnack && hasSnack);
     }
@@ -854,44 +885,44 @@ export function createUI({
     setText(
       xpEl,
       "xp",
-      safeCrossingActive ? `Safety XP: ${safetyXP} • Safe to Cross ✓` : `Safety XP: ${safetyXP}`
+      safeCrossingActive ? `${safetyXP} XP · Safe ✓` : `${safetyXP} XP`
     );
-    setText(bagEl, "bag", `🪙 ${coins} • 🌰 ${acorns} • 🥨 ${gpsAssist ? "∞" : snacks}`);
+    setText(bagEl, "bag", `🪙 ${coins} · 🌰 ${acorns} · 🥨 ${gpsAssist ? "∞" : snacks}`);
     setText(coordsEl, "coords", debugEnabled ? `Tile ${tileX}, ${tileY}` : `🪧 Signs: ${checkedSignsCount}`);
     const prettyTile = TILE_DISPLAY_LABELS[tileType] || tileType;
-    setText(
-      tileEl,
-      "tile",
-      isWading
+    const statusSub = debugEnabled
+      ? `Tile ${tileX},${tileY} · ${prettyTile}`
+      : isWading
         ? isFastWading
-          ? `${prettyTile} • SWIM`
-          : `${prettyTile} • WADE`
+          ? "🤿 Swimming"
+          : "🤿 Wading"
         : isFasterActive
-          ? `${prettyTile} • ${gearLabel}`
-          : prettyTile
-    );
+          ? `⚡ ${gearLabel}`
+          : "";
+    setDisplay(tileEl, "tileDisp", statusSub ? "block" : "none");
+    if (statusSub) setText(tileEl, "tile", statusSub);
     setClass(btnDebug, "debugAct", "active", debugEnabled);
     setText(
       btnGps,
       "gpsTxt",
-      navMode === "hard" ? "🔥 Hard (G)" : navMode === "gps" ? "📡 Easy/GPS (G)" : "🧭 Signs (G)"
+      navMode === "hard" ? "🔥 Mode: Hard" : navMode === "gps" ? "📡 Mode: Easy" : "🧭 Mode: Signs"
     );
     setClass(btnGps, "gpsAct", "active", navMode !== "signs");
     if (btnOutfit) {
       if (unlockedOutfitsCount <= 1) {
-        setText(btnOutfit, "outfitTxt", "👕 Polo (🔒)");
+        setText(btnOutfit, "outfitTxt", "👕 Outfit: Polo 🔒");
         setTitle(btnOutfit, "outfitTitle", "Complete quests to unlock Baseball, Wetsuit & Link outfits!");
       } else {
         setText(
           btnOutfit,
           "outfitTxt",
           heroOutfit === "link"
-            ? "🗡️ Link (O)"
+            ? "🗡️ Outfit: Link"
             : heroOutfit === "wetsuit"
-              ? "🤿 Wetsuit (O)"
+              ? "🤿 Outfit: Wetsuit"
               : heroOutfit === "baseball"
-                ? "⚾ Uniform (O)"
-                : "👕 Polo (O)"
+                ? "⚾ Outfit: Baseball"
+                : "👕 Outfit: Polo"
         );
         setTitle(btnOutfit, "outfitTitle", `Switch between ${unlockedOutfitsCount} unlocked outfits (O)`);
       }
@@ -901,12 +932,12 @@ export function createUI({
       miniMapLabelEl,
       "miniLbl",
       navMode === "hard"
-        ? "HARD COMPASS (M)"
+        ? "COMPASS · MAP"
         : navMode === "gps"
-          ? "RADAR • MAP (M)"
-          : "COMPASS • MAP (M)"
+          ? "RADAR · MAP"
+          : `🪧 ${checkedSignsCount} · MAP`
     );
-    setText(btnMute, "muteTxt", muted ? "🔇 Muted" : "🔊 SFX");
+    setText(btnMute, "muteTxt", muted ? "🔇 Sound: Off" : "🔊 Sound: On");
     setClass(btnMute, "muteAct", "active", muted);
     setClass(btnFaster, "fasterAct", "active", fasterHeld || isFasterActive);
 
@@ -1018,44 +1049,36 @@ export function createUI({
       } else if (nearbyInteraction) {
         let label = "";
         if (nearbyInteraction.kind === "home_door") {
-          label = "🏠 Tap Inside (I) or Space — Enter 565 Boylston St (Your House!)";
+          label = "🏠 565 Boylston St — Go Inside";
         } else if (nearbyInteraction.kind === "house_prop") {
-          label = `${nearbyInteraction.target?.icon || "✨"} Tap / Space — ${nearbyInteraction.target?.label || "Inspect"}`;
+          label = `${nearbyInteraction.target?.icon || "✨"} ${nearbyInteraction.target?.label || "Inspect"}`;
         } else if (nearbyInteraction.kind === "sign") {
           const s = nearbyInteraction.target;
           label =
             gpsAssist || nearbyInteraction.alreadyChecked
-              ? `🪧 Tap READ SIGN / Space — ${s.label}`
-              : "🪧 Tap READ SIGN / Space — Read Street Sign";
+              ? `🪧 ${s.label}`
+              : "🪧 Read Street Sign";
         } else if (nearbyInteraction.kind === "chest") {
-          label = `📦 Tap OPEN / Space — ${nearbyInteraction.target.name}`;
+          label = `📦 Open ${nearbyInteraction.target.name}`;
         } else if (nearbyInteraction.kind === "protestor") {
           label = hasSnack
-            ? `🥨 Tap Give Snack (N) or Space — Share a snack with the marchers ("${nearbyInteraction.target.chantText}")!`
-            : `🥨 Marching makes them hungry! Grab snacks at Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's!`;
+            ? `🥨 Share a snack ("${nearbyInteraction.target.chantText}")`
+            : `🥨 Hungry marchers — grab snacks at Home Base or shops!`;
         } else if (nearbyInteraction.kind === "turkey") {
-          label = canFeedAnimal
-            ? "🥨 Wild Turkey! Tap FEED / N / Space to feed it a snack or acorn so it leaves peacefully!"
-            : "🦃 Wild Turkey! Press Space to Shoo, J to Swing Sword, or grab snacks/acorns to feed it!";
+          label = canFeedAnimal ? "🥨 Wild Turkey — Feed a treat!" : "🦃 Wild Turkey — Shoo or bring snacks!";
         } else if (nearbyInteraction.kind === "squirrel") {
-          label = canFeedAnimal
-            ? "🌰 Wild Squirrel! Tap FEED / N / Space to feed it a snack or acorn so it leaves peacefully!"
-            : "🐿️ Wild Squirrel! Press Space to Shoo, J to Swing Sword, or grab snacks/acorns to feed it!";
+          label = canFeedAnimal ? "🌰 Wild Squirrel — Feed a treat!" : "🐿️ Wild Squirrel — Shoo or bring acorns!";
         } else if (nearbyInteraction.kind === "cat") {
-          label = canFeedAnimal
-            ? "🥨 Prowling Cat! Tap FEED / N / Space to feed it a snack or acorn so it purrs & leaves!"
-            : "🐱 Prowling Cat! Press Space to Shoo, J to Swing Sword, or grab snacks/acorns to feed it!";
+          label = canFeedAnimal ? "🥨 Prowling Cat — Feed a treat!" : "🐱 Prowling Cat — Shoo or bring snacks!";
         } else if (nearbyInteraction.kind === "dog") {
-          label = canFeedAnimal
-            ? "🥨 Runaway Dog! Tap FEED / N / Space to feed it a treat so it wags its tail & leaves!"
-            : "🐕 Runaway Dog! Press Space to Shoo, J to Swing Sword, or grab snacks/acorns to feed it!";
+          label = canFeedAnimal ? "🥨 Runaway Dog — Feed a treat!" : "🐕 Runaway Dog — Shoo or bring snacks!";
         } else if (nearbyInteraction.kind === "spooky") {
-          label = `👻 Tap SPOOK BACK / Space — ${nearbyInteraction.target?.name || "Spooky Graveyard Character"}!`;
+          label = `👻 ${nearbyInteraction.target?.name || "Spooky Foe"} — Spook Back or Swing Sword!`;
         } else {
-          label = `💬 Tap TALK / Space — ${nearbyInteraction.target.npcName} (${nearbyInteraction.target.name})`;
+          label = `💬 Talk to ${nearbyInteraction.target.npcName} (${nearbyInteraction.target.name})`;
         }
         if (needsLookAtCurb) {
-          label += " • (Press L to Look Both Ways)";
+          label += " · L to Look";
         }
         setText(landmarkPillEl, "pillTxt", label);
         setClass(landmarkPillEl, "pillVis", "visible", true);

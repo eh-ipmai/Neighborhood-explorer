@@ -272,6 +272,8 @@ export function buildStreetLife(
       munchTimer: 0,
       fedTimer: 0,
       fedBy: null,
+      lungeTimer: 0,
+      hopTimer: 0,
       gobbleBubbleTimer: 0,
       gobbleSoundCooldown: 0,
       shooedCount: 0,
@@ -308,6 +310,8 @@ export function buildStreetLife(
       munchTimer: 0,
       fedTimer: 0,
       fedBy: null,
+      lungeTimer: 0,
+      hopTimer: 0,
       bubbleTimer: 0,
       bubbleSprite: arch.bubble,
       soundCooldown: 0,
@@ -357,6 +361,7 @@ export function buildStreetLife(
       bubbleSprite: isMob ? "bubble_mob_block" : `bubble_protest_${chantIdx}`,
       shoutSoundCooldown: 0,
       yieldTimer: 0,
+      cheerTimer: 0,
       pushTimer: 0,
       yieldOffsetX: 0,
       yieldOffsetY: 0,
@@ -653,6 +658,8 @@ export function buildStreetLife(
       animTimer: (h % 10) * 0.14,
       dirTimer: 1.4 + (h % 20) * 0.1,
       spookTimer: 0,
+      attackTimer: 0,
+      respawnAnimTimer: 0,
       bubbleTimer: 0,
       bubbleSprite: arch.bubble,
       hitToast: arch.hitToast,
@@ -830,6 +837,8 @@ function buildSidewalkJoggers(worldMap, spawnTile = null) {
       greetCooldown: 0,
       jostleCooldown: 0,
       sprintTimer: 0,
+      reactTimer: 0,
+      jostledBurstTimer: 0,
       annoying: true,
     });
     for (let oy = -4; oy <= 4; oy++) {
@@ -1088,6 +1097,7 @@ export function interactWithStreetLife(streetLife, entry, playerX, playerY, opti
       }
       const stepAside = (member) => {
         member.yieldTimer = 26.0;
+        member.cheerTimer = 1.5;
         member.pushTimer = 0;
         member.bubbleSprite = "bubble_snack_thanks";
         member.bubbleTimer = 3.2;
@@ -1162,6 +1172,7 @@ export function interactWithStreetLife(streetLife, entry, playerX, playerY, opti
     tk.facing = tk.vx >= 0 ? "right" : "left";
     tk.fleeTimer = 2.6;
     tk.puffedTimer = 0.8;
+    tk.hopTimer = 0.45;
     tk.gobbleBubbleTimer = 2.0;
     tk.shooedCount += 1;
     return {
@@ -1182,6 +1193,7 @@ export function interactWithStreetLife(streetLife, entry, playerX, playerY, opti
     cr.facing = cr.vx >= 0 ? "right" : "left";
     cr.fleeTimer = 2.6;
     cr.alertTimer = 0.8;
+    cr.hopTimer = 0.45;
     cr.bubbleTimer = 2.0;
     cr.shooedCount += 1;
     return {
@@ -1199,9 +1211,11 @@ export function interactWithStreetLife(streetLife, entry, playerX, playerY, opti
     sp.vy = (dy / len) * 44;
     sp.facing = sp.vx >= 0 ? "right" : "left";
     sp.spookTimer = 2.8;
+    sp.attackTimer = 0;
     sp.bubbleTimer = 2.2;
     return {
       kind: "spooky",
+      spookyKind: sp.kind,
       toast: sp.shooToast || "🔦 You startled the spooky graveyard character back!",
       sound: "spooky",
     };
@@ -1391,6 +1405,7 @@ export function updateStreetLife(
     if (bump.kind === "turkey") {
       const tk = bump.source;
       tk.puffedTimer = 1.2;
+      tk.lungeTimer = 0.42;
       tk.gobbleBubbleTimer = 2.0;
       tk.vx = -bump.dirX * 36;
       tk.vy = -bump.dirY * 36;
@@ -1400,6 +1415,7 @@ export function updateStreetLife(
     } else if (bump.kind === "squirrel" || bump.kind === "cat" || bump.kind === "dog") {
       const cr = bump.source;
       cr.alertTimer = 1.2;
+      cr.lungeTimer = 0.42;
       cr.bubbleTimer = 2.0;
       cr.vx = -bump.dirX * 42;
       cr.vy = -bump.dirY * 42;
@@ -1409,6 +1425,7 @@ export function updateStreetLife(
       const sp = bump.source;
       if (sp && typeof sp.spookTimer === "number") {
         sp.spookTimer = 1.4;
+        sp.attackTimer = 0.58;
         sp.bubbleTimer = 2.2;
         sp.soundCooldown = 2.4;
         sp.vx = -bump.dirX * 32;
@@ -1427,6 +1444,8 @@ export function updateStreetLife(
 
     if ((tk.munchTimer || 0) > 0) tk.munchTimer = Math.max(0, tk.munchTimer - dt);
     if ((tk.fedTimer || 0) > 0) tk.fedTimer = Math.max(0, tk.fedTimer - dt);
+    if ((tk.lungeTimer || 0) > 0) tk.lungeTimer = Math.max(0, tk.lungeTimer - dt);
+    if ((tk.hopTimer || 0) > 0) tk.hopTimer = Math.max(0, tk.hopTimer - dt);
     const isMunching = (tk.munchTimer || 0) > 0;
     const isFed = (tk.fedTimer || 0) > 0;
 
@@ -1459,6 +1478,7 @@ export function updateStreetLife(
           tk.vx = ((tk.x - px) / len) * 60;
           tk.vy = ((tk.y - py) / len) * 60;
           tk.fleeTimer = 2.0;
+          tk.hopTimer = 0.42;
           onFeatherBurst?.(tk.x, tk.y);
         } else if (dist < 15) {
           // Direct bump! Gobble loudly and flutter out of the way so Liam never gets stuck
@@ -1537,6 +1557,8 @@ export function updateStreetLife(
 
     if ((cr.munchTimer || 0) > 0) cr.munchTimer = Math.max(0, cr.munchTimer - dt);
     if ((cr.fedTimer || 0) > 0) cr.fedTimer = Math.max(0, cr.fedTimer - dt);
+    if ((cr.lungeTimer || 0) > 0) cr.lungeTimer = Math.max(0, cr.lungeTimer - dt);
+    if ((cr.hopTimer || 0) > 0) cr.hopTimer = Math.max(0, cr.hopTimer - dt);
     const isMunching = (cr.munchTimer || 0) > 0;
     const isFed = (cr.fedTimer || 0) > 0;
 
@@ -1569,6 +1591,7 @@ export function updateStreetLife(
           cr.vx = ((cr.x - px) / len) * fSpd;
           cr.vy = ((cr.y - py) / len) * fSpd;
           cr.fleeTimer = 2.0;
+          cr.hopTimer = 0.42;
         } else {
           // Dart/prowl/bound toward Liam's path just like bold Newton turkeys!
           const len = dist || 1;
@@ -1632,9 +1655,10 @@ export function updateStreetLife(
     const dist = Math.hypot(px - pr.x, py - pr.y);
     if (dist > 420) continue;
 
-    pr.animTimer += dt * (pr.bubbleTimer > 0 ? 7.5 : 4.2);
+    pr.animTimer += dt * ((pr.cheerTimer || 0) > 0 ? 11 : pr.bubbleTimer > 0 ? 7.5 : 4.2);
     if (pr.bubbleTimer > 0) pr.bubbleTimer = Math.max(0, pr.bubbleTimer - dt);
     if (pr.shoutSoundCooldown > 0) pr.shoutSoundCooldown = Math.max(0, pr.shoutSoundCooldown - dt);
+    if ((pr.cheerTimer || 0) > 0) pr.cheerTimer = Math.max(0, pr.cheerTimer - dt);
 
     if (pr.yieldTimer > 0) {
       pr.yieldTimer = Math.max(0, pr.yieldTimer - dt);
@@ -1737,6 +1761,8 @@ export function updateStreetLife(
         sp.x = sp.homeX;
         sp.y = sp.homeY;
         sp.spookTimer = 0;
+        sp.attackTimer = 0;
+        sp.respawnAnimTimer = 0.7;
         sp.chasing = false;
       }
       continue;
@@ -1746,6 +1772,8 @@ export function updateStreetLife(
 
     sp.animTimer += dt * (sp.spookTimer > 0 ? 10 : sp.chasing ? 7.5 : 4.8);
     if (sp.spookTimer > 0) sp.spookTimer = Math.max(0, sp.spookTimer - dt);
+    if ((sp.attackTimer || 0) > 0) sp.attackTimer = Math.max(0, sp.attackTimer - dt);
+    if ((sp.respawnAnimTimer || 0) > 0) sp.respawnAnimTimer = Math.max(0, sp.respawnAnimTimer - dt);
     if (sp.bubbleTimer > 0) sp.bubbleTimer = Math.max(0, sp.bubbleTimer - dt);
     if (sp.soundCooldown > 0) sp.soundCooldown = Math.max(0, sp.soundCooldown - dt);
 
@@ -1753,6 +1781,7 @@ export function updateStreetLife(
       // Glowing Lantern light scares Graveyard Phantoms away — they stay back and shout "TOO BRIGHT!!"
       const len = dist || 1;
       sp.chasing = false;
+      sp.attackTimer = 0;
       sp.vx = ((sp.x - px) / len) * 44;
       sp.vy = ((sp.y - py) / len) * 44;
       sp.bubbleSprite = "bubble_too_bright";
@@ -1765,6 +1794,9 @@ export function updateStreetLife(
       if (dist < 88) {
         // Spooky graveyard character spots Liam and drifts/stalks toward him inside the graveyard!
         sp.chasing = true;
+        if (dist < 34) {
+          sp.attackTimer = Math.max(sp.attackTimer || 0, 0.25);
+        }
         if (sp.soundCooldown <= 0) {
           sp.bubbleTimer = 2.1;
           sp.soundCooldown = 4.2;
@@ -1848,10 +1880,21 @@ export function updateStreetLife(
     if (jg.greetCooldown > 0) jg.greetCooldown = Math.max(0, jg.greetCooldown - dt);
     if ((jg.jostleCooldown || 0) > 0) jg.jostleCooldown = Math.max(0, jg.jostleCooldown - dt);
     if ((jg.sprintTimer || 0) > 0) jg.sprintTimer = Math.max(0, jg.sprintTimer - dt);
+    if ((jg.reactTimer || 0) > 0) jg.reactTimer = Math.max(0, jg.reactTimer - dt);
+    if ((jg.jostledBurstTimer || 0) > 0) jg.jostledBurstTimer = Math.max(0, jg.jostledBurstTimer - dt);
 
     // Annoying runners surge into a dramatic Strava-PR sprint & yell when closing in on Liam!
     if (dist < 76) {
       jg.sprintTimer = Math.max(jg.sprintTimer || 0, 0.55);
+    }
+    // If Liam scoots past fast right beside a runner, the runner does a startled hop ("WHOA! NICE PACE!")
+    if (isFasterNow && dist < 34 && (jg.reactTimer || 0) <= 0 && jg.greetCooldown <= 1.2) {
+      jg.reactTimer = 0.65;
+      jg.sprintTimer = Math.max(jg.sprintTimer || 0, 1.1);
+      jg.bubbleSprite = "bubble_jogger_whoa";
+      jg.bubbleTimer = 2.1;
+      jg.greetCooldown = 3.2;
+      onJoggerAnnoy?.(jg, false);
     }
     const sprinting = (jg.sprintTimer || 0) > 0;
     jg.animTimer += dt * (sprinting ? 17 : 13.5);
@@ -1867,6 +1910,7 @@ export function updateStreetLife(
     // Comedic shoulder-zoom jostle if an obnoxious marathoner blasts right past Liam (strictly 0 heart damage!)
     if (dist < 15 && (jg.jostleCooldown || 0) <= 0) {
       jg.jostleCooldown = 4.0;
+      jg.jostledBurstTimer = 0.7;
       jg.chantIndex = ((jg.chantIndex ?? 0) + 1) % JOGGER_CHANTS.length;
       jg.bubbleSprite = `bubble_jogger_${jg.chantIndex}`;
       jg.bubbleTimer = 2.8;
@@ -1931,8 +1975,9 @@ export function performSwordAttack(
     if (dArc <= reachPx || dSelf <= 24) {
       sp.defeatedTimer = 18;
       sp.spookTimer = 0;
+      sp.attackTimer = 0;
       sp.chasing = false;
-      defeated.push({ kind: "spooky", name: sp.name, x: sp.x, y: sp.y });
+      defeated.push({ kind: "spooky", spookyKind: sp.kind, name: sp.name, x: sp.x, y: sp.y });
     }
   }
   if (Array.isArray(graveyardGhosts)) {
@@ -1943,7 +1988,7 @@ export function performSwordAttack(
       const dSelf = Math.hypot(gp.cx - px, gp.cy - py);
       if (dArc <= reachPx || dSelf <= 24) {
         g.defeatedTimer = 18;
-        defeated.push({ kind: "ghost", name: "Graveyard Ghost", x: gp.cx, y: gp.cy });
+        defeated.push({ kind: "ghost", spookyKind: "ghost", name: "Graveyard Ghost", x: gp.cx, y: gp.cy });
       }
     }
   }
@@ -1962,6 +2007,7 @@ export function performSwordAttack(
       tk.facing = tk.vx >= 0 ? "right" : "left";
       tk.fleeTimer = 5.5;
       tk.puffedTimer = 0.8;
+      tk.hopTimer = 0.48;
       tk.gobbleBubbleTimer = 2.0;
       tk.bubbleSprite = "bubble_gobble";
       scaredAnimals.push({ kind: "turkey", x: tk.x, y: tk.y });
@@ -1979,8 +2025,19 @@ export function performSwordAttack(
       cr.facing = cr.vx >= 0 ? "right" : "left";
       cr.fleeTimer = 5.5;
       cr.alertTimer = 0.9;
+      cr.hopTimer = 0.48;
       cr.bubbleTimer = 2.0;
       scaredAnimals.push({ kind: cr.kind, x: cr.x, y: cr.y });
+    }
+  }
+
+  // Harmlessly startle nearby marathon joggers into a funny hop & sprint reaction!
+  for (const jg of streetLife.joggers || []) {
+    if (Math.hypot(jg.x - arcX, jg.y - arcY) <= animalReach + 6) {
+      jg.reactTimer = 0.65;
+      jg.sprintTimer = Math.max(jg.sprintTimer || 0, 1.2);
+      jg.bubbleSprite = "bubble_jogger_whoa";
+      jg.bubbleTimer = 2.0;
     }
   }
 
@@ -2027,9 +2084,10 @@ export function performSiddurDispel(
     if ((sp.defeatedTimer || 0) > 0) continue;
     if (Math.hypot(sp.x - px, sp.y - py) <= radiusPx) {
       sp.defeatedTimer = 22;
+      sp.attackTimer = 0;
       sp.chasing = false;
       dispelledSpooky++;
-      positions.push({ x: sp.x, y: sp.y });
+      positions.push({ x: sp.x, y: sp.y, kind: "spooky", spookyKind: sp.kind });
     }
   }
 
@@ -2040,7 +2098,7 @@ export function performSiddurDispel(
       if (Math.hypot(gp.cx - px, gp.cy - py) <= radiusPx) {
         g.defeatedTimer = 22;
         dispelledSpooky++;
-        positions.push({ x: gp.cx, y: gp.cy });
+        positions.push({ x: gp.cx, y: gp.cy, kind: "ghost", spookyKind: "ghost" });
       }
     }
   }
@@ -2059,8 +2117,9 @@ export function performSiddurDispel(
       tk.facing = tk.vx >= 0 ? "right" : "left";
       tk.fleeTimer = 3.5;
       tk.puffedTimer = 0.6;
+      tk.hopTimer = 0.45;
       dispelledTurkeys++;
-      positions.push({ x: tk.x, y: tk.y });
+      positions.push({ x: tk.x, y: tk.y, kind: "turkey" });
     }
   }
 
@@ -2076,8 +2135,9 @@ export function performSiddurDispel(
       cr.facing = cr.vx >= 0 ? "right" : "left";
       cr.fleeTimer = 3.5;
       cr.alertTimer = 0.6;
+      cr.hopTimer = 0.45;
       dispelledTurkeys++;
-      positions.push({ x: cr.x, y: cr.y });
+      positions.push({ x: cr.x, y: cr.y, kind: cr.kind });
     }
   }
 

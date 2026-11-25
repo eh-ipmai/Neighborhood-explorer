@@ -1200,10 +1200,11 @@ export function bakeSmb3HeroFanfareSprite(outfit = "polo") {
 // 32-BIT NEIGHBORHOOD NPCs (44x52 NATIVE PIXELS -> 22x26 LOGICAL UNITS!)
 // =============================================================================
 
-export function bakeSmb3NpcSprite(theme) {
+export function bakeSmb3NpcSprite(theme, frame = 0) {
   const g = new PixelGrid(44, 52);
   const cx = 22;
-  const topY = 3;
+  const isWave = frame === 1;
+  const topY = isWave ? 2 : 3;
 
   const shirtHi = theme.shirtLight || theme.shirt;
   const shirtMid = theme.shirt;
@@ -1226,13 +1227,28 @@ export function bakeSmb3NpcSprite(theme) {
     g.rect(lx - 1, topY + 45, 7, 1, "#d9dfe8", "shoe");
   }
 
-  // Arms
-  for (const side of [-1, 1]) {
-    const ax = side < 0 ? cx - 10 : cx + 7;
-    g.rect(ax, topY + 21, 4, 8, shirtMid, "polo");
-    g.rect(ax + 1, topY + 22, 2, 6, shirtHi, "polo");
-    g.rect(ax, topY + 29, 3, 4, LIAM_PAL.skinMid, "skin");
-    g.rect(ax + 1, topY + 29, 1, 3, LIAM_PAL.skinHi, "skin");
+  // Arms (right arm raises cheerfully to wave/gesture on frame 1!)
+  {
+    const axL = cx - 10;
+    g.rect(axL, topY + 21, 4, 8, shirtMid, "polo");
+    g.rect(axL + 1, topY + 22, 2, 6, shirtHi, "polo");
+    g.rect(axL, topY + 29, 3, 4, LIAM_PAL.skinMid, "skin");
+    g.rect(axL + 1, topY + 29, 1, 3, LIAM_PAL.skinHi, "skin");
+
+    const axR = cx + 7;
+    if (isWave) {
+      g.rect(axR, topY + 17, 5, 6, shirtMid, "polo");
+      g.rect(axR + 1, topY + 18, 3, 4, shirtHi, "polo");
+      g.rect(axR + 3, topY + 10, 4, 8, LIAM_PAL.skinMid, "skin");
+      g.rect(axR + 4, topY + 11, 2, 6, LIAM_PAL.skinHi, "skin");
+      g.rect(axR + 3, topY + 8, 5, 4, LIAM_PAL.skinHi, "skin");
+      g.set(axR + 7, topY + 9, LIAM_PAL.skinShade, "skin");
+    } else {
+      g.rect(axR, topY + 21, 4, 8, shirtMid, "polo");
+      g.rect(axR + 1, topY + 22, 2, 6, shirtHi, "polo");
+      g.rect(axR, topY + 29, 3, 4, LIAM_PAL.skinMid, "skin");
+      g.rect(axR + 1, topY + 29, 1, 3, LIAM_PAL.skinHi, "skin");
+    }
   }
 
   // Torso jacket / shirt with collar & buttons
@@ -1262,7 +1278,7 @@ export function bakeSmb3NpcSprite(theme) {
   g.rect(cx - 6, topY + 5, 13, 2, hairHi, "hair");
   g.rect(cx - 7, topY + 9, 15, 2, hairDark, "hair");
 
-  // Expressive 32-bit eyes & friendly smile
+  // Expressive 32-bit eyes & friendly smile (open talking/greeting grin on wave frame!)
   for (const side of [-1, 1]) {
     const ex = side < 0 ? cx - 5 : cx + 3;
     const ey = topY + 12;
@@ -1272,7 +1288,13 @@ export function bakeSmb3NpcSprite(theme) {
   }
   g.rect(cx - 6, topY + 15, 2, 1, LIAM_PAL.cheek, "skin");
   g.rect(cx + 5, topY + 15, 2, 1, LIAM_PAL.cheek, "skin");
-  g.rect(cx - 1, topY + 16, 3, 1, LIAM_PAL.mouth, "skin");
+  if (isWave) {
+    g.rect(cx - 2, topY + 15, 5, 2, LIAM_PAL.mouthDark, "skin");
+    g.rect(cx - 1, topY + 15, 3, 1, LIAM_PAL.white, "skin");
+    g.rect(cx - 1, topY + 16, 3, 1, LIAM_PAL.mouth, "skin");
+  } else {
+    g.rect(cx - 1, topY + 16, 3, 1, LIAM_PAL.mouth, "skin");
+  }
 
   // Optional character hat (Chef toque, Ranger hat, Visor, Spooky Top Hat, BC Mortarboard!)
   if (theme.hat) {
@@ -1821,14 +1843,16 @@ function bake32BitProtestorRight(variant = 0, shoutFrame = 0) {
 
 /**
  * Bake 32-bit Pure Pixel Spooky Graveyard Skeleton (rattling bones, glowing emerald eyes & tattered scarf!)
+ * frame 0/1 = clattering stride, frame 2 = dramatic raised-arms spook/lunge pose!
  */
 function bake32BitSkeletonRight(frame = 0) {
   const w = 44;
   const h = 56;
   const g = new PixelGrid(w, h);
   const cx = 22;
-  const topY = 8 + (frame === 1 ? -1 : 0);
-  const stride = frame === 1 ? 3 : -1;
+  const isAttack = frame === 2;
+  const topY = isAttack ? 5 : 8 + (frame === 1 ? -1 : 0);
+  const stride = isAttack ? 4 : frame === 1 ? 3 : -1;
 
   // 1. Clattering skeleton legs & bony feet
   g.rect(cx - 5 - stride, topY + 31, 3, 12, "#d8e0d5", "bone");
@@ -1852,33 +1876,49 @@ function bake32BitSkeletonRight(frame = 0) {
 
   // 3. Tattered midnight-violet graveyard scarf fluttering behind
   g.rect(cx - 6, topY + 17, 12, 3, "#4e336e", "cloak");
-  g.rect(cx - 10, topY + 18 + (frame === 1 ? 1 : 0), 5, 3, "#6a4794", "cloak");
-  g.rect(cx - 12, topY + 20, 3, 2, "#3a2354", "cloak");
+  g.rect(cx - 10, topY + 18 + (frame === 1 ? 1 : isAttack ? -2 : 0), 5, 3, "#6a4794", "cloak");
+  g.rect(cx - 13, topY + (isAttack ? 17 : 20), 4, 2, "#3a2354", "cloak");
 
-  // 4. Outstretched spooky rattling bone arms!
-  const armLift = frame === 1 ? -3 : 0;
-  g.rect(cx - 9, topY + 19, 4, 3, "#c8d4c6", "bone");
-  g.rect(cx - 11, topY + 22, 3, 7, "#b6c2b4", "bone");
-  g.rect(cx + 5, topY + 19 + armLift, 7, 3, "#edf2eb", "bone");
-  g.rect(cx + 10, topY + 18 + armLift, 5, 4, "#ffffff", "bone"); // reaching bony hand
+  // 4. Outstretched spooky rattling bone arms (raised wide & lunging on attack frame!)
+  if (isAttack) {
+    g.rect(cx - 11, topY + 14, 6, 3, "#dbe3d8", "bone");
+    g.rect(cx - 14, topY + 9, 4, 7, "#edf2eb", "bone");
+    g.rect(cx - 15, topY + 7, 5, 3, "#ffffff", "bone"); // raised left claw!
+    g.rect(cx + 6, topY + 14, 7, 3, "#edf2eb", "bone");
+    g.rect(cx + 11, topY + 9, 5, 7, "#ffffff", "bone");
+    g.rect(cx + 13, topY + 7, 5, 4, "#ffffff", "bone"); // lunging right claw!
+    // Eerie green spook-aura sparks around hands!
+    g.set(cx + 17, topY + 5, "#78ffbd", "glow");
+    g.set(cx - 15, topY + 5, "#78ffbd", "glow");
+  } else {
+    const armLift = frame === 1 ? -3 : 0;
+    g.rect(cx - 9, topY + 19, 4, 3, "#c8d4c6", "bone");
+    g.rect(cx - 11, topY + 22, 3, 7, "#b6c2b4", "bone");
+    g.rect(cx + 5, topY + 19 + armLift, 7, 3, "#edf2eb", "bone");
+    g.rect(cx + 10, topY + 18 + armLift, 5, 4, "#ffffff", "bone"); // reaching bony hand
+  }
 
   // 5. Expressive sculpted ivory skull with glowing eerie emerald eyes & toothy grin!
   g.ellipse(cx + 1, topY + 9, 7.2, 6.6, "#edf2eb", "bone");
   g.ellipse(cx, topY + 7.5, 4.8, 3.8, "#ffffff", "bone");
-  g.rect(cx - 4, topY + 13, 9, 4, "#dbe3d8", "bone"); // jaw
+  g.rect(cx - 4, topY + 13, 9, isAttack ? 5 : 4, "#dbe3d8", "bone"); // jaw drops wider on rattle!
   // Deep eye sockets + bright glowing ghostly emerald eyes!
   g.rect(cx - 2, topY + 8, 3, 3, "#1b202e", "hollow");
   g.rect(cx + 3, topY + 8, 3, 3, "#1b202e", "hollow");
-  g.rect(cx - 1, topY + 9, 2, 2, "#59f2a8", "glow");
-  g.rect(cx + 4, topY + 9, 2, 2, "#59f2a8", "glow");
-  g.set(cx - 1, topY + 9, "#d9ffed", "glow");
-  g.set(cx + 4, topY + 9, "#d9ffed", "glow");
+  g.rect(cx - 1, topY + 9, 2, 2, isAttack ? "#94ffd0" : "#59f2a8", "glow");
+  g.rect(cx + 4, topY + 9, 2, 2, isAttack ? "#94ffd0" : "#59f2a8", "glow");
+  g.set(cx - 1, topY + 9, "#ffffff", "glow");
+  g.set(cx + 4, topY + 9, "#ffffff", "glow");
   // Cute nose notch & chattering pixel teeth
   g.rect(cx + 1, topY + 11, 2, 2, "#262c38", "hollow");
-  g.rect(cx - 2, topY + 15, 7, 2, "#262c38", "hollow");
+  g.rect(cx - 2, topY + 15, 7, isAttack ? 3 : 2, "#262c38", "hollow");
   g.set(cx - 1, topY + 15, "#ffffff", "bone");
   g.set(cx + 1, topY + 15, "#ffffff", "bone");
   g.set(cx + 3, topY + 15, "#ffffff", "bone");
+  if (isAttack) {
+    g.set(cx, topY + 17, "#ffffff", "bone");
+    g.set(cx + 2, topY + 17, "#ffffff", "bone");
+  }
 
   g.applySelOut({
     bone: "#272e3a",
@@ -1891,18 +1931,20 @@ function bake32BitSkeletonRight(frame = 0) {
 
 /**
  * Bake 32-bit Pure Pixel Spooky Graveyard Phantom (floating cloaked specter with glowing cyan eyes!)
+ * frame 0/1 = drifting hover, frame 2 = flared spectral BOO! lunge!
  */
 function bake32BitPhantomRight(frame = 0) {
   const w = 44;
   const h = 56;
   const g = new PixelGrid(w, h);
   const cx = 22;
-  const bob = frame === 1 ? -3 : 0;
+  const isAttack = frame === 2;
+  const bob = isAttack ? -5 : frame === 1 ? -3 : 0;
 
   // 1. Billowing spectral body & animated wavy ectoplasm tail
-  g.ellipse(cx, 24 + bob, 9.5, 13.5, "#6b7ec4", "ectoplasm");
-  g.ellipse(cx - 1, 21 + bob, 7.2, 10.2, "#9bb3f0", "ectoplasm");
-  g.ellipse(cx - 2, 18 + bob, 4.4, 6.2, "#d4e6ff", "ectoplasm");
+  g.ellipse(cx, 24 + bob, isAttack ? 11.2 : 9.5, 13.5, "#6b7ec4", "ectoplasm");
+  g.ellipse(cx - 1, 21 + bob, isAttack ? 8.8 : 7.2, 10.2, "#9bb3f0", "ectoplasm");
+  g.ellipse(cx - 2, 18 + bob, isAttack ? 5.6 : 4.4, 6.2, "#d4e6ff", "ectoplasm");
   // Wavy trailing phantom hem
   if (frame === 0) {
     g.rect(cx - 10, 34 + bob, 5, 7, "#6b7ec4", "ectoplasm");
@@ -1921,16 +1963,25 @@ function bake32BitPhantomRight(frame = 0) {
   g.ellipse(cx, 12 + bob, 6.0, 4.8, "#6b7ec4", "hood");
   g.ellipse(cx + 2, 16 + bob, 5.2, 4.6, "#1a1f36", "shadow");
   // Glowing spectral cyan eyes + eerie "OOO" mouth!
-  g.rect(cx, 14 + bob, 3, 3, "#5ceef5", "glow");
-  g.rect(cx + 4, 14 + bob, 3, 3, "#5ceef5", "glow");
+  g.rect(cx, 14 + bob, 3, isAttack ? 4 : 3, isAttack ? "#a8fcff" : "#5ceef5", "glow");
+  g.rect(cx + 4, 14 + bob, 3, isAttack ? 4 : 3, isAttack ? "#a8fcff" : "#5ceef5", "glow");
   g.set(cx + 1, 14 + bob, "#ffffff", "glow");
   g.set(cx + 5, 14 + bob, "#ffffff", "glow");
-  g.rect(cx + 2, 18 + bob, 3, 2, "#8cf7fc", "glow");
+  g.rect(cx + 2, 18 + bob, isAttack ? 4 : 3, isAttack ? 3 : 2, "#8cf7fc", "glow");
 
-  // 3. Reaching spectral phantom arms!
-  g.rect(cx + 7, 21 + bob, 7, 4, "#9bb3f0", "ectoplasm");
-  g.rect(cx + 12, 20 + bob, 4, 4, "#d4e6ff", "ectoplasm");
-  g.rect(cx - 11, 22 + bob, 5, 4, "#6b7ec4", "ectoplasm");
+  // 3. Reaching spectral phantom arms (flared wide on BOO! lunge!)
+  if (isAttack) {
+    g.rect(cx + 8, 16 + bob, 8, 5, "#b6cdfc", "ectoplasm");
+    g.rect(cx + 14, 13 + bob, 5, 5, "#e6f4ff", "ectoplasm");
+    g.rect(cx - 14, 17 + bob, 7, 5, "#8aa4e8", "ectoplasm");
+    g.rect(cx - 17, 14 + bob, 4, 5, "#d4e6ff", "ectoplasm");
+    g.set(cx + 18, 11 + bob, "#8cf7fc", "glow");
+    g.set(cx - 18, 12 + bob, "#8cf7fc", "glow");
+  } else {
+    g.rect(cx + 7, 21 + bob, 7, 4, "#9bb3f0", "ectoplasm");
+    g.rect(cx + 12, 20 + bob, 4, 4, "#d4e6ff", "ectoplasm");
+    g.rect(cx - 11, 22 + bob, 5, 4, "#6b7ec4", "ectoplasm");
+  }
 
   g.applySelOut({
     ectoplasm: "#27315e",
@@ -1943,19 +1994,21 @@ function bake32BitPhantomRight(frame = 0) {
 
 /**
  * Bake 32-bit Pure Pixel Spooky Pumpkin Ghoul (carved glowing Jack-o'-Lantern head & violet cloak!)
+ * frame 0/1 = creeping stride, frame 2 = fiery jack-o'-lantern spook pounce!
  */
 function bake32BitPumpkinGhoulRight(frame = 0) {
   const w = 44;
   const h = 56;
   const g = new PixelGrid(w, h);
   const cx = 22;
-  const bob = frame === 1 ? -2 : 0;
-  const stride = frame === 1 ? 2 : -1;
+  const isAttack = frame === 2;
+  const bob = isAttack ? -4 : frame === 1 ? -2 : 0;
+  const stride = isAttack ? 3 : frame === 1 ? 2 : -1;
 
   // 1. Tattered deep-violet cloak & creeping boots
   g.rect(cx - 5 - stride, 42, 5, 5, "#2b2038", "boot");
   g.rect(cx + 1 + stride, 42, 5, 5, "#22192e", "boot");
-  g.ellipse(cx, 33 + bob, 9.2, 10.5, "#4a2763", "cloak");
+  g.ellipse(cx, 33 + bob, isAttack ? 10.2 : 9.2, 10.5, "#4a2763", "cloak");
   g.ellipse(cx - 1, 31 + bob, 6.4, 8.2, "#6b3b8c", "cloak");
   g.rect(cx - 9, 39 + bob, 4, 4, "#3a1e4f", "cloak");
   g.rect(cx - 3, 40 + bob, 5, 4, "#4a2763", "cloak");
@@ -1964,11 +2017,21 @@ function bake32BitPumpkinGhoulRight(frame = 0) {
   g.rect(cx - 7, 23 + bob, 14, 3, "#2f6639", "leaf");
   g.rect(cx - 5, 25 + bob, 10, 2, "#468f52", "leaf");
 
-  // 2. Crooked wooden twig arms reaching forward!
-  g.rect(cx + 6, 26 + bob, 8, 3, "#6b4125", "twig");
-  g.rect(cx + 12, 24 + bob, 3, 3, "#8f5936", "twig");
-  g.rect(cx + 13, 28 + bob, 3, 2, "#6b4125", "twig");
-  g.rect(cx - 11, 27 + bob, 5, 3, "#54321c", "twig");
+  // 2. Crooked wooden twig arms reaching forward (flaring wide with fiery sparks on attack!)
+  if (isAttack) {
+    g.rect(cx + 6, 21 + bob, 9, 3, "#8f5936", "twig");
+    g.rect(cx + 13, 17 + bob, 4, 5, "#a66c44", "twig");
+    g.rect(cx + 15, 22 + bob, 3, 3, "#6b4125", "twig");
+    g.rect(cx - 13, 21 + bob, 7, 3, "#6b4125", "twig");
+    g.rect(cx - 15, 18 + bob, 3, 4, "#8f5936", "twig");
+    g.set(cx + 17, 15 + bob, "#fff066", "glow");
+    g.set(cx - 15, 16 + bob, "#ffb347", "glow");
+  } else {
+    g.rect(cx + 6, 26 + bob, 8, 3, "#6b4125", "twig");
+    g.rect(cx + 12, 24 + bob, 3, 3, "#8f5936", "twig");
+    g.rect(cx + 13, 28 + bob, 3, 2, "#6b4125", "twig");
+    g.rect(cx - 11, 27 + bob, 5, 3, "#54321c", "twig");
+  }
 
   // 3. Big glowing carved Jack-o'-Lantern Pumpkin Head!
   g.ellipse(cx + 1, 15 + bob, 9.0, 7.6, "#e6701e", "pumpkin");
@@ -1980,12 +2043,12 @@ function bake32BitPumpkinGhoulRight(frame = 0) {
   // Curled green pumpkin stem on top
   g.rect(cx, 5 + bob, 3, 4, "#387a42", "leaf");
   g.rect(cx + 2, 4 + bob, 3, 2, "#54a85e", "leaf");
-  // Glowing golden carved triangular eyes & toothy Jack-o'-Lantern grin!
-  g.rect(cx - 2, 13 + bob, 3, 3, "#fff066", "glow");
-  g.rect(cx + 3, 13 + bob, 3, 3, "#fff066", "glow");
+  // Glowing golden carved triangular eyes & toothy Jack-o'-Lantern grin (blazing wide on attack!)
+  g.rect(cx - 2, 13 + bob, 3, 3, isAttack ? "#ffffff" : "#fff066", "glow");
+  g.rect(cx + 3, 13 + bob, 3, 3, isAttack ? "#ffffff" : "#fff066", "glow");
   g.set(cx - 1, 14 + bob, "#ffffff", "glow");
   g.set(cx + 4, 14 + bob, "#ffffff", "glow");
-  g.rect(cx - 3, 18 + bob, 9, 2, "#ffe14d", "glow");
+  g.rect(cx - 3, 18 + bob, 9, isAttack ? 3 : 2, isAttack ? "#fff6a8" : "#ffe14d", "glow");
   g.set(cx - 1, 18 + bob, "#bd5011", "pumpkin"); // jagged tooth!
   g.set(cx + 3, 19 + bob, "#bd5011", "pumpkin");
 
@@ -2293,7 +2356,7 @@ export function bake32BitStreetLifeSprites(chants = []) {
     out[`protestor_${v}_left_1`] = mirrorCanvasHorizontal(pR1);
   }
 
-  // 3 Spooky Graveyard Character archetypes (Skeleton, Phantom, Pumpkin Ghoul!)
+  // 3 Spooky Graveyard Character archetypes (Skeleton, Phantom, Pumpkin Ghoul — walk + attack/lunge!)
   const spookyBakers = [
     ["skeleton", bake32BitSkeletonRight],
     ["phantom", bake32BitPhantomRight],
@@ -2302,10 +2365,13 @@ export function bake32BitStreetLifeSprites(chants = []) {
   for (const [kind, baker] of spookyBakers) {
     const r0 = baker(0);
     const r1 = baker(1);
+    const rAtk = baker(2);
     out[`spooky_${kind}_right_0`] = r0;
     out[`spooky_${kind}_right_1`] = r1;
+    out[`spooky_${kind}_attack_right`] = rAtk;
     out[`spooky_${kind}_left_0`] = mirrorCanvasHorizontal(r0);
     out[`spooky_${kind}_left_1`] = mirrorCanvasHorizontal(r1);
+    out[`spooky_${kind}_attack_left`] = mirrorCanvasHorizontal(rAtk);
   }
 
   // 32-bit Newton EMS EMT Paramedics (2 distinct variants + kneeling triage pose!) & Hydraulic Stretcher!
@@ -2602,6 +2668,26 @@ export function bake32BitStreetLifeSprites(chants = []) {
     bg: "#fff4cc",
     accent: "#fc4c02",
     textColor: "#381604",
+  });
+  out.bubble_jogger_whoa = bakePixelSpeechBubble("WHOA! NICE PACE!", {
+    bg: "#e6fbff",
+    accent: "#1ea8d9",
+    textColor: "#0e2f47",
+  });
+  out.bubble_whoa = bakePixelSpeechBubble("WHOA!!", {
+    bg: "#fff4d1",
+    accent: "#e67e22",
+    textColor: "#421d08",
+  });
+  out.bubble_npc_hi = bakePixelSpeechBubble("HI LIAM!", {
+    bg: "#fff9e0",
+    accent: "#2e9c5e",
+    textColor: "#143822",
+  });
+  out.bubble_npc_yay = bakePixelSpeechBubble("AWESOME!", {
+    bg: "#fff6cc",
+    accent: "#e09f24",
+    textColor: "#3d2406",
   });
   out.bubble_animal_yum = bakePixelSpeechBubble("YUM! *MUNCH*", {
     bg: "#ebfff0",

@@ -27,6 +27,9 @@ import {
   checkStreetLifeContact,
   findNearbySnackTarget,
   tossSnackAtAnimal,
+  interactWithStreetLife,
+  performSwordAttack,
+  performSiddurDispel,
 } from "../src/streetlife.js";
 import { buildParkingLotCars } from "../src/parking_lots.js";
 import { buildGraveyardFeatures } from "../src/graveyards.js";
@@ -405,4 +408,119 @@ test("playtest invariants: zero props/signs/streetlife on vector roads, accurate
   const revisit = qs.interactWithChest(chest.id);
   assert.equal(revisit.questEvent?.type, "quest_completed", "revisiting already-opened chest should complete Quest 2");
   assert.ok(qs.state.completedQuests.has("quest_02_riddle_hunt"));
+});
+
+test("NPC wave frames, spooky attack poses, 3-frame sword arcs, 2x HD FX sprites, interaction timers, and streamlined HUD", () => {
+  // 1. Verify all new animated character & 2x HD pixel-art FX sprites bake cleanly
+  const prevDoc = globalThis.document;
+  globalThis.document = createMockCanvasDocument();
+  try {
+    const sprites = buildSnesSpriteAtlas("autumn_golden");
+    for (let i = 0; i < 6; i++) {
+      assert.ok(sprites[`npc_${i}_wave`], `missing animated wave frame npc_${i}_wave`);
+      assert.equal(sprites[`npc_${i}_wave`].__pixelScale, 0.5);
+    }
+    for (const kind of ["skeleton", "phantom", "pumpkin_ghoul"]) {
+      for (const dir of ["right", "left"]) {
+        const key = `spooky_${kind}_attack_${dir}`;
+        assert.ok(sprites[key], `missing spooky attack pose ${key}`);
+        assert.equal(sprites[key].__pixelScale, 0.5);
+      }
+    }
+    for (const dir of ["down", "up", "left", "right"]) {
+      for (let f = 0; f < 3; f++) {
+        assert.ok(sprites[`sword_slash_${dir}_${f}`], `missing 3-frame sword slash sword_slash_${dir}_${f}`);
+      }
+      assert.ok(sprites[`sword_slash_${dir}`], `backwards-compat sword_slash_${dir} must exist`);
+    }
+    for (const key of [
+      "fx_ring_gold_0", "fx_ring_gold_1", "fx_ring_green_0", "fx_ring_safe_0",
+      "prop_welcome_mat", "prop_welcome_mat_glow",
+      "fx_lantern_glow_0", "fx_siddur_ring_0", "fx_siddur_ring_2",
+      "fx_sheikah_ring", "fx_water_ripple_0", "fx_grave_mist", "fx_chalk_arrow",
+      "fx_heart_pink", "fx_heart_red", "fx_heart_empty",
+      "fx_sparkle_gold", "fx_sparkle_cyan", "fx_alert_bang", "fx_sweat_drop",
+      "fx_music_note", "fx_bone_0", "fx_bone_1", "fx_skull_poof", "fx_ember",
+      "fx_pretzel", "fx_acorn", "fx_feather_0", "fx_leaf_0",
+      "bubble_jogger_whoa", "bubble_whoa", "bubble_npc_hi", "bubble_npc_yay",
+    ]) {
+      assert.ok(sprites[key], `missing upgraded 2x HD FX sprite: ${key}`);
+      assert.equal(sprites[key].__pixelScale, 0.5, `${key} should use 2x HD pixelScale 0.5`);
+    }
+  } finally {
+    globalThis.document = prevDoc;
+  }
+
+  // 2. Verify interaction animation timers across skeletons, joggers, protestors & wild animals
+  const { worldMap, landmarks } = loadWorldData();
+  const gf = buildGraveyardFeatures(worldMap);
+  const sl = buildStreetLife(worldMap, {
+    parkOccupiedGrid: gf.occupiedGrid,
+    graveyardGrid: gf.graveyardGrid,
+    graveyardZones: gf.zones,
+    spawnTile: worldMap.origin.spawnTile,
+    landmarks,
+  });
+
+  // Skeleton attack pose on bump, tailored spookyKind defeat metadata, and mist respawn timer
+  const skel = sl.spookyChars.find((s) => s.kind === "skeleton");
+  assert.ok(skel, "expected at least one graveyard skeleton");
+  const bumpPlayer = { x: skel.x + 2, y: skel.y, facing: "left", hearts: 5, maxHearts: 5, hurtTimer: 0 };
+  updateStreetLife(sl, 0.05, bumpPlayer, worldMap);
+  assert.ok(skel.attackTimer > 0, "bumping skeleton must trigger attackTimer lunge pose");
+
+  const swRes = performSwordAttack(sl, { x: skel.x - 10, y: skel.y, facing: "right" });
+  const defSkel = swRes.defeated.find((d) => d.spookyKind === "skeleton");
+  assert.ok(defSkel, "performSwordAttack must include spookyKind metadata for tailored defeat FX");
+
+  // Fast-forward skeleton respawn -> triggers respawnAnimTimer mist rise-in!
+  skel.defeatedTimer = 0.02;
+  updateStreetLife(sl, 0.05, { x: skel.x + 120, y: skel.y, hearts: 5, maxHearts: 5, hurtTimer: 0 }, worldMap);
+  assert.ok(skel.respawnAnimTimer > 0.5, "respawning skeleton must trigger respawnAnimTimer mist rise-in");
+
+  // Siddur dispel also includes spookyKind metadata
+  const ph = sl.spookyChars.find((s) => s.kind === "phantom");
+  if (ph) {
+    ph.defeatedTimer = 0;
+    const sidRes = performSiddurDispel(sl, { x: ph.x + 8, y: ph.y });
+    assert.ok(sidRes.positions.some((p) => p.spookyKind === "phantom"), "performSiddurDispel must report spookyKind");
+  }
+
+  // Protestor mob cheers together when given a snack!
+  const mobMember = sl.protestors.find((p) => p.isMob);
+  assert.ok(mobMember, "expected a marching group");
+  interactWithStreetLife(sl, { kind: "protestor", target: mobMember }, mobMember.x - 8, mobMember.y, { hasSnack: true });
+  assert.ok(mobMember.cheerTimer > 1.0, "marcher given a snack must trigger cheerTimer celebration hop");
+
+  // Wild turkey hops when shooed
+  const tk = sl.turkeys[0];
+  assert.ok(tk);
+  interactWithStreetLife(sl, { kind: "turkey", target: tk }, tk.x - 8, tk.y);
+  assert.ok(tk.hopTimer > 0.3, "shooed turkey must trigger startled hopTimer");
+
+  // Jogger reacts with startled hop when Liam scoots past fast (0 heart damage!)
+  const jg = sl.joggers[0];
+  assert.ok(jg);
+  jg.reactTimer = 0;
+  jg.greetCooldown = 0;
+  const scootPlayer = { x: jg.x + 20, y: jg.y, hearts: 5, maxHearts: 5, hurtTimer: 0 };
+  updateStreetLife(sl, 0.05, scootPlayer, worldMap, { isFasterNow: true });
+  assert.ok(jg.reactTimer > 0, "scooting past a jogger must trigger startled reactTimer hop");
+  assert.equal(scootPlayer.hearts, 5, "jogger reaction must never hurt Liam");
+
+  // 3. Verify streamlined HUD structure in index.html
+  const html = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf8");
+  const utilMatch = html.match(/<div class="utility-row">([\s\S]*?)<\/div>/);
+  assert.ok(utilMatch, "index.html must contain .utility-row");
+  const utilButtons = [...utilMatch[1].matchAll(/id="(btn-[^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(
+    utilButtons,
+    ["btn-inside", "btn-snack", "btn-sword", "btn-siddur"],
+    ".utility-row must only contain the 4 contextual gameplay action buttons (no shortcut clutter)"
+  );
+  const drawerMatch = html.match(/id="tools-drawer"[\s\S]*?<\/div>\s*<\/div>/);
+  assert.ok(drawerMatch, "index.html must contain collapsible #tools-drawer for secondary options");
+  for (const id of ["btn-gps", "btn-outfit", "btn-paint", "btn-mute", "btn-home", "btn-salzberg", "btn-debug"]) {
+    assert.ok(drawerMatch[0].includes(`id="${id}"`), `#tools-drawer should house secondary shortcut ${id}`);
+  }
 });

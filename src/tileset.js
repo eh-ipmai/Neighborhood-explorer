@@ -4831,7 +4831,8 @@ export function buildSnesSpriteAtlas(paletteName = "autumn_golden") {
     { shirt: "#7d1d2e", shirtLight: "#a82d43", shirtDark: "#54111d", hair: "#543a2b", hairLight: "#7a5843", hairDark: "#332117", hat: "#e6b84c", hatLight: "#ffe082", hatRim: "#7d1d2e" }, // 5: Boston College Dean (Maroon & Gold!)
   ];
   npcThemes.forEach((t, idx) => {
-    sprites[`npc_${idx}`] = bakeSmb3NpcSprite(t);
+    sprites[`npc_${idx}`] = bakeSmb3NpcSprite(t, 0);
+    sprites[`npc_${idx}_wave`] = bakeSmb3NpcSprite(t, 1);
   });
 
   // --- 14. Phase 3 Wooden Chest / Little Free Library Box + Quest Exclamation Bubble + Fanfare Star ---
@@ -5008,59 +5009,75 @@ export function buildSnesSpriteAtlas(paletteName = "autumn_golden") {
     px(ctx, 9, 3, 1, 6, "#fff8e0"); // Gold-edged pages
   });
 
-  // --- 14b. 32-bit HD Sword Slash Arcs (4 directions!) ---
-  const makeSwordSlash = (dir) => {
+  // --- 14b. 32-bit HD 3-Frame Sweeping Sword Slash Arcs (4 directions!) ---
+  // Smooth crescent pixel-arc sweep: frame 0 (wind-up arc), frame 1 (full gleaming apex), frame 2 (follow-through shimmer)
+  const makeSwordSlashFrame = (dir, frame = 1) => {
     const isH = dir === "left" || dir === "right";
-    const { canvas, ctx } = makeCanvas(isH ? 34 : 40, isH ? 40 : 34);
+    const w = isH ? 38 : 44;
+    const h = isH ? 44 : 38;
+    const { canvas, ctx } = makeCanvas(w, h);
     canvas.__pixelScale = 0.5;
-    const p = (x, y, w, h, col) => px(ctx, x, y, w, h, col);
-    if (dir === "right") {
-      // Gleaming crescent sweep arcing outward to the right
-      p(8, 3, 12, 4, "#f4d35e");
-      p(16, 6, 10, 6, "#fff6b8");
-      p(22, 11, 8, 16, "#ffffff");
-      p(18, 13, 6, 14, "#9ce3ff");
-      p(16, 26, 10, 6, "#fff6b8");
-      p(8, 32, 12, 4, "#f4d35e");
-      // Blade & golden hilt center-right
-      p(4, 18, 24, 4, "#d8f4ff");
-      p(6, 19, 22, 2, "#ffffff");
-      p(2, 16, 4, 8, "#f4d35e");
-    } else if (dir === "left") {
-      p(14, 3, 12, 4, "#f4d35e");
-      p(8, 6, 10, 6, "#fff6b8");
-      p(4, 11, 8, 16, "#ffffff");
-      p(10, 13, 6, 14, "#9ce3ff");
-      p(8, 26, 10, 6, "#fff6b8");
-      p(14, 32, 12, 4, "#f4d35e");
-      p(6, 18, 24, 4, "#d8f4ff");
-      p(6, 19, 22, 2, "#ffffff");
-      p(28, 16, 4, 8, "#f4d35e");
-    } else if (dir === "down") {
-      p(3, 8, 4, 12, "#f4d35e");
-      p(6, 16, 6, 10, "#fff6b8");
-      p(11, 22, 18, 8, "#ffffff");
-      p(13, 18, 14, 6, "#9ce3ff");
-      p(28, 16, 6, 10, "#fff6b8");
-      p(33, 8, 4, 12, "#f4d35e");
-      p(18, 4, 4, 24, "#d8f4ff");
-      p(19, 6, 2, 22, "#ffffff");
-      p(16, 2, 8, 4, "#f4d35e");
-    } else {
-      p(3, 14, 4, 12, "#f4d35e");
-      p(6, 8, 6, 10, "#fff6b8");
-      p(11, 4, 18, 8, "#ffffff");
-      p(13, 10, 14, 6, "#9ce3ff");
-      p(28, 8, 6, 10, "#fff6b8");
-      p(33, 14, 4, 12, "#f4d35e");
-      p(18, 6, 4, 24, "#d8f4ff");
-      p(19, 6, 2, 22, "#ffffff");
-      p(16, 28, 8, 4, "#f4d35e");
+    const cx = dir === "right" ? 4 : dir === "left" ? w - 5 : Math.floor(w / 2);
+    const cy = dir === "down" ? 4 : dir === "up" ? h - 5 : Math.floor(h / 2);
+    const baseAngle =
+      dir === "right" ? 0 : dir === "left" ? Math.PI : dir === "down" ? Math.PI / 2 : -Math.PI / 2;
+    const startOff = frame === 0 ? -1.35 : frame === 1 ? -1.25 : -0.35;
+    const endOff = frame === 0 ? 0.15 : frame === 1 ? 1.25 : 1.38;
+    const outerR = frame === 1 ? 26 : 24;
+    const innerR = frame === 2 ? 17 : 12;
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const dx = x - cx;
+        const dy = y - cy;
+        const r = Math.hypot(dx, dy);
+        if (r < innerR || r > outerR) continue;
+        let diff = Math.atan2(dy, dx) - baseAngle;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        if (diff < startOff || diff > endOff) continue;
+        const progress = (diff - startOff) / Math.max(0.01, endOff - startOff);
+        const radFrac = (r - innerR) / Math.max(1, outerR - innerR);
+        // Taper the trailing tail smoothly into a razor-sharp crescent!
+        const minRadForTail = (1 - progress) * 0.55;
+        if (radFrac < minRadForTail) continue;
+        if (radFrac > 0.84) {
+          px(ctx, x, y, 1, 1, progress > 0.45 ? "#ffffff" : "#fff6b8");
+        } else if (radFrac > 0.56) {
+          px(ctx, x, y, 1, 1, progress > 0.5 ? "#d8f8ff" : "#f4d35e");
+        } else if (radFrac > 0.3) {
+          px(ctx, x, y, 1, 1, frame === 2 ? "rgba(132, 224, 255, 0.58)" : "#78d2ff");
+        } else if ((x + y) % 2 === 0) {
+          px(ctx, x, y, 1, 1, "rgba(244, 211, 94, 0.55)");
+        }
+      }
+    }
+
+    // Gleaming pixel blade + golden crossguard leading the swing!
+    const bladeAng = baseAngle + (frame === 0 ? -0.25 : frame === 1 ? 0.22 : 0.85);
+    const cosB = Math.cos(bladeAng);
+    const sinB = Math.sin(bladeAng);
+    for (let step = 4; step <= 23; step++) {
+      const bx = Math.round(cx + cosB * step);
+      const by = Math.round(cy + sinB * step);
+      px(ctx, bx - 1, by - 1, 3, 3, step < 8 ? "#b8861e" : "#80ccff");
+      px(ctx, bx, by, 2, 2, step < 8 ? "#ffe375" : "#ffffff");
+    }
+    // Golden crossguard near hilt
+    const gx = Math.round(cx + cosB * 6);
+    const gy = Math.round(cy + sinB * 6);
+    const perpX = -sinB;
+    const perpY = cosB;
+    for (let k = -4; k <= 4; k++) {
+      px(ctx, Math.round(gx + perpX * k), Math.round(gy + perpY * k), 2, 2, Math.abs(k) < 2 ? "#fff6b8" : "#e6b84c");
     }
     return canvas;
   };
   for (const dir of ["down", "up", "left", "right"]) {
-    sprites[`sword_slash_${dir}`] = makeSwordSlash(dir);
+    sprites[`sword_slash_${dir}_0`] = makeSwordSlashFrame(dir, 0);
+    sprites[`sword_slash_${dir}_1`] = makeSwordSlashFrame(dir, 1);
+    sprites[`sword_slash_${dir}_2`] = makeSwordSlashFrame(dir, 2);
+    sprites[`sword_slash_${dir}`] = sprites[`sword_slash_${dir}_1`];
   }
 
   // --- 14c. HERO-GRADE 32-BIT PIXELGRID CARS, SUVs, PICKUP & BOX TRUCKS, ANNOYING BIKERS & EMS AMBULANCE! ---

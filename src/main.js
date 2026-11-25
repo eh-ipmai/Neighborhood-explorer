@@ -597,11 +597,17 @@ async function boot() {
     swordCooldown: 0,
     siddurAuraTimer: 0,
     siddurCooldown: 0,
+    jostleTimer: 0,
+    jostleDirX: 0,
+    jostleDirY: 0,
+    throwAnimTimer: 0,
   };
 
   let roadHitCutscene = null; // { phase, timer, hitX, hitY, ambX, ambY, ambDir, sirenTimer, vehicleKind }
   let botwTeleport = null; // { phase: "out"|"glide"|"in", timer, duration, fromX, fromY, toX, toY, toTx, toTy, ribbons, runes }
   let isInGraveyardNow = false;
+  let activeTalkNpcId = null;
+  const npcAnimState = new Map(); // npcId -> { celebrateTimer, greetWaveTimer, greetedNear }
 
   // Overhead Item Fanfare queue & active timer
   const fanfareQueue = [];
@@ -609,10 +615,102 @@ async function boot() {
 
   const dustPuffs = [];
   const leafParticles = [];
+  const worldFx = []; // Tailored defeat/interaction animations (bone collapse, ectoplasm vortex, beams, flashlight cones, wind swirls)
+  const ambientLeaves = Array.from({ length: 8 }, (_, i) => ({
+    ox: ((i * 53) % VIEW_W) - VIEW_W / 2,
+    oy: ((i * 37) % VIEW_H) - VIEW_H / 2,
+    vx: 10 + (i % 3) * 4,
+    vy: 6 + (i % 4) * 2.5,
+    phase: i * 1.1,
+    sprite: `fx_leaf_${i % 3}`,
+  }));
   const tossedSnacks = [];
   const groundDrops = [];
   let dustCooldown = 0;
   let leafTrailCooldown = 0;
+
+  function spawnSpriteParticle(opts) {
+    leafParticles.push(opts);
+  }
+
+  function spawnSpookyDefeatEffect(x, y, spookyKind = "skeleton", viaSiddur = false) {
+    if (viaSiddur) {
+      worldFx.push({ kind: "siddur_beam", x, y, t: 0, duration: 0.72 });
+      for (let i = 0; i < 6; i++) {
+        const ang = (i / 6) * Math.PI * 2;
+        spawnSpriteParticle({
+          x: x + Math.cos(ang) * 4,
+          y: y - 10,
+          vx: Math.cos(ang) * 20,
+          vy: -34 - Math.random() * 18,
+          life: 0.62,
+          sprite: i % 2 === 0 ? "fx_sparkle_gold" : "fx_sparkle_cyan",
+          noGravity: true,
+        });
+      }
+    }
+    if (spookyKind === "skeleton") {
+      // Dramatic clattering bone-pile collapse: spinning skull + 4 bouncing bones!
+      const pieces = [
+        { sprite: "fx_skull_poof", x, y: y - 16, vx: (Math.random() - 0.5) * 24, vy: -52, rot: 0, rotSpd: 320 },
+      ];
+      for (let i = 0; i < 4; i++) {
+        const ang = -Math.PI * 0.85 + (i / 3) * Math.PI * 0.7;
+        pieces.push({
+          sprite: i % 2 === 0 ? "fx_bone_0" : "fx_bone_1",
+          x: x + (i - 1.5) * 3,
+          y: y - 10,
+          vx: Math.cos(ang) * (26 + Math.random() * 20),
+          vy: -36 - Math.random() * 22,
+          rot: i * 45,
+          rotSpd: (i % 2 === 0 ? 1 : -1) * (280 + i * 40),
+        });
+      }
+      worldFx.push({ kind: "skeleton_defeat", x, y, groundY: y + 2, t: 0, duration: 0.95, pieces });
+      for (let i = 0; i < 6; i++) {
+        const ang = (i / 6) * Math.PI * 2;
+        spawnSpriteParticle({
+          x,
+          y: y - 10,
+          vx: Math.cos(ang) * 26,
+          vy: Math.sin(ang) * 16 - 14,
+          life: 0.45,
+          shade: i % 2 === 0 ? [102, 242, 168] : [224, 240, 224],
+          w: 3,
+          h: 3,
+        });
+      }
+    } else if (spookyKind === "pumpkin_ghoul") {
+      // Jack-o'-Lantern ember burst + curling violet cloak wisps!
+      worldFx.push({ kind: "pumpkin_defeat", x, y, t: 0, duration: 0.78 });
+      for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2;
+        spawnSpriteParticle({
+          x,
+          y: y - 12,
+          vx: Math.cos(ang) * (26 + Math.random() * 18),
+          vy: Math.sin(ang) * 18 - 28,
+          life: 0.56 + Math.random() * 0.16,
+          sprite: i % 2 === 0 ? "fx_ember" : "fx_sparkle_gold",
+        });
+      }
+    } else {
+      // Phantom / Floating Ghost spiraling ectoplasm vortex!
+      worldFx.push({ kind: "phantom_defeat", x, y, t: 0, duration: 0.82 });
+      for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2;
+        spawnSpriteParticle({
+          x: x + Math.cos(ang) * 5,
+          y: y - 12,
+          vx: Math.cos(ang) * 24,
+          vy: -26 - Math.random() * 18,
+          life: 0.56,
+          sprite: i % 2 === 0 ? "fx_sparkle_cyan" : "fx_sparkle_gold",
+          noGravity: true,
+        });
+      }
+    }
+  }
 
   let showDebug = false;
   let lastStreetName = "";
@@ -907,22 +1005,16 @@ async function boot() {
     const gained = playerState.hearts - prev;
     if (gained > 0) {
       playHealHeartSfx();
-      const heartColors = [
-        [255, 86, 114],
-        [255, 198, 120],
-        [255, 240, 248],
-      ];
-      for (let i = 0; i < 8; i++) {
-        const ang = (i / 8) * Math.PI * 2;
+      for (let i = 0; i < 6; i++) {
+        const ang = (i / 6) * Math.PI * 2;
         leafParticles.push({
-          x: playerState.x + Math.cos(ang) * 6,
-          y: playerState.y - 10 + Math.sin(ang) * 4,
-          vx: Math.cos(ang) * 20,
-          vy: -24 - Math.random() * 14,
-          life: 0.45,
-          shade: heartColors[i % heartColors.length],
-          w: 3,
-          h: 3,
+          x: playerState.x + Math.cos(ang) * 7,
+          y: playerState.y - 12 + Math.sin(ang) * 4,
+          vx: Math.cos(ang) * 18,
+          vy: -26 - Math.random() * 14,
+          life: 0.56,
+          sprite: i % 2 === 0 ? "fx_heart_pink" : "fx_sparkle_gold",
+          noGravity: true,
         });
       }
       const suffix = reason ? ` (${reason})` : "";
@@ -963,19 +1055,7 @@ async function boot() {
       }
       questSystem.save();
       for (const foe of res.defeated) {
-        for (let i = 0; i < 10; i++) {
-          const ang = (i / 10) * Math.PI * 2;
-          leafParticles.push({
-            x: foe.x,
-            y: foe.y - 6,
-            vx: Math.cos(ang) * (28 + Math.random() * 24),
-            vy: Math.sin(ang) * 24 - 18,
-            life: 0.42,
-            shade: i % 2 === 0 ? [255, 230, 102] : [132, 232, 255],
-            w: 3,
-            h: 3,
-          });
-        }
+        spawnSpookyDefeatEffect(foe.x, foe.y, foe.spookyKind || (foe.kind === "ghost" ? "ghost" : "skeleton"), false);
       }
       for (const animal of scaredList) {
         if (animal.kind === "turkey") {
@@ -1005,22 +1085,34 @@ async function boot() {
     });
     if (!res) return null;
     if (res.sound === "snack_thanks") {
+      playSnackTossSfx();
       playHealHeartSfx();
+      playerState.throwAnimTimer = 0.24;
+      tossedSnacks.push({
+        startX: playerState.x,
+        startY: playerState.y - 10,
+        targetX: entry.target.x,
+        targetY: entry.target.y - 12,
+        x: playerState.x,
+        y: playerState.y - 10,
+        t: 0,
+        duration: 0.28,
+        foodKind: "snack",
+      });
       if (res.xpReward) {
         questSystem.state.safetyXP += res.xpReward;
         questSystem.save();
       }
-      for (let i = 0; i < 10; i++) {
-        const ang = (i / 10) * Math.PI * 2;
+      for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2;
         leafParticles.push({
           x: entry.target.x,
-          y: entry.target.y - 10,
-          vx: Math.cos(ang) * 28,
-          vy: Math.sin(ang) * 18 - 22,
-          life: 0.48,
-          shade: i % 2 === 0 ? [255, 212, 92] : [116, 238, 162],
-          w: 3,
-          h: 3,
+          y: entry.target.y - 14,
+          vx: Math.cos(ang) * 24,
+          vy: Math.sin(ang) * 14 - 24,
+          life: 0.58,
+          sprite: i % 3 === 0 ? "fx_heart_pink" : i % 3 === 1 ? "fx_sparkle_gold" : "fx_music_note",
+          noGravity: true,
         });
       }
     } else if (res.sound === "protestor") {
@@ -1045,6 +1137,7 @@ async function boot() {
     if (res?.tossed) {
       playSnackTossSfx();
       playAnimalFeedSfx(entry.kind);
+      playerState.throwAnimTimer = 0.24;
       tossedSnacks.push({
         startX: playerState.x,
         startY: playerState.y - 10,
@@ -1060,18 +1153,17 @@ async function boot() {
         questSystem.state.safetyXP += res.xpReward;
         questSystem.save();
       }
-      // Happy pink hearts + golden treat crumbs around the fed animal!
-      for (let i = 0; i < 10; i++) {
-        const ang = (i / 10) * Math.PI * 2;
+      // Crisp 2x HD happy pink hearts + golden sparkles around the fed animal!
+      for (let i = 0; i < 7; i++) {
+        const ang = (i / 7) * Math.PI * 2;
         leafParticles.push({
           x: res.targetX,
-          y: res.targetY - 9,
-          vx: Math.cos(ang) * 24,
-          vy: Math.sin(ang) * 14 - 22,
-          life: 0.52,
-          shade: i % 3 === 0 ? [255, 108, 152] : i % 3 === 1 ? [255, 214, 96] : [114, 236, 158],
-          w: 3,
-          h: 3,
+          y: res.targetY - 10,
+          vx: Math.cos(ang) * 22,
+          vy: Math.sin(ang) * 12 - 24,
+          life: 0.62,
+          sprite: i % 2 === 0 ? "fx_heart_pink" : "fx_sparkle_gold",
+          noGravity: true,
         });
       }
       ui?.showSafetyToast(res.toast, 2800);
@@ -1125,18 +1217,21 @@ async function boot() {
       questSystem.state.safetyXP += res.dispelledCount * 5;
       questSystem.save();
       for (const pos of res.positions) {
-        for (let i = 0; i < 8; i++) {
-          const ang = (i / 8) * Math.PI * 2;
-          leafParticles.push({
-            x: pos.x,
-            y: pos.y - 6,
-            vx: Math.cos(ang) * 32,
-            vy: Math.sin(ang) * 22 - 22,
-            life: 0.48,
-            shade: i % 2 === 0 ? [120, 198, 255] : [255, 236, 132],
-            w: 3,
-            h: 3,
-          });
+        if (pos.kind === "spooky" || pos.kind === "ghost") {
+          spawnSpookyDefeatEffect(pos.x, pos.y, pos.spookyKind || "ghost", true);
+        } else {
+          for (let i = 0; i < 6; i++) {
+            const ang = (i / 6) * Math.PI * 2;
+            leafParticles.push({
+              x: pos.x,
+              y: pos.y - 8,
+              vx: Math.cos(ang) * 26,
+              vy: Math.sin(ang) * 18 - 22,
+              life: 0.52,
+              sprite: i % 2 === 0 ? "fx_sparkle_cyan" : "fx_sparkle_gold",
+              noGravity: true,
+            });
+          }
         }
       }
     }
@@ -1483,6 +1578,28 @@ async function boot() {
             spawnAutumnLeafBurst(nearby.target.x, nearby.target.y, 7, 42);
           } else if (res.sound === "spooky") {
             playSpookyChime();
+            // Expanding golden flashlight spook-back cone + startling sparks!
+            worldFx.push({
+              kind: "flashlight_cone",
+              x: playerState.x,
+              y: playerState.y - 8,
+              tx: nearby.target.x,
+              ty: nearby.target.y - 10,
+              t: 0,
+              duration: 0.42,
+            });
+            for (let i = 0; i < 6; i++) {
+              const ang = (i / 6) * Math.PI * 2;
+              leafParticles.push({
+                x: nearby.target.x,
+                y: nearby.target.y - 12,
+                vx: Math.cos(ang) * 28,
+                vy: Math.sin(ang) * 18 - 18,
+                life: 0.44,
+                sprite: i % 2 === 0 ? "fx_sparkle_gold" : "fx_sparkle_cyan",
+                noGravity: true,
+              });
+            }
           }
           ui?.showSafetyToast(res.toast, 2800);
         }
@@ -1499,10 +1616,46 @@ async function boot() {
         if (outcome.questEvent) {
           refreshPocketDirections(tx, ty, nearby.target.name?.replace(/\s*\(.*\)/, "") || "Here");
         }
+        if (nearby.kind === "npc" && nearby.target?.id) {
+          activeTalkNpcId = nearby.target.id;
+          const npcPxX = nearby.target.walkTileX * tileSize + tileSize / 2;
+          const npcPxY = nearby.target.walkTileY * tileSize + tileSize / 2;
+          leafParticles.push({
+            x: npcPxX + 8,
+            y: npcPxY - 22,
+            vx: 6,
+            vy: -18,
+            life: 0.65,
+            sprite: "fx_music_note",
+            noGravity: true,
+          });
+        }
         ui?.openDialogue({
           speaker: outcome.speaker,
           lines: outcome.lines,
           onComplete: () => {
+            const finishedNpcId = activeTalkNpcId;
+            activeTalkNpcId = null;
+            if (finishedNpcId && nearby.kind === "npc") {
+              const st = npcAnimState.get(finishedNpcId) || { celebrateTimer: 0, greetWaveTimer: 0, greetedNear: true };
+              st.celebrateTimer = outcome.questEvent || outcome.healHearts > 0 ? 1.65 : 0.95;
+              npcAnimState.set(finishedNpcId, st);
+              const npcPxX = nearby.target.walkTileX * tileSize + tileSize / 2;
+              const npcPxY = nearby.target.walkTileY * tileSize + tileSize / 2;
+              const burstN = outcome.questEvent ? 8 : 4;
+              for (let i = 0; i < burstN; i++) {
+                const ang = (i / burstN) * Math.PI * 2;
+                leafParticles.push({
+                  x: npcPxX,
+                  y: npcPxY - 16,
+                  vx: Math.cos(ang) * 20,
+                  vy: -22 - Math.random() * 14,
+                  life: 0.62,
+                  sprite: outcome.healHearts > 0 && i % 2 === 0 ? "fx_heart_pink" : i % 2 === 0 ? "fx_sparkle_gold" : "fx_music_note",
+                  noGravity: true,
+                });
+              }
+            }
             if (outcome.healHearts > 0) {
               healPlayerHearts(outcome.healHearts, outcome.questEvent?.type === "quest_completed" ? "Quest Complete" : nearby.target.name?.replace(/\s*\(.*\)/, ""));
             }
@@ -1879,31 +2032,25 @@ async function boot() {
         y: wy + (Math.random() * 6 - 3),
         vx: (Math.random() - 0.5) * spread,
         vy: -16 - Math.random() * 22,
-        life: 0.45 + Math.random() * 0.3,
-        shade: AUTUMN_LEAF_SHADES[(i + Math.floor(Math.random() * 4)) % AUTUMN_LEAF_SHADES.length],
-        w: i % 2 === 0 ? 3 : 2,
-        h: 2,
+        life: 0.48 + Math.random() * 0.3,
+        sprite: `fx_leaf_${i % 3}`,
+        rot: Math.random() * 360,
+        rotSpd: (Math.random() < 0.5 ? 1 : -1) * 220,
       });
     }
   }
 
   function spawnFeatherBurst(wx, wy) {
-    const featherShades = [
-      [148, 82, 42],
-      [235, 206, 158],
-      [96, 48, 28],
-      [214, 122, 48],
-    ];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 7; i++) {
       leafParticles.push({
         x: wx + (Math.random() * 8 - 4),
-        y: wy - 4 + (Math.random() * 6 - 3),
+        y: wy - 6 + (Math.random() * 6 - 3),
         vx: (Math.random() - 0.5) * 44,
         vy: -20 - Math.random() * 20,
-        life: 0.45 + Math.random() * 0.28,
-        shade: featherShades[i % featherShades.length],
-        w: 3,
-        h: 2,
+        life: 0.55 + Math.random() * 0.28,
+        sprite: `fx_feather_${i % 2}`,
+        rot: Math.random() * 360,
+        rotSpd: (Math.random() < 0.5 ? 1 : -1) * 180,
       });
     }
   }
@@ -2444,6 +2591,47 @@ async function boot() {
     if (playerState.siddurCooldown > 0) {
       playerState.siddurCooldown = Math.max(0, playerState.siddurCooldown - dt);
     }
+    if (playerState.jostleTimer > 0) {
+      playerState.jostleTimer = Math.max(0, playerState.jostleTimer - dt);
+    }
+    if (playerState.throwAnimTimer > 0) {
+      playerState.throwAnimTimer = Math.max(0, playerState.throwAnimTimer - dt);
+    }
+    for (const st of npcAnimState.values()) {
+      if (st.celebrateTimer > 0) st.celebrateTimer = Math.max(0, st.celebrateTimer - dt);
+      if (st.greetWaveTimer > 0) st.greetWaveTimer = Math.max(0, st.greetWaveTimer - dt);
+    }
+
+    // Advance tailored world FX (skeleton bone collapse, phantom vortex, Siddur beams, flashlight cones, jostle wind)
+    for (let i = worldFx.length - 1; i >= 0; i--) {
+      const fx = worldFx[i];
+      fx.t += dt;
+      if (fx.kind === "skeleton_defeat" && fx.pieces) {
+        for (const pc of fx.pieces) {
+          pc.x += pc.vx * dt;
+          pc.y += pc.vy * dt;
+          pc.vy += 170 * dt;
+          pc.rot = (pc.rot || 0) + (pc.rotSpd || 0) * dt;
+          if (pc.y > fx.groundY) {
+            pc.y = fx.groundY;
+            pc.vy = -Math.abs(pc.vy) * 0.42;
+            pc.vx *= 0.72;
+            pc.rotSpd *= 0.72;
+          }
+        }
+      }
+      if (fx.t >= fx.duration) {
+        worldFx.splice(i, 1);
+      }
+    }
+
+    // Gentle drifting golden-hour autumn leaves across the outdoor viewport!
+    for (const al of ambientLeaves) {
+      al.ox += (al.vx + Math.sin(playerState.elapsedTime * 2.2 + al.phase) * 5) * dt;
+      al.oy += al.vy * dt;
+      if (al.ox > VIEW_W / 2 + 12) al.ox = -VIEW_W / 2 - 12;
+      if (al.oy > VIEW_H / 2 + 12) al.oy = -VIEW_H / 2 - 12;
+    }
 
     for (let i = dustPuffs.length - 1; i >= 0; i--) {
       dustPuffs[i].life -= dt;
@@ -2456,6 +2644,7 @@ async function boot() {
       p.life -= dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
+      if (p.rotSpd) p.rot = (p.rot || 0) + p.rotSpd * dt;
       if (!p.noGravity) p.vy += 65 * dt;
       if (p.life <= 0) leafParticles.splice(i, 1);
     }
@@ -2888,24 +3077,34 @@ async function boot() {
       onFeatherBurst: (fx, fy) => spawnFeatherBurst(fx, fy),
       onJoggerAnnoy: (jg, jostled) => {
         playAnnoyingJoggerSfx(jostled);
-        // Flying cyan sweat drops & bright neon Garmin/Strava watch flashes!
-        const count = jostled ? 8 : 4;
+        // Flying 2x HD cyan sweat droplets & bright Strava watch sparkles!
+        const count = jostled ? 6 : 3;
         for (let i = 0; i < count; i++) {
           leafParticles.push({
             x: jg.x + (Math.random() * 8 - 4),
-            y: jg.y - 16 + (Math.random() * 6 - 3),
-            vx: -jg.dx * (14 + Math.random() * 20) + (Math.random() - 0.5) * 18,
-            vy: -16 - Math.random() * 18,
-            life: 0.34 + Math.random() * 0.18,
-            shade: i % 3 === 0 ? [126, 232, 255] : i % 3 === 1 ? [255, 232, 82] : [235, 250, 255],
-            w: 2,
-            h: 2,
+            y: jg.y - 18 + (Math.random() * 6 - 3),
+            vx: -jg.dx * (16 + Math.random() * 20) + (Math.random() - 0.5) * 18,
+            vy: -18 - Math.random() * 18,
+            life: 0.42 + Math.random() * 0.16,
+            sprite: i % 2 === 0 ? "fx_sweat_drop" : "fx_sparkle_gold",
           });
         }
         if (jostled) {
-          // Gentle comedic sidewalk shoulder-nudge (strictly collision-safe & 0 heart damage!)
+          // Gentle comedic sidewalk shoulder-nudge + startled hop & comic wind-swirl (strictly 0 heart damage!)
           const perpX = -jg.dy || (playerState.x >= jg.x ? 1 : -1);
           const perpY = jg.dx || (playerState.y >= jg.y ? 1 : -1);
+          playerState.jostleTimer = 0.55;
+          playerState.jostleDirX = perpX;
+          playerState.jostleDirY = perpY;
+          worldFx.push({
+            kind: "jostle_wind",
+            x: (playerState.x + jg.x) * 0.5,
+            y: (playerState.y + jg.y) * 0.5 - 8,
+            dx: jg.dx,
+            dy: jg.dy,
+            t: 0,
+            duration: 0.48,
+          });
           const nudgeX = playerState.x + perpX * 4.5;
           const nudgeY = playerState.y + perpY * 4.5;
           const nudgeRoadCheck = safety.isBoxOnRoad(nudgeX, nudgeY, DEFAULT_HITBOX);
@@ -3460,55 +3659,35 @@ async function boot() {
     const pxPos = Math.round(playerState.x);
     const pyPos = Math.round(playerState.y);
 
+    const ringFrame = Math.floor(playerState.elapsedTime * 5) % 2;
+
     if (playerState.safeCrossingTimer > 0) {
-      k.drawRect({
-        pos: k.vec2(pxPos - 8, pyPos + 1),
-        width: 16,
-        height: 6,
-        color: k.rgb(110, 231, 168),
-        opacity: 0.42,
-      });
+      k.drawSprite(`fx_ring_safe_${ringFrame}`, pxPos - 10, pyPos - 1, 0.88);
     }
 
-    // Protective warm golden-amber Lantern Halo whenever Liam holds a lantern in spooky areas!
+    // Protective warm golden-amber circular 2x HD Lantern Halo whenever Liam holds a lantern in spooky areas!
     if (questSystem.hasLantern() && isInGraveyardNow && !botwTeleport) {
-      const flick = 0.85 + Math.sin(playerState.elapsedTime * 11) * 0.15;
-      k.drawRect({
-        pos: k.vec2(pxPos - 26, pyPos - 22),
-        width: 52,
-        height: 36,
-        color: k.rgb(255, 220, 118),
-        opacity: 0.13 * flick,
-        outline: { width: 1, color: k.rgb(255, 236, 152), opacity: 0.34 * flick },
-      });
-      k.drawRect({
-        pos: k.vec2(pxPos - 15, pyPos - 14),
-        width: 30,
-        height: 22,
-        color: k.rgb(255, 240, 168),
-        opacity: 0.18 * flick,
-      });
+      const lanFrame = Math.floor(playerState.elapsedTime * 6) % 2;
+      k.drawSprite(`fx_lantern_glow_${lanFrame}`, pxPos - 29, pyPos - 24, 0.92);
     }
 
-    // Expanding radiant golden-blue Pocket Siddur blessing ring!
+    // Expanding radiant circular golden-blue Pocket Siddur blessing wave!
     if (playerState.siddurAuraTimer > 0) {
       const p = 1 - playerState.siddurAuraTimer / 0.78;
-      const rad = Math.round(10 + p * 54);
-      const alpha = Math.max(0.08, (1 - p) * 0.75);
-      k.drawRect({
-        pos: k.vec2(pxPos - rad, pyPos - Math.round(rad * 0.7)),
-        width: rad * 2,
-        height: Math.round(rad * 1.4),
-        fill: false,
-        outline: { width: 2, color: k.rgb(120, 206, 255), opacity: alpha },
-      });
-      k.drawRect({
-        pos: k.vec2(pxPos - rad + 3, pyPos - Math.round(rad * 0.7) + 3),
-        width: Math.max(2, rad * 2 - 6),
-        height: Math.max(2, Math.round(rad * 1.4) - 6),
-        fill: false,
-        outline: { width: 1, color: k.rgb(255, 232, 118), opacity: alpha },
-      });
+      const stage = Math.min(2, Math.floor(p * 3));
+      const sprKey = `fx_siddur_ring_${stage}`;
+      const rSpr = atlas[sprKey];
+      const rw = rSpr ? rSpr.width * (rSpr.__pixelScale || 0.5) : 36;
+      const rh = rSpr ? rSpr.height * (rSpr.__pixelScale || 0.5) : 26;
+      const alpha = Math.max(0.14, (1 - p) * 0.92);
+      k.drawSprite(sprKey, Math.round(pxPos - rw / 2), Math.round(pyPos - rh / 2), alpha);
+      // Orbiting golden & cyan blessing sparkles around the wave!
+      for (let i = 0; i < 4; i++) {
+        const ang = playerState.elapsedTime * 6 + (i * Math.PI) / 2;
+        const rx = Math.round(pxPos + Math.cos(ang) * (12 + p * 34) - 3);
+        const ry = Math.round(pyPos + Math.sin(ang) * (8 + p * 22) - 4);
+        k.drawSprite(i % 2 === 0 ? "fx_sparkle_gold" : "fx_sparkle_cyan", rx, ry, alpha);
+      }
     }
 
     const heroTx = Math.floor(playerState.x / tileSize);
@@ -3533,7 +3712,30 @@ async function boot() {
     const isHurt = playerState.hurtTimer > 0;
     const isKnockback = playerState.knockbackTimer > 0;
     const kbProgress = isKnockback ? 1 - playerState.knockbackTimer / 0.24 : 0;
-    const hopOffset = isKnockback ? Math.round(Math.sin(kbProgress * Math.PI) * 5) : 0;
+    const jostleHop =
+      playerState.jostleTimer > 0
+        ? Math.round(Math.sin((1 - playerState.jostleTimer / 0.55) * Math.PI) * 4)
+        : 0;
+    const throwHop =
+      playerState.throwAnimTimer > 0
+        ? Math.round(Math.sin((1 - playerState.throwAnimTimer / 0.24) * Math.PI) * 2)
+        : 0;
+    const hopOffset = (isKnockback ? Math.round(Math.sin(kbProgress * Math.PI) * 5) : 0) + jostleHop + throwHop;
+    const jostleWobbleX =
+      playerState.jostleTimer > 0
+        ? Math.round(Math.sin(playerState.elapsedTime * 38) * 1.5)
+        : 0;
+    // Quick forward lunge step while swinging the Graveyard Sword!
+    let lungeX = 0;
+    let lungeY = 0;
+    if (playerState.swordSwingTimer > 0) {
+      const lp = Math.sin((1 - playerState.swordSwingTimer / 0.24) * Math.PI);
+      const distL = Math.round(lp * 3);
+      if (playerState.facing === "right") lungeX = distL;
+      else if (playerState.facing === "left") lungeX = -distL;
+      else if (playerState.facing === "down") lungeY = distL;
+      else lungeY = -distL;
+    }
     // Classic 16-bit SNES invulnerability blink during hurt window!
     const hurtBlinkHide = isHurt && !isKnockback && Math.floor(playerState.elapsedTime * 18) % 2 === 0;
 
@@ -3542,29 +3744,9 @@ async function boot() {
     const wadeSink = isWading ? 3 + wadeBob : 0;
 
     if (isWading) {
-      // Expanding shimmering water-ripple wake behind Liam as he wades through lakes & ponds!
-      const ripplePulse = (playerState.elapsedTime * (playerState.moving ? 2.4 : 1.1)) % 1;
-      const outerW = Math.round(16 + ripplePulse * 10);
-      const outerH = Math.round(6 + ripplePulse * 4);
-      k.drawRect({
-        pos: k.vec2(pxPos - Math.floor(outerW / 2), pyPos - Math.floor(outerH / 2) + 2),
-        width: outerW,
-        height: outerH,
-        fill: false,
-        outline: {
-          width: 1,
-          color: k.rgb(218, 246, 255),
-          opacity: Math.max(0.12, (1 - ripplePulse) * 0.72),
-        },
-      });
-      const innerW = 14 + (Math.floor(playerState.elapsedTime * 4) % 2) * 2;
-      k.drawRect({
-        pos: k.vec2(pxPos - Math.floor(innerW / 2), pyPos - 1),
-        width: innerW,
-        height: 6,
-        color: k.rgb(122, 200, 232),
-        opacity: 0.36,
-      });
+      // Crisp 2x HD elliptical water-ripple rings around Liam as he wades through lakes & ponds!
+      const ripFrame = Math.floor(playerState.elapsedTime * (playerState.moving ? 7 : 3.5)) % 3;
+      k.drawSprite(`fx_water_ripple_${ripFrame}`, pxPos - 14, pyPos - 4, 0.88);
     }
 
     // BotW Sheikah Fast-Travel vertical levitation & pixel-dissolve phase
@@ -3589,7 +3771,23 @@ async function boot() {
     }
 
     if (!hurtBlinkHide && !teleportHide) {
-      k.drawSprite(sprName, pxPos - 12, pyPos - 23 - hopOffset - teleportLift + wadeSink, 1, heroAngle, pxPos, pyPos);
+      k.drawSprite(
+        sprName,
+        pxPos - 12 + jostleWobbleX + lungeX,
+        pyPos - 23 - hopOffset - teleportLift + wadeSink + lungeY,
+        1,
+        heroAngle,
+        pxPos,
+        pyPos
+      );
+    }
+
+    if (playerState.jostleTimer > 0 && !isHurt) {
+      const bSpr = atlas.bubble_whoa;
+      const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 22;
+      const rise = Math.round((1 - playerState.jostleTimer / 0.55) * 4);
+      k.drawSprite("bubble_whoa", Math.round(pxPos - bwLog / 2), pyPos - 36 - rise, 1, heroAngle, pxPos, pyPos);
+      k.drawSprite("fx_sweat_drop", pxPos + 8, pyPos - 24 - rise, 0.95);
     }
 
     if (isWading && heroAngle === 0 && !hurtBlinkHide) {
@@ -3624,12 +3822,15 @@ async function boot() {
       });
     }
 
-    // Gleaming 16-Bit Graveyard Explorer Sword Slash Arc!
+    // Gleaming 3-Frame 32-Bit Sweeping Graveyard Explorer Sword Slash Arc!
     if (playerState.swordSwingTimer > 0) {
       const f = playerState.facing;
-      const sx = f === "right" ? pxPos + 5 : f === "left" ? pxPos - 22 : pxPos - 10;
-      const sy = f === "down" ? pyPos - 2 : f === "up" ? pyPos - 28 : pyPos - 16;
-      k.drawSprite(`sword_slash_${f}`, sx, sy, 1, heroAngle, pxPos, pyPos);
+      const swP = 1 - playerState.swordSwingTimer / 0.24;
+      const swFrame = Math.min(2, Math.floor(swP * 3));
+      const sx = (f === "right" ? pxPos + 3 : f === "left" ? pxPos - 22 : pxPos - 11) + lungeX;
+      const sy = (f === "down" ? pyPos - 3 : f === "up" ? pyPos - 28 : pyPos - 18) + lungeY;
+      const swKey = atlas[`sword_slash_${f}_${swFrame}`] ? `sword_slash_${f}_${swFrame}` : `sword_slash_${f}`;
+      k.drawSprite(swKey, sx, sy, 1, heroAngle, pxPos, pyPos);
     }
 
     // Overhead glowing Pocket Siddur held aloft during dispel wave!
@@ -3666,29 +3867,26 @@ async function boot() {
       }
     }
 
-    // Floating 3-heart SNES damage meter right above Liam whenever damaged!
+    // Floating 2x HD pixel-heart meter right above Liam whenever damaged!
     if (playerState.ouchBubbleTimer > 0 || playerState.hearts < playerState.maxHearts) {
-      const heartY = pyPos - 33 - hopOffset;
-      const maxH = playerState.maxHearts || 3;
+      const heartY = pyPos - 34 - hopOffset;
+      const maxH = playerState.maxHearts || 5;
       const curH = playerState.hearts ?? maxH;
-      const startHx = pxPos - Math.floor((maxH * 7 - 1) / 2);
+      const startHx = pxPos - Math.floor((maxH * 8 - 1) / 2);
       for (let h = 0; h < maxH; h++) {
-        const hx = startHx + h * 7;
+        const hx = startHx + h * 8;
         const filled = h < curH;
         const justLost = h === curH && playerState.hurtTimer > 0.4;
-        // Dark pixel outline
-        k.drawRect({ pos: k.vec2(hx, heartY), width: 6, height: 5, color: k.rgb(34, 16, 20), opacity: 0.9 });
-        if (filled) {
-          k.drawRect({ pos: k.vec2(hx + 1, heartY + 1), width: 4, height: 3, color: k.rgb(235, 48, 62) });
-          k.drawRect({ pos: k.vec2(hx + 1, heartY + 1), width: 1, height: 1, color: k.rgb(255, 196, 196) });
-        } else {
-          k.drawRect({
-            pos: k.vec2(hx + 1, heartY + 1),
-            width: 4,
-            height: 3,
-            color: justLost ? k.rgb(255, 210, 120) : k.rgb(88, 70, 76),
-          });
-        }
+        const dropY = justLost ? Math.round((1 - (playerState.hurtTimer - 0.4) / 0.55) * 4) : 0;
+        k.drawSprite(
+          filled ? "fx_heart_red" : "fx_heart_empty",
+          hx,
+          heartY + dropY,
+          justLost ? 0.6 : 1,
+          heroAngle,
+          pxPos,
+          pyPos
+        );
       }
       if (playerState.ouchBubbleTimer > 0) {
         const bKey = playerState.ouchBubbleSprite || "bubble_ouch";
@@ -3716,16 +3914,15 @@ async function boot() {
 
     if (playerState.curbStopCueTimer > 0 && playerState.lookTimer <= 0 && !activeFanfare) {
       const cueBob = Math.sin(playerState.elapsedTime * 10) * 1.5;
-      k.drawSprite("curb_stop_cue", pxPos - 5, pyPos - 31 + cueBob, 1, heroAngle, pxPos, pyPos);
+      k.drawSprite("curb_stop_cue", pxPos - 5, pyPos - 32 + cueBob, 1, heroAngle, pxPos, pyPos);
     }
 
     if (playerState.lookTimer > 0) {
+      const scanWave = Math.round(Math.sin(playerState.elapsedTime * 22) * 2);
       if (playerState.facing === "left") {
-        k.drawRect({ pos: k.vec2(pxPos - 13, pyPos - 13), width: 5, height: 2, color: k.rgb(110, 231, 168) });
-        k.drawRect({ pos: k.vec2(pxPos - 15, pyPos - 14), width: 2, height: 4, color: k.rgb(244, 211, 94) });
+        k.drawSprite("fx_chalk_arrow", pxPos - 18 + scanWave, pyPos - 17, 0.95, 180);
       } else if (playerState.facing === "right") {
-        k.drawRect({ pos: k.vec2(pxPos + 8, pyPos - 13), width: 5, height: 2, color: k.rgb(110, 231, 168) });
-        k.drawRect({ pos: k.vec2(pxPos + 13, pyPos - 14), width: 2, height: 4, color: k.rgb(244, 211, 94) });
+        k.drawSprite("fx_chalk_arrow", pxPos + 10 - scanWave, pyPos - 17, 0.95, 0);
       }
     }
   }
@@ -4247,25 +4444,26 @@ async function boot() {
       homeInterior.drawInteriorRoom(k, playerState.elapsedTime);
       const nearProp = homeInterior.findNearbyInteriorProp(playerState.x, playerState.y);
       if (nearProp?.target) {
-        const pulse = 0.55 + Math.sin(playerState.elapsedTime * 8) * 0.25;
-        k.drawRect({
-          pos: k.vec2(Math.round(nearProp.target.x - 10), Math.round(nearProp.target.y - 5)),
-          width: 20,
-          height: 10,
-          color: k.rgb(244, 211, 94),
-          opacity: pulse * 0.35,
-          outline: { width: 1, color: k.rgb(255, 240, 140), opacity: pulse },
-        });
+        const rf = Math.floor(playerState.elapsedTime * 5) % 2;
+        k.drawSprite(`fx_ring_gold_${rf}`, Math.round(nearProp.target.x - 11), Math.round(nearProp.target.y - 6), 0.9);
       }
       drawHero();
       for (const p of leafParticles) {
-        k.drawRect({
-          pos: k.vec2(p.x, p.y),
-          width: p.w || 2,
-          height: p.h || 2,
-          color: k.rgb(...p.shade),
-          opacity: Math.min(1, p.life * 2.5),
-        });
+        const alpha = Math.min(1, p.life * 2.5);
+        if (p.sprite && atlas[p.sprite]) {
+          const sp = atlas[p.sprite];
+          const sw = sp.width * (sp.__pixelScale || 0.5);
+          const sh = sp.height * (sp.__pixelScale || 0.5);
+          k.drawSprite(p.sprite, Math.round(p.x - sw / 2), Math.round(p.y - sh / 2), alpha, p.rot || 0);
+        } else if (p.shade) {
+          k.drawRect({
+            pos: k.vec2(p.x, p.y),
+            width: p.w || 2,
+            height: p.h || 2,
+            color: k.rgb(...p.shade),
+            opacity: alpha,
+          });
+        }
       }
       return;
     }
@@ -4554,16 +4752,9 @@ async function boot() {
         sortY: depthOf(footX, footY),
         draw: () => {
           if (isActiveSign) {
-            // Crisp pulsing golden ground ring showing Space will READ THIS SIGN!
-            const pulse = 0.55 + Math.sin(tSec * 8) * 0.25;
-            k.drawRect({
-              pos: k.vec2(ss.tx * tileSize + 1, ss.ty * tileSize + 8),
-              width: 14,
-              height: 7,
-              color: k.rgb(244, 211, 94),
-              opacity: pulse * 0.45,
-              outline: { width: 1, color: k.rgb(255, 240, 140), opacity: pulse },
-            });
+            // Crisp pulsing elliptical 2x HD golden ground ring showing Space will READ THIS SIGN!
+            const rf = Math.floor(tSec * 6) % 2;
+            k.drawSprite(`fx_ring_gold_${rf}`, ss.tx * tileSize - 3, ss.ty * tileSize + 5, 0.92);
           }
           k.drawSprite(isChecked ? "street_sign_checked" : "street_sign", sx, sy, 1, bbAngle, footX, footY);
           if (isNearestPrompt) {
@@ -4573,33 +4764,21 @@ async function boot() {
       });
     }
 
-    // Fading sidewalk chalk directional arrow right after checking a street sign!
+    // Fading 2x HD sidewalk chalk directional chevrons right after checking a street sign!
     if (activeChalkArrow) {
       const len = Math.hypot(activeChalkArrow.dx, activeChalkArrow.dy) || 1;
       const ux = activeChalkArrow.dx / len;
       const uy = activeChalkArrow.dy / len;
+      const arrowDeg = (Math.atan2(uy, ux) * 180) / Math.PI;
       const basePxX = activeChalkArrow.tx * tileSize + tileSize / 2;
       const basePxY = activeChalkArrow.ty * tileSize + tileSize / 2;
-      const alpha = Math.min(0.92, activeChalkArrow.timer * 0.5);
+      const alpha = Math.min(0.95, activeChalkArrow.timer * 0.5);
       const slide = (tSec * 14) % 10;
       for (let i = 0; i < 3; i++) {
-        const dist = 10 + i * 9 + slide;
+        const dist = 10 + i * 10 + slide;
         const ax = Math.round(basePxX + ux * dist);
         const ay = Math.round(basePxY + uy * dist);
-        k.drawRect({
-          pos: k.vec2(ax - 3, ay - 3),
-          width: 6,
-          height: 6,
-          color: k.rgb(25, 58, 40),
-          opacity: alpha * 0.75,
-        });
-        k.drawRect({
-          pos: k.vec2(ax - 2, ay - 2),
-          width: 4,
-          height: 4,
-          color: k.rgb(244, 211, 94),
-          opacity: alpha,
-        });
+        k.drawSprite("fx_chalk_arrow", ax - 4, ay - 4, alpha * (1 - i * 0.14), arrowDeg);
       }
     }
 
@@ -4904,7 +5083,7 @@ async function boot() {
       }
     }
 
-    // Glowing welcome mat right at the front porch of Home Base (565 Boylston St) so kids know they can go inside!
+    // Detailed 2x HD woven coir welcome mat right at the front porch of Home Base (565 Boylston St)!
     if (
       homeDoorTile.x >= startX - 2 &&
       homeDoorTile.x <= endX + 2 &&
@@ -4913,27 +5092,13 @@ async function boot() {
     ) {
       const dx = homeDoorTile.x * tileSize;
       const dy = homeDoorTile.y * tileSize;
-      const isDoorActive = activeTargetInteract?.kind === "home_door";
-      const pulse = 0.55 + Math.sin(tSec * 7) * 0.25;
-      k.drawRect({
-        pos: k.vec2(dx + 1, dy + 2),
-        width: 14,
-        height: 9,
-        color: k.rgb(156, 86, 36),
-      });
-      k.drawRect({
-        pos: k.vec2(dx + 2, dy + 3),
-        width: 12,
-        height: 7,
-        color: isDoorActive ? k.rgb(255, 224, 108) : k.rgb(228, 174, 86),
-        outline: isDoorActive
-          ? { width: 1, color: k.rgb(255, 248, 180), opacity: pulse }
-          : null,
-      });
+      const isDoorActive = activeTargetInteract?.kind === "home_door" || canEnterNearbyHouse(Math.floor(playerState.x / tileSize), Math.floor(playerState.y / tileSize));
+      k.drawSprite(isDoorActive ? "prop_welcome_mat_glow" : "prop_welcome_mat", dx, dy + 1);
     }
 
-    // Phase 3: Landmark NPCs with idle bounce + floating '!' quest objective bubble
+    // Phase 3+: Animated Landmark NPCs (friendly proximity greeting wave, active dialogue gesture & celebration hop!)
     const activeTarget = questSystem.getActiveObjectiveTarget();
+    const ringFrameDraw = Math.floor(tSec * 5) % 2;
     for (const npc of questSystem.npcs) {
       if (
         npc.walkTileX < startX - 2 ||
@@ -4945,41 +5110,66 @@ async function boot() {
       }
       const nx = npc.walkTileX * tileSize + tileSize / 2;
       const ny = npc.walkTileY * tileSize + tileSize / 2;
+      const distNpc = Math.hypot(playerState.x - nx, playerState.y - ny);
+      let animSt = npcAnimState.get(npc.id);
+      if (!animSt) {
+        animSt = { celebrateTimer: 0, greetWaveTimer: 0, greetedNear: false };
+        npcAnimState.set(npc.id, animSt);
+      }
+      if (distNpc < 44 && !animSt.greetedNear) {
+        animSt.greetedNear = true;
+        animSt.greetWaveTimer = 1.25;
+      } else if (distNpc > 62) {
+        animSt.greetedNear = false;
+      }
+
       const isMomYelling = npc.id === "home_base" && roadHitCutscene?.phase === "mom_yelling";
+      const isTalkingNow = activeTalkNpcId === npc.id && ui.isDialogueOpen();
+      const isCelebrating = animSt.celebrateTimer > 0;
+      const isGreeting = animSt.greetWaveTimer > 0;
+      const waveToggle =
+        isTalkingNow
+          ? Math.floor(tSec * 6) % 2 === 0
+          : isCelebrating
+            ? Math.floor(tSec * 9) % 2 === 0
+            : isGreeting
+              ? Math.floor(tSec * 5) % 2 === 0
+              : false;
+      const npcSprKey = waveToggle && atlas[`${npc.npcSprite}_wave`] ? `${npc.npcSprite}_wave` : npc.npcSprite;
       const idleBob = isMomYelling
-        ? Math.round(Math.abs(Math.sin(playerState.elapsedTime * 16)) * -4)
-        : Math.sin(playerState.elapsedTime * 3 + npc.walkTileX) > 0.6
-          ? -1
-          : 0;
+        ? Math.round(Math.abs(Math.sin(tSec * 16)) * -4)
+        : isCelebrating
+          ? Math.round(Math.abs(Math.sin(tSec * 12)) * -3)
+          : isTalkingNow
+            ? Math.round(Math.abs(Math.sin(tSec * 8)) * -1.5)
+            : isGreeting
+              ? Math.round(Math.abs(Math.sin(tSec * 7)) * -2)
+              : Math.sin(tSec * 3 + npc.walkTileX) > 0.6
+                ? -1
+                : 0;
       const isQuestTarget = activeTarget && activeTarget.landmarkId === npc.id;
       const isActiveTalkNpc = activeTargetInteract?.kind === "npc" && activeTargetInteract.target?.id === npc.id;
-      const bubbleBob = Math.sin(playerState.elapsedTime * 6) * 2;
+      const bubbleBob = Math.sin(tSec * 6) * 2;
 
       drawables.push({
         sortY: depthOf(nx, ny + 4),
         draw: () => {
-          if (isActiveTalkNpc) {
-            // Crisp pulsing golden selection ring under the NPC so you know Space will TALK to them!
-            const pulse = 0.6 + Math.sin(tSec * 8) * 0.25;
-            k.drawRect({
-              pos: k.vec2(nx - 9, ny),
-              width: 18,
-              height: 8,
-              color: k.rgb(244, 211, 94),
-              opacity: pulse * 0.42,
-              outline: { width: 1, color: k.rgb(255, 240, 140), opacity: pulse },
-            });
+          if (isActiveTalkNpc || isTalkingNow) {
+            k.drawSprite(`fx_ring_gold_${ringFrameDraw}`, nx - 11, ny - 2, 0.92);
           }
           k.drawSprite("landmark_sign", nx + 7, ny - 12, 1, bbAngle, nx + 14, ny + 4);
-          k.drawSprite(npc.npcSprite, nx - 11, ny - 21 + idleBob, 1, bbAngle, nx, ny + 4);
+          k.drawSprite(npcSprKey, nx - 11, ny - 21 + idleBob, 1, bbAngle, nx, ny + 4);
           if (isMomYelling) {
-            // Bold angry red exclamation mark above Mom while yelling!
-            k.drawRect({ pos: k.vec2(nx - 4, ny - 35 + idleBob), width: 9, height: 10, color: k.rgb(34, 10, 12) });
-            k.drawRect({ pos: k.vec2(nx - 3, ny - 34 + idleBob), width: 7, height: 8, color: k.rgb(235, 44, 40) });
-            k.drawRect({ pos: k.vec2(nx - 1, ny - 33 + idleBob), width: 3, height: 4, color: k.rgb(255, 245, 190) });
-            k.drawRect({ pos: k.vec2(nx - 1, ny - 28 + idleBob), width: 3, height: 1, color: k.rgb(255, 245, 190) });
+            k.drawSprite("fx_alert_bang", nx - 3, ny - 35 + idleBob, 1, bbAngle, nx, ny + 4);
+          } else if (isCelebrating) {
+            const bSpr = atlas.bubble_npc_yay;
+            const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 26;
+            k.drawSprite("bubble_npc_yay", Math.round(nx - bwLog / 2), ny - 34 + idleBob, 1, bbAngle, nx, ny + 4);
           } else if (isQuestTarget) {
             k.drawSprite("quest_bubble", nx - 5, ny - 34 + bubbleBob, 1, bbAngle, nx, ny + 4);
+          } else if (isGreeting && !isTalkingNow) {
+            const noteY = ny - 31 + Math.round(Math.sin(tSec * 10) * 1.5);
+            k.drawSprite("fx_music_note", nx + 5, noteY, 0.92, bbAngle, nx, ny + 4);
           }
         },
       });
@@ -5030,15 +5220,10 @@ async function boot() {
       : null;
     const drawMunchHeart = (hx, hy) => {
       const rise = Math.round(Math.sin(tSec * 12) * 1.5);
-      k.drawRect({ pos: k.vec2(hx - 3, hy - 2 + rise), width: 2, height: 2, color: k.rgb(255, 86, 134) });
-      k.drawRect({ pos: k.vec2(hx + 1, hy - 2 + rise), width: 2, height: 2, color: k.rgb(255, 86, 134) });
-      k.drawRect({ pos: k.vec2(hx - 3, hy + rise), width: 6, height: 2, color: k.rgb(255, 86, 134) });
-      k.drawRect({ pos: k.vec2(hx - 2, hy + 2 + rise), width: 4, height: 1, color: k.rgb(232, 46, 98) });
-      k.drawRect({ pos: k.vec2(hx - 1, hy + 3 + rise), width: 2, height: 1, color: k.rgb(232, 46, 98) });
-      k.drawRect({ pos: k.vec2(hx - 2, hy - 1 + rise), width: 1, height: 1, color: k.rgb(255, 226, 236) });
+      k.drawSprite("fx_heart_pink", hx - 4, hy - 3 + rise);
     };
 
-    // Roving Wild Newton Turkeys (strutting, puffing autumn tail fans & gobbling!)
+    // Roving Wild Newton Turkeys (strutting, puffing autumn tail fans, lunging, startled hops & gobbling!)
     for (const tk of streetLife.turkeys) {
       const tkTx = tk.x / tileSize;
       const tkTy = tk.y / tileSize;
@@ -5051,8 +5236,10 @@ async function boot() {
         : `turkey_${tk.facing}_${step}`;
       const drawW = isPuffed ? 20 : 18;
       const munchHop = isMunching ? Math.round(Math.abs(Math.sin(tSec * 18)) * -2) : 0;
+      const startleHop = (tk.hopTimer || 0) > 0 ? Math.round(Math.sin((tk.hopTimer / 0.48) * Math.PI) * -6) : 0;
+      const lungeHop = (tk.lungeTimer || 0) > 0 ? Math.round(Math.sin((tk.lungeTimer / 0.42) * Math.PI) * -5) : 0;
       const txPx = Math.round(tk.x - drawW / 2);
-      const tyPx = Math.round(tk.y - 16 + munchHop);
+      const tyPx = Math.round(tk.y - 16 + munchHop + startleHop + lungeHop);
       const footX = Math.round(tk.x);
       const footY = Math.round(tk.y + 2);
       const isFeedHighlight = nearestFeedAnimal?.kind === "turkey" && nearestFeedAnimal.target?.id === tk.id;
@@ -5060,17 +5247,12 @@ async function boot() {
         sortY: depthOf(footX, footY),
         draw: () => {
           if (isFeedHighlight) {
-            const pulse = 0.55 + Math.sin(tSec * 8) * 0.25;
-            k.drawRect({
-              pos: k.vec2(footX - 9, footY - 4),
-              width: 18,
-              height: 7,
-              color: k.rgb(114, 232, 156),
-              opacity: pulse * 0.36,
-              outline: { width: 1, color: k.rgb(255, 236, 126), opacity: pulse },
-            });
+            k.drawSprite(`fx_ring_green_${ringFrameDraw}`, footX - 11, footY - 6, 0.9);
           }
           k.drawSprite(spr, txPx, tyPx, 1, bbAngle, footX, footY);
+          if ((tk.hopTimer || 0) > 0.12) {
+            k.drawSprite("fx_alert_bang", footX - 3, tyPx - 11, 1, bbAngle, footX, footY);
+          }
           if (isMunching) {
             drawMunchHeart(footX + 7, tyPx - 2);
           }
@@ -5094,26 +5276,29 @@ async function boot() {
       const isAlert = cr.alertTimer > 0;
       const isMunching = (cr.munchTimer || 0) > 0;
       const munchHop = isMunching ? Math.round(Math.abs(Math.sin(tSec * 18)) * -2) : 0;
+      const startleHop = (cr.hopTimer || 0) > 0 ? Math.round(Math.sin((cr.hopTimer / 0.48) * Math.PI) * -6) : 0;
+      const lungeHop = (cr.lungeTimer || 0) > 0 ? Math.round(Math.sin((cr.lungeTimer / 0.42) * Math.PI) * -5) : 0;
+      const totalHop = munchHop + startleHop + lungeHop;
       let spr;
       let drawX;
       let drawY;
       if (cr.kind === "squirrel") {
         spr = isAlert ? `squirrel_alert_${cr.facing}` : `squirrel_${cr.facing}_${step}`;
         drawX = Math.round(cr.x - 9);
-        drawY = Math.round(cr.y - 14 + munchHop);
+        drawY = Math.round(cr.y - 14 + totalHop);
       } else if (cr.kind === "cat") {
         spr = isAlert
           ? `cat_${cr.variant}_alert_${cr.facing}`
           : `cat_${cr.variant}_${cr.facing}_${step}`;
         drawX = Math.round(cr.x - 10);
-        drawY = Math.round(cr.y - 15 + munchHop);
+        drawY = Math.round(cr.y - 15 + totalHop);
       } else {
         // Runaway dog with animated trailing leash behind collar (58x38 native -> 29x19 logical)
         spr = isAlert
           ? `dog_${cr.variant}_alert_${cr.facing}`
           : `dog_${cr.variant}_${cr.facing}_${step}`;
         drawX = Math.round(cr.x + (cr.facing === "right" ? -18 : -11));
-        drawY = Math.round(cr.y - 17 + munchHop);
+        drawY = Math.round(cr.y - 17 + totalHop);
       }
       const footX = Math.round(cr.x);
       const footY = Math.round(cr.y + 2);
@@ -5122,17 +5307,12 @@ async function boot() {
         sortY: depthOf(footX, footY),
         draw: () => {
           if (isFeedHighlight) {
-            const pulse = 0.55 + Math.sin(tSec * 8) * 0.25;
-            k.drawRect({
-              pos: k.vec2(footX - 9, footY - 4),
-              width: 18,
-              height: 7,
-              color: k.rgb(114, 232, 156),
-              opacity: pulse * 0.36,
-              outline: { width: 1, color: k.rgb(255, 236, 126), opacity: pulse },
-            });
+            k.drawSprite(`fx_ring_green_${ringFrameDraw}`, footX - 11, footY - 6, 0.9);
           }
           k.drawSprite(spr, drawX, drawY, 1, bbAngle, footX, footY);
+          if ((cr.hopTimer || 0) > 0.12) {
+            k.drawSprite("fx_alert_bang", footX - 3, drawY - 10, 1, bbAngle, footX, footY);
+          }
           if (isMunching) {
             drawMunchHeart(footX + 7, drawY - 2);
           }
@@ -5147,21 +5327,56 @@ async function boot() {
       });
     }
 
-    // Over-Competitive 32-Bit Annoying Marathon Runners (4-frame athletic stride + Strava chants!)
+    // Over-Competitive 32-Bit Annoying Marathon Runners (4-frame stride + speedlines + startled react hop + PR burst!)
     for (const jg of streetLife.joggers || []) {
       const jgTx = jg.x / tileSize;
       const jgTy = jg.y / tileSize;
       if (jgTx < startX - 2 || jgTx > endX + 2 || jgTy < startY - 2 || jgTy > endY + 2) continue;
       const runFrame = Math.floor(jg.animTimer) % 4;
       const spr = `jogger_${jg.variant}_${jg.facing}_${runFrame}`;
+      const isSprinting = (jg.sprintTimer || 0) > 0;
+      const isReacting = (jg.reactTimer || 0) > 0;
+      const reactHop = isReacting ? Math.round(Math.sin((jg.reactTimer / 0.65) * Math.PI) * -5) : 0;
       const jxDraw = Math.round(jg.x - 12);
-      const jyDraw = Math.round(jg.y - 27);
+      const jyDraw = Math.round(jg.y - 27 + reactHop);
       const footX = Math.round(jg.x);
       const footY = Math.round(jg.y + 3);
       drawables.push({
         sortY: depthOf(footX, footY),
         draw: () => {
+          // Crisp anime/SNES trailing speedlines & dust puffs when sprinting past Liam!
+          if (isSprinting || (jg.jostledBurstTimer || 0) > 0) {
+            const dirSign = jg.facing === "right" ? -1 : 1;
+            const pulseX = Math.floor(tSec * 24) % 4;
+            const lineCol = (jg.jostledBurstTimer || 0) > 0 ? k.rgb(255, 224, 92) : k.rgb(218, 246, 255);
+            for (let l = 0; l < 3; l++) {
+              const ly = jyDraw + 8 + l * 6;
+              const lx = footX + dirSign * (9 + l * 2 + pulseX);
+              k.drawRect({
+                pos: k.vec2(Math.round(lx - (dirSign > 0 ? 0 : 7)), ly),
+                width: 7 - l,
+                height: 1,
+                color: lineCol,
+                opacity: 0.72 - l * 0.14,
+              });
+            }
+            if (runFrame === 0 || runFrame === 2) {
+              k.drawRect({
+                pos: k.vec2(footX + dirSign * 7, footY - 2),
+                width: 3,
+                height: 2,
+                color: k.rgb(240, 232, 214),
+                opacity: 0.65,
+              });
+            }
+          }
           k.drawSprite(spr, jxDraw, jyDraw, 1, bbAngle, footX, footY);
+          if (isReacting) {
+            k.drawSprite("fx_alert_bang", footX + (jg.facing === "right" ? 7 : -11), jyDraw - 6, 1, bbAngle, footX, footY);
+          }
+          if ((jg.jostledBurstTimer || 0) > 0) {
+            k.drawSprite("fx_sparkle_gold", footX + (jg.facing === "right" ? -10 : 5), jyDraw + 3, 0.9);
+          }
           if (jg.bubbleTimer > 0) {
             const bob = Math.round(Math.sin(tSec * 12 + jg.x) * 1.4);
             const bKey = jg.bubbleSprite || "bubble_jogger_0";
@@ -5173,16 +5388,18 @@ async function boot() {
       });
     }
 
-    // Peaceful Sidewalk Marchers waving picket signs — share a snack (N or Space) to make them cheer & step aside!
+    // Peaceful Sidewalk Marchers waving picket signs — joyful cheer-hop & hearts when shared a snack!
     const nearestHungryPr = findNearbyHungryProtestor(streetLife, playerState.x, playerState.y, 44)?.target || null;
     for (const pr of streetLife.protestors) {
       const prTx = pr.x / tileSize;
       const prTy = pr.y / tileSize;
       if (prTx < startX - 2 || prTx > endX + 2 || prTy < startY - 2 || prTy > endY + 2) continue;
-      const shoutFrame = pr.bubbleTimer > 0 ? Math.floor(pr.animTimer) % 2 : (Math.floor(pr.animTimer * 0.6) % 2);
+      const isCheering = (pr.cheerTimer || 0) > 0;
+      const cheerHop = isCheering ? Math.round(Math.abs(Math.sin(tSec * 14 + pr.anchorX)) * -4) : 0;
+      const shoutFrame = isCheering || pr.bubbleTimer > 0 ? Math.floor(pr.animTimer) % 2 : (Math.floor(pr.animTimer * 0.6) % 2);
       const spr = `protestor_${pr.variant}_${pr.facing}_${shoutFrame}`;
       const pxDraw = Math.round(pr.x - 12);
-      const pyDraw = Math.round(pr.y - 28);
+      const pyDraw = Math.round(pr.y - 28 + cheerHop);
       const footX = Math.round(pr.x);
       const footY = Math.round(pr.y + 3);
       const isSnackTarget = nearestHungryPr && pr.id === nearestHungryPr.id;
@@ -5190,17 +5407,12 @@ async function boot() {
         sortY: depthOf(footX, footY),
         draw: () => {
           if (isSnackTarget) {
-            const pulse = 0.55 + Math.sin(tSec * 8) * 0.25;
-            k.drawRect({
-              pos: k.vec2(footX - 9, footY - 4),
-              width: 18,
-              height: 7,
-              color: k.rgb(114, 232, 156),
-              opacity: pulse * 0.42,
-              outline: { width: 1, color: k.rgb(255, 240, 140), opacity: pulse },
-            });
+            k.drawSprite(`fx_ring_green_${ringFrameDraw}`, footX - 11, footY - 6, 0.92);
           }
           k.drawSprite(spr, pxDraw, pyDraw, 1, bbAngle, footX, footY);
+          if (isCheering) {
+            drawMunchHeart(footX + 9, pyDraw + 2);
+          }
           if (pr.bubbleTimer > 0) {
             const bob = Math.round(Math.sin(tSec * 9 + pr.anchorX) * 1.2);
             const bKey = pr.bubbleSprite || `bubble_protest_${pr.chantIndex}`;
@@ -5212,25 +5424,43 @@ async function boot() {
       });
     }
 
-    // Spooky Graveyard Characters (Rattling Skeletons, Graveyard Phantoms & Pumpkin Ghouls!)
+    // Spooky Graveyard Characters (Rattling Skeletons, Graveyard Phantoms & Pumpkin Ghouls — attack poses, recoil & mist respawn!)
+    const heroHasLantern = questSystem.hasLantern();
     for (const sp of streetLife.spookyChars || []) {
       if ((sp.defeatedTimer || 0) > 0) continue;
       const spTx = sp.x / tileSize;
       const spTy = sp.y / tileSize;
       if (spTx < startX - 2 || spTx > endX + 2 || spTy < startY - 2 || spTy > endY + 2) continue;
       const step = Math.floor(sp.animTimer) % 2;
-      const spr = `spooky_${sp.kind}_${sp.facing}_${step}`;
+      const isAttacking = (sp.attackTimer || 0) > 0;
+      const isRespawning = (sp.respawnAnimTimer || 0) > 0;
+      const isStartled = sp.spookTimer > 0;
+      const isLanternRepelled = heroHasLantern && sp.kind === "phantom" && Math.hypot(sp.x - playerState.x, sp.y - playerState.y) < 76;
+      const atkKey = `spooky_${sp.kind}_attack_${sp.facing}`;
+      const spr = isAttacking && atlas[atkKey] ? atkKey : `spooky_${sp.kind}_${sp.facing}_${step}`;
       const floatBob = sp.kind === "phantom" ? Math.round(Math.sin(tSec * 5 + sp.homeX) * 2) : 0;
-      const sxDraw = Math.round(sp.x - 11);
-      const syDraw = Math.round(sp.y - 24 + floatBob);
+      const attackHop = isAttacking ? Math.round(Math.sin(tSec * 18) * -2) : 0;
+      const rattleJitter = isStartled || isLanternRepelled ? Math.round(Math.sin(tSec * 42) * 1.5) : 0;
+      const respawnLift = isRespawning ? Math.round((sp.respawnAnimTimer / 0.7) * 8) : 0;
+      const drawAlpha = isRespawning ? Math.max(0.25, 1 - sp.respawnAnimTimer / 0.7) : 1;
+      const sxDraw = Math.round(sp.x - 11 + rattleJitter);
+      const syDraw = Math.round(sp.y - 24 + floatBob + attackHop + respawnLift);
       const footX = Math.round(sp.x);
       const footY = Math.round(sp.y + 3);
-      const startledBlink = sp.spookTimer > 0 && Math.floor(tSec * 14) % 2 === 0;
+      const startledBlink = isStartled && Math.floor(tSec * 14) % 2 === 0;
       drawables.push({
         sortY: depthOf(footX, footY),
         draw: () => {
+          if (isRespawning) {
+            k.drawSprite("fx_grave_mist", footX - 14, footY - 5, 0.85);
+          }
           if (!startledBlink) {
-            k.drawSprite(spr, sxDraw, syDraw, 1, bbAngle, footX, footY);
+            k.drawSprite(spr, sxDraw, syDraw, drawAlpha, bbAngle, footX, footY);
+          }
+          if (isStartled) {
+            k.drawSprite("fx_alert_bang", footX - 3, syDraw - 10, 0.95, bbAngle, footX, footY);
+          } else if (isLanternRepelled) {
+            k.drawSprite("fx_sparkle_gold", footX + (sp.facing === "right" ? -10 : 4), syDraw + 4, 0.9);
           }
           if (sp.bubbleTimer > 0) {
             const bob = Math.round(Math.sin(tSec * 9 + sp.homeX) * 1.2);
@@ -5263,34 +5493,102 @@ async function boot() {
     drawables.sort((a, b) => a.sortY - b.sortY);
     for (const item of drawables) item.draw();
 
-    for (const p of leafParticles) {
-      k.drawRect({
-        pos: k.vec2(p.x, p.y),
-        width: p.w || 2,
-        height: p.h || 2,
-        color: k.rgb(...p.shade),
-        opacity: Math.min(1, p.life * 2.5),
-      });
+    // Render tailored world interaction & enemy defeat animations (clattering skeleton bones, ectoplasm vortex, Siddur beams, flashlight cones, wind swirls!)
+    for (const fx of worldFx) {
+      const p = Math.min(1, fx.t / Math.max(0.01, fx.duration));
+      const fade = Math.max(0.08, 1 - p);
+      if (fx.kind === "skeleton_defeat" && fx.pieces) {
+        for (const pc of fx.pieces) {
+          k.drawSprite(pc.sprite, Math.round(pc.x - 4), Math.round(pc.y - 4), fade, pc.rot || 0);
+        }
+      } else if (fx.kind === "phantom_defeat") {
+        // Spiraling cyan ectoplasm rings rising upward!
+        for (let r = 0; r < 3; r++) {
+          const ang = tSec * 12 + r * 2.1;
+          const rad = (1 - p) * 10 + 2;
+          const rx = Math.round(fx.x + Math.cos(ang) * rad - 4);
+          const ry = Math.round(fx.y - 10 - p * 24 - r * 5);
+          k.drawSprite("fx_sparkle_cyan", rx, ry, fade);
+        }
+        k.drawSprite("fx_grave_mist", Math.round(fx.x - 14), Math.round(fx.y - 12 - p * 18), fade * 0.9);
+      } else if (fx.kind === "pumpkin_defeat") {
+        // Fiery jack-o'-lantern ember pop & violet mist!
+        k.drawSprite("fx_ember", Math.round(fx.x - 3), Math.round(fx.y - 14 - p * 18), fade);
+        k.drawSprite("fx_grave_mist", Math.round(fx.x - 14), Math.round(fx.y - 8), fade * 0.75);
+      } else if (fx.kind === "siddur_beam") {
+        // Peaceful golden-blue rising light pillar!
+        const bw = Math.max(4, Math.round((1 - p * 0.65) * 18));
+        const bh = Math.round(42 + p * 36);
+        k.drawRect({
+          pos: k.vec2(Math.round(fx.x - bw / 2), Math.round(fx.y - bh)),
+          width: bw,
+          height: bh + 2,
+          color: k.rgb(126, 214, 255),
+          opacity: fade * 0.45,
+        });
+        k.drawRect({
+          pos: k.vec2(Math.round(fx.x - Math.max(1, bw / 4)), Math.round(fx.y - bh)),
+          width: Math.max(2, Math.round(bw / 2)),
+          height: bh + 2,
+          color: k.rgb(255, 242, 168),
+          opacity: fade * 0.72,
+        });
+      } else if (fx.kind === "flashlight_cone") {
+        // Bright golden flashlight beam flash from Liam toward startled graveyard enemy!
+        for (let step = 1; step <= 4; step++) {
+          const frac = step / 4;
+          const bx = Math.round(fx.x + (fx.tx - fx.x) * frac);
+          const by = Math.round(fx.y + (fx.ty - fx.y) * frac);
+          const sz = 4 + step * 3;
+          k.drawRect({
+            pos: k.vec2(bx - Math.floor(sz / 2), by - Math.floor(sz / 2)),
+            width: sz,
+            height: sz,
+            color: k.rgb(255, 240, 148),
+            opacity: fade * (0.48 - step * 0.06),
+          });
+        }
+      } else if (fx.kind === "jostle_wind") {
+        // Swirling comic wind gust streaks when a marathon runner zooms past Liam!
+        const spread = p * 14;
+        for (let w = -1; w <= 1; w++) {
+          const wx = Math.round(fx.x + fx.dx * spread - 5);
+          const wy = Math.round(fx.y + w * 5 + Math.sin(p * Math.PI * 2 + w) * 2);
+          k.drawRect({
+            pos: k.vec2(wx, wy),
+            width: Math.max(3, Math.round(12 * fade)),
+            height: 2,
+            color: k.rgb(228, 250, 255),
+            opacity: fade * 0.85,
+          });
+        }
+      }
     }
 
-    // Flying tossed pretzel snacks & Lucky Acorns arcing cleanly toward wild neighborhood animals!
+    for (const p of leafParticles) {
+      const alpha = Math.min(1, p.life * 2.5);
+      if (p.sprite && atlas[p.sprite]) {
+        const sp = atlas[p.sprite];
+        const sw = sp.width * (sp.__pixelScale || 0.5);
+        const sh = sp.height * (sp.__pixelScale || 0.5);
+        k.drawSprite(p.sprite, Math.round(p.x - sw / 2), Math.round(p.y - sh / 2), alpha, p.rot || 0);
+      } else {
+        k.drawRect({
+          pos: k.vec2(p.x, p.y),
+          width: p.w || 2,
+          height: p.h || 2,
+          color: k.rgb(...p.shade),
+          opacity: alpha,
+        });
+      }
+    }
+
+    // Flying 2x HD tossed pretzel snacks & Lucky Acorns arcing cleanly toward wild animals & marchers!
     for (const sn of tossedSnacks) {
       const sx = Math.round(sn.x);
       const sy = Math.round(sn.y);
-      const spin = Math.floor(sn.t * 18) % 2;
-      if (sn.foodKind === "acorn") {
-        // Crunchy golden-brown Lucky Acorn with dark oak cap
-        k.drawRect({ pos: k.vec2(sx - 3, sy - 4), width: 6, height: 7, color: k.rgb(54, 30, 14) });
-        k.drawRect({ pos: k.vec2(sx - 3, sy - 3), width: 6, height: 2, color: k.rgb(118, 72, 34) });
-        k.drawRect({ pos: k.vec2(sx - 2, sy - 1), width: 4, height: 3, color: k.rgb(198, 134, 62) });
-        k.drawRect({ pos: k.vec2(sx - 1 + spin, sy - 1), width: 1, height: 1, color: k.rgb(255, 232, 168) });
-      } else {
-        // Dark outline + warm golden-brown baked pretzel knot + salt crystal sparkles
-        k.drawRect({ pos: k.vec2(sx - 4, sy - 3), width: 8, height: 6, color: k.rgb(66, 36, 14) });
-        k.drawRect({ pos: k.vec2(sx - 3, sy - 2), width: 6, height: 4, color: k.rgb(214, 138, 52) });
-        k.drawRect({ pos: k.vec2(sx - 2 + spin, sy - 1), width: 2, height: 1, color: k.rgb(255, 246, 212) });
-        k.drawRect({ pos: k.vec2(sx + 1 - spin, sy), width: 2, height: 1, color: k.rgb(255, 246, 212) });
-      }
+      const spinDeg = Math.round(sn.t * 540);
+      k.drawSprite(sn.foodKind === "acorn" ? "fx_acorn" : "fx_pretzel", sx - 4, sy - 4, 1, spinDeg);
     }
 
     // Legend of Zelda: Breath of the Wild Sheikah Fast-Travel Blue/Cyan Energy Teleport VFX!
@@ -5326,26 +5624,8 @@ async function boot() {
         const intensity = isOut ? Math.sin(p * Math.PI * 0.85) : Math.sin((1 - p) * Math.PI * 0.9);
         const ringExpand = isOut ? p : 1 - p;
 
-        // 1. Ancient glowing Sheikah ground sigil & concentric cyan/turquoise rune rings
-        const ringW = Math.round(24 + ringExpand * 22);
-        const ringH = Math.round(12 + ringExpand * 11);
-        k.drawRect({
-          pos: k.vec2(anchorX - Math.floor(ringW / 2), anchorY - Math.floor(ringH / 2) + 2),
-          width: ringW,
-          height: ringH,
-          color: k.rgb(20, 168, 224),
-          opacity: Math.max(0.08, intensity * 0.28),
-          outline: { width: 2, color: k.rgb(72, 238, 255), opacity: Math.max(0.15, intensity * 0.92) },
-        });
-        const innerW = Math.max(8, ringW - 10);
-        const innerH = Math.max(4, ringH - 5);
-        k.drawRect({
-          pos: k.vec2(anchorX - Math.floor(innerW / 2), anchorY - Math.floor(innerH / 2) + 2),
-          width: innerW,
-          height: innerH,
-          fill: false,
-          outline: { width: 1, color: k.rgb(228, 252, 255), opacity: Math.max(0.12, intensity * 0.85) },
-        });
+        // 1. Ancient glowing circular 2x HD Sheikah ground sigil ring
+        k.drawSprite("fx_sheikah_ring", anchorX - 24, anchorY - 11, Math.max(0.14, intensity * 0.94));
 
         // Orbiting ancient Sheikah diamond rune sigils around the circle
         for (const r of bt.runes) {
@@ -5421,22 +5701,24 @@ async function boot() {
       const by = Math.round(b.ty * tileSize - 12 + Math.sin(tSec * b.speed * 1.4 + b.phase) * b.radiusY);
       k.drawSprite(`grave_bat_${fastFlapFrame}`, bx, by);
     }
-    // Gentle drifting eerie silver-lavender ground fog wisps strictly over visible graveyard tiles
+    // Gentle drifting eerie silver-lavender 2x HD mist wisps strictly over visible graveyard tiles
     for (let ty = startY; ty <= endY; ty += 3) {
       const rowOff = ty * mapW;
       for (let tx = startX; tx <= endX; tx += 4) {
         if (graveyardFeatures.graveyardGrid[rowOff + tx] === 0) continue;
         const drift = ((tSec * 7 + tx * 11 + ty * 17) % 32) - 16;
-        const fx = Math.round(tx * tileSize + drift);
-        const fy = ty * tileSize + 8;
-        k.drawRect({
-          pos: k.vec2(fx, fy),
-          width: 24,
-          height: 3,
-          color: k.rgb(198, 214, 240),
-          opacity: 0.14,
-        });
+        const fx = Math.round(tx * tileSize + drift - 6);
+        const fy = ty * tileSize + 4;
+        k.drawSprite("fx_grave_mist", fx, fy, 0.85);
       }
+    }
+
+    // Gentle golden-hour drifting autumn maple leaves floating lazily across the outdoor breeze!
+    for (const al of ambientLeaves) {
+      const lx = Math.round(cam.x + al.ox);
+      const ly = Math.round(cam.y + al.oy);
+      const rot = Math.round(Math.sin(tSec * 2.5 + al.phase) * 35);
+      k.drawSprite(al.sprite, lx, ly, 0.78, rot);
     }
 
     // Subtle on-screen golden waypoint indicator — ONLY active in GPS Assist mode!
