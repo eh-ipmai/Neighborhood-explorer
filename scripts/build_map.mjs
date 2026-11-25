@@ -5362,32 +5362,26 @@ export function enrichWorldMap(worldMap) {
     paintCircle(269, 434, 4, 3, TILE_IDS.PARK, (cur) => cur === TILE_IDS.GRASS);
     drawLine(base, width, height, 267, 436, 272, 433, TILE_IDS.DIRT, 0, (cur) => cur === TILE_IDS.PARK || cur === TILE_IDS.GRASS);
 
-    // Large Beth El Synagogue Parking Lot between Commonwealth Ave and Ward St (x=216..238, y=93..102)
-    // Paved cleanly across the open lot between Ward St (y=91..92) and Commonwealth Ave (x=211..222),
-    // never overwriting buildings, roads, or water, with crisp driveway entrances to Ward St & Comm Ave!
+    // Compact single-lot Beth El Synagogue Parking Lot directly across from Beth El (x=217..221, y=98..100)
+    // First clear any legacy oversized parking tiles in the neighboring Ward St / Nathan Rd yards back to grass/sidewalk.
     for (let ty = 93; ty <= 102; ty++) {
-      for (let tx = 217; tx <= 237; tx++) {
+      for (let tx = 216; tx <= 238; tx++) {
+        if (!inBounds(tx, ty, width, height)) continue;
+        const idx = ty * width + tx;
+        if (base[idx] === TILE_IDS.PARKING_LOT) {
+          base[idx] = ty === 93 && tx >= 223 && tx <= 225 ? TILE_IDS.SIDEWALK : TILE_IDS.GRASS;
+        }
+      }
+    }
+    // Keep strictly one residential-sized lot (5x3, aligned with 561 Ward St x=215..222) fronting Comm Ave Carriage Lane.
+    for (let ty = 98; ty <= 100; ty++) {
+      for (let tx = 217; tx <= 221; tx++) {
         if (!inBounds(tx, ty, width, height)) continue;
         const idx = ty * width + tx;
         const cur = base[idx];
         if (cur === TILE_IDS.GRASS || cur === TILE_IDS.PARK || cur === TILE_IDS.TALL_GRASS) {
           base[idx] = TILE_IDS.PARKING_LOT;
         }
-      }
-    }
-    // Crisp parking-lot driveway connections to Ward St (north) & Comm Ave Carriage Lane (west)
-    for (const [dx, dy] of [
-      [223, 93], [224, 93], [225, 93],
-      [223, 94], [224, 94], [225, 94],
-      [223, 95], [224, 95], [225, 95],
-      [223, 96], [224, 96], [225, 96],
-      [219, 98], [220, 98], [221, 98],
-      [219, 99], [220, 99], [221, 99],
-    ]) {
-      if (!inBounds(dx, dy, width, height)) continue;
-      const cur = base[dy * width + dx];
-      if (cur === TILE_IDS.GRASS || cur === TILE_IDS.SIDEWALK || cur === TILE_IDS.PARK) {
-        base[dy * width + dx] = TILE_IDS.PARKING_LOT;
       }
     }
   }

@@ -906,16 +906,25 @@ test("Commonwealth Avenue features a grassy, tree-lined Olmsted separator and pa
   }
   assert.equal(typeof carveCommonwealthCarriageway, "function");
 
-  // 3. Verify the large Beth El Synagogue parking lot sits between Commonwealth Ave and Ward St!
+  // 3. Verify the Beth El Synagogue parking lot is compact (strictly one lot across from Beth El, zero neighbor yard sprawl!)
   let bethElLotTiles = 0;
+  let spilledLotTiles = 0;
   for (let y = 93; y <= 102; y++) {
-    for (let x = 217; x <= 237; x++) {
-      if (base[y * width + x] === TILE_IDS.PARKING_LOT) bethElLotTiles++;
+    for (let x = 216; x <= 238; x++) {
+      if (base[y * width + x] === TILE_IDS.PARKING_LOT) {
+        if (x >= 217 && x <= 221 && y >= 98 && y <= 100) bethElLotTiles++;
+        else spilledLotTiles++;
+      }
     }
   }
   assert.ok(
-    bethElLotTiles >= 50,
-    `Beth El Synagogue parking lot between Commonwealth Ave & Ward St should have >= 50 parking tiles (got ${bethElLotTiles})`
+    bethElLotTiles >= 10 && bethElLotTiles <= 16,
+    `Beth El Synagogue parking lot should be a single compact lot across from Beth El (expected 10..16 tiles, got ${bethElLotTiles})`
+  );
+  assert.equal(
+    spilledLotTiles,
+    0,
+    `Beth El parking lot must not spill into neighboring Ward St / Nathan Rd yards (got ${spilledLotTiles} spilled tiles)`
   );
 
   // 4. Verify graveyards stay STRICTLY inside cemetery bounds — ZERO graves on streets, sidewalks, or opposite yards!
