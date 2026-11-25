@@ -725,6 +725,98 @@ export function upgradeItemsAndFxTo32Bit(sprites) {
     sprites[`fx_speed_streak_${f}`] = canvas;
   }
 
+  // 2x HD Gilded SNES Quest Destination Pointer (points right at 0°; rotates cleanly to any 360° bearing!)
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeHdCanvas(38, 30);
+    const cy = 15;
+    // Soft luminous golden aura halo behind arrowhead
+    pxEllipse(ctx, 20, cy, 16, 12, f === 0 ? "rgba(255, 224, 102, 0.24)" : "rgba(255, 238, 148, 0.34)");
+    pxEllipse(ctx, 21, cy, 11, 8, "rgba(255, 246, 184, 0.22)");
+
+    // Sculpted dark-bronze selective outline for tapered compass-wing arrowhead
+    for (let x = 7; x <= 34; x++) {
+      let half;
+      if (x <= 15) {
+        // Swept notched tail wings
+        half = Math.round(6 + (x - 7) * 0.65);
+      } else {
+        // Tapered gleaming spearhead tip
+        half = Math.max(0, Math.round(11.2 - (x - 15) * 0.59));
+      }
+      const notch = x < 14 ? Math.max(0, Math.round((14 - x) * 0.85)) : 0;
+      if (notch > 0) {
+        const span = Math.max(1, half - notch + 2);
+        px(ctx, x, cy - half - 1, 1, span, "#26160a");
+        px(ctx, x, cy + notch - 1, 1, span, "#26160a");
+      } else {
+        px(ctx, x, cy - half - 1, 1, half * 2 + 2, "#26160a");
+      }
+    }
+
+    // Two-tone gilded brass-gold beveled facets (sunlit upper bevel, rich burnished-gold lower bevel!)
+    for (let x = 9; x <= 32; x++) {
+      let half;
+      if (x <= 15) {
+        half = Math.round(5 + (x - 9) * 0.68);
+      } else {
+        half = Math.max(0, Math.round(9.5 - (x - 15) * 0.56));
+      }
+      const notch = x < 14 ? Math.max(0, Math.round((14 - x) * 0.9)) : 0;
+      if (notch > 0) {
+        const span = Math.max(1, half - notch);
+        px(ctx, x, cy - half, 1, span, "#ffe066");
+        px(ctx, x, cy - half, 1, Math.min(2, span), "#fff8cf");
+        px(ctx, x, cy + notch, 1, span, "#c98518");
+      } else if (half > 0) {
+        // Upper sunlit gold wing
+        px(ctx, x, cy - half, 1, half, f === 0 ? "#ffe066" : "#ffea85");
+        px(ctx, x, cy - half, 1, Math.min(2, half), "#fff9d6");
+        // Lower shaded burnished-gold wing
+        px(ctx, x, cy, 1, half, "#d99824");
+        px(ctx, x, cy + Math.max(0, half - 2), 1, Math.min(2, half), "#a86612");
+      }
+    }
+
+    // Bright center spine ridge + gleaming spear tip specular highlight
+    px(ctx, 18, cy - 1, 14, 2, "#fff8cf");
+    px(ctx, 29, cy - 1, 4, 2, "#ffffff");
+
+    // Inset emerald-jade Explorer Compass Gem nestled in the arrowhead heart!
+    pxEllipse(ctx, 18, cy, 4.2, 4.2, "#133d28");
+    pxEllipse(ctx, 18, cy, 3.2, 3.2, f === 0 ? "#2ecc71" : "#4ef29a");
+    pxEllipse(ctx, 17, cy - 1, 1.8, 1.6, "#a6ffd0");
+    px(ctx, 16, cy - 2, 2, 1, "#ffffff");
+
+    // Trailing twin gold starlight shimmer motes on alternate frame
+    if (f === 1) {
+      px(ctx, 3, cy - 1, 3, 2, "#ffe875");
+      px(ctx, 4, cy - 2, 1, 4, "#ffffff");
+      px(ctx, 34, cy - 1, 3, 2, "#ffffff");
+      px(ctx, 35, cy - 2, 1, 4, "#fff6b8");
+    }
+    sprites[`fx_dest_pointer_${f}`] = canvas;
+  }
+
+  // Pulsing 2x HD Golden Star-Diamond Halo behind Destination Pointer
+  for (let f = 0; f < 2; f++) {
+    const { canvas, ctx } = makeHdCanvas(28, 28);
+    const r = f === 0 ? 11 : 12.5;
+    pxEllipse(ctx, 14, 14, r, r, "rgba(255, 224, 102, 0.16)");
+    for (let i = 0; i < 4; i++) {
+      const ang = (i * Math.PI) / 2 + (f === 1 ? Math.PI / 4 : 0);
+      pxLine(
+        ctx,
+        14 + Math.cos(ang) * 7,
+        14 + Math.sin(ang) * 7,
+        14 + Math.cos(ang) * (f === 0 ? 12 : 13),
+        14 + Math.sin(ang) * (f === 0 ? 12 : 13),
+        2,
+        "rgba(255, 244, 168, 0.72)"
+      );
+    }
+    sprites[`fx_dest_ring_${f}`] = canvas;
+  }
+
   // =========================================================================
   // 5. 2x HD GRAVEYARD PROPS UPGRADE (Ghosts, Bats, Wisps, Pumpkins, Lanterns & Tombstones!)
   // =========================================================================

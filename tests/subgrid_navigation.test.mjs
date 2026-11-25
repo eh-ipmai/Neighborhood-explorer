@@ -6,7 +6,7 @@ import path from "node:path";
 import { SUBGRID_DIV, getNavigationSubgrid } from "../src/subgrid.js";
 import { createMapCollider, moveWithCollision, DEFAULT_HITBOX, TILE_SIZE } from "../src/player.js";
 import { createSafetySystem, resolveActionIntent } from "../src/safety.js";
-import { buildRoadTraffic, updateRoadTraffic, checkTrafficCollision } from "../src/traffic.js";
+import { buildRoadTraffic, updateRoadTraffic, checkTrafficCollision, isVehicleFootprintOnRoad } from "../src/traffic.js";
 
 function loadLiveMap() {
   return JSON.parse(
@@ -231,7 +231,7 @@ test("vector-road traffic stays 100% on paved 4px road lanes (ZERO sidewalk driv
         if (Math.hypot(v.x - spot.x, v.y - spot.y) > 440) continue;
         totalChecks++;
         if (Math.abs(v.rotDeg || 0) >= 5) curvedAnglesSeen++;
-        if (!subgrid.isDrivableAtPx(v.x, v.y)) {
+        if (!subgrid.isDrivableAtPx(v.x, v.y) || !isVehicleFootprintOnRoad(subgrid, v.x, v.y, v.dx, v.dy, v.kind)) {
           sidewalkViolations++;
           if (violationSamples.length < 5) {
             violationSamples.push(

@@ -871,39 +871,6 @@ async function boot() {
     playerState.isWading = false;
   }
 
-  function resetToSalzberg() {
-    const salz = questSystem.npcs.find((n) => n.id === "salzberg_house");
-    if (!salz) return;
-    if (homeInterior.state.active) {
-      homeInterior.exitHouse();
-    }
-    if (roadHitCutscene || ui?.isGameOverOpen()) {
-      ui?.closeGameOver();
-      roadHitCutscene = null;
-      playerState.koRespawnTimer = 0;
-      playerState.hearts = playerState.maxHearts;
-      playerState.hurtTimer = 0;
-      playerState.knockbackTimer = 0;
-    }
-    playerState.x = salz.walkTileX * tileSize + tileSize / 2;
-    playerState.y = salz.walkTileY * tileSize + tileSize / 2;
-    playerState.facing = questSystem.state.navMode === "hard" ? "up" : "down";
-    playerState.headingDeg = 0;
-    playerState.targetHeadingDeg = 0;
-    playerState.turnHoldDir = 0;
-    playerState.turnRepeatTimer = 0;
-    k.setCamRot(0);
-    playerState.lookTimer = 0;
-    playerState.safeCrossingTimer = 0;
-    playerState.hasEnteredRoadSinceLook = false;
-    playerState.curbStopCueTimer = 0;
-    playerState.isWading = false;
-    questSystem.revealFogAtTile(salz.walkTileX, salz.walkTileY, 2);
-    refreshPocketDirections(salz.walkTileX, salz.walkTileY, "Salzberg House");
-    playCoinPickup();
-    ui?.showSafetyToast("🏡 Starting at the Salzberg House (200 Cotton St)!", 2200);
-  }
-
   let ui;
 
   function enqueueFanfare(entries) {
@@ -1919,10 +1886,6 @@ async function boot() {
       if (botwTeleport || roadHitCutscene) return;
       resetToHome();
     },
-    onResetSalzberg: () => {
-      if (botwTeleport) return;
-      resetToSalzberg();
-    },
     onLookOrInteract: triggerLookOrInteract,
     onToggleMute: () => toggleMute(),
     onOpenPaint: openPaintForNearbyHouse,
@@ -1993,10 +1956,6 @@ async function boot() {
     if (botwTeleport || roadHitCutscene) return;
     resetToHome();
   });
-  k.onKeyPress("s", () => {
-    if (botwTeleport) return;
-    resetToSalzberg();
-  });
   k.onKeyPress("m", togglePaperMap);
   k.onKeyPress("tab", togglePaperMap);
   k.onKeyPress("p", openPaintForNearbyHouse);
@@ -2018,7 +1977,7 @@ async function boot() {
     if (k.isKeyDown("left") || k.isKeyDown("a")) dx -= 1;
     if (k.isKeyDown("right") || k.isKeyDown("d")) dx += 1;
     if (k.isKeyDown("up") || k.isKeyDown("w")) dy -= 1;
-    if (k.isKeyDown("down")) dy += 1;
+    if (k.isKeyDown("down") || k.isKeyDown("s")) dy += 1;
 
     const touch = ui.getTouchInput();
     if (dx === 0 && dy === 0) {
@@ -4820,7 +4779,7 @@ async function boot() {
         const dist = 10 + i * 10 + slide;
         const ax = Math.round(basePxX + ux * dist);
         const ay = Math.round(basePxY + uy * dist);
-        k.drawSprite("fx_chalk_arrow", ax - 4, ay - 4, alpha * (1 - i * 0.14), arrowDeg);
+        k.drawSprite("fx_chalk_arrow", ax - 5.5, ay - 5.5, alpha * (1 - i * 0.14), arrowDeg);
       }
     }
 
@@ -4853,13 +4812,23 @@ async function boot() {
             : `traffic_car_${v.variant}_${v.dir}`;
       const sprCanvas = atlas[spr];
       const sprScale = sprCanvas?.__pixelScale || 0.5;
-      const halfW = sprCanvas ? (sprCanvas.width * sprScale) / 2 : 14;
-      const halfH = sprCanvas ? (sprCanvas.height * sprScale) / 2 : 10;
+      const sprW = sprCanvas ? sprCanvas.width * sprScale : 28;
+      const sprH = sprCanvas ? sprCanvas.height * sprScale : 20;
+      const halfW = sprW / 2;
+      const isHoriz = v.dir === "e" || v.dir === "w";
+      // Anchor 3/4 side-view vehicles & upright bikes at their ground tire-contact line so
+      // wheels stay visibly planted on the paved road lane instead of hanging onto sidewalks!
+      const anchorFracY =
+        v.kind === "bike"
+          ? 0.80
+          : isHoriz
+            ? 0.74
+            : 0.54;
       const drawX = Math.round(v.x - halfW);
-      const drawY = Math.round(v.y - halfH);
+      const drawY = Math.round(v.y - sprH * anchorFracY);
       const vRot = v.rotDeg || 0;
       drawables.push({
-        sortY: depthOf(v.x, v.y + halfH * 0.65),
+        sortY: depthOf(v.x, v.y + 4),
         draw: () => {
           k.drawSprite(spr, drawX, drawY, 1, vRot, v.x, v.y);
           if (v.kind === "bike" && v.bubbleTimer > 0) {
@@ -5711,27 +5680,30 @@ async function boot() {
       k.drawSprite(al.sprite, lx, ly, 0.78, rot);
     }
 
-    // Subtle on-screen golden waypoint indicator — ONLY active in GPS Assist mode!
+    // Gleaming 2x HD gilded compass destination pointer — ONLY active in GPS Assist mode!
     if (questSystem.state.gpsAssist && activeTarget) {
       const targetPxX = activeTarget.tileX * tileSize + tileSize / 2;
       const targetPxY = activeTarget.tileY * tileSize + tileSize / 2;
       const dx = targetPxX - cam.x;
       const dy = targetPxY - cam.y;
-      if (Math.abs(dx) > VIEW_W / 2 - 14 || Math.abs(dy) > VIEW_H / 2 - 14) {
+      const halfViewW = VIEW_W / 2 - 18;
+      const halfViewH = VIEW_H / 2 - 16;
+      if (Math.abs(dx) > halfViewW || Math.abs(dy) > halfViewH) {
         const angle = Math.atan2(dy, dx);
-        const edgeX = cam.x + Math.max(-(VIEW_W / 2 - 14), Math.min(VIEW_W / 2 - 14, Math.cos(angle) * 145));
-        const edgeY = cam.y + Math.max(-(VIEW_H / 2 - 16), Math.min(VIEW_H / 2 - 16, Math.sin(angle) * 76));
-        const bob = Math.sin(playerState.elapsedTime * 6) * 1.5;
+        const angleDeg = (angle * 180) / Math.PI;
+        // Exact ray-box screen edge clamping so pointer always sits on true bearing to destination!
+        const edgeScale = Math.min(
+          halfViewW / Math.max(1e-3, Math.abs(dx)),
+          halfViewH / Math.max(1e-3, Math.abs(dy))
+        );
+        const edgeX = cam.x + dx * edgeScale;
+        const edgeY = cam.y + dy * edgeScale;
+        const bob = Math.sin(playerState.elapsedTime * 6.5) * 2.2;
         const wx = Math.round(edgeX + Math.cos(angle) * bob);
         const wy = Math.round(edgeY + Math.sin(angle) * bob);
-        k.drawRect({ pos: k.vec2(wx - 4, wy - 4), width: 9, height: 9, color: k.rgb(29, 34, 40) });
-        k.drawRect({ pos: k.vec2(wx - 3, wy - 3), width: 7, height: 7, color: k.rgb(244, 211, 94) });
-        k.drawRect({
-          pos: k.vec2(wx - 1 + Math.round(Math.cos(angle) * 2), wy - 1 + Math.round(Math.sin(angle) * 2)),
-          width: 3,
-          height: 3,
-          color: k.rgb(36, 87, 61),
-        });
+        const ptrFrame = Math.floor(playerState.elapsedTime * 5) % 2;
+        k.drawSprite(`fx_dest_ring_${ptrFrame}`, wx - 7, wy - 7, 0.78);
+        k.drawSprite(`fx_dest_pointer_${ptrFrame}`, wx - 9.5, wy - 7.5, 0.98, angleDeg, wx, wy);
       }
     }
 
@@ -5850,7 +5822,6 @@ async function boot() {
     toggleHouseInside,
     startMapTeleport,
     startRoadHitCutscene,
-    resetToSalzberg,
   };
 }
 

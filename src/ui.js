@@ -63,7 +63,6 @@ const BUILDING_KIND_ICONS = {
 export function createUI({
   onToggleDebug,
   onResetHome,
-  onResetSalzberg,
   onLookOrInteract,
   onToggleMute,
   onOpenPaint,
@@ -144,7 +143,6 @@ export function createUI({
   const btnMute = document.getElementById("btn-mute");
   const btnDebug = document.getElementById("btn-debug");
   const btnHome = document.getElementById("btn-home");
-  const btnSalzberg = document.getElementById("btn-salzberg");
   const btnFaster = document.getElementById("btn-faster");
   const btnLook = document.getElementById("btn-look");
   const btnLookIcon = document.getElementById("btn-look-icon");
@@ -632,10 +630,6 @@ export function createUI({
   btnHome?.addEventListener("click", () => {
     setToolsDrawerOpen(false);
     onResetHome?.();
-  });
-  btnSalzberg?.addEventListener("click", () => {
-    setToolsDrawerOpen(false);
-    onResetSalzberg?.();
   });
 
   function showSafetyToast(message, durationMs = 2200) {

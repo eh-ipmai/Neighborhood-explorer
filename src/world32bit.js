@@ -996,17 +996,24 @@ export function upgradeAtlasTo32Bit(sprites, P) {
 
   // Crisp 2x HD Sidewalk Chalk Directional Chevron (points right; rotated cleanly to any heading!)
   {
-    const { canvas, ctx } = makeHdCanvas(18, 18);
-    // Dark outline chevron + bright sunlit chalk fill
-    for (let i = 0; i < 6; i++) {
-      px(ctx, 4 + i, 2 + i, 5, 2, "#1c3828");
-      px(ctx, 4 + i, 14 - i, 5, 2, "#1c3828");
+    const { canvas, ctx } = makeHdCanvas(22, 22);
+    // Warm golden-glow backing behind chevron
+    pxEllipse(ctx, 11, 11, 9.5, 8.5, "rgba(255, 228, 122, 0.24)");
+    // Dark emerald-bronze outline chevron + layered bright chalk-gold fill
+    for (let i = 0; i < 7; i++) {
+      px(ctx, 5 + i, 2 + i, 6, 3, "#1a3324");
+      px(ctx, 5 + i, 17 - i, 6, 3, "#1a3324");
     }
-    for (let i = 0; i < 6; i++) {
-      px(ctx, 5 + i, 3 + i, 3, 2, "#f7dc72");
-      px(ctx, 5 + i, 13 - i, 3, 2, "#f7dc72");
+    for (let i = 0; i < 7; i++) {
+      px(ctx, 6 + i, 3 + i, 4, 2, i >= 4 ? "#ffe47a" : "#f2c244");
+      px(ctx, 6 + i, 17 - i, 4, 2, i >= 4 ? "#ffe47a" : "#d99e26");
     }
-    px(ctx, 11, 8, 3, 2, "#fff8cf");
+    // Bright sunlit chalk highlight along upper leading edge & tip
+    for (let i = 0; i < 6; i++) {
+      px(ctx, 7 + i, 3 + i, 2, 1, "#fff9d6");
+    }
+    px(ctx, 14, 10, 4, 2, "#fff9d6");
+    px(ctx, 16, 10, 2, 2, "#ffffff");
     sprites.fx_chalk_arrow = canvas;
   }
 

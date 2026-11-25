@@ -451,6 +451,7 @@ test("NPC wave frames, spooky attack poses, 3-frame sword arcs, 2x HD FX sprites
       "fx_hit_slash_0", "fx_hit_slash_1", "fx_fanfare_aura_0", "fx_fanfare_aura_1",
       "fx_siddur_beam", "fx_flashlight_beam", "fx_dust_0", "fx_dust_1", "fx_dust_2",
       "fx_wind_swirl_0", "fx_wind_swirl_1", "fx_speed_streak_0", "fx_speed_streak_1",
+      "fx_dest_pointer_0", "fx_dest_pointer_1", "fx_dest_ring_0", "fx_dest_ring_1",
       "grave_ghost_0", "grave_ghost_1", "grave_bat_0", "grave_bat_1",
       "grave_wisp_0", "grave_wisp_1", "grave_pumpkin_0", "grave_pumpkin_1",
       "grave_lantern_0", "grave_lantern_1", "tombstone_arch", "tombstone_cross", "tombstone_tilted",
@@ -540,7 +541,15 @@ test("NPC wave frames, spooky attack poses, 3-frame sword arcs, 2x HD FX sprites
   );
   const drawerMatch = html.match(/id="tools-drawer"[\s\S]*?<\/div>\s*<\/div>/);
   assert.ok(drawerMatch, "index.html must contain collapsible #tools-drawer for secondary options");
-  for (const id of ["btn-gps", "btn-outfit", "btn-paint", "btn-mute", "btn-home", "btn-salzberg", "btn-debug"]) {
+  for (const id of ["btn-gps", "btn-outfit", "btn-paint", "btn-mute", "btn-home", "btn-debug"]) {
     assert.ok(drawerMatch[0].includes(`id="${id}"`), `#tools-drawer should house secondary shortcut ${id}`);
   }
+  assert.ok(!html.includes('id="btn-salzberg"'), "Salzberg warp button must be removed from #tools-drawer");
+
+  // 4. Verify (S) Salzberg warp shortcut is removed from main.js and 2x HD destination pointer sprites are wired
+  const mainSrc = fs.readFileSync(path.resolve(process.cwd(), "src", "main.js"), "utf8");
+  assert.ok(!mainSrc.includes("resetToSalzberg"), "resetToSalzberg shortcut must be removed from src/main.js");
+  assert.ok(!mainSrc.includes('onKeyPress("s"'), 'k.onKeyPress("s") Salzberg shortcut must be removed');
+  assert.ok(mainSrc.includes('k.isKeyDown("s")'), 'WASD "s" key should walk south cleanly');
+  assert.ok(mainSrc.includes("fx_dest_pointer_"), "GPS destination pointer should render 2x HD fx_dest_pointer sprites");
 });

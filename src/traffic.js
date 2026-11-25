@@ -37,6 +37,33 @@ const CARDINAL_BASE_DEG = {
 export const BIKER_CHANT_COUNT = 5;
 export const CAR_VARIANT_COUNT = 10;
 
+// Road-contact physical footprints (in logical px) matching our 32-bit sprites so every
+// car, truck, and bike stays 100% inside paved road asphalt (never clipping sidewalks/medians!)
+const VEHICLE_FOOTPRINT = {
+  bike: { halfLat: 4.5, halfLen: 6.5, edgeMargin: 5.0, minRoadW: 12.0 },
+  car: { halfLat: 6.5, halfLen: 10.0, edgeMargin: 7.0, minRoadW: 15.0 },
+  truck: { halfLat: 7.5, halfLen: 13.0, edgeMargin: 8.2, minRoadW: 20.5 },
+};
+
+export function isVehicleFootprintOnRoad(subgrid, x, y, ux, uy, kind = "car") {
+  if (!subgrid) return true;
+  if (!subgrid.isDrivableAtPx(x, y)) return false;
+  const fp = VEHICLE_FOOTPRINT[kind] || VEHICLE_FOOTPRINT.car;
+  const len = Math.hypot(ux || 0, uy || 0);
+  const tx = len > 1e-5 ? ux / len : 1;
+  const ty = len > 1e-5 ? uy / len : 0;
+  const rnx = -ty;
+  const rny = tx;
+  const lat = fp.halfLat;
+  const fwd = fp.halfLen * 0.55;
+  return (
+    subgrid.isDrivableAtPx(x + rnx * lat, y + rny * lat) &&
+    subgrid.isDrivableAtPx(x - rnx * lat, y - rny * lat) &&
+    subgrid.isDrivableAtPx(x + tx * fwd, y + ty * fwd) &&
+    subgrid.isDrivableAtPx(x - tx * fwd, y - ty * fwd)
+  );
+}
+
 function hash2(x, y, seed = 41) {
   let n = (x * 374761393 + y * 668265263 + seed * 1442695041) | 0;
   n = (n ^ (n >>> 13)) * 1274126177;
@@ -194,9 +221,19 @@ function buildVectorTrafficNetwork(worldMap) {
     addEndpoint(r.idx, true, r.end);
   }
 
-  function findConnectedTransitions(curRoadIdx, arrivedAtEnd, curUx, curUy, preferredRoadClass, seed) {
+  function findConnectedTransitions(
+    curRoadIdx,
+    arrivedAtEnd,
+    curUx,
+    curUy,
+    preferredRoadClass,
+    seed,
+    kind = "car",
+    subgrid = null
+  ) {
     const curRoad = roads[curRoadIdx];
     if (!curRoad) return null;
+    const fp = VEHICLE_FOOTPRINT[kind] || VEHICLE_FOOTPRINT.car;
     const pt = arrivedAtEnd ? curRoad.end : curRoad.start;
     const bx = Math.floor(pt.x / BUCKET);
     const by = Math.floor(pt.y / BUCKET);
@@ -209,9 +246,11 @@ function buildVectorTrafficNetwork(worldMap) {
         for (const ep of list) {
           if (ep.roadIdx === curRoadIdx) continue;
           const dist = Math.hypot(ep.x - pt.x, ep.y - pt.y);
-          if (dist > 18) continue;
+          // Only connect genuine shared intersection endpoints (never jump across non-road gaps!)
+          if (dist > 6.5) continue;
           const nextRoad = roads[ep.roadIdx];
           if (!nextRoad) continue;
+          if (nextRoad.widthPx < fp.minRoadW) continue;
 
           // Entering at start -> travel +1; entering at end -> travel -1 (only if two-way!)
           if (ep.isEnd && nextRoad.oneway) continue;
@@ -225,6 +264,18 @@ function buildVectorTrafficNetwork(worldMap) {
 
           // Keep heavy highway traffic on highways/main connectors!
           if (preferredRoadClass === 12 && nextRoad.roadClass === 2) continue;
+          // Keep big trucks on highways & full-width avenues (never squeezing onto narrow side streets!)
+          if (kind === "truck" && nextRoad.roadClass === 2) continue;
+
+          // Verify transition midpoint & landing pose stay strictly on paved road asphalt!
+          if (subgrid) {
+            const midX = (pt.x + ep.x) * 0.5;
+            const midY = (pt.y + ep.y) * 0.5;
+            if (!subgrid.isDrivableAtPx(midX, midY)) continue;
+            const entryDist = nextDirSign > 0 ? Math.min(nextRoad.totalLen * 0.5, 6) : Math.max(nextRoad.totalLen * 0.5, nextRoad.totalLen - 6);
+            const probePose = sampleVectorRoadPose(nextRoad, entryDist, nextDirSign, 0, kind, null, subgrid);
+            if (!subgrid.isDrivableAtPx(probePose.x, probePose.y)) continue;
+          }
 
           let score = dot * 1.4;
           if (curRoad.name && nextRoad.name && curRoad.name === nextRoad.name) score += 1.6;
@@ -255,53 +306,61 @@ function buildVectorTrafficNetwork(worldMap) {
 
 /**
  * Compute lateral right-hand lane offset (in logical pixels, positive = right of travel direction)
- * so every car, truck, and bike stays strictly inside its paved lane and NEVER touches a sidewalk!
+ * using each vehicle's true road-contact width so cars, trucks, and bikes NEVER clip sidewalks or medians!
  */
 function computeLaneOffsetPx(road, dirSign, laneSlot, kind) {
   const halfW = road.halfWidthPx;
-  // Minimum distance from lane center to outer asphalt edge so vehicle stays strictly on the street
-  const edgeMargin = kind === "bike" ? 2.5 : 3.2;
+  const fp = VEHICLE_FOOTPRINT[kind] || VEHICLE_FOOTPRINT.car;
+  // Keep outer wheels & body strictly inside the paved asphalt curb/median edge
+  const edgeMargin = fp.edgeMargin;
   const maxSafeOffset = Math.max(0, halfW - edgeMargin);
+
+  if (maxSafeOffset <= 0.25) {
+    return 0;
+  }
 
   if (road.oneway) {
     const laneCount = Math.max(1, road.lanes || 1);
     if (laneCount === 1) {
-      if (kind === "bike") return Math.min(maxSafeOffset, Math.max(0, halfW * 0.35));
+      if (kind === "bike") return Math.min(maxSafeOffset, Math.max(0, halfW * 0.28));
       return 0;
     }
-    const usable = Math.max(0, (halfW - edgeMargin) * 2);
+    const usable = maxSafeOffset * 2;
     const laneIdx = Math.abs(laneSlot) % laneCount;
     const rawOff = -usable * 0.5 + (usable * (laneIdx + 0.5)) / laneCount;
     return Math.max(-maxSafeOffset, Math.min(maxSafeOffset, rawOff));
   }
 
-  // Two-way street: stay strictly on the RIGHT-HAND side of the centerline (positive offset!)
+  // Two-way street: stay strictly on the RIGHT-HAND side of the centerline (positive offset),
+  // collapsing smoothly toward the paved centerline on narrow residential streets!
   const dirLanes = Math.max(1, dirSign > 0 ? road.lanesFwd : road.lanesBwd);
-  if (dirLanes >= 2 && maxSafeOffset >= 5.5) {
-    const innerEdge = 2.2;
+  if (dirLanes >= 2 && maxSafeOffset >= 6.0) {
+    const innerEdge = 2.0;
     const span = Math.max(0, maxSafeOffset - innerEdge);
     const laneIdx = Math.abs(laneSlot) % dirLanes;
     const rawOff = innerEdge + (span * (laneIdx + 0.5)) / dirLanes;
-    return Math.max(1.5, Math.min(maxSafeOffset, rawOff));
+    return Math.max(0, Math.min(maxSafeOffset, rawOff));
   }
 
   // Single lane per direction (two-way avenue or residential street)
   if (kind === "bike") {
-    return Math.min(maxSafeOffset, Math.max(1.5, halfW * 0.58));
+    return Math.min(maxSafeOffset, Math.max(0, halfW * 0.48));
   }
-  return Math.min(maxSafeOffset, Math.max(1.5, halfW * 0.45));
+  return Math.min(maxSafeOffset, Math.max(0, halfW * 0.36));
 }
 
 /**
  * Sample a vehicle's exact pixel position, unit travel tangent, and sprite orientation
  * at distance `distAlong` along a vector road polyline with right-hand lane offset.
+ * When `subgrid` is provided, automatically pulls inward if a curve, median, or curb pinch
+ * would put the vehicle's wheels off paved asphalt!
  */
-function sampleVectorRoadPose(road, distAlong, dirSign, laneSlot, kind, prevDir = null) {
+function sampleVectorRoadPose(road, distAlong, dirSign, laneSlot, kind, prevDir = null, subgrid = null) {
   const clampedDist = Math.max(0, Math.min(road.totalLen, distAlong));
   const cumLen = road.cumLen;
   const pts = road.pts;
 
-  // Binary/linear search for active segment
+  // Binary search for active segment
   let seg = 0;
   let lo = 0;
   let hi = cumLen.length - 2;
@@ -328,10 +387,64 @@ function sampleVectorRoadPose(road, distAlong, dirSign, laneSlot, kind, prevDir 
   // Right-hand normal in screen Y-down coords: East (1,0) -> South (0,1) = (-uy, ux)
   const rnx = -uy;
   const rny = ux;
-  const laneOffset = computeLaneOffsetPx(road, dirSign, laneSlot, kind);
+  const desiredOffset = computeLaneOffsetPx(road, dirSign, laneSlot, kind);
 
-  const x = cx + rnx * laneOffset;
-  const y = cy + rny * laneOffset;
+  let chosenOffset = desiredOffset;
+  if (subgrid) {
+    const fp = VEHICLE_FOOTPRINT[kind] || VEHICLE_FOOTPRINT.car;
+    const tryOffsets =
+      Math.abs(desiredOffset) > 0.25
+        ? [
+            desiredOffset,
+            desiredOffset * 0.72,
+            desiredOffset * 0.45,
+            desiredOffset * 0.2,
+            0,
+            -Math.sign(desiredOffset) * 1.5,
+            -Math.sign(desiredOffset) * 3.0,
+          ]
+        : [0, 1.5, -1.5, 3.0, -3.0];
+
+    let found = false;
+    for (const off of tryOffsets) {
+      const tx = cx + rnx * off;
+      const ty = cy + rny * off;
+      if (isVehicleFootprintOnRoad(subgrid, tx, ty, ux, uy, kind)) {
+        chosenOffset = off;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      // Fallback: pick offset closest to desired where both lateral wheel points stay drivable
+      const lat = fp.halfLat;
+      for (const off of tryOffsets) {
+        const tx = cx + rnx * off;
+        const ty = cy + rny * off;
+        if (
+          subgrid.isDrivableAtPx(tx, ty) &&
+          subgrid.isDrivableAtPx(tx + rnx * lat, ty + rny * lat) &&
+          subgrid.isDrivableAtPx(tx - rnx * lat, ty - rny * lat)
+        ) {
+          chosenOffset = off;
+          found = true;
+          break;
+        }
+      }
+    }
+    if (!found) {
+      // Last resort: keep center on drivable asphalt
+      for (const off of tryOffsets) {
+        if (subgrid.isDrivableAtPx(cx + rnx * off, cy + rny * off)) {
+          chosenOffset = off;
+          break;
+        }
+      }
+    }
+  }
+
+  const x = cx + rnx * chosenOffset;
+  const y = cy + rny * chosenOffset;
   const orient = resolveVehicleSpriteOrientation(ux, uy, prevDir);
 
   return {
@@ -432,7 +545,10 @@ export function buildRoadTraffic(worldMap, { spawnTile = null } = {}) {
         }
       }
 
-      const pose = sampleVectorRoadPose(road, distAlong, dirSign, laneSlot, kind);
+      const fp = VEHICLE_FOOTPRINT[kind] || VEHICLE_FOOTPRINT.car;
+      if (road.widthPx < fp.minRoadW) return false;
+
+      const pose = sampleVectorRoadPose(road, distAlong, dirSign, laneSlot, kind, null, subgrid);
       // Keep well inside map edges and avoid crowding right on top of Liam's exact start tile!
       if (
         pose.x < tileSize * 2 ||
@@ -445,8 +561,8 @@ export function buildRoadTraffic(worldMap, { spawnTile = null } = {}) {
       if (Math.hypot(pose.x - homePxX, pose.y - homePxY) < 28) return false;
       if (isOccupiedPx(pose.x, pose.y)) return false;
 
-      // Double-check against the 4px subgrid so every spawned vehicle sits strictly on drivable road asphalt!
-      if (subgrid && !subgrid.isDrivableAtPx(pose.x, pose.y)) return false;
+      // Double-check against the 4px subgrid so every spawned vehicle's FULL footprint sits strictly on paved road asphalt!
+      if (subgrid && !isVehicleFootprintOnRoad(subgrid, pose.x, pose.y, pose.dx, pose.dy, kind)) return false;
 
       const variant = kind === "truck" ? h % 3 : kind === "bike" ? h % 2 : h % CAR_VARIANT_COUNT;
       vehicles.push({
@@ -815,6 +931,10 @@ export function updateRoadTraffic(
       let road = vectorNet.roads[v.vectorRoadIdx];
       if (!road) continue;
 
+      const prevRoadIdx = v.vectorRoadIdx;
+      const prevDistAlong = v.distAlong;
+      const prevDirSign = v.dirSign;
+
       const targetSpeed = getRoadSpeed(road.roadClass, v.kind) * bikerSprintBoost;
       v.speed += (targetSpeed - v.speed) * Math.min(1, dt * 6);
       let remaining = v.speed * dt;
@@ -839,7 +959,9 @@ export function updateRoadTraffic(
             curUx,
             curUy,
             v.roadClass,
-            Math.floor(v.x + v.y) + hops * 17
+            Math.floor(v.x + v.y) + hops * 17,
+            v.kind,
+            subgrid
           );
           if (trans) {
             road = vectorNet.roads[trans.roadIdx];
@@ -860,13 +982,28 @@ export function updateRoadTraffic(
         }
       }
 
-      const pose = sampleVectorRoadPose(road, v.distAlong, v.dirSign, v.laneSlot, v.kind, v.dir);
-      v.x = pose.x;
-      v.y = pose.y;
-      v.dx = pose.dx;
-      v.dy = pose.dy;
-      v.dir = pose.dir;
-      v.rotDeg = pose.rotDeg;
+      let pose = sampleVectorRoadPose(road, v.distAlong, v.dirSign, v.laneSlot, v.kind, v.dir, subgrid);
+      // Guard against building-clipped dead-end road tips or non-drivable spots: cleanly turn back on paved asphalt!
+      if (subgrid && !subgrid.isDrivableAtPx(pose.x, pose.y)) {
+        road = vectorNet.roads[prevRoadIdx] || road;
+        v.vectorRoadIdx = road.idx;
+        if (!road.oneway) {
+          v.dirSign = -prevDirSign;
+          v.distAlong = Math.max(0, Math.min(road.totalLen, prevDistAlong));
+        } else {
+          v.dirSign = prevDirSign;
+          v.distAlong = Math.max(0, Math.min(road.totalLen, road.totalLen * 0.5));
+        }
+        pose = sampleVectorRoadPose(road, v.distAlong, v.dirSign, v.laneSlot, v.kind, v.dir, subgrid);
+      }
+      if (!subgrid || subgrid.isDrivableAtPx(pose.x, pose.y)) {
+        v.x = pose.x;
+        v.y = pose.y;
+        v.dx = pose.dx;
+        v.dy = pose.dy;
+        v.dir = pose.dir;
+        v.rotDeg = pose.rotDeg;
+      }
       continue;
     }
 

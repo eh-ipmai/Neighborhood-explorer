@@ -590,15 +590,29 @@ export function createPaperMapRenderer(worldMap, colorOverrideMap = {}) {
       ctx.arc(clampedX, clampedY, pulse, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Tiny golden pointer dot on radar edge toward distant quest target
+      // Crisp rotated golden compass-arrowhead pointer on radar edge toward distant quest target
       if (ox < 4 || ox > MINI_PX - 4 || oy < 4 || oy > MINI_PX - 4) {
         const angle = Math.atan2(oy - cy, ox - cx);
-        const ex = Math.round(cx + Math.cos(angle) * (MINI_PX / 2 - 6));
-        const ey = Math.round(cy + Math.sin(angle) * (MINI_PX / 2 - 6));
-        ctx.fillStyle = "#1d2228";
-        ctx.fillRect(ex - 3, ey - 3, 7, 7);
-        ctx.fillStyle = "#f4d35e";
-        ctx.fillRect(ex - 2, ey - 2, 5, 5);
+        const ex = cx + Math.cos(angle) * (MINI_PX / 2 - 7);
+        const ey = cy + Math.sin(angle) * (MINI_PX / 2 - 7);
+        ctx.save();
+        ctx.translate(Math.round(ex), Math.round(ey));
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(6, 0);
+        ctx.lineTo(-4, -5);
+        ctx.lineTo(-2, 0);
+        ctx.lineTo(-4, 5);
+        ctx.closePath();
+        ctx.fillStyle = "#ffe066";
+        ctx.fill();
+        ctx.strokeStyle = "#1d2228";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Bright emerald compass jewel at tail notch
+        ctx.fillStyle = "#52e69c";
+        ctx.fillRect(-2, -1, 3, 2);
+        ctx.restore();
       }
     }
 
