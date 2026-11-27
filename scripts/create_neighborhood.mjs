@@ -33,6 +33,8 @@ export function parseCreateArgs(argv) {
     lon: null,
     hero: "Explorer",
     town: "",
+    biome: "auto",
+    labelMode: "bilingual",
     size: "walkable",
     width: null,
     height: null,
@@ -52,6 +54,8 @@ export function parseCreateArgs(argv) {
     else if (a === "--lon" && argv[i + 1]) args.lon = Number(argv[++i]);
     else if (a === "--hero" && argv[i + 1]) args.hero = argv[++i];
     else if (a === "--town" && argv[i + 1]) args.town = argv[++i];
+    else if (a === "--biome" && argv[i + 1]) args.biome = String(argv[++i]).toLowerCase();
+    else if (a === "--labels" && argv[i + 1]) args.labelMode = String(argv[++i]).toLowerCase();
     else if (a === "--size" && argv[i + 1]) args.size = String(argv[++i]).toLowerCase();
     else if (a === "--width" && argv[i + 1]) args.width = Number(argv[++i]);
     else if (a === "--height" && argv[i + 1]) args.height = Number(argv[++i]);
@@ -114,6 +118,8 @@ async function main() {
     lon: args.lon,
     heroName: args.hero,
     townOverride: args.town,
+    biome: args.biome,
+    labelMode: args.labelMode,
     size: args.size,
     width: args.width,
     height: args.height,

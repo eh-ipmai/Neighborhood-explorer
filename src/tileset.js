@@ -167,6 +167,385 @@ export const PALETTES = {
     treeTrunkDark: "#472b1c",
     treeTrunkLight: "#8f5d3e",
   },
+  israel_jerusalem: {
+    outline: "#2b2118",
+    // Warm sunlit Mediterranean olive-gold hillside lawns & dry grassy terraces
+    grassBase: "#9ea862",
+    grassLight: "#bcc47a",
+    grassMid: "#85914f",
+    grassDark: "#636e38",
+    // Lush irrigated Jerusalem public parks (Gan Sacher / Liberty Bell Park!)
+    parkBase: "#5ea14a",
+    parkStripeLight: "#70b557",
+    parkStripeDark: "#508f3f",
+    parkHighlight: "#94d474",
+    parkShadow: "#3b6e2e",
+    tallGrassBase: "#7a8546",
+    tallGrassMid: "#99a35b",
+    tallGrassTip: "#cbd184",
+    // Pale rocky Judean limestone dirt trails
+    dirtBase: "#cbb998",
+    dirtLight: "#e0d2b4",
+    dirtMid: "#b39f7d",
+    dirtDark: "#8c7a5c",
+    dirtPebble: "#f2ebdc",
+    sandBase: "#ebd4a2",
+    sandLight: "#f7e6bd",
+    sandMid: "#d4ba85",
+    sandWet: "#b59b69",
+    sandSparkle: "#fff9e6",
+    // Pale creamy Jerusalem limestone / Ackerman interlocking sidewalk pavers!
+    sidewalkBase: "#ded5c1",
+    sidewalkLight: "#f0e9d8",
+    sidewalkMid: "#cfc4ad",
+    sidewalkDark: "#a89d86",
+    sidewalkJoint: "#8c816c",
+    sidewalkMortar: "#8c816c",
+    sidewalkCurbTop: "#f5efe0",
+    sidewalkCurbFace: "#9e937d",
+    sidewalkCurbShadow: "#3b342a",
+    roadRes: "#5c6066",
+    roadResDark: "#4f5359",
+    roadResLight: "#6c7078",
+    roadMain: "#4c5057",
+    roadMainDark: "#3f434a",
+    roadMainLight: "#5c6069",
+    highway: "#3d414a",
+    highwayBase: "#3d414a",
+    highwayDark: "#31353d",
+    highwayLight: "#4c515c",
+    highwayTrack: "#454a54",
+    highwayYellow: "#f5f8fc",
+    highwayMedian: "#d4cec2",
+    parkingBase: "#595c63",
+    parkingLight: "#696d75",
+    parkingDark: "#474a50",
+    roadShoulder: "#f5f8fc",
+    roadDashWhite: "#f7faff",
+    roadYellow: "#f5f8fc",
+    crosswalkWhite: "#ffffff",
+    crosswalkEdge: "#c4ccd6",
+    waterBase: "#2d82a8",
+    waterDeep: "#1e6185",
+    waterMid: "#3996bd",
+    waterShallow: "#5cb8d9",
+    waterShallowLight: "#94dcf2",
+    waterLight: "#78c8e6",
+    waterShimmer: "#fff9e0",
+    treeOutline: "#1e2e1d",
+    treeDark: "#41573b",
+    treeMid: "#66805a",
+    treeLight: "#8fa880",
+    treeHighlight: "#bdd1ad",
+    pineDark: "#1b422b",
+    pineMid: "#2d633d",
+    pineLight: "#4a8a52",
+    pineHighlight: "#72b36b",
+    treeTrunk: "#756a5c",
+    treeTrunkDark: "#4a4238",
+    treeTrunkLight: "#9c9080",
+  },
+  israel_coastal: {
+    outline: "#22292e",
+    grassBase: "#7bb557",
+    grassLight: "#98cf6d",
+    grassMid: "#649c45",
+    grassDark: "#487830",
+    parkBase: "#54ad4e",
+    parkStripeLight: "#66bf5c",
+    parkStripeDark: "#469942",
+    parkHighlight: "#8ee07b",
+    parkShadow: "#327530",
+    tallGrassBase: "#5b9142",
+    tallGrassMid: "#78b354",
+    tallGrassTip: "#a8de78",
+    dirtBase: "#c9ab80",
+    dirtLight: "#e0c59c",
+    dirtMid: "#b09066",
+    dirtDark: "#876c4a",
+    dirtPebble: "#f2e6cf",
+    // Bright sunlit Mediterranean beach sand!
+    sandBase: "#f2da9c",
+    sandLight: "#fcf0c5",
+    sandMid: "#dec17e",
+    sandWet: "#bf9f5c",
+    sandSparkle: "#fffdf0",
+    // Classic Tel Aviv light gray-cream Ackerman pavers
+    sidewalkBase: "#d4d0c8",
+    sidewalkLight: "#e8e5de",
+    sidewalkMid: "#bfbbb2",
+    sidewalkDark: "#96928a",
+    sidewalkJoint: "#7d7972",
+    sidewalkMortar: "#7d7972",
+    sidewalkCurbTop: "#f2efe9",
+    sidewalkCurbFace: "#8f8b84",
+    sidewalkCurbShadow: "#32363b",
+    roadRes: "#585d66",
+    roadResDark: "#4b5059",
+    roadResLight: "#676d78",
+    roadMain: "#484d57",
+    roadMainDark: "#3c404a",
+    roadMainLight: "#575c66",
+    highway: "#3a3f4a",
+    highwayBase: "#3a3f4a",
+    highwayDark: "#2e333d",
+    highwayLight: "#494f5c",
+    highwayTrack: "#424854",
+    highwayYellow: "#f5f8fc",
+    highwayMedian: "#ccd1d9",
+    parkingBase: "#555a63",
+    parkingLight: "#656b75",
+    parkingDark: "#434852",
+    roadShoulder: "#f5f8fc",
+    roadDashWhite: "#ffffff",
+    roadYellow: "#f5f8fc",
+    crosswalkWhite: "#ffffff",
+    crosswalkEdge: "#c4ccd6",
+    // Vivid turquoise Mediterranean Sea!
+    waterBase: "#2494b8",
+    waterDeep: "#186d94",
+    waterMid: "#30aad1",
+    waterShallow: "#56cce8",
+    waterShallowLight: "#96ebfc",
+    waterLight: "#73daf2",
+    waterShimmer: "#ffffff",
+    treeOutline: "#162b1c",
+    treeDark: "#22522d",
+    treeMid: "#397a3e",
+    treeLight: "#5da652",
+    treeHighlight: "#8fd46a",
+    pineDark: "#255726",
+    pineMid: "#448f3c",
+    pineLight: "#63ab48",
+    pineHighlight: "#9be06c",
+    treeTrunk: "#8c653f",
+    treeTrunkDark: "#5c4026",
+    treeTrunkLight: "#b5895b",
+  },
+  israel_galilee: {
+    outline: "#1f291d",
+    grassBase: "#72a64c",
+    grassLight: "#8ec261",
+    grassMid: "#5b8c3b",
+    grassDark: "#406929",
+    parkBase: "#54a146",
+    parkStripeLight: "#67b556",
+    parkStripeDark: "#468c3a",
+    parkHighlight: "#8cd672",
+    parkShadow: "#316929",
+    tallGrassBase: "#527d36",
+    tallGrassMid: "#709e48",
+    tallGrassTip: "#a3cc6e",
+    dirtBase: "#b59b78",
+    dirtLight: "#cfb693",
+    dirtMid: "#99805f",
+    dirtDark: "#705b42",
+    dirtPebble: "#e6dbc8",
+    sandBase: "#e8d29e",
+    sandLight: "#f5e4b8",
+    sandMid: "#cfb67e",
+    sandWet: "#ad935c",
+    sandSparkle: "#fff9e0",
+    sidewalkBase: "#d6cfc0",
+    sidewalkLight: "#ebe5d8",
+    sidewalkMid: "#c2baa9",
+    sidewalkDark: "#999180",
+    sidewalkJoint: "#7d7667",
+    sidewalkMortar: "#7d7667",
+    sidewalkCurbTop: "#f2ece0",
+    sidewalkCurbFace: "#8f8878",
+    sidewalkCurbShadow: "#333029",
+    roadRes: "#565a61",
+    roadResDark: "#494d54",
+    roadResLight: "#656a73",
+    roadMain: "#464a52",
+    roadMainDark: "#3a3e45",
+    roadMainLight: "#555a63",
+    highway: "#383c45",
+    highwayBase: "#383c45",
+    highwayDark: "#2c3038",
+    highwayLight: "#464b57",
+    highwayTrack: "#40454f",
+    highwayYellow: "#f5f8fc",
+    highwayMedian: "#c7c4bc",
+    parkingBase: "#52565e",
+    parkingLight: "#626670",
+    parkingDark: "#41444c",
+    roadShoulder: "#f5f8fc",
+    roadDashWhite: "#ffffff",
+    roadYellow: "#f5f8fc",
+    crosswalkWhite: "#ffffff",
+    crosswalkEdge: "#c4ccd6",
+    waterBase: "#2b7ca6",
+    waterDeep: "#1d5b82",
+    waterMid: "#3991bd",
+    waterShallow: "#5cb3db",
+    waterShallowLight: "#94daf2",
+    waterLight: "#73c5e6",
+    waterShimmer: "#fffbe6",
+    treeOutline: "#1c2b1b",
+    treeDark: "#3a5434",
+    treeMid: "#5b7d4e",
+    treeLight: "#84a672",
+    treeHighlight: "#b5cf9f",
+    pineDark: "#1b422b",
+    pineMid: "#2d633d",
+    pineLight: "#4a8a52",
+    pineHighlight: "#72b36b",
+    treeTrunk: "#706253",
+    treeTrunkDark: "#473d33",
+    treeTrunkLight: "#968674",
+  },
+  israel_desert: {
+    outline: "#332216",
+    // Warm Negev sandstone & ochre desert ground!
+    grassBase: "#d6b078",
+    grassLight: "#e8c892",
+    grassMid: "#bf965e",
+    grassDark: "#967142",
+    // Irrigated green desert oasis parks!
+    parkBase: "#5da649",
+    parkStripeLight: "#70ba57",
+    parkStripeDark: "#4d913c",
+    parkHighlight: "#94d975",
+    parkShadow: "#376e2a",
+    tallGrassBase: "#b08c54",
+    tallGrassMid: "#cca668",
+    tallGrassTip: "#e8c884",
+    dirtBase: "#c79460",
+    dirtLight: "#deb07c",
+    dirtMid: "#ad7b4a",
+    dirtDark: "#825832",
+    dirtPebble: "#f2dfc0",
+    sandBase: "#ebd09b",
+    sandLight: "#fae5b8",
+    sandMid: "#d4b47b",
+    sandWet: "#b39259",
+    sandSparkle: "#fff9e3",
+    sidewalkBase: "#e0d0b4",
+    sidewalkLight: "#f2e5cc",
+    sidewalkMid: "#ccb999",
+    sidewalkDark: "#a39172",
+    sidewalkJoint: "#87775c",
+    sidewalkMortar: "#87775c",
+    sidewalkCurbTop: "#f7ecd6",
+    sidewalkCurbFace: "#9e8d70",
+    sidewalkCurbShadow: "#403526",
+    roadRes: "#5c5a5c",
+    roadResDark: "#4f4d4f",
+    roadResLight: "#6b696b",
+    roadMain: "#4d4b4f",
+    roadMainDark: "#403e42",
+    roadMainLight: "#5c595e",
+    highway: "#3e3d42",
+    highwayBase: "#3e3d42",
+    highwayDark: "#313036",
+    highwayLight: "#4c4b52",
+    highwayTrack: "#45444a",
+    highwayYellow: "#f5f8fc",
+    highwayMedian: "#d9ccb4",
+    parkingBase: "#595759",
+    parkingLight: "#696769",
+    parkingDark: "#474547",
+    roadShoulder: "#f5f8fc",
+    roadDashWhite: "#ffffff",
+    roadYellow: "#f5f8fc",
+    crosswalkWhite: "#ffffff",
+    crosswalkEdge: "#c4ccd6",
+    waterBase: "#2490b3",
+    waterDeep: "#186b8c",
+    waterMid: "#32a6cc",
+    waterShallow: "#5cc9e6",
+    waterShallowLight: "#96e8fa",
+    waterLight: "#78d9f0",
+    waterShimmer: "#fffce6",
+    treeOutline: "#242e18",
+    treeDark: "#4b6132",
+    treeMid: "#6d8544",
+    treeLight: "#92ab59",
+    treeHighlight: "#b8cc76",
+    pineDark: "#255726",
+    pineMid: "#448f3c",
+    pineLight: "#63ab48",
+    pineHighlight: "#9be06c",
+    treeTrunk: "#7a583a",
+    treeTrunkDark: "#4f3723",
+    treeTrunkLight: "#9e7752",
+  },
+  southwest_desert: {
+    outline: "#331e16",
+    grassBase: "#cf9365",
+    grassLight: "#e3ab7d",
+    grassMid: "#b57a4e",
+    grassDark: "#8c5936",
+    parkBase: "#5ca148",
+    parkStripeLight: "#6eb557",
+    parkStripeDark: "#4d8c3c",
+    parkHighlight: "#91d474",
+    parkShadow: "#376b2a",
+    tallGrassBase: "#a87849",
+    tallGrassMid: "#c7945c",
+    tallGrassTip: "#e6b878",
+    dirtBase: "#bf744b",
+    dirtLight: "#d98d62",
+    dirtMid: "#a15c38",
+    dirtDark: "#784126",
+    dirtPebble: "#f0d5be",
+    sandBase: "#e8be8c",
+    sandLight: "#f7d5a8",
+    sandMid: "#cfa16d",
+    sandWet: "#ad804e",
+    sandSparkle: "#fff5db",
+    sidewalkBase: "#dbccb8",
+    sidewalkLight: "#ede0ce",
+    sidewalkMid: "#c4b39d",
+    sidewalkDark: "#9c8b76",
+    sidewalkJoint: "#80705e",
+    sidewalkMortar: "#80705e",
+    sidewalkCurbTop: "#f2e8da",
+    sidewalkCurbFace: "#968672",
+    sidewalkCurbShadow: "#3d3126",
+    roadRes: "#58585e",
+    roadResDark: "#4b4b52",
+    roadResLight: "#686870",
+    roadMain: "#484950",
+    roadMainDark: "#3c3d42",
+    roadMainLight: "#575861",
+    highway: "#3b3c42",
+    highwayBase: "#3b3c42",
+    highwayDark: "#2e2f36",
+    highwayLight: "#494a52",
+    highwayTrack: "#42434a",
+    highwayYellow: "#f5c53b",
+    highwayMedian: "#d4c4b4",
+    parkingBase: "#54555c",
+    parkingLight: "#64656e",
+    parkingDark: "#43444a",
+    roadShoulder: "#f2f5f8",
+    roadDashWhite: "#f5f8fc",
+    roadYellow: "#f5c53b",
+    crosswalkWhite: "#f5f8fc",
+    crosswalkEdge: "#b8c0cc",
+    waterBase: "#2b7fa6",
+    waterDeep: "#1d5d80",
+    waterMid: "#3995bf",
+    waterShallow: "#5cb8de",
+    waterShallowLight: "#96ddf5",
+    waterLight: "#78c8e8",
+    waterShimmer: "#fff7db",
+    treeOutline: "#242e18",
+    treeDark: "#4b6132",
+    treeMid: "#6d8544",
+    treeLight: "#92ab59",
+    treeHighlight: "#b8cc76",
+    pineDark: "#255726",
+    pineMid: "#448f3c",
+    pineLight: "#63ab48",
+    pineHighlight: "#9be06c",
+    treeTrunk: "#7a583a",
+    treeTrunkDark: "#4f3723",
+    treeTrunkLight: "#9e7752",
+  },
 };
 
 // Selectable house architectural styles & non-residential building kinds (for Paint modal & house_colors.json)
@@ -456,6 +835,114 @@ export const HOUSE_COLOR_PRESETS = {
     windowGlow: "#ffe699",
     isStone: true,
   },
+  jerusalem_stone: {
+    label: "Jerusalem Stone",
+    swatch: "#e8d9bc",
+    roofLight: "#cc6c47",
+    roofMain: "#a84e32",
+    roofDark: "#78321e",
+    wallLight: "#f7eedb",
+    wallMain: "#e8d9bc",
+    wallShade: "#cbb896",
+    trim: "#faf5e8",
+    trimShade: "#cfc1a3",
+    door: "#6e462b",
+    doorDark: "#452917",
+    shutter: "#2c5e4a",
+    porchWood: "#d9ccb0",
+    windowGlow: "#ffe680",
+    isJerusalemStone: true,
+  },
+  jerusalem_gold: {
+    label: "Golden Jerusalem Stone",
+    swatch: "#e8cf99",
+    roofLight: "#d4734a",
+    roofMain: "#b05334",
+    roofDark: "#7d361e",
+    wallLight: "#faebc4",
+    wallMain: "#e8cf99",
+    wallShade: "#c7a96e",
+    trim: "#fcf7e8",
+    trimShade: "#d4be92",
+    door: "#214c8a",
+    doorDark: "#14315c",
+    shutter: "#214c8a",
+    porchWood: "#dec899",
+    windowGlow: "#ffe680",
+    isJerusalemStone: true,
+  },
+  jerusalem_rose: {
+    label: "Rose Jerusalem Stone",
+    swatch: "#e6cfc0",
+    roofLight: "#c76846",
+    roofMain: "#9e492e",
+    roofDark: "#6e2e1b",
+    wallLight: "#f7e8de",
+    wallMain: "#e6cfc0",
+    wallShade: "#c4a997",
+    trim: "#faf3ed",
+    trimShade: "#cfc0b4",
+    door: "#5c3b28",
+    doorDark: "#382216",
+    shutter: "#35595e",
+    porchWood: "#d6c2b4",
+    windowGlow: "#ffe680",
+    isJerusalemStone: true,
+  },
+  bauhaus_white: {
+    label: "Tel Aviv Bauhaus White",
+    swatch: "#f2efe8",
+    roofLight: "#d9d4c7",
+    roofMain: "#bfbab0",
+    roofDark: "#8f8b82",
+    wallLight: "#ffffff",
+    wallMain: "#f2efe8",
+    wallShade: "#d4cfc4",
+    trim: "#ffffff",
+    trimShade: "#c7c2b8",
+    door: "#2d6099",
+    doorDark: "#1b3d66",
+    shutter: "#2d6099",
+    porchWood: "#d9d4ca",
+    windowGlow: "#ffe88a",
+    isStucco: true,
+  },
+  terracotta_stucco: {
+    label: "Mediterranean Stucco",
+    swatch: "#e8c8a2",
+    roofLight: "#d46c44",
+    roofMain: "#b34d2c",
+    roofDark: "#7d311a",
+    wallLight: "#f7e0c4",
+    wallMain: "#e8c8a2",
+    wallShade: "#c7a379",
+    trim: "#fcf6ed",
+    trimShade: "#d4c3ad",
+    door: "#2c6352",
+    doorDark: "#1a4034",
+    shutter: "#2c6352",
+    porchWood: "#d4b590",
+    windowGlow: "#ffe680",
+    isStucco: true,
+  },
+  adobe_sand: {
+    label: "Desert Sandstone",
+    swatch: "#dbb086",
+    roofLight: "#c99668",
+    roofMain: "#a8774d",
+    roofDark: "#7a5332",
+    wallLight: "#f0cba6",
+    wallMain: "#dbb086",
+    wallShade: "#b88a5e",
+    trim: "#f5e3cc",
+    trimShade: "#c9b093",
+    door: "#2c6e73",
+    doorDark: "#1a474a",
+    shutter: "#2c6e73",
+    porchWood: "#cca278",
+    windowGlow: "#ffe680",
+    isStucco: true,
+  },
 };
 
 export const ROOF_PRESETS = {
@@ -533,15 +1020,74 @@ const DEFAULT_ARCH_LIST = [
  *   2. OpenStreetMap building:colour / roof:colour tags (when present)
  *   3. Civic / brick landmark rules or deterministic varied New England palette
  */
-export function resolveHouseStyle(building, colorOverrideMap = {}) {
+export function resolveHouseStyle(building, colorOverrideMap = {}, biomeConfig = null) {
   const isCivic =
     building.kind === "library" ||
     building.kind === "school" ||
     building.kind === "civic";
   const isApartments = building.kind === "apartments";
+  const houseStyleMode = biomeConfig?.houseStyle || "new_england";
 
   let baseStyle;
-  if (building.isHomeBase) {
+  if (houseStyleMode === "jerusalem_stone") {
+    const hash = Math.abs(
+      (building.styleIndex || 1) * 7 + (building.bounds?.minX || 0) * 13 + (building.bounds?.minY || 0) * 29
+    );
+    if (building.isHomeBase) {
+      baseStyle = { ...HOUSE_COLOR_PRESETS.jerusalem_gold };
+    } else if (isCivic) {
+      baseStyle = { ...HOUSE_COLOR_PRESETS.jerusalem_gold };
+    } else {
+      const jPalettes = [
+        HOUSE_COLOR_PRESETS.jerusalem_stone,
+        HOUSE_COLOR_PRESETS.jerusalem_gold,
+        HOUSE_COLOR_PRESETS.jerusalem_rose,
+        HOUSE_COLOR_PRESETS.jerusalem_stone,
+      ];
+      baseStyle = { ...jPalettes[hash % jPalettes.length] };
+    }
+  } else if (houseStyleMode === "bauhaus_white") {
+    const hash = Math.abs(
+      (building.styleIndex || 1) * 7 + (building.bounds?.minX || 0) * 13 + (building.bounds?.minY || 0) * 29
+    );
+    if (building.isHomeBase) {
+      baseStyle = { ...HOUSE_COLOR_PRESETS.bauhaus_white, door: "#2155a3", shutter: "#2155a3" };
+    } else {
+      const cPalettes = [
+        HOUSE_COLOR_PRESETS.bauhaus_white,
+        HOUSE_COLOR_PRESETS.bauhaus_white,
+        HOUSE_COLOR_PRESETS.cream_stucco,
+        HOUSE_COLOR_PRESETS.terracotta_stucco,
+      ];
+      baseStyle = { ...cPalettes[hash % cPalettes.length] };
+    }
+  } else if (houseStyleMode === "galilee_stone") {
+    const hash = Math.abs(
+      (building.styleIndex || 1) * 7 + (building.bounds?.minX || 0) * 13 + (building.bounds?.minY || 0) * 29
+    );
+    const gPalettes = [
+      HOUSE_COLOR_PRESETS.jerusalem_stone,
+      HOUSE_COLOR_PRESETS.terracotta_stucco,
+      HOUSE_COLOR_PRESETS.bauhaus_white,
+      HOUSE_COLOR_PRESETS.jerusalem_rose,
+    ];
+    baseStyle = building.isHomeBase
+      ? { ...HOUSE_COLOR_PRESETS.jerusalem_gold }
+      : { ...gPalettes[hash % gPalettes.length] };
+  } else if (houseStyleMode === "desert_stucco") {
+    const hash = Math.abs(
+      (building.styleIndex || 1) * 7 + (building.bounds?.minX || 0) * 13 + (building.bounds?.minY || 0) * 29
+    );
+    const dPalettes = [
+      HOUSE_COLOR_PRESETS.adobe_sand,
+      HOUSE_COLOR_PRESETS.terracotta_stucco,
+      HOUSE_COLOR_PRESETS.jerusalem_stone,
+      HOUSE_COLOR_PRESETS.cream_stucco,
+    ];
+    baseStyle = building.isHomeBase
+      ? { ...HOUSE_COLOR_PRESETS.jerusalem_gold }
+      : { ...dPalettes[hash % dPalettes.length] };
+  } else if (building.isHomeBase) {
     baseStyle = { ...HOUSE_COLOR_PRESETS.yellow };
   } else if (building.bcCampus) {
     baseStyle = { ...HOUSE_COLOR_PRESETS.bc_gothic };
@@ -656,10 +1202,10 @@ export function getBuildingVisualCategory(building, colorOverrideMap = {}) {
   }
   if (kind === "civic") {
     if (building?.gothicCrypt) return "gothic_chapel";
-    if (/temple|beth\s*el|synagogue|chabad|congregation|israel|tefillah|shul/.test(label)) {
+    if (/temple|beth\s*el|synagogue|chabad|congregation|israel|tefillah|shul|beit\s*knesset|בית\s*כנסת|בית\s*הכנסת/.test(label)) {
       return "synagogue";
     }
-    if (/church|chapel|parish|baptist|episcopal|st\.?\s*paul|trinity/.test(label)) {
+    if (/church|chapel|parish|baptist|episcopal|st\.?\s*paul|trinity|כנסייה/.test(label)) {
       return "church";
     }
     return "civic";
@@ -691,12 +1237,17 @@ export function getBuildingSignText(building, category, style = {}) {
       return "FIRE";
     case "bakery_cafe":
       if (/bagel|rosenfeld/.test(label)) return "BAGELS";
+      if (/glida|גלידה|gelato/.test(label)) return "GLIDA";
       if (/licks|cream/.test(label)) return "CREAM";
       if (/dunkin|donut/.test(label)) return "DONUTS";
+      if (/bakery|burekas|מאפי|בורקס/.test(label)) return "BAKERY";
       return "CAFE";
     case "corner_market":
-      if (/book/.test(label)) return "BOOKS";
+      if (/book|ספר/.test(label)) return "BOOKS";
+      if (/falafel|פלאפל/.test(label)) return "FALAFEL";
+      if (/shawarma|שווארמה/.test(label)) return "SHAWARMA";
       if (/taqueria|taco/.test(label)) return "TACOS";
+      if (/makolet|מכולת/.test(label)) return "MAKOLET";
       return "MARKET";
     case "commercial":
       if (/medical|clinic|dental/.test(label)) return "CLINIC";
@@ -1068,7 +1619,40 @@ function drawRoofLeafCluster(ctx, cx, cy, seed = 1) {
  */
 function drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd = 2) {
   const stepY = hd >= 2 ? 4 : 3;
-  if (style.isBrick) {
+  if (style.isJerusalemStone) {
+    // Iconic hand-chiseled Jerusalem Stone (Even Yerushalmit) ashlar limestone block courses!
+    const mortar = shadeHex(style.wallShade, -24);
+    const blockH = hd >= 2 ? 6 : 4;
+    const blockW = hd >= 2 ? 12 : 8;
+    for (let ry = wallY + 2; ry < wallY + wallH - 3; ry += blockH) {
+      px(ctx, bx + 1, ry, bw - 2, 1, mortar);
+      const rowIdx = Math.floor((ry - wallY) / blockH);
+      const offset = rowIdx % 2 === 0 ? 0 : Math.floor(blockW / 2);
+      for (let rx = bx + 1 + offset; rx < bx + bw - 2; rx += blockW) {
+        const bwSeg = Math.min(blockW - 1, bx + bw - 1 - rx);
+        if (bwSeg <= 0) continue;
+        const h = (rx * 19 + ry * 11) & 7;
+        const col =
+          h === 0 || h === 3
+            ? style.wallLight
+            : h === 2 || h === 6
+              ? style.wallShade
+              : style.wallMain;
+        const segH = Math.min(blockH - 1, wallY + wallH - 2 - (ry + 1));
+        if (segH <= 0) continue;
+        px(ctx, rx, ry + 1, bwSeg, segH, col);
+        // Sunlit top-left chiseled bevel & subtle lower-right shadow on each limestone ashlar block
+        if (hd >= 2 && bwSeg >= 4 && segH >= 3) {
+          px(ctx, rx, ry + 1, bwSeg - 1, 1, shadeHex(style.wallLight, 8));
+          px(ctx, rx, ry + 1, 1, segH - 1, style.wallLight);
+          px(ctx, rx + 1, ry + segH, bwSeg - 1, 1, style.wallShade);
+        }
+        if (rx + bwSeg < bx + bw - 1) {
+          px(ctx, rx + bwSeg, ry + 1, 1, segH, mortar);
+        }
+      }
+    }
+  } else if (style.isBrick) {
     const mortar = "#4a1d19";
     const brickW = hd >= 2 ? 7 : 5;
     for (let ry = wallY + 2; ry < wallY + wallH - 3; ry += stepY) {
@@ -1388,18 +1972,58 @@ function drawArchedCivicWindow(ctx, wx, winY, style, winW = 11, winH = 19, O = "
 }
 
 /**
+ * Helper: render an iconic Israeli rooftop solar water heater (Dud Shemesh — upright white cylinder + tilted blue solar collector!).
+ */
+function drawSolarWaterHeater(ctx, x, y, hd = 2, O = "#291a18") {
+  // Upright white insulated boiler cylinder
+  const tankW = 4 * hd;
+  const tankH = 7 * hd;
+  px(ctx, x - 1, y - 1, tankW + 2, tankH + 2, O);
+  px(ctx, x, y, tankW, tankH, "#e6ecf2");
+  px(ctx, x, y, Math.max(1, Math.floor(tankW * 0.5)), tankH, "#ffffff");
+  px(ctx, x + tankW - hd, y, hd, tankH, "#b0bcc9");
+  px(ctx, x, y, tankW, hd, "#cfd9e3");
+  // Tilted dark sapphire photovoltaic / thermal glass panel right beside boiler
+  const panX = x + tankW + hd;
+  const panW = 6 * hd;
+  const panH = 5 * hd;
+  const panY = y + 2 * hd;
+  px(ctx, panX - 1, panY - 1, panW + 2, panH + 2, O);
+  px(ctx, panX, panY, panW, panH, "#1e3a63");
+  px(ctx, panX + 1, panY + 1, panW - 2, panH - 2, "#2f5f9e");
+  px(ctx, panX + 1, panY + 1, panW - 2, hd, "#6cb4e8");
+  px(ctx, panX + Math.floor(panW / 2), panY, 1, panH, "#162a47");
+  // Metal support stand legs
+  px(ctx, x + hd, y + tankH + 1, hd, 2 * hd, "#4f5661");
+  px(ctx, panX + panW - 2 * hd, panY + panH + 1, hd, hd, "#4f5661");
+}
+
+/**
+ * Helper: render a bright magenta Bougainvillea bush/vine accent beside Mediterranean stone steps!
+ */
+function drawBougainvilleaShrub(ctx, x, y, w = 14, h = 11) {
+  drawShrub(ctx, x, y, w, h);
+  px(ctx, x + 2, y + 2, Math.max(3, Math.floor(w * 0.36)), Math.max(2, Math.floor(h * 0.36)), "#d92b7c");
+  px(ctx, x + 3, y + 2, Math.max(2, Math.floor(w * 0.22)), 2, "#ff8cc4");
+  px(ctx, x + Math.floor(w * 0.54), y + 3, Math.max(3, Math.floor(w * 0.34)), Math.max(2, Math.floor(h * 0.34)), "#c4216c");
+  px(ctx, x + Math.floor(w * 0.58), y + 3, 2, 2, "#ff99cc");
+}
+
+/**
  * Bake an individual, pixel-art 16-bit SNES house/building onto an offscreen canvas
  * matching the real OSM footprint (1 house per address!) with distinct architectural
- * silhouettes for houses (Colonial, Cape Cod, Tudor, Victorian, Ranch, Modern),
- * duplexes, garages, shops, apartments, libraries, schools, and civic landmarks.
+ * silhouettes for New England, Jerusalem Stone, Tel Aviv Bauhaus, Mediterranean,
+ * Desert Stucco, shops, apartments, libraries, schools, and civic landmarks.
  */
-export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap = {}) {
+export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap = {}, biomeConfig = null) {
   const hd = tileSize >= 24 ? 2 : 1;
   const { minX, minY, maxX, maxY } = building.bounds;
   const footW = (maxX - minX + 1) * tileSize;
   const footH = (maxY - minY + 1) * tileSize;
 
-  const style = resolveHouseStyle(building, colorOverrideMap);
+  const style = resolveHouseStyle(building, colorOverrideMap, biomeConfig);
+  const houseStyleMode = biomeConfig?.houseStyle || "new_england";
+  const allowRoofLeaves = biomeConfig ? Boolean(biomeConfig.hasFallenLeaves) : true;
   const effectiveKind = style.overrideKind || building.kind || "house";
   const category = getBuildingVisualCategory(building, colorOverrideMap);
   const signText = getBuildingSignText(building, category, style);
@@ -2666,11 +3290,139 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
   }
 
   // =========================================================================
-  // 6. RESIDENTIAL HOUSES — SAMPLE-STYLE 32-BIT GOLDEN-HOUR NEW ENGLAND HOMES!
-  //    True 2x HD proportions, tall front gables, individual shingled roofs,
-  //    warm covered wooden porches with balusters & steps, radiant glowing windows,
-  //    roof autumn leaf piles, brick chimneys, boxwood shrubs & cedar fences!
+  // 6. REGIONAL RESIDENTIAL ARCHITECTURE:
+  //    - Jerusalem Stone (Even Yerushalmit), Tel Aviv Bauhaus, Galilee & Desert Stucco
+  //    - Classic New England Homes (Colonial, Cape, Victorian, Tudor, Craftsman, etc.)
   // =========================================================================
+  if (
+    houseStyleMode === "jerusalem_stone" ||
+    houseStyleMode === "bauhaus_white" ||
+    houseStyleMode === "galilee_stone" ||
+    houseStyleMode === "desert_stucco"
+  ) {
+    const isBauhaus = houseStyleMode === "bauhaus_white";
+    const isDesert = houseStyleMode === "desert_stucco";
+    const hasTerracottaRoof =
+      !isBauhaus && !isDesert && (houseStyleMode === "galilee_stone" ? bSeed % 3 !== 0 : bSeed % 3 === 0);
+    const roofH = hasTerracottaRoof
+      ? Math.max(13 * hd, Math.floor(bh * 0.34))
+      : Math.max(8 * hd, Math.min(13 * hd, Math.floor(bh * 0.22)));
+    const wallH = Math.max(22 * hd, bh - roofH);
+    const wallY = by + roofH;
+
+    // 1. Roof: either Mediterranean red barrel-tile pitched roof OR flat limestone/stucco parapet + Dud Shemesh!
+    if (hasTerracottaRoof) {
+      const terraStyle = {
+        ...style,
+        roofLight: "#db7348",
+        roofMain: "#b5502e",
+        roofDark: "#7d311a",
+      };
+      drawShingledRoof(ctx, bx, by, bw, roofH, wallY, terraStyle, 0.16, O, {
+        hd,
+        leafCluster: false,
+        seed: bSeed,
+      });
+    } else {
+      // Sunlit flat Mediterranean parapet roof deck
+      const deckFill = isBauhaus ? "#d9d4c9" : isDesert ? "#cca982" : "#dfd2b8";
+      const deckInner = isBauhaus ? "#bfb9ad" : isDesert ? "#b5906a" : "#c7b89b";
+      px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
+      px(ctx, bx, by, bw, roofH, deckFill);
+      px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(3, roofH - 4 * hd), deckInner);
+      // Carved limestone / Bauhaus parapet coping cap
+      px(ctx, bx - 2 * hd, wallY - 3 * hd, bw + 4 * hd, 4 * hd, O);
+      px(ctx, bx - hd, wallY - 2 * hd, bw + 2 * hd, 2 * hd, style.trim);
+      px(ctx, bx - hd, wallY, bw + 2 * hd, hd, style.trimShade);
+      // Iconic Israeli rooftop solar water heater (Dud Shemesh)!
+      if (bw >= 30 * hd) {
+        const solarX = bSeed % 2 === 0 ? bx + 5 * hd : bx + bw - 17 * hd;
+        drawSolarWaterHeater(ctx, solarX, by - 5 * hd, hd, O);
+      }
+      // Home Base golden Jerusalem star roof medallion so your house pops unmistakably!
+      if (building.isHomeBase) {
+        px(ctx, midX - 4 * hd, by + Math.max(1, Math.floor(roofH / 2) - 3 * hd), 8 * hd, 6 * hd, O);
+        px(ctx, midX - 3 * hd, by + Math.max(2, Math.floor(roofH / 2) - 2 * hd), 6 * hd, 4 * hd, "#1d529e");
+        px(ctx, midX - hd, by + Math.max(2, Math.floor(roofH / 2) - hd), 2 * hd, 2 * hd, "#ffe066");
+      }
+    }
+
+    // 2. Main Jerusalem Stone / Bauhaus Stucco / Desert Facade
+    px(ctx, bx - 1, wallY, bw + 2, wallH + 1, O);
+    px(ctx, bx, wallY, bw, wallH, style.wallMain);
+    drawWallTexture(ctx, bx, wallY, bw, wallH, style, hd);
+
+    // Carved corner quoins on Jerusalem Stone buildings
+    if (style.isJerusalemStone) {
+      for (let qy = wallY + 2 * hd; qy < wallY + wallH - 5 * hd; qy += 6 * hd) {
+        px(ctx, bx, qy, 3 * hd, 4 * hd, style.wallLight);
+        px(ctx, bx + bw - 3 * hd, qy, 3 * hd, 4 * hd, style.wallShade);
+      }
+    }
+
+    // 3. Windows & Balconies
+    if (isBauhaus) {
+      // Tel Aviv White City Bauhaus horizontal ribbon windows + rounded cantilevered stone balcony!
+      const ribY = wallY + 4 * hd;
+      const ribH = Math.max(5 * hd, Math.floor(wallH * 0.22));
+      px(ctx, bx + 4 * hd, ribY, bw - 8 * hd, ribH, O);
+      px(ctx, bx + 5 * hd, ribY + 1, bw - 10 * hd, ribH - 2, "#4a8cb8");
+      px(ctx, bx + 5 * hd, ribY + 1, bw - 10 * hd, Math.max(2, Math.floor(ribH * 0.45)), "#9be0fa");
+      for (let mx = bx + 12 * hd; mx < bx + bw - 8 * hd; mx += 10 * hd) {
+        px(ctx, mx, ribY, hd, ribH, "#f2efe8");
+      }
+      // Classic Bauhaus cantilevered white curved balcony right below upper floor
+      const balW = Math.floor(bw * 0.56);
+      const balX = midX - Math.floor(balW / 2);
+      const balY = ribY + ribH + 2 * hd;
+      px(ctx, balX - 1, balY - 1, balW + 2, 6 * hd + 2, O);
+      px(ctx, balX, balY, balW, 5 * hd, "#ffffff");
+      px(ctx, balX, balY + 4 * hd, balW, 2 * hd, "#c7c2b8");
+      px(ctx, balX + 2 * hd, balY + hd, balW - 4 * hd, hd, "#2d6099");
+    } else {
+      // Jerusalem / Mediterranean arched stone windows with shutters & stone balcony!
+      const winW = hd >= 2 ? 10 : 5;
+      const winH = hd >= 2 ? 13 : 7;
+      const upperWinY = wallY + 4 * hd;
+      if (wallH >= 24 * hd && bw >= 34 * hd) {
+        drawArchedCivicWindow(ctx, bx + 6 * hd, upperWinY, style, winW, winH, O);
+        drawArchedCivicWindow(ctx, bx + bw - 6 * hd - winW, upperWinY, style, winW, winH, O);
+        if (bw >= 56 * hd) {
+          drawArchedCivicWindow(ctx, midX - Math.floor(winW / 2), upperWinY, style, winW, winH, O);
+        }
+      } else if (bw >= 26 * hd) {
+        drawArchedCivicWindow(ctx, bx + 5 * hd, upperWinY, style, winW, Math.min(winH, wallH - 12 * hd), O);
+        drawArchedCivicWindow(ctx, bx + bw - 5 * hd - winW, upperWinY, style, winW, Math.min(winH, wallH - 12 * hd), O);
+      }
+    }
+
+    // 4. Arched Stone Entryway & Limestone Steps
+    const doorW = 8 * hd;
+    const doorH = Math.min(Math.max(10 * hd, Math.floor(wallH * 0.36)), wallH - 4 * hd);
+    const doorX = midX - Math.floor(doorW / 2);
+    const doorY = wallY + wallH - doorH - hd;
+    px(ctx, doorX - 2 * hd, doorY - 2 * hd, doorW + 4 * hd, doorH + 3 * hd, O);
+    px(ctx, doorX - hd, doorY - hd, doorW + 2 * hd, doorH + 2 * hd, style.trim);
+    px(ctx, doorX, doorY, doorW, doorH, O);
+    px(ctx, doorX + 1, doorY + 1, doorW - 2, doorH - 1, building.isHomeBase ? "#1d529e" : style.door);
+    px(ctx, doorX + 2 * hd, doorY + 2 * hd, Math.max(2, doorW - 4 * hd), Math.max(3, Math.floor(doorH * 0.34)), "#ffe066");
+    // Pale limestone entryway steps
+    px(ctx, doorX - 2 * hd, wallY + wallH, doorW + 4 * hd, 3 * hd, O);
+    px(ctx, doorX - hd, wallY + wallH, doorW + 2 * hd, 2 * hd, "#ede4d1");
+
+    // 5. Low Jerusalem stone courtyard wall + cascading magenta Bougainvillea shrubs!
+    if (bw >= 34 * hd) {
+      if (isDesert) {
+        drawShrub(ctx, bx + 2 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+        drawShrub(ctx, bx + bw - 10 * hd, wallY + wallH - 5 * hd, 8 * hd, 6 * hd);
+      } else {
+        drawBougainvilleaShrub(ctx, bx + 2 * hd, wallY + wallH - 5 * hd, 9 * hd, 7 * hd);
+        drawBougainvilleaShrub(ctx, bx + bw - 11 * hd, wallY + wallH - 5 * hd, 9 * hd, 7 * hd);
+      }
+    }
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
 
   /**
    * Reusable helper: render a warm cedar/wood covered front porch with sloped shingled porch roof,
@@ -3445,12 +4197,18 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
  * extrude upward toward the player's POV from ANY rotation angle in Hard Mode!
  * 100% pure discrete pixels (zero 3D polygons), preserving every real house color!
  */
-export function bake32BitHouseStack(building, tileSize = 16, colorOverrideMap = {}) {
+export function bake32BitHouseStack(building, tileSize = 16, colorOverrideMap = {}, biomeConfig = null) {
   const hdTile = tileSize * 2; // 32 native pixels per tile (__pixelScale = 0.5)
   const { minX, minY, maxX, maxY } = building.bounds;
   const footW = (maxX - minX + 1) * hdTile;
   const footH = (maxY - minY + 1) * hdTile;
-  const style = resolveHouseStyle(building, colorOverrideMap);
+  const style = resolveHouseStyle(building, colorOverrideMap, biomeConfig);
+  const houseStyleMode = biomeConfig?.houseStyle || "new_england";
+  const allowRoofLeaves = biomeConfig ? Boolean(biomeConfig.hasFallenLeaves) : true;
+  const isFlatRegionalRes =
+    houseStyleMode === "jerusalem_stone" ||
+    houseStyleMode === "bauhaus_white" ||
+    houseStyleMode === "desert_stucco";
   const kind = style.overrideKind || building.kind || "house";
   const category = getBuildingVisualCategory(building, colorOverrideMap);
   const O = "#291a18";
@@ -3461,6 +4219,7 @@ export function bake32BitHouseStack(building, tileSize = 16, colorOverrideMap = 
   const my = Math.floor(footH / 2);
 
   const isFlatNonRes =
+    isFlatRegionalRes ||
     kind === "commercial" ||
     kind === "bakery_cafe" ||
     kind === "corner_market" ||
@@ -3613,7 +4372,7 @@ export function bake32BitHouseStack(building, tileSize = 16, colorOverrideMap = 
           px(c, sx + 4, sy - 2, 1, 2, style.roofDark);
         }
       }
-      if (rw >= 26 && rh >= 20) {
+      if (allowRoofLeaves && rw >= 26 && rh >= 20) {
         drawRoofLeafCluster(c, rx + Math.floor(rw * 0.35), ry + Math.floor(rh * 0.65), minX + minY);
       }
     }
@@ -3711,8 +4470,9 @@ export function bake32BitHouseStack(building, tileSize = 16, colorOverrideMap = 
 /**
  * Generate the full high-craft 16-bit SNES pixel-art tile, prop & hero sprite atlas.
  */
-export function buildSnesSpriteAtlas(paletteName = "autumn_golden") {
-  const P = PALETTES[paletteName] || PALETTES.autumn_golden;
+export function buildSnesSpriteAtlas(paletteName = "autumn_golden", biomeConfig = null) {
+  const resolvedPaletteKey = biomeConfig?.paletteKey || paletteName;
+  const P = PALETTES[resolvedPaletteKey] || PALETTES[paletteName] || PALETTES.autumn_golden;
   const sprites = {};
 
   // --- 1. Residential Lawn Grass & Wildflower Tiles (3 organic variants) ---
@@ -5084,7 +5844,7 @@ export function buildSnesSpriteAtlas(paletteName = "autumn_golden") {
   Object.assign(sprites, bake32BitVehicleSprites({ drawMiniText }));
 
   // Upgrade terrain tiles, lush trees, street signs, vehicles & props to 32-bit 2x native pixel detail!
-  upgradeAtlasTo32Bit(sprites, P);
+  upgradeAtlasTo32Bit(sprites, P, biomeConfig);
 
   // Register 32-bit roving wild Newton turkeys, annoying sidewalk protestors & pixel speech bubbles!
   Object.assign(sprites, bake32BitStreetLifeSprites(PROTEST_CHANTS));

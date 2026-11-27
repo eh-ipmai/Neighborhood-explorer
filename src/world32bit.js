@@ -170,13 +170,346 @@ function bakeAutumnOakTree(colors, seed) {
 }
 
 /**
- * Upgrade ground tiles, lush autumn New England trees, cobblestone sidewalks, leaf piles,
- * vintage glowing street lamps, street signs, vehicles & props to 32-bit 2x native pixels!
+ * Bake a 32-bit Mediterranean Olive Tree (gnarled silver-brown trunk + airy silvery-sage canopy!).
  */
-export function upgradeAtlasTo32Bit(sprites, P) {
+function bakeOliveTree(seed = 11) {
+  const { canvas, ctx } = makeHdCanvas(48, 56);
+  const O = "#243022";
+  ditherShadowEllipse(ctx, 24, 50, 16, 4.5);
+
+  // Twisted silvery-gray Mediterranean olive trunk with split boughs
+  px(ctx, 20, 32, 8, 19, "#2b2620");
+  px(ctx, 16, 47, 16, 4, "#2b2620");
+  px(ctx, 21, 33, 6, 17, "#756a5c");
+  px(ctx, 21, 33, 3, 16, "#9c9080");
+  px(ctx, 22, 34, 1, 13, "#bfb5a6");
+  px(ctx, 17, 48, 14, 2, "#877a6b");
+  // Forked upper boughs
+  px(ctx, 15, 27, 6, 6, "#2b2620");
+  px(ctx, 16, 28, 4, 4, "#8a7e6e");
+  px(ctx, 27, 27, 6, 6, "#2b2620");
+  px(ctx, 28, 28, 4, 4, "#756a5c");
+
+  // Pale limestone pebbles at tree base
+  px(ctx, 12, 50, 4, 2, "#dfd5be");
+  px(ctx, 32, 51, 3, 2, "#cfc3aa");
+
+  // Airy scalloped silvery-sage olive foliage canopy
+  pxEllipse(ctx, 24, 21, 19.5, 14.5, O);
+  pxEllipse(ctx, 13, 24, 10.5, 9, O);
+  pxEllipse(ctx, 35, 24, 10.5, 9, O);
+  pxEllipse(ctx, 24, 12, 13.5, 9, O);
+
+  pxEllipse(ctx, 24, 22, 18, 13, "#41573b");
+  pxEllipse(ctx, 13, 24, 9, 7.5, "#41573b");
+  pxEllipse(ctx, 35, 24, 9, 7.5, "#41573b");
+
+  for (const [cx, cy, rx, ry] of [
+    [24, 19, 15, 10.5],
+    [14, 21, 8, 6.5],
+    [34, 21, 8, 6.5],
+    [24, 12, 11.5, 7.5],
+  ]) {
+    pxEllipse(ctx, cx, cy, rx, ry, "#66805a");
+  }
+  for (const [cx, cy, rx, ry] of [
+    [21, 11, 8.5, 5],
+    [14, 18, 5.5, 4],
+    [30, 15, 6, 4.5],
+    [24, 19, 7.5, 4],
+  ]) {
+    pxEllipse(ctx, cx, cy, rx, ry, "#8fa880");
+  }
+  pxEllipse(ctx, 20, 9.5, 5.5, 2.8, "#bdd1ad");
+  pxEllipse(ctx, 28, 13, 4, 2.2, "#bdd1ad");
+
+  // Fine silvery leaf shimmer + tiny dark-purple/green olives tucked in branches!
+  for (let i = 0; i < 34; i++) {
+    const lx = 9 + (h2(i, 1, seed + 19) % 30);
+    const ly = 6 + (h2(i, 2, seed + 19) % 19);
+    px(ctx, lx, ly, 2, 1, i % 5 === 0 ? "#312d3d" : i % 2 === 0 ? "#d4e3c5" : "#4b6342");
+  }
+  return canvas;
+}
+
+/**
+ * Bake a 32-bit Jerusalem Umbrella / Stone Pine (reddish trunk + layered Mediterranean parasol crown!).
+ */
+function bakeJerusalemPineTree(seed = 23) {
+  const { canvas, ctx } = makeHdCanvas(48, 56);
+  const O = "#16291c";
+  ditherShadowEllipse(ctx, 24, 51, 16, 4.5);
+
+  // Tall reddish-cinnamon Jerusalem pine trunk
+  px(ctx, 20, 26, 8, 25, "#2b1710");
+  px(ctx, 17, 47, 14, 4, "#2b1710");
+  px(ctx, 21, 27, 6, 23, "#874b2c");
+  px(ctx, 22, 27, 2, 22, "#b56c43");
+  px(ctx, 25, 27, 2, 23, "#5c301b");
+  // Forked upper boughs supporting umbrella canopy
+  px(ctx, 16, 22, 16, 5, "#2b1710");
+  px(ctx, 17, 23, 14, 3, "#874b2c");
+
+  // Wide Mediterranean parasol canopy silhouette
+  pxEllipse(ctx, 24, 15, 21, 11.5, O);
+  pxEllipse(ctx, 13, 18, 10.5, 7, O);
+  pxEllipse(ctx, 35, 18, 10.5, 7, O);
+  pxEllipse(ctx, 24, 9, 15, 7, O);
+
+  pxEllipse(ctx, 24, 16, 19.5, 10, "#1f4a2c");
+  pxEllipse(ctx, 13, 18, 9, 5.5, "#1f4a2c");
+  pxEllipse(ctx, 35, 18, 9, 5.5, "#1f4a2c");
+
+  for (const [cx, cy, rx, ry] of [
+    [24, 13, 17, 8],
+    [14, 16, 8, 4.5],
+    [34, 16, 8, 4.5],
+    [24, 9, 13, 5.5],
+  ]) {
+    pxEllipse(ctx, cx, cy, rx, ry, "#356e3f");
+  }
+  for (const [cx, cy, rx, ry] of [
+    [21, 8, 10, 4],
+    [13, 14, 6, 3],
+    [31, 12, 6.5, 3.2],
+  ]) {
+    pxEllipse(ctx, cx, cy, rx, ry, "#569654");
+  }
+  pxEllipse(ctx, 20, 6.5, 6.5, 2.2, "#87c474");
+  for (let i = 0; i < 30; i++) {
+    const lx = 7 + (h2(i, 1, seed + 41) % 34);
+    const ly = 5 + (h2(i, 2, seed + 41) % 15);
+    px(ctx, lx, ly, 2, 1, i % 3 === 0 ? "#a4db8a" : "#255432");
+  }
+  return canvas;
+}
+
+/**
+ * Bake a tall 32-bit Mediterranean Pencil Cypress (iconic slender Jerusalem hillside spire!).
+ */
+function bakePencilCypressTree(seed = 31) {
+  const { canvas, ctx } = makeHdCanvas(44, 60);
+  const O = "#102117";
+  ditherShadowEllipse(ctx, 22, 54, 10, 3.8);
+
+  // Short neat brown trunk at base
+  px(ctx, 19, 46, 6, 9, "#291810");
+  px(ctx, 20, 47, 4, 7, "#6e442b");
+  px(ctx, 21, 47, 1, 7, "#96603e");
+
+  // Tall flame-shaped columnar cypress silhouette (narrow spire tapering cleanly to top!)
+  for (let y = 3; y <= 48; y++) {
+    const t = (y - 3) / 45;
+    let halfW;
+    if (t < 0.22) {
+      halfW = 1 + (t / 0.22) * 5;
+    } else if (t < 0.78) {
+      halfW = 6 + Math.sin(((t - 0.22) / 0.56) * Math.PI) * 3.5;
+    } else {
+      halfW = 8.5 * (1 - ((t - 0.78) / 0.22) * 0.45);
+    }
+    const w = Math.max(2, Math.round(halfW * 2));
+    const x0 = Math.round(22 - w / 2);
+    px(ctx, x0 - 1, y, w + 2, 1, O);
+    px(ctx, x0, y, w, 1, "#1b422b");
+    const midW = Math.max(1, Math.floor(w * 0.68));
+    px(ctx, x0 + 1, y, midW, 1, "#2d633d");
+    if (w >= 6 && y % 2 === 0) {
+      px(ctx, x0 + 2, y, Math.max(1, Math.floor(w * 0.35)), 1, "#4a8a52");
+    }
+    if (w >= 8 && (y + seed) % 5 === 0) {
+      px(ctx, x0 + 2, y, 2, 1, "#72b36b");
+    }
+  }
+  return canvas;
+}
+
+/**
+ * Bake a 32-bit Coastal/Oasis Date Palm Tree (graceful ringed trunk + arching emerald fronds + golden dates!).
+ */
+function bakeDatePalmTree(seed = 43) {
+  const { canvas, ctx } = makeHdCanvas(48, 60);
+  const O = "#1b2914";
+  ditherShadowEllipse(ctx, 24, 54, 15, 4.5);
+
+  const curveDir = seed % 2 === 0 ? 1 : -1;
+  // Slightly curved textured palm trunk with horizontal frond rings
+  for (let y = 20; y <= 53; y++) {
+    const frac = (y - 20) / 33;
+    const cx = 24 + Math.round(Math.sin(frac * Math.PI) * 2.5 * curveDir);
+    const w = frac > 0.85 ? 8 : 6;
+    px(ctx, cx - Math.floor(w / 2) - 1, y, w + 2, 1, "#2e1e12");
+    px(ctx, cx - Math.floor(w / 2), y, w, 1, y % 3 === 0 ? "#6e4c2e" : "#966c44");
+    px(ctx, cx - Math.floor(w / 2) + 1, y, 2, 1, "#bd9160");
+  }
+
+  // Golden date clusters hanging beneath crown
+  const topX = 24;
+  const topY = 20;
+  px(ctx, topX - 5, topY + 1, 4, 5, "#4a2c0e");
+  px(ctx, topX - 4, topY + 2, 2, 3, "#e8a82e");
+  px(ctx, topX + 2, topY + 1, 4, 5, "#4a2c0e");
+  px(ctx, topX + 3, topY + 2, 2, 3, "#f5be42");
+
+  // 7 lush arching palm fronds radiating from crown
+  const fronds = [
+    [-19, -4, -9, -11],
+    [-17, 7, -9, -2],
+    [-11, -13, -5, -13],
+    [0, -15, 0, -10],
+    [11, -13, 5, -13],
+    [17, 7, 9, -2],
+    [19, -4, 9, -11],
+  ];
+  for (const [ex, ey, cx, cy] of fronds) {
+    for (let s = 0; s <= 18; s++) {
+      const t = s / 18;
+      const omt = 1 - t;
+      const fx = topX + 2 * omt * t * cx + t * t * ex;
+      const fy = topY + 2 * omt * t * cy + t * t * ey;
+      const thick = s < 14 ? 3 : 2;
+      px(ctx, fx - 1, fy - 1, thick + 2, thick + 2, O);
+    }
+  }
+  for (const [ex, ey, cx, cy] of fronds) {
+    for (let s = 0; s <= 18; s++) {
+      const t = s / 18;
+      const omt = 1 - t;
+      const fx = topX + 2 * omt * t * cx + t * t * ex;
+      const fy = topY + 2 * omt * t * cy + t * t * ey;
+      const thick = s < 14 ? 3 : 2;
+      px(ctx, fx, fy, thick, thick, s > 12 ? "#2d6b2e" : "#448f3c");
+      px(ctx, fx, fy, Math.max(1, thick - 1), 1, "#7cc452");
+      if (s > 3 && s < 16 && s % 2 === 0) {
+        px(ctx, fx, fy + 2, 1, 3, "#255726");
+      }
+    }
+  }
+  pxEllipse(ctx, topX, topY - 1, 4.5, 3.5, "#63ab48");
+  pxEllipse(ctx, topX - 1, topY - 2, 2.5, 1.8, "#9be06c");
+  return canvas;
+}
+
+/**
+ * Bake a 32-bit Flowering Mediterranean Tree (Bougainvillea Magenta, Almond Blossom Pink, or Jacaranda Violet!).
+ */
+function bakeFloweringTree(flowerColors, seed = 55) {
+  const { canvas, ctx } = makeHdCanvas(48, 56);
+  const { outline, deep, mid, light, crown, speck } = flowerColors;
+  ditherShadowEllipse(ctx, 24, 50, 16, 4.5);
+
+  px(ctx, 19, 31, 10, 20, "#2b1a12");
+  px(ctx, 16, 47, 16, 4, "#2b1a12");
+  px(ctx, 20, 32, 8, 18, "#704d34");
+  px(ctx, 21, 32, 3, 17, "#9c704f");
+  px(ctx, 26, 32, 2, 18, "#4d311f");
+
+  // Tiny fallen blossoms around trunk!
+  px(ctx, 12, 50, 2, 1, light);
+  px(ctx, 32, 51, 2, 1, crown);
+  px(ctx, 16, 52, 2, 1, mid);
+
+  pxEllipse(ctx, 24, 21, 19, 15, outline);
+  pxEllipse(ctx, 13, 24, 10.5, 9, outline);
+  pxEllipse(ctx, 35, 24, 10.5, 9, outline);
+  pxEllipse(ctx, 24, 12, 13.5, 9, outline);
+
+  pxEllipse(ctx, 24, 22, 17.5, 13.5, deep);
+  pxEllipse(ctx, 13, 24, 9, 7.5, deep);
+  pxEllipse(ctx, 35, 24, 9, 7.5, deep);
+
+  for (const [cx, cy, rx, ry] of [
+    [24, 19, 15, 10.5],
+    [14, 22, 8, 6.5],
+    [34, 22, 8, 6.5],
+    [24, 12, 11.5, 8],
+  ]) {
+    pxEllipse(ctx, cx, cy, rx, ry, mid);
+  }
+  for (const [cx, cy, rx, ry] of [
+    [21, 10, 9, 5],
+    [14, 17, 6, 4.5],
+    [30, 14, 6.5, 4.5],
+    [23, 19, 8, 4.5],
+  ]) {
+    pxEllipse(ctx, cx, cy, rx, ry, light);
+  }
+  pxEllipse(ctx, 20, 8.5, 5.5, 3, crown);
+  for (let i = 0; i < 38; i++) {
+    const lx = 9 + (h2(i, 1, seed + 13) % 30);
+    const ly = 6 + (h2(i, 2, seed + 13) % 19);
+    px(ctx, lx, ly, 2, 1, i % 4 === 0 ? speck : i % 4 === 1 ? "#3e6e35" : crown);
+  }
+  return canvas;
+}
+
+/**
+ * Bake a 32-bit Negev / Southwest Flat-Topped Desert Acacia Tree.
+ */
+function bakeDesertAcaciaTree(seed = 67) {
+  const { canvas, ctx } = makeHdCanvas(48, 56);
+  const O = "#242e18";
+  ditherShadowEllipse(ctx, 24, 50, 18, 4.5);
+
+  px(ctx, 21, 30, 6, 21, "#2b1c12");
+  px(ctx, 22, 31, 4, 19, "#7a583a");
+  px(ctx, 22, 31, 2, 18, "#9e7752");
+  // Wide V-shaped branches
+  for (let i = 0; i < 10; i++) {
+    px(ctx, 22 - i, 31 - i, 3, 2, "#593d26");
+    px(ctx, 24 + i, 31 - i, 3, 2, "#593d26");
+  }
+  // Wide flat umbrella canopy
+  pxEllipse(ctx, 24, 19, 22, 7.5, O);
+  pxEllipse(ctx, 24, 15, 17, 6, O);
+  pxEllipse(ctx, 24, 19, 20.5, 6.2, "#4b6132");
+  pxEllipse(ctx, 24, 15.5, 15.5, 4.8, "#6d8544");
+  pxEllipse(ctx, 21, 14, 11, 3.2, "#92ab59");
+  pxEllipse(ctx, 19, 13, 6, 2, "#b8cc76");
+  for (let i = 0; i < 24; i++) {
+    const lx = 6 + (h2(i, 1, seed + 5) % 36);
+    const ly = 12 + (h2(i, 2, seed + 5) % 10);
+    px(ctx, lx, ly, 2, 1, i % 2 === 0 ? "#c9db86" : "#3a4d26");
+  }
+  return canvas;
+}
+
+/**
+ * Upgrade ground tiles, lush regional trees, sidewalks, leaf piles/petals,
+ * street lamps, street signs, vehicles & props to 32-bit 2x native pixels!
+ */
+export function upgradeAtlasTo32Bit(sprites, P, biomeConfig = null) {
+  const hasFallenLeaves = biomeConfig ? Boolean(biomeConfig.hasFallenLeaves) : true;
+  const sidewalkStyle = biomeConfig?.sidewalkStyle || "cobblestone";
+  const treeStyle = biomeConfig?.treeStyle || "autumn_new_england";
+  const shrubStyle = biomeConfig?.shrubStyle || "boxwood";
+  const streetSignStyle = biomeConfig?.streetSignStyle || "us_green";
+  const ambientParticleStyle = biomeConfig?.ambientParticleStyle || "autumn_leaves";
+  const isIsraelBiome = String(biomeConfig?.id || "").startsWith("israel_");
+  const isDesertBiome = biomeConfig?.id === "israel_desert" || biomeConfig?.id === "southwest_desert";
+
+  const drawGroundScatter = (ctx, x, y, variant = 0) => {
+    if (hasFallenLeaves) {
+      drawFallenLeaf(ctx, x, y, variant);
+    } else if (isDesertBiome) {
+      // Sun-warmed sandstone pebbles
+      px(ctx, x, y + 1, 3, 1, "rgba(64, 42, 22, 0.25)");
+      px(ctx, x, y, 2, 1, variant % 2 === 0 ? "#e6c79c" : "#c79b6b");
+    } else if (isIsraelBiome) {
+      // Pale Jerusalem limestone pebbles & tiny sun-warmed meadow flecks
+      px(ctx, x, y + 1, 3, 1, "rgba(62, 52, 34, 0.22)");
+      px(ctx, x, y, 2, 1, variant % 2 === 0 ? "#ece2cc" : "#d9cca8");
+    } else {
+      // Crisp fresh clover sprig
+      px(ctx, x, y, 2, 1, P.grassLight);
+      px(ctx, x + 1, y - 1, 1, 1, "#b8ed8a");
+    }
+  };
+
   // =========================================================================
-  // 1. 32x32 AUTUMN GOLDEN-HOUR LAWNS, PARKS, DIRT, SAND & WOODS
+  // 1. 32x32 REGIONAL LAWNS, PARKS, DIRT, SAND & WOODS
   // =========================================================================
+  const tuftTip = hasFallenLeaves ? "#f7c259" : P.grassLight;
   for (let v = 0; v < 3; v++) {
     const { canvas, ctx } = makeHdCanvas(32, 32);
     px(ctx, 0, 0, 32, 32, P.grassBase);
@@ -188,21 +521,21 @@ export function upgradeAtlasTo32Bit(sprites, P) {
       }
     }
     if (v === 0) {
-      drawGrassTuft(ctx, 5, 6, "#f7c259", P.grassLight, P.grassDark);
-      drawGrassTuft(ctx, 21, 19, "#f7c259", P.grassLight, P.grassDark);
-      drawFallenLeaf(ctx, 11, 25, 0);
-      drawFallenLeaf(ctx, 25, 8, 1);
+      drawGrassTuft(ctx, 5, 6, tuftTip, P.grassLight, P.grassDark);
+      drawGrassTuft(ctx, 21, 19, tuftTip, P.grassLight, P.grassDark);
+      drawGroundScatter(ctx, 11, 25, 0);
+      drawGroundScatter(ctx, 25, 8, 1);
     } else if (v === 1) {
-      drawGrassTuft(ctx, 8, 15, "#f7c259", P.grassLight, P.grassDark);
+      drawGrassTuft(ctx, 8, 15, tuftTip, P.grassLight, P.grassDark);
       drawGrassTuft(ctx, 20, 6, P.grassLight, P.grassMid, P.grassDark);
-      drawFallenLeaf(ctx, 4, 26, 2);
-      drawFallenLeaf(ctx, 24, 24, 0);
+      drawGroundScatter(ctx, 4, 26, 2);
+      drawGroundScatter(ctx, 24, 24, 0);
     } else {
       drawGrassTuft(ctx, 22, 8, P.grassLight, P.grassMid, P.grassDark);
-      drawGrassTuft(ctx, 6, 21, "#f7c259", P.grassLight, P.grassDark);
-      drawFallenLeaf(ctx, 14, 14, 1);
-      drawFallenLeaf(ctx, 23, 25, 2);
-      drawFallenLeaf(ctx, 7, 9, 0);
+      drawGrassTuft(ctx, 6, 21, tuftTip, P.grassLight, P.grassDark);
+      drawGroundScatter(ctx, 14, 14, 1);
+      drawGroundScatter(ctx, 23, 25, 2);
+      drawGroundScatter(ctx, 7, 9, 0);
     }
     sprites[`grass_${v}`] = canvas;
   }
@@ -211,14 +544,20 @@ export function upgradeAtlasTo32Bit(sprites, P) {
     const { canvas, ctx } = makeHdCanvas(32, 32);
     px(ctx, 0, 0, 32, 32, P.grassBase);
     drawGrassTuft(ctx, 14, 16, P.grassLight, P.grassMid, P.grassDark);
-    drawFallenLeaf(ctx, 6 + f, 8, 0);
-    drawFallenLeaf(ctx, 21 - f, 20, 1);
-    draw32BitFlower(ctx, 23 + f, 7, "#ffe975", "#d9892e", "#b82b22", "#576e28");
-    draw32BitFlower(ctx, 7 - f, 22, "#fff5d6", "#d9b37c", "#e66717", "#576e28");
+    drawGroundScatter(ctx, 6 + f, 8, 0);
+    drawGroundScatter(ctx, 21 - f, 20, 1);
+    if (isIsraelBiome) {
+      // Iconic Israeli red anemone (Kalanit) & golden crown daisy wildflowers!
+      draw32BitFlower(ctx, 23 + f, 7, "#ff4747", "#b81d24", "#24191c", "#4c6e32");
+      draw32BitFlower(ctx, 7 - f, 22, "#ffe866", "#d4a626", "#a85a1c", "#4c6e32");
+    } else {
+      draw32BitFlower(ctx, 23 + f, 7, "#ffe975", "#d9892e", "#b82b22", "#576e28");
+      draw32BitFlower(ctx, 7 - f, 22, "#fff5d6", "#d9b37c", "#e66717", "#576e28");
+    }
     sprites[`grass_flower_${f}`] = canvas;
   }
 
-  // Warm Autumn-Olive Manicured Park Turf (mowed stripes + tiny golden leaves)
+  // Manicured Park Turf (mowed stripes + biome scatter)
   for (let v = 0; v < 2; v++) {
     const { canvas, ctx } = makeHdCanvas(32, 32);
     const turf = v === 0 ? P.parkStripeLight : P.parkStripeDark;
@@ -234,7 +573,7 @@ export function upgradeAtlasTo32Bit(sprites, P) {
     }
     drawGrassTuft(ctx, 7, 9, accent, turf, shade);
     drawGrassTuft(ctx, 22, 22, accent, turf, shade);
-    if (v === 1) drawFallenLeaf(ctx, 15, 16, 1);
+    if (v === 1 && hasFallenLeaves) drawFallenLeaf(ctx, 15, 16, 1);
     sprites[`park_${v}`] = canvas;
   }
 
@@ -243,7 +582,8 @@ export function upgradeAtlasTo32Bit(sprites, P) {
     px(ctx, 0, 0, 32, 32, P.parkStripeLight);
     drawGrassTuft(ctx, 16, 14, P.parkHighlight, P.parkBase, P.parkShadow);
     draw32BitFlower(ctx, 7 + f, 9, "#ffee7a", "#d9a926", "#c96e1e", P.parkShadow);
-    drawFallenLeaf(ctx, 21 - f, 21, 0);
+    if (hasFallenLeaves) drawFallenLeaf(ctx, 21 - f, 21, 0);
+    else draw32BitFlower(ctx, 21 - f, 21, isIsraelBiome ? "#ff5252" : "#ffffff", "#d9b37c", "#2b1c12", P.parkShadow);
     sprites[`park_flower_${f}`] = canvas;
   }
 
@@ -335,47 +675,78 @@ export function upgradeAtlasTo32Bit(sprites, P) {
   }
 
   // =========================================================================
-  // 2. WARM COBBLESTONE SIDEWALKS, DUSK ASPHALT, CREAM CROSSWALKS & WATER
+  // 2. REGIONAL SIDEWALKS (Cobblestone, Israeli Ackerman Pavers, Concrete), ASPHALT & WATER
   // =========================================================================
   for (let v = 0; v < 2; v++) {
     const { canvas, ctx } = makeHdCanvas(32, 32);
-    // Warm mortar base
-    px(ctx, 0, 0, 32, 32, P.sidewalkMortar || "#5e4e50");
-    // Staggered New England cobblestone pavers (4 rows of varied beveled stones!)
-    const rowWidths = [
-      [9, 7, 8, 8],
-      [6, 10, 7, 9],
-      [8, 8, 9, 7],
-      [10, 6, 8, 8],
-    ];
-    for (let r = 0; r < 4; r++) {
-      const y0 = r * 8;
-      let x0 = (r % 2 === 1 ? 3 : 0) + v * 2;
-      const widths = rowWidths[(r + v) % 4];
-      for (let i = 0; i < widths.length + 1; i++) {
-        const sw = widths[i % widths.length];
-        const sx = (x0 % 32) - (i === 0 && x0 > 0 ? sw : 0);
-        const shadePick = h2(sx + 10, y0, v + 400) % 3;
-        const fill =
-          shadePick === 0
-            ? P.sidewalkBase
-            : shadePick === 1
-              ? P.sidewalkMid || "#948280"
-              : "#b3a19d";
-        // Stone body inset 1px for crisp dark mortar line
-        px(ctx, sx + 1, y0 + 1, sw - 1, 7, fill);
-        // Sunlit warm top-left bevel highlight + lower-right shadow
-        px(ctx, sx + 1, y0 + 1, sw - 2, 1, P.sidewalkLight);
-        px(ctx, sx + 1, y0 + 2, 1, 5, P.sidewalkLight);
-        px(ctx, sx + 2, y0 + 7, sw - 2, 1, P.sidewalkDark || "#786666");
-        x0 += sw;
+    if (sidewalkStyle === "ackerman_limestone" || sidewalkStyle === "ackerman_gray") {
+      // Iconic Israeli interlocking Ackerman concrete/limestone sidewalk pavers!
+      const mortar = P.sidewalkMortar || "#948a78";
+      px(ctx, 0, 0, 32, 32, mortar);
+      const paverW = 8;
+      const paverH = 4;
+      for (let r = 0; r < 8; r++) {
+        const y0 = r * paverH;
+        const shift = (r % 2 === 1 ? 4 : 0) + v * 2;
+        for (let c = -1; c <= 4; c++) {
+          const sx = c * paverW + shift;
+          const pick = h2(c + 12, r + 7, v + 501) % 3;
+          const fill =
+            pick === 0 ? P.sidewalkBase : pick === 1 ? P.sidewalkMid : P.sidewalkLight;
+          px(ctx, sx + 1, y0 + 1, paverW - 1, paverH - 1, fill);
+          px(ctx, sx + 1, y0 + 1, paverW - 2, 1, P.sidewalkLight);
+          px(ctx, sx + 1, y0 + paverH - 1, paverW - 1, 1, P.sidewalkDark || mortar);
+        }
       }
-    }
-    // Scattered crisp tiny autumn leaves on the cobblestones!
-    if (v === 0) {
-      drawFallenLeaf(ctx, 21, 11, 0);
+    } else if (sidewalkStyle === "concrete_slab") {
+      // Clean scored municipal concrete sidewalk slabs
+      px(ctx, 0, 0, 32, 32, P.sidewalkBase);
+      for (let y = 0; y < 32; y += 2) {
+        for (let x = 0; x < 32; x += 2) {
+          const r = h2(x, y, v + 333) % 19;
+          if (r === 0) px(ctx, x, y, 2, 1, P.sidewalkLight);
+          else if (r === 1) px(ctx, x, y, 2, 1, P.sidewalkMid);
+        }
+      }
+      px(ctx, 0, 15, 32, 1, P.sidewalkMortar);
+      px(ctx, 0, 16, 32, 1, P.sidewalkLight);
+      px(ctx, 15, 0, 1, 32, P.sidewalkMortar);
+      px(ctx, 16, 0, 1, 32, P.sidewalkLight);
+      px(ctx, 0, 31, 32, 1, P.sidewalkDark || P.sidewalkMortar);
     } else {
-      drawFallenLeaf(ctx, 7, 23, 1);
+      // Warm mortar base + Staggered New England cobblestone pavers
+      px(ctx, 0, 0, 32, 32, P.sidewalkMortar || "#5e4e50");
+      const rowWidths = [
+        [9, 7, 8, 8],
+        [6, 10, 7, 9],
+        [8, 8, 9, 7],
+        [10, 6, 8, 8],
+      ];
+      for (let r = 0; r < 4; r++) {
+        const y0 = r * 8;
+        let x0 = (r % 2 === 1 ? 3 : 0) + v * 2;
+        const widths = rowWidths[(r + v) % 4];
+        for (let i = 0; i < widths.length + 1; i++) {
+          const sw = widths[i % widths.length];
+          const sx = (x0 % 32) - (i === 0 && x0 > 0 ? sw : 0);
+          const shadePick = h2(sx + 10, y0, v + 400) % 3;
+          const fill =
+            shadePick === 0
+              ? P.sidewalkBase
+              : shadePick === 1
+                ? P.sidewalkMid || "#948280"
+                : "#b3a19d";
+          px(ctx, sx + 1, y0 + 1, sw - 1, 7, fill);
+          px(ctx, sx + 1, y0 + 1, sw - 2, 1, P.sidewalkLight);
+          px(ctx, sx + 1, y0 + 2, 1, 5, P.sidewalkLight);
+          px(ctx, sx + 2, y0 + 7, sw - 2, 1, P.sidewalkDark || "#786666");
+          x0 += sw;
+        }
+      }
+      if (hasFallenLeaves) {
+        if (v === 0) drawFallenLeaf(ctx, 21, 11, 0);
+        else drawFallenLeaf(ctx, 7, 23, 1);
+      }
     }
     sprites[`sidewalk_${v}`] = canvas;
   }
@@ -499,45 +870,157 @@ export function upgradeAtlasTo32Bit(sprites, P) {
   }
 
   // =========================================================================
-  // 3. 32-BIT AUTUMN NEW ENGLAND TREES (Crimson, Gold, Scarlet + Evergreen!)
+  // 3. 32-BIT REGIONAL TREES (New England Autumn, Jerusalem Olive/Pine/Cypress,
+  //    Tel Aviv Palms/Jacaranda, Galilee, Desert Oasis & Temperate Summer!)
   // =========================================================================
-  sprites.tree_oak_0 = bakeAutumnOakTree(
-    {
-      outline: "#3b0c12",
-      deep: "#781720",
-      mid: "#b52824",
-      light: "#e3502b",
-      crown: "#ff8c42",
-      speck: "#ffd275",
-    },
-    11
-  );
-  sprites.tree_oak_1 = bakeAutumnOakTree(
-    {
-      outline: "#451e0c",
-      deep: "#963b14",
-      mid: "#d4701e",
-      light: "#f5a731",
-      crown: "#ffe066",
-      speck: "#fff5b8",
-    },
-    23
-  );
-  sprites.tree_oak_2 = bakeAutumnOakTree(
-    {
-      outline: "#3d1210",
-      deep: "#872318",
-      mid: "#c9451e",
-      light: "#f07629",
-      crown: "#ffba47",
-      speck: "#ffe68c",
-    },
-    37
-  );
-  sprites.tree_oak = sprites.tree_oak_1;
+  if (treeStyle === "jerusalem_hills") {
+    sprites.tree_oak_0 = bakeOliveTree(11);
+    sprites.tree_oak_1 = bakeJerusalemPineTree(23);
+    sprites.tree_oak_2 = bakeFloweringTree(
+      {
+        outline: "#3b1729",
+        deep: "#7a244f",
+        mid: "#c43b7d",
+        light: "#eb6aa8",
+        crown: "#ffa6d0",
+        speck: "#ffe3f0",
+      },
+      37
+    );
+    sprites.tree_oak = sprites.tree_oak_0;
+    sprites.tree_pine = bakePencilCypressTree(41);
+  } else if (treeStyle === "coastal_palms") {
+    sprites.tree_oak_0 = bakeDatePalmTree(11);
+    sprites.tree_oak_1 = bakeAutumnOakTree(
+      {
+        outline: "#132919",
+        deep: "#22522d",
+        mid: "#397a3e",
+        light: "#5da652",
+        crown: "#8fd46a",
+        speck: "#c7f099",
+      },
+      23
+    );
+    sprites.tree_oak_2 = bakeFloweringTree(
+      {
+        outline: "#271b45",
+        deep: "#553b94",
+        mid: "#7d5ec9",
+        light: "#a689ed",
+        crown: "#cdb8ff",
+        speck: "#eee6ff",
+      },
+      37
+    );
+    sprites.tree_oak = sprites.tree_oak_0;
+    sprites.tree_pine = bakeDatePalmTree(44);
+  } else if (treeStyle === "galilee_olive") {
+    sprites.tree_oak_0 = bakeOliveTree(17);
+    sprites.tree_oak_1 = bakeAutumnOakTree(
+      {
+        outline: "#152b18",
+        deep: "#245429",
+        mid: "#3d7d39",
+        light: "#62a64c",
+        crown: "#92cf6b",
+        speck: "#c8f09c",
+      },
+      29
+    );
+    sprites.tree_oak_2 = bakeFloweringTree(
+      {
+        outline: "#3b232b",
+        deep: "#8c4a62",
+        mid: "#cf7a96",
+        light: "#f2aec4",
+        crown: "#ffd9e6",
+        speck: "#fff5f8",
+      },
+      43
+    );
+    sprites.tree_oak = sprites.tree_oak_0;
+    sprites.tree_pine = bakePencilCypressTree(51);
+  } else if (treeStyle === "desert_oasis") {
+    sprites.tree_oak_0 = bakeDatePalmTree(13);
+    sprites.tree_oak_1 = bakeDesertAcaciaTree(27);
+    sprites.tree_oak_2 = bakeOliveTree(39);
+    sprites.tree_oak = sprites.tree_oak_0;
+    sprites.tree_pine = bakeDatePalmTree(52);
+  } else if (treeStyle === "temperate_summer") {
+    sprites.tree_oak_0 = bakeAutumnOakTree(
+      {
+        outline: "#142917",
+        deep: "#225228",
+        mid: "#3b7f38",
+        light: "#62ad48",
+        crown: "#92d466",
+        speck: "#c8f294",
+      },
+      11
+    );
+    sprites.tree_oak_1 = bakeAutumnOakTree(
+      {
+        outline: "#172e19",
+        deep: "#2a5e2d",
+        mid: "#468f3d",
+        light: "#71bd50",
+        crown: "#a3e06e",
+        speck: "#d5f7a1",
+      },
+      23
+    );
+    sprites.tree_oak_2 = bakeAutumnOakTree(
+      {
+        outline: "#1a2914",
+        deep: "#345922",
+        mid: "#528232",
+        light: "#7db046",
+        crown: "#aed463",
+        speck: "#dbf099",
+      },
+      37
+    );
+    sprites.tree_oak = sprites.tree_oak_1;
+  } else {
+    sprites.tree_oak_0 = bakeAutumnOakTree(
+      {
+        outline: "#3b0c12",
+        deep: "#781720",
+        mid: "#b52824",
+        light: "#e3502b",
+        crown: "#ff8c42",
+        speck: "#ffd275",
+      },
+      11
+    );
+    sprites.tree_oak_1 = bakeAutumnOakTree(
+      {
+        outline: "#451e0c",
+        deep: "#963b14",
+        mid: "#d4701e",
+        light: "#f5a731",
+        crown: "#ffe066",
+        speck: "#fff5b8",
+      },
+      23
+    );
+    sprites.tree_oak_2 = bakeAutumnOakTree(
+      {
+        outline: "#3d1210",
+        deep: "#872318",
+        mid: "#c9451e",
+        light: "#f07629",
+        crown: "#ffba47",
+        speck: "#ffe68c",
+      },
+      37
+    );
+    sprites.tree_oak = sprites.tree_oak_1;
+  }
 
-  // Deep Olive Evergreen Pine (rich green contrast against autumn crimson & gold!)
-  {
+  // Deep Olive Evergreen Pine (for New England & Temperate biomes; Israel/Desert already set custom pine/cypress/palm!)
+  if (!sprites.tree_pine || treeStyle === "autumn_new_england" || treeStyle === "temperate_summer") {
     const { canvas, ctx } = makeHdCanvas(44, 60);
     const O = "#162417";
     ditherShadowEllipse(ctx, 22, 54, 15, 4.5);
@@ -606,15 +1089,37 @@ export function upgradeAtlasTo32Bit(sprites, P) {
     sprites[`leaf_pile_${v}`] = canvas;
   }
 
-  // Lush Green Boxwood Garden Shrub (complementary green accent like beside the Library!)
+  // Regional Garden Shrub (Boxwood, Israeli Magenta Bougainvillea, or Desert Rosemary/Sage!)
   {
     const { canvas, ctx } = makeHdCanvas(24, 22);
     ditherShadowEllipse(ctx, 12, 18, 9, 3);
-    pxEllipse(ctx, 12, 12, 9.5, 7.5, "#192914");
-    pxEllipse(ctx, 12, 12.5, 8.2, 6.2, "#2f4f22");
-    pxEllipse(ctx, 11.5, 11, 6.8, 5, "#4c7830");
-    pxEllipse(ctx, 10, 9.5, 4.8, 3.2, "#73a340");
-    pxEllipse(ctx, 9, 8.5, 2.5, 1.8, "#a2cc58");
+    if (shrubStyle === "bougainvillea") {
+      pxEllipse(ctx, 12, 12, 9.5, 7.5, "#1f2e18");
+      pxEllipse(ctx, 12, 12.5, 8.2, 6.2, "#395929");
+      pxEllipse(ctx, 11.5, 11, 6.8, 5, "#59823c");
+      // Lush cascading magenta bougainvillea blossoms!
+      pxEllipse(ctx, 8, 9, 3.8, 3, "#a81d66");
+      pxEllipse(ctx, 8, 8.5, 2.8, 2.2, "#e83b8f");
+      px(ctx, 7, 7, 2, 2, "#ff8cc4");
+      pxEllipse(ctx, 15, 10, 3.6, 2.8, "#a81d66");
+      pxEllipse(ctx, 15, 9.5, 2.5, 2, "#e83b8f");
+      px(ctx, 14, 8, 2, 1, "#ff99cc");
+      pxEllipse(ctx, 11.5, 13, 3, 2.2, "#d92b7c");
+      px(ctx, 11, 12, 2, 1, "#ff80bd");
+    } else if (shrubStyle === "desert_sage") {
+      pxEllipse(ctx, 12, 12, 9.5, 7, "#293324");
+      pxEllipse(ctx, 12, 12.5, 8.2, 5.8, "#5c6e4d");
+      pxEllipse(ctx, 11.5, 11, 6.5, 4.5, "#82966e");
+      pxEllipse(ctx, 10, 9.5, 4, 2.8, "#a8bd91");
+      px(ctx, 14, 9, 2, 2, "#b68ce8");
+      px(ctx, 8, 11, 2, 2, "#b68ce8");
+    } else {
+      pxEllipse(ctx, 12, 12, 9.5, 7.5, "#192914");
+      pxEllipse(ctx, 12, 12.5, 8.2, 6.2, "#2f4f22");
+      pxEllipse(ctx, 11.5, 11, 6.8, 5, "#4c7830");
+      pxEllipse(ctx, 10, 9.5, 4.8, 3.2, "#73a340");
+      pxEllipse(ctx, 9, 8.5, 2.5, 1.8, "#a2cc58");
+    }
     sprites.garden_shrub = canvas;
   }
 
@@ -672,20 +1177,47 @@ export function upgradeAtlasTo32Bit(sprites, P) {
     }
 
     const b1Y = checked ? 5 : 4;
-    px(ctx, 0, b1Y, 24, 8, O);
-    px(ctx, 1, b1Y + 1, 22, 6, "#f7f0e6");
-    px(ctx, 2, b1Y + 2, 20, 4, checked ? "#248f59" : "#1d7347");
-    px(ctx, 2, b1Y + 2, 20, 1, checked ? "#34ad6f" : "#288c59");
-    px(ctx, 4, b1Y + 3, 5, 2, "#ffffff");
-    px(ctx, 10, b1Y + 3, 4, 2, "#ffffff");
-    px(ctx, 15, b1Y + 3, 5, 2, "#f0f7ee");
+    if (streetSignStyle === "jerusalem_stone") {
+      // Iconic Jerusalem white enamel street plaque with royal-blue border & carved Jerusalem stone frame!
+      px(ctx, 1, b1Y, 22, 14, O);
+      px(ctx, 2, b1Y + 1, 20, 12, "#e8d8b5"); // Jerusalem limestone frame
+      px(ctx, 3, b1Y + 2, 18, 10, checked ? "#1c57a8" : "#164385"); // royal blue border
+      px(ctx, 4, b1Y + 3, 16, 8, "#fcfaf5"); // crisp white enamel center
+      // Top Hebrew script bar + bottom English script bar in Jerusalem royal blue!
+      px(ctx, 6, b1Y + 4, 12, 2, checked ? "#1d5ec4" : "#164385");
+      px(ctx, 7, b1Y + 8, 10, 2, "#3a78c9");
+    } else if (streetSignStyle === "israel_blue") {
+      // Classic Israeli blue-and-white municipal street sign blades
+      px(ctx, 0, b1Y, 24, 8, O);
+      px(ctx, 1, b1Y + 1, 22, 6, "#ffffff");
+      px(ctx, 2, b1Y + 2, 20, 4, checked ? "#1f6ad4" : "#184f9e");
+      px(ctx, 2, b1Y + 2, 20, 1, checked ? "#3d88f0" : "#2969c2");
+      px(ctx, 4, b1Y + 3, 5, 2, "#ffffff");
+      px(ctx, 10, b1Y + 3, 4, 2, "#ffffff");
+      px(ctx, 15, b1Y + 3, 5, 2, "#eef5ff");
 
-    const b2Y = b1Y + 8;
-    px(ctx, 3, b2Y, 20, 8, O);
-    px(ctx, 4, b2Y + 1, 18, 6, checked ? "#fff0ad" : "#efe6da");
-    px(ctx, 5, b2Y + 2, 16, 4, checked ? "#1c7548" : "#165c38");
-    px(ctx, 7, b2Y + 3, 6, 2, "#ffffff");
-    px(ctx, 14, b2Y + 3, 5, 2, "#f0f7ee");
+      const b2Y = b1Y + 8;
+      px(ctx, 3, b2Y, 20, 8, O);
+      px(ctx, 4, b2Y + 1, 18, 6, checked ? "#fff0ad" : "#ffffff");
+      px(ctx, 5, b2Y + 2, 16, 4, checked ? "#1859b8" : "#144285");
+      px(ctx, 7, b2Y + 3, 6, 2, "#ffffff");
+      px(ctx, 14, b2Y + 3, 5, 2, "#eef5ff");
+    } else {
+      px(ctx, 0, b1Y, 24, 8, O);
+      px(ctx, 1, b1Y + 1, 22, 6, "#f7f0e6");
+      px(ctx, 2, b1Y + 2, 20, 4, checked ? "#248f59" : "#1d7347");
+      px(ctx, 2, b1Y + 2, 20, 1, checked ? "#34ad6f" : "#288c59");
+      px(ctx, 4, b1Y + 3, 5, 2, "#ffffff");
+      px(ctx, 10, b1Y + 3, 4, 2, "#ffffff");
+      px(ctx, 15, b1Y + 3, 5, 2, "#f0f7ee");
+
+      const b2Y = b1Y + 8;
+      px(ctx, 3, b2Y, 20, 8, O);
+      px(ctx, 4, b2Y + 1, 18, 6, checked ? "#fff0ad" : "#efe6da");
+      px(ctx, 5, b2Y + 2, 16, 4, checked ? "#1c7548" : "#165c38");
+      px(ctx, 7, b2Y + 3, 6, 2, "#ffffff");
+      px(ctx, 14, b2Y + 3, 5, 2, "#f0f7ee");
+    }
 
     sprites[checked ? "street_sign_checked" : "street_sign"] = canvas;
   }
@@ -1236,11 +1768,36 @@ export function upgradeAtlasTo32Bit(sprites, P) {
     px(ctx, 3, 5, 7, 1, "#592d18");
     sprites[`fx_feather_${f}`] = canvas;
   }
-  const leafColors = [
-    ["#7a1816", "#cf3626", "#ff7842"],
-    ["#8c4212", "#e08424", "#ffd252"],
-    ["#6e1e18", "#b83024", "#f06834"],
-  ];
+  const leafColors =
+    ambientParticleStyle === "olive_blossoms"
+      ? [
+          ["#9c2260", "#e84a96", "#ff9cd0"], // bougainvillea petal
+          ["#c4b898", "#f7f0d8", "#ffffff"], // almond blossom
+          ["#4f6e44", "#84a373", "#c2d6b2"], // silvery olive leaf
+        ]
+      : ambientParticleStyle === "jacaranda_petals"
+        ? [
+            ["#573b94", "#8a6be0", "#d0beff"],
+            ["#9c2260", "#e84a96", "#ffa6d4"],
+            ["#b8a06a", "#ffe69e", "#ffffff"],
+          ]
+        : ambientParticleStyle === "desert_motes"
+          ? [
+              ["#a67846", "#d9a86c", "#fae1b0"],
+              ["#b58652", "#e8be84", "#fff0cc"],
+              ["#8f673e", "#c99a62", "#f5d6a4"],
+            ]
+          : ambientParticleStyle === "summer_petals"
+            ? [
+                ["#8c9c78", "#d8e6c5", "#ffffff"],
+                ["#c4a638", "#ffe466", "#fff8bd"],
+                ["#548c3e", "#87c95c", "#c8f294"],
+              ]
+            : [
+                ["#7a1816", "#cf3626", "#ff7842"],
+                ["#8c4212", "#e08424", "#ffd252"],
+                ["#6e1e18", "#b83024", "#f06834"],
+              ];
   leafColors.forEach(([dark, mid, hi], i) => {
     const { canvas, ctx } = makeHdCanvas(10, 10);
     px(ctx, 4, 1, 2, 8, dark);

@@ -10,6 +10,11 @@
 import { snapToWalkableTile } from "../quests.js";
 import { getNeighborhoodMeta, slugifyNeighborhood } from "../neighborhood_meta.js";
 import { projectLatLonToFloatTile } from "../vector_roads.js";
+import {
+  formatBilingualName,
+  formatInternationalAddress,
+  isIsraelLocation,
+} from "../biomes.js";
 
 const CATEGORY_TEMPLATES = {
   library: {
@@ -185,19 +190,30 @@ const CATEGORY_TEMPLATES = {
 };
 
 function classifyOsmPoi(tags = {}) {
-  const name = String(tags.name || "").trim();
+  const name = String(tags.name || tags["name:en"] || tags["name:he"] || "").trim();
   if (!name) return null;
   const amenity = String(tags.amenity || "").toLowerCase();
   const shop = String(tags.shop || "").toLowerCase();
   const leisure = String(tags.leisure || "").toLowerCase();
   const natural = String(tags.natural || "").toLowerCase();
   const building = String(tags.building || "").toLowerCase();
-  const lower = name.toLowerCase();
+  const lower = `${tags.name || ""} ${tags["name:en"] || ""} ${tags["name:he"] || ""}`.toLowerCase();
 
-  if (amenity === "library" || building === "library" || lower.includes("library")) {
+  if (
+    amenity === "library" ||
+    building === "library" ||
+    lower.includes("library") ||
+    lower.includes("ספרייה") ||
+    lower.includes("ספריה")
+  ) {
     return "library";
   }
-  if (amenity === "fire_station" || building === "fire_station" || lower.includes("fire station")) {
+  if (
+    amenity === "fire_station" ||
+    building === "fire_station" ||
+    lower.includes("fire station") ||
+    lower.includes("כיבוי אש")
+  ) {
     return "fire_station";
   }
   if (
@@ -210,14 +226,26 @@ function classifyOsmPoi(tags = {}) {
     amenity === "cafe" ||
     lower.includes("ice cream") ||
     lower.includes("gelato") ||
+    lower.includes("glida") ||
     lower.includes("bakery") ||
+    lower.includes("burekas") ||
     lower.includes("bagel") ||
     lower.includes("donut") ||
-    lower.includes("doughnut")
+    lower.includes("doughnut") ||
+    lower.includes("גלידה") ||
+    lower.includes("מאפייה") ||
+    lower.includes("מאפיה") ||
+    lower.includes("בורקס") ||
+    lower.includes("קפה")
   ) {
     return "ice_cream_bakery";
   }
-  if (shop === "books" || lower.includes("bookstore") || lower.includes("bookshop")) {
+  if (
+    shop === "books" ||
+    lower.includes("bookstore") ||
+    lower.includes("bookshop") ||
+    lower.includes("ספרים")
+  ) {
     return "bookstore";
   }
   if (
@@ -225,7 +253,7 @@ function classifyOsmPoi(tags = {}) {
     leisure === "playground" ||
     leisure === "nature_reserve" ||
     leisure === "garden" ||
-    (leisure === "pitch" && (lower.includes("field") || lower.includes("park")))
+    (leisure === "pitch" && (lower.includes("field") || lower.includes("park") || lower.includes("גן")))
   ) {
     return "park";
   }
@@ -233,14 +261,26 @@ function classifyOsmPoi(tags = {}) {
     amenity === "school" ||
     amenity === "college" ||
     amenity === "university" ||
-    building === "school"
+    building === "school" ||
+    lower.includes("yeshiva") ||
+    lower.includes("בית ספר") ||
+    lower.includes("ישיבה")
   ) {
     return "school";
   }
-  if (amenity === "place_of_worship" || building === "church" || building === "synagogue" || building === "mosque") {
+  if (
+    amenity === "place_of_worship" ||
+    building === "church" ||
+    building === "synagogue" ||
+    building === "mosque" ||
+    lower.includes("synagogue") ||
+    lower.includes("beit knesset") ||
+    lower.includes("בית כנסת") ||
+    lower.includes("בית הכנסת")
+  ) {
     return "house_of_worship";
   }
-  if (natural === "water" || natural === "beach") {
+  if (natural === "water" || natural === "beach" || lower.includes("חוף")) {
     return "water";
   }
   if (
@@ -249,7 +289,17 @@ function classifyOsmPoi(tags = {}) {
     shop === "supermarket" ||
     shop === "convenience" ||
     shop === "greengrocer" ||
-    shop === "deli"
+    shop === "deli" ||
+    lower.includes("falafel") ||
+    lower.includes("shawarma") ||
+    lower.includes("hummus") ||
+    lower.includes("makolet") ||
+    lower.includes("shuk") ||
+    lower.includes("פלאפל") ||
+    lower.includes("שווארמה") ||
+    lower.includes("חומוס") ||
+    lower.includes("מכולת") ||
+    lower.includes("שוק")
   ) {
     return "food_shop";
   }
@@ -258,7 +308,10 @@ function classifyOsmPoi(tags = {}) {
     amenity === "community_centre" ||
     amenity === "museum" ||
     amenity === "arts_centre" ||
-    amenity === "post_office"
+    amenity === "post_office" ||
+    lower.includes("museum") ||
+    lower.includes("מוזיאון") ||
+    lower.includes("מתנ״ס")
   ) {
     return "civic";
   }
@@ -379,6 +432,14 @@ export function generateLandmarksAndQuests({
   const heroName = resolvedMeta.heroName || "Explorer";
   const cityShort = resolvedMeta.cityShort || "Neighborhood";
   const homeAddress = resolvedMeta.homeAddress || "Home Base";
+  const labelMode = resolvedMeta.labelMode || "bilingual";
+  const countryCode = resolvedMeta.countryCode || "";
+  const isIsrael = isIsraelLocation({
+    lat: worldMap.origin?.lat,
+    lon: worldMap.origin?.lon,
+    countryCode,
+    townName: resolvedMeta.townName || cityShort,
+  });
 
   const margin = Math.max(6, Math.min(12, Math.floor(Math.min(width, height) * 0.04)));
   const minSpacing = Math.max(8, Math.min(14, Math.floor(Math.min(width, height) * 0.045)));
@@ -547,12 +608,13 @@ export function generateLandmarksAndQuests({
     const distFromHome = Math.hypot(tx - spawn.x, ty - spawn.y);
     if (distFromHome < 8) continue;
 
-    const name = String(el.tags.name).trim();
+    const name = formatBilingualName(el.tags, { labelMode });
+    if (!name) continue;
     const tpl = CATEGORY_TEMPLATES[cat];
     candidates.push({
       category: cat,
       name,
-      address: formatOsmAddress(el.tags),
+      address: formatInternationalAddress(el.tags, { labelMode, countryCode }) || formatOsmAddress(el.tags),
       lat: pos.lat,
       lon: pos.lon,
       tx,
@@ -590,6 +652,18 @@ export function generateLandmarksAndQuests({
     const snapped = snapToWalkableTile(worldMap, cand.tx, cand.ty, 10, avoidPoints);
     const id = makeUniqueId(cand.name);
     const npcName = tpl.npcNames[countSoFar % tpl.npcNames.length];
+    let dialogue = tpl.dialogue(cand.name, heroName);
+    if (isIsrael && (cand.category === "food_shop" || cand.category === "ice_cream_bakery")) {
+      dialogue = [
+        `Shalom ${heroName}! Welcome to ${cand.name}! Fresh warm burekas, pita & treats right off the counter (+${tpl.healHearts || 2} hearts)!`,
+        "We packed extra snacks in your bag too — press N to share with neighbors or feed friendly street cats!",
+      ];
+    } else if (isIsrael && cand.category === "house_of_worship") {
+      dialogue = [
+        `Shalom ${heroName}! Welcome to ${cand.name}! Here's a warm kiddush snack (+2 hearts!) and a Pocket Siddur!`,
+        "Press K (or tap 📖 Siddur) anytime to shine a peaceful blessing that dispels spooky graveyard foes!",
+      ];
+    }
     const lm = {
       id,
       name: cand.name,
@@ -604,7 +678,7 @@ export function generateLandmarksAndQuests({
       npcName,
       ...(tpl.healHearts ? { healHearts: tpl.healHearts } : {}),
       ...(tpl.givesSnacks ? { givesSnacks: true } : {}),
-      dialogue: tpl.dialogue(cand.name, heroName),
+      dialogue,
       rewardItem: tpl.rewardItem,
       ...(tpl.bonusItem ? { bonusItem: tpl.bonusItem } : {}),
       category: cand.category,

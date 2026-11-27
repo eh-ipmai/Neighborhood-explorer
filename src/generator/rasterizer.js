@@ -10,6 +10,10 @@ import {
   extractOriginAddress,
   parseAddressParts,
 } from "../neighborhood_meta.js";
+import {
+  formatBilingualName,
+  formatInternationalAddress,
+} from "../biomes.js";
 
 export const TILE_IDS = {
   GRASS: 0,
@@ -323,13 +327,22 @@ export function classifyBuildingKind(tags = {}, bounds = null, address = "", nam
   const amenity = String(tags.amenity || "").toLowerCase();
   const lowerName = String(name || tags.name || "").toLowerCase();
 
-  if (amenity === "library" || b === "library" || lowerName.includes("library")) return "library";
+  if (
+    amenity === "library" ||
+    b === "library" ||
+    lowerName.includes("library") ||
+    lowerName.includes("ספרייה") ||
+    lowerName.includes("ספריה")
+  ) {
+    return "library";
+  }
   if (
     amenity === "fire_station" ||
     b === "fire_station" ||
     lowerName.includes("fire station") ||
     lowerName.includes("fire hq") ||
-    lowerName.includes("firehouse")
+    lowerName.includes("firehouse") ||
+    lowerName.includes("כיבוי אש")
   ) {
     return "fire_station";
   }
@@ -345,6 +358,10 @@ export function classifyBuildingKind(tags = {}, bounds = null, address = "", nam
     b === "college" ||
     lowerName.includes("school") ||
     lowerName.includes("elementary") ||
+    lowerName.includes("yeshiva") ||
+    lowerName.includes("בית ספר") ||
+    lowerName.includes("ישיבה") ||
+    lowerName.includes("תיכון") ||
     lowerName.includes("boston college") ||
     lowerName.includes("bc law") ||
     lowerName.includes("bc ") ||
@@ -369,6 +386,7 @@ export function classifyBuildingKind(tags = {}, bounds = null, address = "", nam
     amenity === "community_centre" ||
     b === "church" ||
     b === "synagogue" ||
+    b === "mosque" ||
     b === "chapel" ||
     b === "civic" ||
     b === "public" ||
@@ -376,8 +394,12 @@ export function classifyBuildingKind(tags = {}, bounds = null, address = "", nam
     lowerName.includes("parish") ||
     lowerName.includes("chapel") ||
     lowerName.includes("temple") ||
+    lowerName.includes("synagogue") ||
     lowerName.includes("congregation") ||
-    lowerName.includes("beth el")
+    lowerName.includes("beth el") ||
+    lowerName.includes("beit knesset") ||
+    lowerName.includes("בית כנסת") ||
+    lowerName.includes("בית הכנסת")
   ) {
     return "civic";
   }
@@ -402,7 +424,14 @@ export function classifyBuildingKind(tags = {}, bounds = null, address = "", nam
     lowerName.includes("licks") ||
     lowerName.includes("dunkin") ||
     lowerName.includes("cafe") ||
-    lowerName.includes("coffee")
+    lowerName.includes("coffee") ||
+    lowerName.includes("gelato") ||
+    lowerName.includes("glida") ||
+    lowerName.includes("burekas") ||
+    lowerName.includes("מאפייה") ||
+    lowerName.includes("מאפיה") ||
+    lowerName.includes("קפה") ||
+    lowerName.includes("גלידה")
   ) {
     return "bakery_cafe";
   }
@@ -415,7 +444,16 @@ export function classifyBuildingKind(tags = {}, bounds = null, address = "", nam
     lowerName.includes("market") ||
     lowerName.includes("books") ||
     lowerName.includes("taqueria") ||
-    lowerName.includes("pharmacy")
+    lowerName.includes("pharmacy") ||
+    lowerName.includes("falafel") ||
+    lowerName.includes("shawarma") ||
+    lowerName.includes("hummus") ||
+    lowerName.includes("makolet") ||
+    lowerName.includes("shuk") ||
+    lowerName.includes("מכולת") ||
+    lowerName.includes("פלאפל") ||
+    lowerName.includes("שווארמה") ||
+    lowerName.includes("שוק")
   ) {
     return "corner_market";
   }
@@ -4207,7 +4245,7 @@ export function extractGraveyardsFromOsm(
       seeds.push({ x: cx, y: Math.round(minY + spanY * 0.72) });
     }
 
-    const name = el.tags?.name ? String(el.tags.name).trim() : "Historic Burying Ground";
+    const name = formatBilingualName(el.tags || {}) || "Historic Burying Ground";
     const foundedMatch = String(el.tags?.start_date || "").match(/\d{4}/);
     const founded = foundedMatch ? Number(foundedMatch[0]) : null;
     graveyards.push({
@@ -4237,6 +4275,8 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
   const origin = { ...DEFAULT_CONFIG.origin, ...(config.origin || {}) };
   const mapCenter = config.mapCenter || { lat: origin.lat, lon: origin.lon };
   const isNewtonPreset = isNewtonCentreMap({ origin, meta: config.meta });
+  const labelMode = config.meta?.labelMode || "bilingual";
+  const countryCode = String(config.meta?.countryCode || (isNewtonPreset ? "us" : "")).toLowerCase();
   const originAddress =
     extractOriginAddress(origin, config.meta) || (isNewtonPreset ? "565 Boylston St" : "");
   const originAddrParts = parseAddressParts(originAddress);
@@ -4247,6 +4287,8 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
 
   const nodes = new Map();
   const ways = [];
+  const wayById = new Map();
+  const relations = [];
   const crossingNodes = [];
   const addressNodes = [];
 
@@ -4276,11 +4318,40 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
           y: pt.y,
           houseNumber: String(el.tags["addr:housenumber"]),
           street: el.tags["addr:street"] ? String(el.tags["addr:street"]) : "",
-          name: el.tags.name ? String(el.tags.name) : "",
+          streetEn: el.tags["addr:street:en"] ? String(el.tags["addr:street:en"]) : "",
+          name: formatBilingualName(el.tags, { labelMode }),
         });
       }
     } else if (el.type === "way") {
       ways.push(el);
+      if (el.id !== undefined) wayById.set(el.id, el);
+    } else if (el.type === "relation" && el.tags?.type === "multipolygon") {
+      relations.push(el);
+    }
+  }
+
+  // Expand OSM multipolygon relations (courtyard buildings, large parks, rivers, cemeteries)
+  // into synthetic polygon ways so European & Israeli city maps never lose courtyard blocks or major parks!
+  for (const rel of relations) {
+    if (!Array.isArray(rel.members) || !rel.tags) continue;
+    const outerWays = [];
+    for (const m of rel.members) {
+      if (m.type !== "way" || (m.role && m.role !== "outer")) continue;
+      if (Array.isArray(m.geometry) && m.geometry.length >= 3) {
+        outerWays.push({ geometry: m.geometry });
+      } else if (m.ref !== undefined && wayById.has(m.ref)) {
+        outerWays.push(wayById.get(m.ref));
+      }
+    }
+    for (let oi = 0; oi < outerWays.length; oi++) {
+      const ow = outerWays[oi];
+      ways.push({
+        type: "way",
+        id: `rel_${rel.id}_${oi}`,
+        tags: rel.tags,
+        ...(ow.geometry ? { geometry: ow.geometry } : {}),
+        ...(ow.nodes ? { nodes: ow.nodes } : {}),
+      });
     }
   }
 
@@ -4404,8 +4475,9 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     for (let i = 0; i < pts.length - 1; i++) {
       drawSimplifiedSegment(base, width, height, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, TILE_IDS.DIRT, 0, (cur) => cur !== TILE_IDS.WATER);
     }
-    if (way.tags?.name) {
-      addPolylineStreetZones(streetZones, way.tags.name, "trail", pts, width, height, 1);
+    const roadLabel = formatBilingualName(way.tags, { labelMode });
+    if (roadLabel) {
+      addPolylineStreetZones(streetZones, roadLabel, "trail", pts, width, height, 1);
     }
   }
 
@@ -4415,8 +4487,9 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     for (let i = 0; i < pts.length - 1; i++) {
       drawSimplifiedSegment(base, width, height, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, TILE_IDS.SIDEWALK, 0);
     }
-    if (way.tags?.name) {
-      addPolylineStreetZones(streetZones, way.tags.name, "sidewalk", pts, width, height, 1);
+    const roadLabel = formatBilingualName(way.tags, { labelMode });
+    if (roadLabel) {
+      addPolylineStreetZones(streetZones, roadLabel, "sidewalk", pts, width, height, 1);
     }
   }
 
@@ -4450,8 +4523,9 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
         0
       );
     }
-    if (way.tags?.name) {
-      addPolylineStreetZones(streetZones, way.tags.name, "residential", pts, width, height, 2);
+    const roadLabel = formatBilingualName(way.tags, { labelMode });
+    if (roadLabel) {
+      addPolylineStreetZones(streetZones, roadLabel, "residential", pts, width, height, 2);
     }
   }
 
@@ -4487,8 +4561,9 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
         1
       );
     }
-    if (way.tags?.name) {
-      addPolylineStreetZones(streetZones, way.tags.name, roadInfo.zoneType, pts, width, height, 3);
+    const roadLabel = formatBilingualName(way.tags, { labelMode });
+    if (roadLabel) {
+      addPolylineStreetZones(streetZones, roadLabel, roadInfo.zoneType, pts, width, height, 3);
     }
   }
 
@@ -4622,7 +4697,8 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     const tags = way.tags || {};
     let houseNumber = tags["addr:housenumber"] ? String(tags["addr:housenumber"]) : "";
     let street = tags["addr:street"] ? String(tags["addr:street"]) : "";
-    let bName = tags.name ? String(tags.name) : "";
+    let streetEn = tags["addr:street:en"] ? String(tags["addr:street:en"]) : "";
+    let bName = formatBilingualName(tags, { labelMode });
 
     // Match nearby OSM address node if the building polygon itself lacks addr:housenumber
     if (!houseNumber) {
@@ -4645,18 +4721,22 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
         usedAddrIndices.add(bestIdx);
         houseNumber = addressNodes[bestIdx].houseNumber;
         street = street || addressNodes[bestIdx].street;
+        streetEn = streetEn || addressNodes[bestIdx].streetEn || "";
         bName = bName || addressNodes[bestIdx].name;
       }
     }
 
-    const address = houseNumber && street
-      ? `${houseNumber} ${street}`
-      : houseNumber || bName || "";
+    const formattedAddr = formatInternationalAddress(
+      { "addr:housenumber": houseNumber, "addr:street": street, "addr:street:en": streetEn },
+      { labelMode, countryCode }
+    );
+    const address = formattedAddr || bName || "";
     const bounds = { minX, minY, maxX, maxY };
+    const streetMatchBlob = `${street} ${streetEn}`.toLowerCase();
     const matchesOriginAddr =
       Boolean(originAddrParts.houseNumber) &&
       houseNumber.toLowerCase() === originAddrParts.houseNumber.toLowerCase() &&
-      (!originAddrParts.streetToken || street.toLowerCase().includes(originAddrParts.streetToken));
+      (!originAddrParts.streetToken || streetMatchBlob.includes(originAddrParts.streetToken));
     const isHomeBase =
       matchesOriginAddr ||
       (homeX >= minX && homeX <= maxX && homeY >= minY && homeY <= maxY);

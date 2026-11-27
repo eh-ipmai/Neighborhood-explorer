@@ -72,25 +72,44 @@ export function abbreviateStreetName(name) {
 }
 
 export function normalizeStreetKey(name) {
-  return abbreviateStreetName(name).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const raw = abbreviateStreetName(name)
+    .toLowerCase()
+    .replace(/·/g, " ")
+    // Strip common Hebrew street prefixes ("רחוב" = Street, "שדרות" = Boulevard, "דרך" = Road/Way)
+    .replace(/(?:^|\s)(?:רחוב|רח׳|רח'|שדרות|שד׳|שד'|דרך)\s+/gu, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+  return raw;
 }
 
 /**
- * Extract street portion from a house address like "565 Boylston St" -> "boylston st".
+ * Extract street portion from either US ("565 Boylston St") or Israeli/European ("Emek Refaim 24", "רחוב יפו 40") addresses.
  */
 export function extractStreetFromAddress(address) {
   if (!address) return "";
-  const cleaned = String(address).trim().replace(/^\d+[a-zA-Z-]*\s+/, "");
-  return normalizeStreetKey(cleaned);
+  const raw = String(address).trim().split(",")[0].trim();
+  // Leading house number: "565 Boylston St"
+  if (/^\d+[a-zA-Z\u0590-\u05FF-]*\s+/.test(raw)) {
+    return normalizeStreetKey(raw.replace(/^\d+[a-zA-Z\u0590-\u05FF-]*\s+/, ""));
+  }
+  // Trailing house number: "Emek Refaim 24" or "עמק רפאים 24א"
+  if (/\s+\d+[a-zA-Z\u0590-\u05FF-]*$/.test(raw)) {
+    return normalizeStreetKey(raw.replace(/\s+\d+[a-zA-Z\u0590-\u05FF-]*$/, ""));
+  }
+  return normalizeStreetKey(raw);
 }
 
 /**
- * Extract just the house/porch number from an address like "565 Boylston St" -> "#565".
+ * Extract just the house/porch number from either leading ("565 Boylston St") or trailing ("Emek Refaim 24") addresses.
  */
 export function extractHouseNumber(address) {
   if (!address) return "";
-  const m = String(address).trim().match(/^(\d+[a-zA-Z-]*)\b/);
-  return m ? `#${m[1]}` : "";
+  const raw = String(address).trim().split(",")[0].trim();
+  const lead = raw.match(/^(\d+[a-zA-Z\u0590-\u05FF-]*)(?:\s|$)/);
+  if (lead) return `#${lead[1]}`;
+  const trail = raw.match(/\s+(\d+[a-zA-Z\u0590-\u05FF-]*)$/);
+  if (trail) return `#${trail[1]}`;
+  return "";
 }
 
 /**

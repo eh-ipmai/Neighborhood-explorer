@@ -1499,6 +1499,46 @@
         color: #fff4be;
       }
 
+      /* Authentic Jerusalem Stone / Israeli Blue-and-White Street Sign Styling when playing in Israel! */
+      body[data-sign-style="jerusalem_stone"] .sign-blade,
+      body[data-sign-style="israel_blue"] .sign-blade {
+        background: linear-gradient(180deg, #fcfaf3 0%, #efe8d8 100%);
+        border: 3px solid #1a4f9c;
+        color: #153c78;
+        text-shadow: none;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), inset 0 0 0 2px #d9ccb0;
+      }
+
+      body[data-sign-style="jerusalem_stone"] #street-banner:not(.unknown),
+      body[data-sign-style="israel_blue"] #street-banner:not(.unknown) {
+        background: linear-gradient(180deg, #245ca8 0%, #17407a 100%);
+        border-color: #f0e4c8;
+        outline-color: #d9c598;
+      }
+
+      .studio-quick-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+      }
+
+      .studio-quick-chip {
+        border: 1px solid rgba(230, 184, 76, 0.45);
+        background: rgba(244, 211, 94, 0.12);
+        color: #fff2be;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .studio-quick-chip:hover {
+        background: rgba(244, 211, 94, 0.24);
+      }
+
       @media (hover: hover) and (pointer: fine) {
         .dpad {
           opacity: 0.5;
@@ -1715,11 +1755,16 @@
           <!-- Tab 1: Build New Town from Any Address -->
           <div class="studio-panel active" data-studio-panel="build">
             <div class="studio-muted">
-              Enter any street address in the country! We'll fetch real roads, houses, parks, libraries, shops &amp; cemeteries from OpenStreetMap and build a playable 16-bit RPG in 30–90 seconds.
+              Enter any street address worldwide (Israel, US, Europe &amp; beyond)! We'll fetch real roads, houses, parks, libraries, shops &amp; cemeteries from OpenStreetMap, match local stone/trees/grass, and build a playable 16-bit RPG in 30–90 seconds.
             </div>
             <div>
               <label class="studio-field-label" for="studio-address">Starting Home Address</label>
-              <input id="studio-address" type="text" placeholder="e.g., 1204 Barton Springs Rd, Austin, TX" autocomplete="street-address" />
+              <input id="studio-address" type="text" dir="auto" placeholder="e.g., Emek Refaim 24, Jerusalem, Israel · or 1204 Barton Springs Rd, Austin, TX" autocomplete="street-address" />
+              <div class="studio-quick-row">
+                <button class="studio-quick-chip" type="button" data-quick-addr="Emek Refaim 24, Jerusalem, Israel" data-quick-biome="israel_jerusalem">🕍 Jerusalem (Emek Refaim)</button>
+                <button class="studio-quick-chip" type="button" data-quick-addr="24 Dizengoff St, Tel Aviv, Israel" data-quick-biome="israel_coastal">🏖️ Tel Aviv (Dizengoff)</button>
+                <button class="studio-quick-chip" type="button" data-quick-addr="1204 Barton Springs Rd, Austin, TX" data-quick-biome="auto">🎸 Austin, TX</button>
+              </div>
             </div>
             <div class="studio-grid-2">
               <div>
@@ -1729,6 +1774,20 @@
               <div>
                 <label class="studio-field-label" for="studio-size">Neighborhood Map Size</label>
                 <select id="studio-size"></select>
+              </div>
+            </div>
+            <div class="studio-grid-2">
+              <div>
+                <label class="studio-field-label" for="studio-biome">Regional Biome &amp; Architecture</label>
+                <select id="studio-biome"></select>
+              </div>
+              <div>
+                <label class="studio-field-label" for="studio-labels">Street &amp; Place Labels</label>
+                <select id="studio-labels">
+                  <option value="bilingual">🌐 Bilingual (English · עברית / Local)</option>
+                  <option value="en">🇬🇧 English First (Local fallback)</option>
+                  <option value="local">🗺️ Local Language Only</option>
+                </select>
               </div>
             </div>
 
@@ -1763,6 +1822,15 @@
           <div class="studio-panel" data-studio-panel="places">
             <div class="studio-muted">
               Customizing: <strong id="studio-active-town-badge" style="color:#fff4be;">Current Neighborhood</strong>
+            </div>
+
+            <div class="studio-box">
+              <h4>🎨 Switch Regional Biome (Grass, Trees, Stone &amp; Roads)</h4>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <select id="studio-active-biome" style="flex:1;"></select>
+                <button id="btn-studio-apply-biome" class="studio-btn primary" type="button">Apply Biome</button>
+              </div>
+              <div id="studio-biome-status" class="studio-status"></div>
             </div>
 
             <div class="studio-box">

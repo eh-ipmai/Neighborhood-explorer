@@ -1005,8 +1005,10 @@ export function clipPolylineOutsideZones(pts, zones) {
 
 /**
  * Create a fast spatially-indexed 4x HD Vector Road Renderer bound to `worldMap.vectorRoads`.
+ * Supports regional road styles (US double-yellow vs Israel/Europe white centerlines)
+ * and regional curb styles (granite vs Israeli blue-white / red-white painted limestone curbs!).
  */
-export function createVectorRoadRenderer(worldMap, chunkTiles = 8) {
+export function createVectorRoadRenderer(worldMap, chunkTiles = 8, biomeConfig = null) {
   const vr = worldMap?.vectorRoads;
   if (!vr || !Array.isArray(vr.roads) || vr.roads.length === 0) {
     return {
@@ -1015,6 +1017,11 @@ export function createVectorRoadRenderer(worldMap, chunkTiles = 8) {
       queryChunkRoads: () => [],
     };
   }
+  const isIsraelRoad = biomeConfig?.roadStyle === "israel";
+  const isIsraelCurb = biomeConfig?.curbStyle === "israel";
+  const centerPaint = isIsraelRoad ? ROAD_COLORS.whitePaint : ROAD_COLORS.yellowPaint;
+  const curbTopCol = isIsraelCurb ? "#f0e8d5" : ROAD_COLORS.curbTop;
+  const curbShadowCol = isIsraelCurb ? "#6e6556" : ROAD_COLORS.curbShadow;
 
   const parsedRoads = vr.roads
     .map((r) => {
@@ -1192,9 +1199,9 @@ export function createVectorRoadRenderer(worldMap, chunkTiles = 8) {
             ? usableW * (0.5 - road.lanesFwd / totalLanes)
             : 0;
 
-        // Gap between the two yellow stripes (~0.095 tiles ≈ 57cm visual separation -> crisp 3.5px dark channel at 4x HD!)
+        // Gap between the two stripes (US double-yellow vs Israel crisp double/solid white!)
         const stripeHalfGap = Math.max(0.065, Math.min(0.095, road.widthTiles * 0.055));
-        ctx.strokeStyle = ROAD_COLORS.yellowPaint;
+        ctx.strokeStyle = centerPaint;
         ctx.lineWidth = Math.max(1.8, 0.78 * scaleUnit);
         ctx.setLineDash([]);
         strokePolyline(ctx, offsetPolyline(run, centerShift - stripeHalfGap), tx0, ty0, pxPerTile);
@@ -1228,8 +1235,8 @@ export function createVectorRoadRenderer(worldMap, chunkTiles = 8) {
       }
 
       if (road.divider === "dashed_yellow") {
-        // Single crisp dashed yellow centerline for collector/unclassified streets
-        ctx.strokeStyle = ROAD_COLORS.yellowPaint;
+        // Single crisp dashed centerline (yellow in US, white in Israel/Europe)
+        ctx.strokeStyle = centerPaint;
         ctx.lineWidth = Math.max(1.8, 0.82 * scaleUnit);
         ctx.setLineDash([8.0 * scaleUnit, 9.0 * scaleUnit]);
         strokePolyline(ctx, run, tx0, ty0, pxPerTile);
@@ -1298,26 +1305,44 @@ export function createVectorRoadRenderer(worldMap, chunkTiles = 8) {
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
 
-    // --- LAYER 1: Beveled 3D Granite Curb Outer Highlight ---
-    ctx.strokeStyle = ROAD_COLORS.curbTop;
+    // --- LAYER 1: Beveled 3D Curb Outer Highlight (Granite or Jerusalem Limestone + Israeli Blue/White & Red/White Curbs!) ---
+    ctx.strokeStyle = curbTopCol;
     for (const r of roads) {
       ctx.lineWidth = r.widthTiles * pxPerTile + 3.2 * scaleUnit;
       strokePolyline(ctx, r.pts, tx0, ty0, pxPerTile);
     }
-    ctx.fillStyle = ROAD_COLORS.curbTop;
+    if (isIsraelCurb) {
+      // Iconic Israeli alternating blue-and-white (residential parking) & red-and-white (no-parking main roads) curbs!
+      ctx.save();
+      ctx.lineCap = "butt";
+      for (const r of roads) {
+        if (r.cls === "highway") continue;
+        const stripeCol = r.cls === "main" ? "#cc332b" : "#225eb5";
+        ctx.lineWidth = r.widthTiles * pxPerTile + 3.0 * scaleUnit;
+        ctx.strokeStyle = "#f7f5ef";
+        ctx.setLineDash([]);
+        strokePolyline(ctx, r.pts, tx0, ty0, pxPerTile);
+        ctx.strokeStyle = stripeCol;
+        ctx.setLineDash([5.5 * scaleUnit, 5.5 * scaleUnit]);
+        strokePolyline(ctx, r.pts, tx0, ty0, pxPerTile);
+      }
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+    ctx.fillStyle = curbTopCol;
     for (const tc of localCircles) {
       ctx.beginPath();
       ctx.arc((tc.x - tx0) * pxPerTile, (tc.y - ty0) * pxPerTile, tc.radiusTiles * pxPerTile + 1.6 * scaleUnit, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // --- LAYER 2: Dark Granite Curb Face & Gutter Shadow ---
-    ctx.strokeStyle = ROAD_COLORS.curbShadow;
+    // --- LAYER 2: Dark Curb Face & Gutter Shadow ---
+    ctx.strokeStyle = curbShadowCol;
     for (const r of roads) {
       ctx.lineWidth = r.widthTiles * pxPerTile + 1.5 * scaleUnit;
       strokePolyline(ctx, r.pts, tx0, ty0, pxPerTile);
     }
-    ctx.fillStyle = ROAD_COLORS.curbShadow;
+    ctx.fillStyle = curbShadowCol;
     for (const tc of localCircles) {
       ctx.beginPath();
       ctx.arc((tc.x - tx0) * pxPerTile, (tc.y - ty0) * pxPerTile, tc.radiusTiles * pxPerTile + 0.75 * scaleUnit, 0, Math.PI * 2);

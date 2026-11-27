@@ -10,6 +10,7 @@
 import { buildGraveyardMask } from "./graveyards.js";
 import { getNavigationSubgrid } from "./subgrid.js";
 import { isNewtonCentreMap } from "./neighborhood_meta.js";
+import { getBiomeConfig } from "./biomes.js";
 
 const TILE_PARK = 11;
 const TILE_DIRT = 9;
@@ -169,12 +170,19 @@ export function buildParkFeatures(worldMap, excludedGrid = null) {
   }
 
   // 2. Automatically populate large & medium PARK clusters across the whole neighborhood
-  //    Pass A: Large athletic fields (baseball diamonds & soccer fields) in spacious parks
+  //    Pass A: Large athletic fields (baseball/soccer in US; soccer pitches in Israel/Europe!)
+  const biomeConfig = getBiomeConfig(worldMap);
+  const preferSoccerOnly = biomeConfig.parkSports === "soccer_primary";
   for (let ty = 3; ty < height - 10; ty += 4) {
     for (let tx = 3; tx < width - 10; tx += 4) {
       if (base[ty * width + tx] !== TILE_PARK || occupiedGrid[ty * width + tx]) continue;
       const h = hash2d(tx, ty);
-      if (h % 2 === 0) {
+      if (preferSoccerOnly) {
+        if (canPlace(tx, ty, 8, 5, [TILE_PARK], 5)) {
+          markField("soccer_field", tx, ty, 8, 5);
+          continue;
+        }
+      } else if (h % 2 === 0) {
         if (canPlace(tx, ty, 7, 7, [TILE_PARK, TILE_DIRT], 5)) {
           markField("baseball_diamond", tx, ty, 7, 7);
           continue;

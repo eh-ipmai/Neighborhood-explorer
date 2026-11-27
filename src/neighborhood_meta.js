@@ -6,6 +6,8 @@
  * (565 Boylston St) map, saves, and custom landmarks.
  */
 
+import { getBiomeConfig, getDrivingSideForCountry } from "./biomes.js";
+
 export const LEGACY_SAVE_STORAGE_KEY = "neighborhood_explorer_save_v1";
 export const LEGACY_HOUSE_COLORS_STORAGE_KEY = "neighborhood_explorer_house_colors_v1";
 
@@ -29,17 +31,33 @@ export function isNewtonCentreMap(worldMap) {
   return name.includes("565 boylston") || name.includes("newton centre");
 }
 
+function shortHashStr(str = "") {
+  let h = 2166136261;
+  const s = String(str || "");
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36).slice(0, 6);
+}
+
 /**
- * Create a clean, URL/storage-safe slug from a string.
+ * Create a clean, URL/storage-safe slug from a string (Unicode-safe with hash fallback
+ * so Hebrew, Arabic, Japanese, or other non-Latin names never collide!).
  */
 export function slugifyNeighborhood(str) {
-  return (
-    String(str || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .slice(0, 48) || "custom_neighborhood"
-  );
+  const raw = String(str || "").trim();
+  const ascii = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48);
+  if (ascii && ascii.length >= 2) {
+    return ascii;
+  }
+  if (!raw) return "custom_neighborhood";
+  const prefix = ascii ? `${ascii}_` : "place_";
+  return `${prefix}${shortHashStr(raw)}`;
 }
 
 /**
@@ -64,19 +82,36 @@ export function extractOriginAddress(origin = {}, meta = {}) {
 }
 
 /**
- * Parse a leading house number + street prefix from an address string like "565 Boylston St".
+ * Parse a house number + street token from either US ("565 Boylston St")
+ * or Israeli/European ("Emek Refaim 24", "עמק רפאים 24", "Friedrichstraße 43") addresses.
  */
 export function parseAddressParts(address = "") {
-  const cleaned = String(address || "").trim();
+  const cleaned = String(address || "").trim().split(",")[0].trim();
   if (!cleaned) return { houseNumber: "", streetToken: "" };
-  const match = cleaned.match(/^(\d+[a-zA-Z-]*)\s+(.+)$/);
-  if (!match) return { houseNumber: "", streetToken: cleaned.toLowerCase() };
-  const houseNumber = match[1].trim();
-  const streetMain = match[2]
-    .split(",")[0]
+
+  let houseNumber = "";
+  let rawStreet = cleaned;
+
+  const leading = cleaned.match(/^(\d+[a-zA-Z\u0590-\u05FF-]*)\s+(.+)$/);
+  const trailing = !leading ? cleaned.match(/^(.+?)\s+(\d+[a-zA-Z\u0590-\u05FF-]*)$/) : null;
+
+  if (leading) {
+    houseNumber = leading[1].trim();
+    rawStreet = leading[2].trim();
+  } else if (trailing) {
+    rawStreet = trailing[1].trim();
+    houseNumber = trailing[2].trim();
+  }
+
+  const streetMain = rawStreet
+    .split("·")[0]
     .trim()
     .toLowerCase()
-    .replace(/\b(street|st|avenue|ave|road|rd|drive|dr|lane|ln|court|ct|place|pl|terrace|ter|circle|cir|boulevard|blvd|parkway|pkwy|way)\b\.?/g, "")
+    .replace(/^(?:רחוב|רח׳|רח'|שדרות|שד׳|דרך)\s+/u, "")
+    .replace(
+      /\b(street|st|avenue|ave|road|rd|drive|dr|lane|ln|court|ct|place|pl|terrace|ter|circle|cir|boulevard|blvd|parkway|pkwy|way)\b\.?/g,
+      ""
+    )
     .replace(/\s+/g, " ")
     .trim();
   return { houseNumber, streetToken: streetMain };
@@ -102,6 +137,11 @@ export function getNeighborhoodMeta(worldMap) {
     (rawMeta.heroName && String(rawMeta.heroName).trim()) ||
     (isNewton ? "Liam" : "Explorer");
   const preset = rawMeta.preset || (isNewton ? "newton" : "generic");
+  const countryCode = String(rawMeta.countryCode || (isNewton ? "us" : "")).toLowerCase();
+  const drivingSide = rawMeta.drivingSide || getDrivingSideForCountry(countryCode);
+  const labelMode = rawMeta.labelMode || "bilingual";
+  const biomeConfig = getBiomeConfig(worldMap);
+  const biome = rawMeta.biome || biomeConfig.id;
   const id =
     (rawMeta.id && String(rawMeta.id).trim()) ||
     (isNewton ? "newton_centre" : slugifyNeighborhood(`${homeAddress}_${townName}`));
@@ -114,6 +154,11 @@ export function getNeighborhoodMeta(worldMap) {
     cityShort,
     homeAddress,
     heroName,
+    countryCode,
+    drivingSide,
+    labelMode,
+    biome,
+    biomeConfig,
     saveStorageKey: isNewton
       ? LEGACY_SAVE_STORAGE_KEY
       : `neighborhood_explorer_save_${id}_v1`,

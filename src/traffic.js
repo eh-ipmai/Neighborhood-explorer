@@ -183,6 +183,7 @@ function buildVectorTrafficNetwork(worldMap) {
       name: raw.name || "",
       cls: raw.cls || "residential",
       roadClass,
+      drivingSide: worldMap?.meta?.drivingSide || "right",
       oneway: Boolean(raw.oneway),
       roundabout: Boolean(raw.roundabout),
       lanes: Math.max(1, raw.lanes || 2),
@@ -308,7 +309,8 @@ function buildVectorTrafficNetwork(worldMap) {
  * Compute lateral right-hand lane offset (in logical pixels, positive = right of travel direction)
  * using each vehicle's true road-contact width so cars, trucks, and bikes NEVER clip sidewalks or medians!
  */
-function computeLaneOffsetPx(road, dirSign, laneSlot, kind) {
+function computeLaneOffsetPx(road, dirSign, laneSlot, kind, drivingSide = "right") {
+  const sideSign = drivingSide === "left" ? -1 : 1;
   const halfW = road.halfWidthPx;
   const fp = VEHICLE_FOOTPRINT[kind] || VEHICLE_FOOTPRINT.car;
   // Keep outer wheels & body strictly inside the paved asphalt curb/median edge
@@ -322,7 +324,7 @@ function computeLaneOffsetPx(road, dirSign, laneSlot, kind) {
   if (road.oneway) {
     const laneCount = Math.max(1, road.lanes || 1);
     if (laneCount === 1) {
-      if (kind === "bike") return Math.min(maxSafeOffset, Math.max(0, halfW * 0.28));
+      if (kind === "bike") return sideSign * Math.min(maxSafeOffset, Math.max(0, halfW * 0.28));
       return 0;
     }
     const usable = maxSafeOffset * 2;
@@ -331,22 +333,22 @@ function computeLaneOffsetPx(road, dirSign, laneSlot, kind) {
     return Math.max(-maxSafeOffset, Math.min(maxSafeOffset, rawOff));
   }
 
-  // Two-way street: stay strictly on the RIGHT-HAND side of the centerline (positive offset),
-  // collapsing smoothly toward the paved centerline on narrow residential streets!
+  // Two-way street: stay strictly on the country's travel side of the centerline
+  // (positive = right-hand traffic like US/Israel; negative = left-hand traffic like UK/Japan/Australia!)
   const dirLanes = Math.max(1, dirSign > 0 ? road.lanesFwd : road.lanesBwd);
   if (dirLanes >= 2 && maxSafeOffset >= 6.0) {
     const innerEdge = 2.0;
     const span = Math.max(0, maxSafeOffset - innerEdge);
     const laneIdx = Math.abs(laneSlot) % dirLanes;
     const rawOff = innerEdge + (span * (laneIdx + 0.5)) / dirLanes;
-    return Math.max(0, Math.min(maxSafeOffset, rawOff));
+    return sideSign * Math.max(0, Math.min(maxSafeOffset, rawOff));
   }
 
   // Single lane per direction (two-way avenue or residential street)
   if (kind === "bike") {
-    return Math.min(maxSafeOffset, Math.max(0, halfW * 0.48));
+    return sideSign * Math.min(maxSafeOffset, Math.max(0, halfW * 0.48));
   }
-  return Math.min(maxSafeOffset, Math.max(0, halfW * 0.36));
+  return sideSign * Math.min(maxSafeOffset, Math.max(0, halfW * 0.36));
 }
 
 /**
@@ -387,7 +389,7 @@ function sampleVectorRoadPose(road, distAlong, dirSign, laneSlot, kind, prevDir 
   // Right-hand normal in screen Y-down coords: East (1,0) -> South (0,1) = (-uy, ux)
   const rnx = -uy;
   const rny = ux;
-  const desiredOffset = computeLaneOffsetPx(road, dirSign, laneSlot, kind);
+  const desiredOffset = computeLaneOffsetPx(road, dirSign, laneSlot, kind, road.drivingSide || "right");
 
   let chosenOffset = desiredOffset;
   if (subgrid) {

@@ -17,6 +17,11 @@ import { geocodeAddress } from "./geocode.js";
 import { fetchOsmDataForBbox } from "./osm_fetch.js";
 import { generateLandmarksAndQuests } from "./poi_landmarks.js";
 import { slugifyNeighborhood } from "../neighborhood_meta.js";
+import {
+  BIOME_PRESETS,
+  detectBiomeForLocation,
+  getDrivingSideForCountry,
+} from "../biomes.js";
 import { snapToWalkableTile } from "../quests.js";
 import { projectLatLonToFloatTile } from "../vector_roads.js";
 
@@ -26,7 +31,7 @@ export const SIZE_PRESETS = {
     width: 256,
     height: 256,
     scale: 6,
-    label: "Walkable (~0.95 mi × 0.95 mi)",
+    label: "Walkable (~1.5 km / 0.95 mi)",
     eta: "~20–40 sec",
   },
   standard: {
@@ -34,7 +39,7 @@ export const SIZE_PRESETS = {
     width: 384,
     height: 384,
     scale: 6,
-    label: "Standard (~1.4 mi × 1.4 mi)",
+    label: "Standard (~2.3 km / 1.4 mi)",
     eta: "~45–75 sec",
   },
   full: {
@@ -42,7 +47,7 @@ export const SIZE_PRESETS = {
     width: 512,
     height: 512,
     scale: 6,
-    label: "Full Town (~1.9 mi × 1.9 mi)",
+    label: "Full Town (~3.1 km / 1.9 mi)",
     eta: "~1–2 min",
   },
 };
@@ -115,6 +120,9 @@ export async function buildNeighborhoodPackage({
   lon = null,
   heroName = "Explorer",
   townOverride = "",
+  biome = "auto",
+  labelMode = "bilingual",
+  countryCode = "",
   size = "walkable",
   width = null,
   height = null,
@@ -135,12 +143,15 @@ export async function buildNeighborhoodPackage({
   if (typeof lat === "number" && Number.isFinite(lat) && typeof lon === "number" && Number.isFinite(lon)) {
     const cleanAddr = address || "Home Base";
     const town = townOverride || "Your Neighborhood";
+    const resolvedCc = String(countryCode || "").trim().toLowerCase();
     geo = {
       lat,
       lon,
       homeAddress: cleanAddr,
       townName: town,
       cityShort: town.split(",")[0].trim() || "Town",
+      countryCode: resolvedCc,
+      drivingSide: getDrivingSideForCountry(resolvedCc),
     };
   } else {
     onProgress?.({ stage: "geocode", completed: 0, total: 1, message: `Looking up "${address}"...` });
@@ -157,6 +168,20 @@ export async function buildNeighborhoodPackage({
     });
   }
 
+  const resolvedCountryCode = String(countryCode || geo.countryCode || "").trim().toLowerCase();
+  const resolvedDrivingSide = geo.drivingSide || getDrivingSideForCountry(resolvedCountryCode);
+  const resolvedBiome =
+    biome && biome !== "auto" && BIOME_PRESETS[biome]
+      ? biome
+      : detectBiomeForLocation({
+          lat: geo.lat,
+          lon: geo.lon,
+          countryCode: resolvedCountryCode,
+          townName: geo.townName,
+          preset: "generic",
+        });
+  const resolvedLabelMode = ["bilingual", "en", "local"].includes(labelMode) ? labelMode : "bilingual";
+
   const meta = {
     id: slugifyNeighborhood(`${geo.homeAddress}_${geo.townName}`),
     preset: "generic",
@@ -164,6 +189,10 @@ export async function buildNeighborhoodPackage({
     cityShort: geo.cityShort,
     homeAddress: geo.homeAddress,
     heroName: String(heroName || "Explorer").trim() || "Explorer",
+    countryCode: resolvedCountryCode,
+    drivingSide: resolvedDrivingSide,
+    biome: resolvedBiome,
+    labelMode: resolvedLabelMode,
     generatedAt: new Date().toISOString(),
   };
 

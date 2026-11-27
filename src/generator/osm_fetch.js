@@ -37,6 +37,10 @@ export function buildOverpassQuery(bbox, timeoutSec = 45) {
   way["amenity"="parking"](${bboxStr});
   node["highway"="crossing"](${bboxStr});
   way["building"](${bboxStr});
+  relation["type"="multipolygon"]["natural"="water"](${bboxStr});
+  relation["type"="multipolygon"]["leisure"~"park|garden|nature_reserve"](${bboxStr});
+  relation["type"="multipolygon"]["landuse"~"cemetery|grave_yard|forest|grass"](${bboxStr});
+  relation["type"="multipolygon"]["building"](${bboxStr});
   node["addr:housenumber"](${bboxStr});
   node["amenity"~"library|ice_cream|cafe|fire_station|school|college|university|place_of_worship|restaurant|fast_food|townhall|community_centre|museum|arts_centre|post_office"](${bboxStr});
   node["shop"~"bakery|pastry|coffee|books|confectionery|supermarket|convenience|greengrocer|deli"](${bboxStr});

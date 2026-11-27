@@ -4,6 +4,8 @@
  * and the in-browser "Build My Neighborhood" Studio.
  */
 
+import { getDrivingSideForCountry, hasNonLatinScript } from "../biomes.js";
+
 const NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search";
 
 const US_STATE_ABBR = {
@@ -37,6 +39,9 @@ export function parseNominatimResult(item, fallbackQuery = "") {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
 
   const addr = item.address || {};
+  const countryCode = addr.country_code ? String(addr.country_code).trim().toLowerCase() : "";
+  const country = addr.country ? String(addr.country).trim() : "";
+  const drivingSide = getDrivingSideForCountry(countryCode);
   const houseNumber = addr.house_number ? String(addr.house_number).trim() : "";
   const road = addr.road || addr.pedestrian || addr.footway || addr.neighbourhood || "";
   const city =
@@ -48,11 +53,16 @@ export function parseNominatimResult(item, fallbackQuery = "") {
     addr.municipality ||
     addr.county ||
     "";
-  const stateAbbr = abbreviateState(addr.state || "");
+  const isUs = countryCode === "us" || (!countryCode && Boolean(US_STATE_ABBR[String(addr.state || "").trim().toLowerCase()]));
+  const stateAbbr = isUs ? abbreviateState(addr.state || "") : String(addr.state || "").trim();
+
+  const streetFirstCountry =
+    countryCode === "il" ||
+    ["de", "at", "ch", "nl", "pl", "es", "it", "cz", "se", "no", "dk", "fi"].includes(countryCode);
 
   let homeAddress = "";
   if (houseNumber && road) {
-    homeAddress = `${houseNumber} ${road}`;
+    homeAddress = streetFirstCountry ? `${road} ${houseNumber}` : `${houseNumber} ${road}`;
   } else if (road) {
     homeAddress = String(road);
   } else if (item.name && String(item.name).trim()) {
@@ -64,10 +74,23 @@ export function parseNominatimResult(item, fallbackQuery = "") {
   }
 
   const cityShort = String(city || homeAddress || "Your Town").trim();
-  const townName =
-    city && stateAbbr
-      ? `${city}, ${stateAbbr}`
-      : city || stateAbbr || String(item.display_name || "Your Neighborhood").split(",").slice(0, 2).join(",").trim();
+  let townName = "";
+  if (isUs && city && stateAbbr) {
+    townName = `${city}, ${stateAbbr}`;
+  } else if (countryCode === "il") {
+    const cleanCity = city || (hasNonLatinScript(homeAddress) ? "Jerusalem" : homeAddress);
+    townName = cleanCity ? `${cleanCity}, Israel` : "Israel";
+  } else if (city && country && countryCode !== "us") {
+    townName = `${city}, ${country}`;
+  } else if (city && stateAbbr) {
+    townName = `${city}, ${stateAbbr}`;
+  } else {
+    townName =
+      city ||
+      stateAbbr ||
+      country ||
+      String(item.display_name || "Your Neighborhood").split(",").slice(0, 2).join(",").trim();
+  }
 
   return {
     lat,
@@ -77,6 +100,9 @@ export function parseNominatimResult(item, fallbackQuery = "") {
     townName,
     cityShort,
     state: stateAbbr,
+    country,
+    countryCode,
+    drivingSide,
     postcode: addr.postcode ? String(addr.postcode) : "",
     osmType: item.osm_type || null,
     osmId: item.osm_id || null,
@@ -92,6 +118,7 @@ export async function geocodeAddress(
   {
     fetchImpl = globalThis.fetch,
     countryCodes = "",
+    acceptLanguage = "en,he",
     limit = 3,
     timeoutMs = 15000,
     userAgent = "NeighborhoodExplorerRPG/1.0 (https://github.com/eh-ipmai/Neighborhood-explorer)",
@@ -113,6 +140,9 @@ export async function geocodeAddress(
   });
   if (countryCodes) {
     params.set("countrycodes", countryCodes);
+  }
+  if (acceptLanguage) {
+    params.set("accept-language", acceptLanguage);
   }
 
   const url = `${NOMINATIM_SEARCH_URL}?${params.toString()}`;
@@ -136,7 +166,9 @@ export async function geocodeAddress(
     }
     const results = await res.json();
     if (!Array.isArray(results) || results.length === 0) {
-      throw new Error(`Could not find address "${trimmed}". Try adding a city and state (e.g., "123 Main St, Austin, TX").`);
+      throw new Error(
+        `Could not find address "${trimmed}". Try adding a city and country or state (e.g., "Emek Refaim 24, Jerusalem, Israel" or "123 Main St, Austin, TX").`
+      );
     }
     const parsed = parseNominatimResult(results[0], trimmed);
     if (!parsed) {

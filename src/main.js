@@ -188,11 +188,13 @@ function buildNeighborhoodProps(
   parkOccupiedGrid = null,
   graveyardGrid = null,
   spawnTile = null,
-  landmarks = []
+  landmarks = [],
+  biomeConfig = null
 ) {
   const { width, height } = worldMap.dimensions;
   const base = worldMap.layers.base;
   const tileSize = worldMap.tileSize || 16;
+  const allowLeafPiles = biomeConfig ? Boolean(biomeConfig.hasLeafPiles) : true;
   const subgrid = getNavigationSubgrid(worldMap);
   const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
   const isPropOnVectorRoad = (tx, ty) => {
@@ -260,8 +262,8 @@ function buildNeighborhoodProps(
         }
       }
 
-      // Crunchy autumn leaf piles along road curbs & sidewalks (never sitting mid-asphalt on vector roads!)
-      if ((cur === 2 || cur === 3) && (!graveyardGrid || graveyardGrid[idx] === 0) && !isPropOnVectorRoad(tx, ty)) {
+      // Crunchy autumn leaf piles along road curbs & sidewalks (only in autumn biomes!)
+      if (allowLeafPiles && (cur === 2 || cur === 3) && (!graveyardGrid || graveyardGrid[idx] === 0) && !isPropOnVectorRoad(tx, ty)) {
         const n = base[(ty - 1) * width + tx];
         const s = base[(ty + 1) * width + tx];
         const w = base[ty * width + (tx - 1)];
@@ -307,7 +309,7 @@ function buildNeighborhoodProps(
           ) {
             lampBlockUsed.add(blockKey);
             streetLamps.push({ tx, ty });
-          } else if ((((tx * 41 + ty * 29) >>> 0) % 13 === 0) && (!graveyardGrid || graveyardGrid[idx] === 0)) {
+          } else if (allowLeafPiles && (((tx * 41 + ty * 29) >>> 0) % 13 === 0) && (!graveyardGrid || graveyardGrid[idx] === 0)) {
             const pile = { tx, ty, variant: (tx + ty) & 1, lastScatter: -99 };
             leafPiles.push(pile);
             leafPileMap.set(`${tx},${ty}`, pile);
@@ -396,8 +398,13 @@ async function boot() {
   const { worldMap, landmarks, quests, baseHouseColors, activePack } = await loadActiveNeighborhoodData();
 
   const neighborhoodMeta = getNeighborhoodMeta(worldMap);
+  const biomeConfig = neighborhoodMeta.biomeConfig;
   const houseColorsStorageKey = neighborhoodMeta.houseColorsStorageKey || HOUSE_COLORS_STORAGE_KEY;
   const homeAddrLabel = neighborhoodMeta.homeAddress;
+  if (typeof document !== "undefined" && document.body) {
+    document.body.dataset.biome = biomeConfig?.id || "new_england_autumn";
+    document.body.dataset.signStyle = biomeConfig?.streetSignStyle || "us_green";
+  }
   const heroName = neighborhoodMeta.heroName;
   const cityShort = neighborhoodMeta.cityShort;
 
@@ -487,7 +494,8 @@ async function boot() {
     combinedOccupied,
     graveyardFeatures.graveyardGrid,
     worldMap.origin?.spawnTile,
-    questSystem.landmarks
+    questSystem.landmarks,
+    biomeConfig
   );
   const streetSignSystem = createStreetSignSystem(worldMap, {
     parkOccupiedGrid: combinedOccupied,
@@ -587,7 +595,7 @@ async function boot() {
       bakedHouseCache.set(building.id, entry);
       return entry;
     }
-    const baked = bakeSnesBuildingCanvas(building, tileSize * 2, normalizedColorMap);
+    const baked = bakeSnesBuildingCanvas(building, tileSize * 2, normalizedColorMap, biomeConfig);
     baked.canvas.__pixelScale = 0.5;
     entry = {
       canvas: baked.canvas,
@@ -609,7 +617,7 @@ async function boot() {
       bakedStackCache.set(building.id, entry);
       return entry;
     }
-    const stack = bake32BitHouseStack(building, tileSize, normalizedColorMap);
+    const stack = bake32BitHouseStack(building, tileSize, normalizedColorMap, biomeConfig);
     entry = { ...stack, version: paintRevision };
     bakedStackCache.set(building.id, entry);
     if (bakedStackCache.size > MAX_BAKED_STACKS) {
@@ -921,10 +929,11 @@ async function boot() {
     width: VIEW_W,
     height: VIEW_H,
     canvas: document.getElementById("game-canvas"),
-    background: [62, 42, 36],
+    background: biomeConfig?.backgroundRgb || [62, 42, 36],
+    sunWash: biomeConfig?.sunWash || null,
   });
 
-  const atlas = buildSnesSpriteAtlas("autumn_golden");
+  const atlas = buildSnesSpriteAtlas(biomeConfig?.paletteKey || "autumn_golden", biomeConfig);
   await k.registerSprites(atlas);
 
   function resetToHome() {
@@ -4091,7 +4100,7 @@ async function boot() {
   const CHUNK_SCALE = 4;
   const MAX_GROUND_CHUNKS = 48;
   const groundChunkCache = new Map();
-  const vectorRoadRenderer = createVectorRoadRenderer(worldMap, GROUND_CHUNK_TILES);
+  const vectorRoadRenderer = createVectorRoadRenderer(worldMap, GROUND_CHUNK_TILES, biomeConfig);
   const useVectorRoads = vectorRoadRenderer.hasVectorRoads();
 
   function blitAtlasToCtx(ctx, name, xLog, yLog) {

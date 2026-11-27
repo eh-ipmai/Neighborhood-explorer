@@ -15,6 +15,7 @@
 import { buildGraveyardMask, getGraveyardGhostPos } from "./graveyards.js";
 import { getNavigationSubgrid } from "./subgrid.js";
 import { getNeighborhoodMeta } from "./neighborhood_meta.js";
+import { getBiomeConfig } from "./biomes.js";
 
 export const CRITTER_ARCHETYPES = {
   squirrel: {
@@ -201,21 +202,43 @@ export function buildStreetLife(
   const collision = worldMap.layers.collision;
   const tileSize = worldMap.tileSize || 16;
   const neighborhoodMeta = getNeighborhoodMeta(worldMap);
+  const biomeConfig = getBiomeConfig(worldMap);
+  const isIsraelWildlife = biomeConfig.wildlifeStyle === "israel";
   const localChants = neighborhoodMeta.isNewton
     ? PROTEST_CHANTS
-    : PROTEST_CHANTS.map((c) =>
-        c === "HONK FOR NEWTON!" ? `HONK FOR ${neighborhoodMeta.cityShort.toUpperCase().slice(0, 12)}!` : c
-      );
+    : isIsraelWildlife
+      ? [
+          "MORE FALAFEL!",
+          "MORE ICE CREAM!",
+          "FRESH BUREKAS!",
+          "SAVE THE CATS!",
+          "WARM PITA NOW!",
+          "READ MY SIGN!!",
+          "NO MORE HOMEWORK!",
+          `SHALOM ${neighborhoodMeta.cityShort.toUpperCase().slice(0, 10)}!`,
+        ]
+      : PROTEST_CHANTS.map((c) =>
+          c === "HONK FOR NEWTON!" ? `HONK FOR ${neighborhoodMeta.cityShort.toUpperCase().slice(0, 12)}!` : c
+        );
   const localQuips = neighborhoodMeta.isNewton
     ? PROTESTOR_QUIPS
-    : [
-        "Hi neighbor! Marching for MORE ICE CREAM really works up an appetite — got a snack to share?",
-        "We're marching peacefully for MORE PARKS & AUTUMN LEAVES! A snack break sounds amazing!",
-        "Hey there, Explorer! Our tummies are rumbling — share a snack and we'll happily step aside!",
-        `FREE SNACKS FOR EVERY KID IN ${neighborhoodMeta.cityShort.toUpperCase()}! Speaking of which, do you have a snack?`,
-        "Ooh, marching down the neighborhood sidewalk makes us super hungry! Got a snack from your kitchen?",
-        "Thanks for saying hi, neighbor! If you have a snack to share, we'll gladly clear the sidewalk!",
-      ];
+    : isIsraelWildlife
+      ? [
+          "Shalom neighbor! Marching for MORE FALAFEL & GLIDA really works up an appetite — got a snack to share?",
+          "We're marching peacefully for MORE SHADED PARKS & OLIVE TREES! A snack break sounds amazing!",
+          "Hey there, Explorer! Our tummies are rumbling — share a snack and we'll happily step aside!",
+          `FRESH BUREKAS FOR EVERY KID IN ${neighborhoodMeta.cityShort.toUpperCase()}! Speaking of which, got a snack?`,
+          "Ooh, strolling in the warm sunshine makes us super hungry! Got a snack from your kitchen?",
+          "Todah for saying hi, neighbor! If you have a snack to share, we'll gladly clear the sidewalk!",
+        ]
+      : [
+          "Hi neighbor! Marching for MORE ICE CREAM really works up an appetite — got a snack to share?",
+          "We're marching peacefully for MORE PARKS & GREEN TREES! A snack break sounds amazing!",
+          "Hey there, Explorer! Our tummies are rumbling — share a snack and we'll happily step aside!",
+          `FREE SNACKS FOR EVERY KID IN ${neighborhoodMeta.cityShort.toUpperCase()}! Speaking of which, do you have a snack?`,
+          "Ooh, marching down the neighborhood sidewalk makes us super hungry! Got a snack from your kitchen?",
+          "Thanks for saying hi, neighbor! If you have a snack to share, we'll gladly clear the sidewalk!",
+        ];
   const home = spawnTile || worldMap.origin?.spawnTile || { x: Math.floor(width / 2), y: Math.floor(height / 2) };
   const subgrid = getNavigationSubgrid(worldMap);
   const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
@@ -493,26 +516,30 @@ export function buildStreetLife(
     }
   }
 
-  // --- 2. Guarantee 3 Roving Wild Turkeys near Home Base (within 4..13 tiles!) ---
-  for (let r = 4; r <= 14 && turkeys.length < 3; r++) {
-    for (let dy = -r; dy <= r && turkeys.length < 3; dy++) {
-      for (let dx = -r; dx <= r && turkeys.length < 3; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-        const tx = home.x + dx;
-        const ty = home.y + dy;
-        if (usedSpots.has(`${tx},${ty}`)) continue;
-        if (!isTurkeyTile(base, collision, width, height, tx, ty)) continue;
-        if (base[ty * width + tx] === 2) continue; // start off the road
-        if (!isClearOffVectorRoad(tx, ty)) continue;
-        if (parkOccupiedGrid && parkOccupiedGrid[ty * width + tx] === 1) continue;
-        if (effectiveGraveGrid && effectiveGraveGrid[ty * width + tx] !== 0) continue;
-        addTurkey(tx, ty, turkeys.length);
+  // --- 2. Guarantee 3 Roving Wild Turkeys near Home Base (only in New England / US turkey regions;
+  //        in Israel, Jerusalem & Tel Aviv neighborhoods have iconic friendly street cats instead!) ---
+  if (!isIsraelWildlife) {
+    for (let r = 4; r <= 14 && turkeys.length < 3; r++) {
+      for (let dy = -r; dy <= r && turkeys.length < 3; dy++) {
+        for (let dx = -r; dx <= r && turkeys.length < 3; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const tx = home.x + dx;
+          const ty = home.y + dy;
+          if (usedSpots.has(`${tx},${ty}`)) continue;
+          if (!isTurkeyTile(base, collision, width, height, tx, ty)) continue;
+          if (base[ty * width + tx] === 2) continue; // start off the road
+          if (!isClearOffVectorRoad(tx, ty)) continue;
+          if (parkOccupiedGrid && parkOccupiedGrid[ty * width + tx] === 1) continue;
+          if (effectiveGraveGrid && effectiveGraveGrid[ty * width + tx] !== 0) continue;
+          addTurkey(tx, ty, turkeys.length);
+        }
       }
     }
   }
 
-  // --- 2b. Guarantee at least 1 Wild Squirrel, 1 Prowling Cat, and 1 Runaway Dog (with trailing leash!) near Home Base! ---
-  for (const kind of ["squirrel", "cat", "dog"]) {
+  // --- 2b. Guarantee local neighborhood critters near Home Base! ---
+  const nearCritterKinds = isIsraelWildlife ? ["cat", "cat", "dog"] : ["squirrel", "cat", "dog"];
+  for (const kind of nearCritterKinds) {
     let placedNear = false;
     for (let r = 5; r <= 18 && !placedNear; r++) {
       for (let dy = -r; dy <= r && !placedNear; dy++) {
@@ -569,46 +596,48 @@ export function buildStreetLife(
     }
   }
 
-  // --- 4. Distribute Roving Wild Turkeys evenly across EVERY neighborhood sector of the entire map! ---
-  const turkeyCell = width >= 200 ? 30 : 14;
-  for (let cy0 = 8; cy0 < height - 8; cy0 += turkeyCell) {
-    for (let cx0 = 8; cx0 < width - 8; cx0 += turkeyCell) {
-      const cellW = Math.min(turkeyCell, width - 8 - cx0);
-      const cellH = Math.min(turkeyCell, height - 8 - cy0);
-      // Spawn 1-2 roving turkeys (small flocks!) in each neighborhood sector
-      const wantInCell = hash2(cx0, cy0, 97) % 3 === 0 ? 2 : 1;
-      let placedCount = 0;
-      for (let attempt = 0; attempt < wantInCell; attempt++) {
-        const seedX = cx0 + (hash2(cx0 + attempt * 7, cy0, 19) % Math.max(1, cellW));
-        const seedY = cy0 + (hash2(cx0, cy0 + attempt * 11, 29) % Math.max(1, cellH));
-        let placed = false;
-        const maxSearchR = Math.min(12, Math.floor(turkeyCell / 2));
-        for (let r = 0; r <= maxSearchR && !placed; r++) {
-          for (let dy = -r; dy <= r && !placed; dy++) {
-            for (let dx = -r; dx <= r && !placed; dx++) {
-              if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-              const ox = seedX + dx;
-              const oy = seedY + dy;
-              if (ox < cx0 || ox >= cx0 + cellW || oy < cy0 || oy >= cy0 + cellH) continue;
-              if (usedSpots.has(`${ox},${oy}`)) continue;
-              if (!isTurkeyTile(base, collision, width, height, ox, oy)) continue;
-              if (base[oy * width + ox] === 2) continue;
-              if (!isClearOffVectorRoad(ox, oy)) continue;
-              if (parkOccupiedGrid && parkOccupiedGrid[oy * width + ox] === 1) continue;
-              if (effectiveGraveGrid && effectiveGraveGrid[oy * width + ox] !== 0) continue;
-              addTurkey(ox, oy, turkeys.length);
-              placed = true;
-              placedCount++;
+  // --- 4. Distribute Roving Wild Turkeys evenly across EVERY neighborhood sector (US/New England) ---
+  if (!isIsraelWildlife) {
+    const turkeyCell = width >= 200 ? 30 : 14;
+    for (let cy0 = 8; cy0 < height - 8; cy0 += turkeyCell) {
+      for (let cx0 = 8; cx0 < width - 8; cx0 += turkeyCell) {
+        const cellW = Math.min(turkeyCell, width - 8 - cx0);
+        const cellH = Math.min(turkeyCell, height - 8 - cy0);
+        // Spawn 1-2 roving turkeys (small flocks!) in each neighborhood sector
+        const wantInCell = hash2(cx0, cy0, 97) % 3 === 0 ? 2 : 1;
+        let placedCount = 0;
+        for (let attempt = 0; attempt < wantInCell; attempt++) {
+          const seedX = cx0 + (hash2(cx0 + attempt * 7, cy0, 19) % Math.max(1, cellW));
+          const seedY = cy0 + (hash2(cx0, cy0 + attempt * 11, 29) % Math.max(1, cellH));
+          let placed = false;
+          const maxSearchR = Math.min(12, Math.floor(turkeyCell / 2));
+          for (let r = 0; r <= maxSearchR && !placed; r++) {
+            for (let dy = -r; dy <= r && !placed; dy++) {
+              for (let dx = -r; dx <= r && !placed; dx++) {
+                if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+                const ox = seedX + dx;
+                const oy = seedY + dy;
+                if (ox < cx0 || ox >= cx0 + cellW || oy < cy0 || oy >= cy0 + cellH) continue;
+                if (usedSpots.has(`${ox},${oy}`)) continue;
+                if (!isTurkeyTile(base, collision, width, height, ox, oy)) continue;
+                if (base[oy * width + ox] === 2) continue;
+                if (!isClearOffVectorRoad(ox, oy)) continue;
+                if (parkOccupiedGrid && parkOccupiedGrid[oy * width + ox] === 1) continue;
+                if (effectiveGraveGrid && effectiveGraveGrid[oy * width + ox] !== 0) continue;
+                addTurkey(ox, oy, turkeys.length);
+                placed = true;
+                placedCount++;
+              }
             }
           }
+          if (placedCount >= wantInCell) break;
         }
-        if (placedCount >= wantInCell) break;
       }
     }
   }
 
-  // --- 4b. Distribute Wild Squirrels, Prowling Cats & Runaway Leash-Trailing Dogs across EVERY neighborhood sector! ---
-  const critterOrder = ["squirrel", "cat", "dog"];
+  // --- 4b. Distribute Local Neighborhood Critters across EVERY neighborhood sector! ---
+  const critterOrder = isIsraelWildlife ? ["cat", "cat", "dog"] : ["squirrel", "cat", "dog"];
   const critterCell = width >= 200 ? 34 : 16;
   let cellCounter = 0;
   for (let cy0 = 8; cy0 < height - 8; cy0 += critterCell) {

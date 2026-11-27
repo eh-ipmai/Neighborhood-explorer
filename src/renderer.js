@@ -50,7 +50,7 @@ function normalizeKey(key) {
  * streets, smooth curved curbs, double-yellow centerlines & crosswalks render at
  * razor-sharp 720p while 16-bit & 32-bit pixel sprites stay crisp exact integer scales!
  */
-function createCanvas2DRenderer({ canvas, width, height, background }) {
+function createCanvas2DRenderer({ canvas, width, height, background, sunWash = null }) {
   const HD = 4;
   canvas.width = width * HD;
   canvas.height = height * HD;
@@ -69,9 +69,17 @@ function createCanvas2DRenderer({ canvas, width, height, background }) {
     canvas.height * 0.12,
     canvas.width * 0.65
   );
-  sunGrad.addColorStop(0, "rgba(255, 196, 98, 0.22)");
-  sunGrad.addColorStop(0.45, "rgba(255, 148, 68, 0.08)");
-  sunGrad.addColorStop(1, "rgba(255, 130, 56, 0)");
+  const washStops =
+    Array.isArray(sunWash) && sunWash.length >= 2
+      ? sunWash
+      : [
+          { stop: 0, color: "rgba(255, 196, 98, 0.22)" },
+          { stop: 0.45, color: "rgba(255, 148, 68, 0.08)" },
+          { stop: 1, color: "rgba(255, 130, 56, 0)" },
+        ];
+  for (const s of washStops) {
+    sunGrad.addColorStop(s.stop, s.color);
+  }
   const keysDown = new Set();
   const keyPressHandlers = new Map();
   const updateHandlers = [];
@@ -257,6 +265,7 @@ export function createRenderer({
   width = 320,
   height = 180,
   background = [20, 28, 24],
+  sunWash = null,
 }) {
   if (!isIPadOrIOSDevice() && isWebGLSupported()) {
     try {
@@ -408,5 +417,5 @@ export function createRenderer({
     console.info("WebGL not supported in this browser; using crisp HTML5 2D Canvas renderer.");
   }
 
-  return createCanvas2DRenderer({ canvas, width, height, background });
+  return createCanvas2DRenderer({ canvas, width, height, background, sunWash });
 }

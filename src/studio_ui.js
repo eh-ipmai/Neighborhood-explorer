@@ -23,6 +23,7 @@ import {
   addCustomQuestToPack,
 } from "./generator/pack_builder.js";
 import { geocodeAddress } from "./generator/geocode.js";
+import { BIOME_LIST } from "./biomes.js";
 import {
   BUILTIN_NEWTON_ID,
   saveNeighborhoodPack,
@@ -75,6 +76,9 @@ export function createNeighborhoodStudio({
   const inputAddress = document.getElementById("studio-address");
   const inputHero = document.getElementById("studio-hero");
   const selectSize = document.getElementById("studio-size");
+  const selectBiome = document.getElementById("studio-biome");
+  const selectLabels = document.getElementById("studio-labels");
+  const quickAddrButtons = Array.from(document.querySelectorAll("[data-quick-addr]"));
   const prePlacesListEl = document.getElementById("studio-pre-places-list");
   const inputPreName = document.getElementById("studio-pre-name");
   const inputPreAddr = document.getElementById("studio-pre-addr");
@@ -88,6 +92,9 @@ export function createNeighborhoodStudio({
 
   // Tab 2: Places & Goals
   const activeTownBadgeEl = document.getElementById("studio-active-town-badge");
+  const selectActiveBiome = document.getElementById("studio-active-biome");
+  const btnApplyBiome = document.getElementById("btn-studio-apply-biome");
+  const biomeStatusEl = document.getElementById("studio-biome-status");
   const placesListEl = document.getElementById("studio-places-list");
   const inputPlaceName = document.getElementById("studio-place-name");
   const selectPlaceLocMode = document.getElementById("studio-place-loc-mode");
@@ -215,15 +222,38 @@ export function createNeighborhoodStudio({
     renderPreBuildPlaces();
   });
 
+  // Quick-fill neighborhood starter chips (Jerusalem, Tel Aviv, Austin, etc.)
+  for (const chip of quickAddrButtons) {
+    chip.addEventListener("click", () => {
+      if (inputAddress && chip.dataset.quickAddr) {
+        inputAddress.value = chip.dataset.quickAddr;
+      }
+      if (selectBiome && chip.dataset.quickBiome) {
+        selectBiome.value = chip.dataset.quickBiome;
+      }
+      if (selectLabels && chip.dataset.quickBiome?.startsWith("israel_")) {
+        selectLabels.value = "bilingual";
+      }
+      setStatus(buildErrorEl, "");
+      inputAddress?.focus();
+    });
+  }
+
   // --- Tab 1: Build New Neighborhood Live in the Browser! ---
   btnBuildTown?.addEventListener("click", async () => {
     if (isBuilding) return;
     const address = String(inputAddress?.value || "").trim();
     const heroName = String(inputHero?.value || "").trim() || "Explorer";
     const size = String(selectSize?.value || "walkable");
+    const biome = String(selectBiome?.value || "auto");
+    const labelMode = String(selectLabels?.value || "bilingual");
 
     if (!address) {
-      setStatus(buildErrorEl, 'Please enter a street address (e.g., "1204 Barton Springs Rd, Austin, TX").', true);
+      setStatus(
+        buildErrorEl,
+        'Please enter a street address (e.g., "Emek Refaim 24, Jerusalem, Israel" or "1204 Barton Springs Rd, Austin, TX").',
+        true
+      );
       inputAddress?.focus();
       return;
     }
@@ -243,6 +273,8 @@ export function createNeighborhoodStudio({
         address,
         heroName,
         size,
+        biome,
+        labelMode,
         customPlacesConfig: preBuildPlaces.length > 0 ? { places: preBuildPlaces } : null,
         onProgress: (ev) => {
           let pct = 10;
@@ -290,6 +322,21 @@ export function createNeighborhoodStudio({
   function renderPlacesAndQuestsTab() {
     if (activeTownBadgeEl) {
       activeTownBadgeEl.textContent = `${workingPack.meta?.townName || "Neighborhood"} • ${workingPack.meta?.homeAddress || "Home Base"}`;
+    }
+    if (selectActiveBiome) {
+      if (selectActiveBiome.options.length === 0) {
+        for (const b of BIOME_LIST) {
+          const opt = document.createElement("option");
+          opt.value = b.id;
+          opt.textContent = b.label;
+          selectActiveBiome.appendChild(opt);
+        }
+      }
+      selectActiveBiome.value =
+        workingPack.worldMap?.meta?.biome ||
+        workingPack.meta?.biome ||
+        neighborhoodMeta?.biome ||
+        "new_england_autumn";
     }
     if (placesListEl) {
       placesListEl.innerHTML = "";
@@ -360,6 +407,37 @@ export function createNeighborhoodStudio({
     inputPlaceAddr.placeholder = isHere
       ? "Will place right where your explorer is standing!"
       : "Street address (e.g., 42 Oak St)";
+  });
+
+  btnApplyBiome?.addEventListener("click", async () => {
+    const nextBiome = String(selectActiveBiome?.value || "").trim();
+    if (!nextBiome) return;
+    try {
+      workingPack = {
+        ...workingPack,
+        meta: {
+          ...(workingPack.meta || {}),
+          biome: nextBiome,
+        },
+        worldMap: {
+          ...(workingPack.worldMap || {}),
+          meta: {
+            ...(workingPack.worldMap?.meta || {}),
+            biome: nextBiome,
+          },
+        },
+      };
+      await persistWorkingPack();
+      setStatus(biomeStatusEl, "✅ Switched biome! Reloading neighborhood with new grass, trees, stone & roads...");
+      setTimeout(() => {
+        const u = new URL(window.location.href);
+        u.searchParams.delete("pack");
+        u.searchParams.set("neighborhood", workingPack.meta.id);
+        window.location.href = u.toString();
+      }, 350);
+    } catch (err) {
+      setStatus(biomeStatusEl, `Could not switch biome: ${err.message}`, true);
+    }
   });
 
   btnAddPlace?.addEventListener("click", async () => {
@@ -606,6 +684,20 @@ export function createNeighborhoodStudio({
       opt.value = preset.id;
       opt.textContent = `${preset.label} · ${preset.eta}`;
       selectSize.appendChild(opt);
+    }
+  }
+
+  // Populate Regional Biome & Architecture dropdown (Auto-Detect + Israel & World biomes!)
+  if (selectBiome && selectBiome.options.length === 0) {
+    const autoOpt = document.createElement("option");
+    autoOpt.value = "auto";
+    autoOpt.textContent = "✨ Auto-Detect from Address";
+    selectBiome.appendChild(autoOpt);
+    for (const b of BIOME_LIST) {
+      const opt = document.createElement("option");
+      opt.value = b.id;
+      opt.textContent = b.label;
+      selectBiome.appendChild(opt);
     }
   }
 
