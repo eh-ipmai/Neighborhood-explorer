@@ -107,6 +107,7 @@ import {
   saveNeighborhoodPack,
 } from "./generator/pack_store.js";
 import { validateNeighborhoodPack } from "./generator/pack_builder.js";
+import { createNeighborhoodStudio, isEditableElementFocused } from "./studio_ui.js";
 
 const VIEW_W = 320;
 const VIEW_H = 180;
@@ -2032,30 +2033,100 @@ async function boot() {
   });
   ui.setNeighborhoodMeta(neighborhoodMeta);
 
+  const studio = createNeighborhoodStudio({
+    worldMap,
+    landmarks,
+    quests,
+    houseColors: rawColorEntries,
+    neighborhoodMeta,
+    activePack,
+    getPlayerTile: () => ({
+      x: Math.floor(playerState.x / tileSize),
+      y: Math.floor(playerState.y / tileSize),
+    }),
+    onShowToast: (msg) => ui?.showSafetyToast(msg, 2800),
+  });
+
+  function isTextOrStudioBlocked() {
+    return studio.isOpen() || isEditableElementFocused();
+  }
+
   k.onKeyPress("c", () => {
+    if (isTextOrStudioBlocked()) return;
     showDebug = !showDebug;
   });
-  k.onKeyPress("g", cycleNavModeAction);
-  k.onKeyPress("o", toggleHeroOutfitMode);
-  k.onKeyPress("i", toggleHouseInside);
-  k.onKeyPress("n", triggerGiveSnack);
+  k.onKeyPress("g", () => {
+    if (isTextOrStudioBlocked()) return;
+    cycleNavModeAction();
+  });
+  k.onKeyPress("o", () => {
+    if (isTextOrStudioBlocked()) return;
+    toggleHeroOutfitMode();
+  });
+  k.onKeyPress("i", () => {
+    if (isTextOrStudioBlocked()) return;
+    toggleHouseInside();
+  });
+  k.onKeyPress("n", () => {
+    if (isTextOrStudioBlocked()) return;
+    triggerGiveSnack();
+  });
   k.onKeyPress("h", () => {
-    if (botwTeleport || roadHitCutscene) return;
+    if (isTextOrStudioBlocked() || botwTeleport || roadHitCutscene) return;
     resetToHome();
   });
-  k.onKeyPress("m", togglePaperMap);
-  k.onKeyPress("tab", togglePaperMap);
-  k.onKeyPress("p", openPaintForNearbyHouse);
-  k.onKeyPress("space", triggerLookOrInteract);
-  k.onKeyPress("e", triggerLookOrInteract);
-  k.onKeyPress("enter", triggerLookOrInteract);
-  k.onKeyPress("l", performLookBothWays);
-  k.onKeyPress("j", triggerSwordSlash);
-  k.onKeyPress("f", triggerSwordSlash);
-  k.onKeyPress("x", triggerSwordSlash);
-  k.onKeyPress("k", triggerSiddurDispel);
-  k.onKeyPress("r", triggerSiddurDispel);
-  k.onKeyPress("z", triggerSiddurDispel);
+  k.onKeyPress("m", () => {
+    if (isTextOrStudioBlocked()) return;
+    togglePaperMap();
+  });
+  k.onKeyPress("tab", () => {
+    if (isTextOrStudioBlocked()) return;
+    togglePaperMap();
+  });
+  k.onKeyPress("p", () => {
+    if (isTextOrStudioBlocked()) return;
+    openPaintForNearbyHouse();
+  });
+  k.onKeyPress("space", () => {
+    if (isTextOrStudioBlocked()) return;
+    triggerLookOrInteract();
+  });
+  k.onKeyPress("e", () => {
+    if (isTextOrStudioBlocked()) return;
+    triggerLookOrInteract();
+  });
+  k.onKeyPress("enter", () => {
+    if (isTextOrStudioBlocked()) return;
+    triggerLookOrInteract();
+  });
+  k.onKeyPress("l", () => {
+    if (isTextOrStudioBlocked()) return;
+    performLookBothWays();
+  });
+  k.onKeyPress("j", () => {
+    if (isTextOrStudioBlocked()) return;
+    triggerSwordSlash();
+  });
+  k.onKeyPress("f", () => {
+    if (isTextOrStudioBlocked()) return;
+    triggerSwordSlash();
+  });
+  k.onKeyPress("x", () => {
+    if (isTextOrStudioBlocked()) return;
+    triggerSwordSlash();
+  });
+  k.onKeyPress("k", () => {
+    if (isTextOrStudioBlocked()) return;
+    triggerSiddurDispel();
+  });
+  k.onKeyPress("r", () => {
+    if (isTextOrStudioBlocked()) return;
+    triggerSiddurDispel();
+  });
+  k.onKeyPress("z", () => {
+    if (isTextOrStudioBlocked()) return;
+    triggerSiddurDispel();
+  });
 
   function readInput() {
     let dx = 0;
@@ -2619,7 +2690,7 @@ async function boot() {
       return;
     }
 
-    if (ui.isDialogueOpen() || ui.isPaintOpen() || ui.isSignOpen()) {
+    if (ui.isDialogueOpen() || ui.isPaintOpen() || ui.isSignOpen() || studio.isOpen()) {
       playerState.moving = false;
       return;
     }

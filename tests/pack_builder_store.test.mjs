@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 
 import {
   buildNeighborhoodPackage,
@@ -8,6 +10,7 @@ import {
   removePlaceFromPack,
   addCustomQuestToPack,
 } from "../src/generator/pack_builder.js";
+import { isEditableElementFocused } from "../src/studio_ui.js";
 import {
   BUILTIN_NEWTON_ID,
   saveNeighborhoodPack,
@@ -101,4 +104,29 @@ test("pack_builder validates packs and supports adding/removing custom places & 
   await deleteNeighborhoodPack(summary.id);
   assert.equal(getActiveNeighborhoodId(), BUILTIN_NEWTON_ID);
   assert.equal(await loadNeighborhoodPack(summary.id), null);
+});
+
+test("Neighborhood Studio UI helpers & index.html DOM hooks are wired cleanly", () => {
+  assert.equal(isEditableElementFocused({ activeElement: { tagName: "INPUT" } }), true);
+  assert.equal(isEditableElementFocused({ activeElement: { tagName: "TEXTAREA" } }), true);
+  assert.equal(isEditableElementFocused({ activeElement: { tagName: "SELECT" } }), true);
+  assert.equal(isEditableElementFocused({ activeElement: { tagName: "CANVAS" } }), false);
+  assert.equal(isEditableElementFocused(null), false);
+
+  const html = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf8");
+  for (const id of [
+    "btn-studio",
+    "studio-modal",
+    "studio-address",
+    "studio-hero",
+    "studio-size",
+    "btn-studio-build",
+    "studio-place-name",
+    "btn-studio-add-place",
+    "btn-studio-add-quest",
+    "btn-studio-export-pack",
+    "btn-studio-import-pack",
+  ]) {
+    assert.ok(html.includes(`id="${id}"`), `index.html should contain #${id}`);
+  }
 });

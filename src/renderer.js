@@ -99,6 +99,10 @@ function createCanvas2DRenderer({ canvas, width, height, background }) {
   window.addEventListener("resize", fitLetterbox);
 
   window.addEventListener("keydown", (e) => {
+    const tag = String(e.target?.tagName || "").toUpperCase();
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.target?.isContentEditable) {
+      return;
+    }
     const key = normalizeKey(e.key);
     if (["left", "right", "up", "down", "space"].includes(key)) {
       e.preventDefault();

@@ -1194,6 +1194,311 @@
         filter: brightness(1.12);
       }
 
+      /* In-Browser "Build My Neighborhood" Studio Modal */
+      #studio-modal {
+        z-index: 75;
+        touch-action: auto;
+      }
+
+      .studio-card {
+        width: min(640px, 95vw);
+        max-height: 92vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: linear-gradient(180deg, #172e22 0%, #102118 100%);
+        color: #f4f7f1;
+        border: 3px solid var(--snes-gold);
+        outline: 2px solid #22180c;
+        border-radius: 14px;
+        padding: 14px 16px;
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.78);
+        touch-action: auto;
+      }
+
+      .studio-card input,
+      .studio-card textarea,
+      .studio-card select {
+        user-select: text;
+        -webkit-user-select: text;
+        touch-action: auto;
+        width: 100%;
+        padding: 9px 10px;
+        border-radius: 8px;
+        border: 1.5px solid rgba(230, 184, 76, 0.45);
+        background: rgba(9, 18, 13, 0.85);
+        color: #fff;
+        font-family: inherit;
+        font-size: 13px;
+      }
+
+      .studio-card input:focus,
+      .studio-card textarea:focus,
+      .studio-card select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(244, 211, 94, 0.22);
+      }
+
+      .studio-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .studio-header h3 {
+        margin: 0;
+        font-size: 15px;
+        color: var(--accent);
+      }
+
+      .studio-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-bottom: 12px;
+      }
+
+      .studio-tab {
+        padding: 8px 6px;
+        border-radius: 8px;
+        border: 1.5px solid rgba(230, 184, 76, 0.32);
+        background: rgba(255, 255, 255, 0.05);
+        color: #dce8de;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .studio-tab.active {
+        background: rgba(244, 211, 94, 0.22);
+        border-color: var(--accent);
+        color: #fff8d6;
+      }
+
+      .studio-body {
+        overflow-y: auto;
+        padding-right: 4px;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .studio-panel {
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .studio-panel.active {
+        display: flex;
+      }
+
+      .studio-field-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        color: #e8dbb0;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .studio-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      @media (max-width: 540px) {
+        .studio-grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .studio-box {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(230, 184, 76, 0.25);
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .studio-box h4 {
+        margin: 0;
+        font-size: 12px;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .studio-btn {
+        padding: 9px 14px;
+        border-radius: 999px;
+        border: 1.5px solid rgba(230, 184, 76, 0.55);
+        background: rgba(255, 255, 255, 0.08);
+        color: #f7f9f2;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .studio-btn.primary {
+        background: linear-gradient(180deg, #2d8a59 0%, #1a5e3b 100%);
+        border-color: var(--snes-gold);
+        color: #fffbe6;
+      }
+
+      .studio-btn.primary:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+
+      .studio-btn.danger {
+        border-color: rgba(255, 118, 108, 0.65);
+        color: #ffb8b2;
+        padding: 6px 10px;
+      }
+
+      .studio-progress-wrap {
+        display: none;
+        background: rgba(8, 16, 12, 0.78);
+        border: 1.5px solid var(--snes-gold);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+
+      .studio-progress-track {
+        width: 100%;
+        height: 10px;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: 6px;
+      }
+
+      .studio-progress-bar {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #5ce1e6, #6ee7a8, #f4d35e);
+        transition: width 0.25s ease;
+      }
+
+      .studio-status {
+        display: none;
+        font-size: 11.5px;
+        line-height: 1.45;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: rgba(110, 231, 168, 0.14);
+        border: 1px solid rgba(110, 231, 168, 0.45);
+        color: #d8ffe9;
+      }
+
+      .studio-status.error {
+        background: rgba(255, 92, 84, 0.16);
+        border-color: rgba(255, 118, 108, 0.65);
+        color: #ffd5d2;
+      }
+
+      .studio-muted {
+        font-size: 11px;
+        color: #b7cbbd;
+        line-height: 1.4;
+      }
+
+      .studio-row-chip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 9px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font-size: 11.5px;
+      }
+
+      .studio-mini-del {
+        border: none;
+        background: rgba(255, 100, 90, 0.2);
+        color: #ffbeb8;
+        border-radius: 6px;
+        padding: 2px 7px;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: 700;
+      }
+
+      .studio-check-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        max-height: 120px;
+        overflow-y: auto;
+      }
+
+      .studio-check-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(230, 184, 76, 0.28);
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      .studio-check-pill input {
+        width: auto;
+        margin: 0;
+      }
+
+      .studio-town-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1.5px solid rgba(230, 184, 76, 0.25);
+        font-size: 12px;
+      }
+
+      .studio-town-card.current {
+        border-color: var(--safe);
+        background: rgba(110, 231, 168, 0.12);
+      }
+
+      .studio-town-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+
+      .studio-active-pill {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--safe);
+        padding: 4px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--safe);
+      }
+
+      .drawer-item.studio-highlight {
+        border-color: rgba(244, 211, 94, 0.65);
+        background: rgba(244, 211, 94, 0.16);
+        color: #fff4be;
+      }
+
       @media (hover: hover) and (pointer: fine) {
         .dpad {
           opacity: 0.5;
@@ -1243,6 +1548,8 @@
       <div class="tools-menu-wrap">
         <button id="btn-tools-menu" type="button" aria-expanded="false" aria-controls="tools-drawer">⚙️ Menu</button>
         <div id="tools-drawer" role="menu" aria-label="Explorer Options">
+          <button id="btn-studio" class="drawer-item studio-highlight" type="button" role="menuitem">🌍 Build Neighborhood</button>
+          <div class="drawer-sep"></div>
           <button id="btn-gps" class="drawer-item" type="button" role="menuitem">🧭 Signs</button>
           <button id="btn-outfit" class="drawer-item" type="button" role="menuitem">👕 Polo</button>
           <button id="btn-paint" class="drawer-item" type="button" role="menuitem">🎨 Paint House</button>
@@ -1388,6 +1695,136 @@
         Mom is SO happy you're alive... but you got hit on the road! Always watch carefully for cars and bikes!
       </p>
       <button id="btn-gameover-retry" class="gameover-retry-btn" type="button">🔄 Try Again (5 Hearts ❤️❤️❤️❤️❤️)</button>
+    </div>
+
+    <!-- In-Browser "Build My Neighborhood" Studio Modal -->
+    <div id="studio-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Build My Neighborhood Studio">
+      <div class="studio-card">
+        <div class="studio-header">
+          <h3>🌍 Neighborhood Explorer Studio</h3>
+          <button id="btn-studio-close" class="mini-btn" type="button">Done ✕</button>
+        </div>
+
+        <div class="studio-tabs" role="tablist">
+          <button class="studio-tab active" type="button" data-studio-tab="build">🏗️ Build New Town</button>
+          <button class="studio-tab" type="button" data-studio-tab="places">📍 Places &amp; Goals</button>
+          <button class="studio-tab" type="button" data-studio-tab="towns">📦 My Towns &amp; Share</button>
+        </div>
+
+        <div class="studio-body">
+          <!-- Tab 1: Build New Town from Any Address -->
+          <div class="studio-panel active" data-studio-panel="build">
+            <div class="studio-muted">
+              Enter any street address in the country! We'll fetch real roads, houses, parks, libraries, shops &amp; cemeteries from OpenStreetMap and build a playable 16-bit RPG in 30–90 seconds.
+            </div>
+            <div>
+              <label class="studio-field-label" for="studio-address">Starting Home Address</label>
+              <input id="studio-address" type="text" placeholder="e.g., 1204 Barton Springs Rd, Austin, TX" autocomplete="street-address" />
+            </div>
+            <div class="studio-grid-2">
+              <div>
+                <label class="studio-field-label" for="studio-hero">Explorer (Kid's) Name</label>
+                <input id="studio-hero" type="text" placeholder="e.g., Maya" maxlength="24" />
+              </div>
+              <div>
+                <label class="studio-field-label" for="studio-size">Neighborhood Map Size</label>
+                <select id="studio-size"></select>
+              </div>
+            </div>
+
+            <div class="studio-box">
+              <h4>⭐ Optional: Add Important Family Places First</h4>
+              <div class="studio-grid-2">
+                <input id="studio-pre-name" type="text" placeholder="Place Name (e.g., Grandma's House)" />
+                <input id="studio-pre-addr" type="text" placeholder="Street Address (e.g., 42 Oak St)" />
+              </div>
+              <div style="display:flex; gap:8px;">
+                <input id="studio-pre-npc" type="text" placeholder="Who's there? (e.g., Grandma)" style="flex:1;" />
+                <button id="btn-studio-add-pre-place" class="studio-btn" type="button">+ Queue Place</button>
+              </div>
+              <div id="studio-pre-places-list" style="display:flex; flex-direction:column; gap:5px;"></div>
+            </div>
+
+            <div id="studio-build-error" class="studio-status error"></div>
+
+            <div id="studio-progress-wrap" class="studio-progress-wrap">
+              <div class="studio-progress-track">
+                <div id="studio-progress-bar" class="studio-progress-bar"></div>
+              </div>
+              <div id="studio-progress-text" class="studio-muted">Preparing...</div>
+            </div>
+
+            <button id="btn-studio-build" class="studio-btn primary" type="button" style="font-size:13.5px; padding:12px;">
+              🚀 Build My Neighborhood
+            </button>
+          </div>
+
+          <!-- Tab 2: Add Custom Places & Goals to Active Neighborhood -->
+          <div class="studio-panel" data-studio-panel="places">
+            <div class="studio-muted">
+              Customizing: <strong id="studio-active-town-badge" style="color:#fff4be;">Current Neighborhood</strong>
+            </div>
+
+            <div class="studio-box">
+              <h4>📍 Add Important Place</h4>
+              <div class="studio-grid-2">
+                <input id="studio-place-name" type="text" placeholder="Place Name (e.g., Grandma's House)" />
+                <select id="studio-place-loc-mode">
+                  <option value="address">Find by Street Address</option>
+                  <option value="here">Place Right Where I'm Standing</option>
+                </select>
+              </div>
+              <div class="studio-grid-2">
+                <input id="studio-place-addr" type="text" placeholder="Street address (e.g., 42 Oak St)" />
+                <input id="studio-place-npc" type="text" placeholder="Neighbor Name (e.g., Grandma)" />
+              </div>
+              <input id="studio-place-dialogue" type="text" placeholder="What do they say? (optional custom greeting!)" />
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+                <label class="studio-check-pill">
+                  <input id="studio-place-heal" type="checkbox" checked />
+                  <span>❤️ Heals Hearts &amp; Gives Snacks</span>
+                </label>
+                <button id="btn-studio-add-place" class="studio-btn primary" type="button">+ Add Place</button>
+              </div>
+              <div id="studio-place-status" class="studio-status"></div>
+            </div>
+
+            <div class="studio-box">
+              <h4>🎯 Add Custom Goal / Quest</h4>
+              <input id="studio-quest-title" type="text" placeholder="Goal Title (e.g., Visit Grandma & Ice Cream)" />
+              <div class="studio-muted">Pick 1–3 stops for this quest:</div>
+              <div id="studio-quest-places-pick" class="studio-check-grid"></div>
+              <div style="display:flex; justify-content:flex-end;">
+                <button id="btn-studio-add-quest" class="studio-btn primary" type="button">+ Add Goal</button>
+              </div>
+              <div id="studio-quest-status" class="studio-status"></div>
+            </div>
+
+            <div class="studio-box">
+              <h4>🗺️ Places in This Town</h4>
+              <div id="studio-places-list" style="display:flex; flex-direction:column; gap:5px; max-height:170px; overflow-y:auto;"></div>
+            </div>
+          </div>
+
+          <!-- Tab 3: Switch Saved Towns & Export / Import Shareable Packs -->
+          <div class="studio-panel" data-studio-panel="towns">
+            <div class="studio-muted">
+              Switch between Newton Centre and your custom neighborhoods, or export a single portable <code>.json</code> pack to share with family &amp; colleagues!
+            </div>
+            <div id="studio-saved-towns" style="display:flex; flex-direction:column; gap:8px;"></div>
+
+            <div class="studio-box">
+              <h4>📤 Share or Import a Neighborhood Pack</h4>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button id="btn-studio-export-pack" class="studio-btn primary" type="button">💾 Export Current Town (.json)</button>
+                <button id="btn-studio-import-pack" class="studio-btn" type="button">📥 Import Town Pack (.json)</button>
+                <input id="studio-import-file" type="file" accept=".json,application/json" style="display:none;" />
+              </div>
+              <div id="studio-share-status" class="studio-status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="/src/main.js"></script>
