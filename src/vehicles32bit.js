@@ -1192,7 +1192,7 @@ function bake32BitAmbulance(openDoors, flash, drawMiniText) {
   };
 }
 
-function bake32BitPoliceCruiser(flash = 0) {
+function bake32BitPoliceCruiser(flash = 0, drawMiniText = null) {
   const cw = 68;
   const ch = 40;
   const g = new PixelGrid(cw, ch);
@@ -1200,20 +1200,19 @@ function bake32BitPoliceCruiser(flash = 0) {
   const bodyBot = ch - 10;
   const bodyTop = 16;
 
-  // 1. Sleek Black-and-White Newton Police Interceptor Sedan Body!
+  // 1. Sleek Black-and-White Police Interceptor Sedan Body!
   g.rect(4, bodyTop, cw - 8, bodyBot - bodyTop, "#1e2430", "paint");
   g.rect(5, bodyTop, cw - 12, 3, "#3b4559", "paint");
   g.rect(cw - 16, bodyTop + 1, 13, bodyBot - bodyTop - 1, "#1e2430", "paint");
   g.rect(cw - 6, bodyTop + 3, 3, bodyBot - bodyTop - 3, "#1e2430", "paint");
-  // Crisp White Police Doors + Metallic Gold Newton Police Shield Badge!
+  // Crisp White Police Doors + Metallic Gold Police Shield Badge!
   g.rect(19, bodyTop, 28, bodyBot - bodyTop - 2, "#edf2f7", "chrome");
   g.rect(20, bodyTop, 26, 2, "#ffffff", "chrome");
   g.rect(19, bodyBot - 5, 28, 3, "#c4cfde", "chrome");
-  // Royal-blue interceptor side stripe + golden star badge on front door
-  g.rect(5, bodyTop + 6, cw - 11, 2, "#2464bd", "glass");
-  g.rect(36, bodyTop + 4, 5, 5, "#f4d35e", "light");
-  g.rect(37, bodyTop + 5, 3, 3, "#2464bd", "glass");
-  g.set(38, bodyTop + 6, "#fff6b8", "light");
+  // Royal-blue interceptor side stripe + golden star badge on rear quarter
+  g.rect(5, bodyTop + 7, cw - 11, 2, "#2464bd", "glass");
+  g.rect(41, bodyTop + 5, 4, 4, "#f4d35e", "light");
+  g.set(42, bodyTop + 6, "#2464bd", "glass");
 
   // 2. Sculpted White Roof + Angled Tinted Cabin + Officer Silhouette + A-Pillar Spotlight!
   const cabL = 13;
@@ -1256,6 +1255,9 @@ function bake32BitPoliceCruiser(flash = 0) {
 
   g.applySelOut({ ...BASE_SELOUT, paint: "#10141c" });
   const makePost = (isEast) => (ctx) => {
+    if (drawMiniText) {
+      drawMiniText(ctx, "POLICE", isEast ? 32 : 36, bodyTop + 1, "#183b7a", 1);
+    }
     const hx = isEast ? barX - 4 : cw - (barX + 16);
     ctx.fillStyle = flash === 0 ? "rgba(255, 40, 40, 0.44)" : "rgba(40, 140, 255, 0.44)";
     ctx.fillRect(hx, 0, 20, 6);
@@ -1357,7 +1359,7 @@ function bake32BitFireTruck(flash = 0, drawMiniText = null) {
   g.applySelOut({ ...BASE_SELOUT, paint: "#4a0a0a" });
   const makePost = (isEast) => (ctx) => {
     if (drawMiniText) {
-      drawMiniText(ctx, "NFD", isEast ? 34 : 62, 19, "#fff6c2", 1);
+      drawMiniText(ctx, "FIRE", isEast ? 41 : 65, 19, "#fff6c2", 1);
     }
     const bX = isEast ? barX - 4 : cw - (barX + 18);
     ctx.fillStyle = flash === 0 ? "rgba(255, 44, 44, 0.46)" : "rgba(255, 240, 180, 0.42)";
@@ -1419,9 +1421,9 @@ export function bake32BitVehicleSprites({ drawMiniText = null } = {}) {
     }
   }
 
-  // Hero-Grade Newton Police Interceptor Cruiser & Newton Fire Dept. Rescue Pumper!
+  // Police Interceptor Cruiser & Fire Rescue Pumper (2 Strobe Frames each!)
   for (let flash = 0; flash < 2; flash++) {
-    const pol = bake32BitPoliceCruiser(flash);
+    const pol = bake32BitPoliceCruiser(flash, drawMiniText);
     out[`police_car_e_${flash}`] = pol.east;
     out[`police_car_w_${flash}`] = pol.west;
 

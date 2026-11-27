@@ -103,10 +103,13 @@
     "sprite": "civic_hall",
     "discoveryXP": 40,
     "npcName": "Choir Leader Noah",
+    "healHearts": 2,
     "dialogue": [
-      "Welcome to Wilson Chapel on the hilltop! Listen closely and you can hear bells echoing toward Weeks Field."
+      "Welcome to Wilson Chapel on the hilltop! Listen closely and you can hear bells echoing toward Weeks Field.",
+      "Have a warm tea cake (+2 hearts!) and take this Pocket Prayer Book too — press K (or tap 📖 Prayer Book) to calm spooky graveyard foes!"
     ],
-    "rewardItem": "chime_keychain"
+    "rewardItem": "chime_keychain",
+    "bonusItem": "pocket_siddur"
   },
   {
     "id": "crystal_lake_beach",
@@ -150,11 +153,13 @@
     "sprite": "civic_hall",
     "discoveryXP": 45,
     "npcName": "Bellringer Eli",
+    "healHearts": 2,
     "dialogue": [
       "You're right in the heart of Newton Centre Square where Beacon Street meets Centre Street!",
-      "J.P. Licks and Newtonville Books are just east on Langley Road, and Crystal Lake is right down to the southwest!"
+      "Take this Stained-Glass Sunbeam Charm, a bake-sale treat (+2 hearts!), and a Pocket Prayer Book (press K) for your journey!"
     ],
-    "rewardItem": "centre_token"
+    "rewardItem": "stained_glass_charm",
+    "bonusItem": "pocket_siddur"
   },
   {
     "id": "jp_licks",
@@ -243,10 +248,13 @@
     "sprite": "civic_hall",
     "discoveryXP": 50,
     "npcName": "Violinist Zoe",
+    "healHearts": 2,
     "dialogue": [
-      "Walnut Street runs straight north from Newton Highlands right toward Newton Free Library!"
+      "Walnut Street runs straight north from Newton Highlands right toward Newton Free Library!",
+      "Enjoy a sweet treat (+2 hearts!) and take a Pocket Prayer Book (press K) to shine a peaceful light in spooky graveyards!"
     ],
-    "rewardItem": "music_note_pin"
+    "rewardItem": "music_note_pin",
+    "bonusItem": "pocket_siddur"
   },
   {
     "id": "route9_dunkin",
@@ -308,7 +316,7 @@
     "healHearts": 2,
     "dialogue": [
       "Shabbat Shalom! Try Dad's Spicy Cholent (+2 hearts & snacks!) for explosive explorer energy!",
-      "Take this Pocket Siddur too — press K (or tap 📖 Siddur) to dispel spooky ghosts & graveyard monsters!"
+      "Take this Pocket Prayer Book too — press K (or tap 📖 Prayer Book) to dispel spooky ghosts & graveyard monsters!"
     ],
     "rewardItem": "spicy_cholent",
     "bonusItem": "pocket_siddur"
@@ -325,7 +333,7 @@
     "healHearts": 2,
     "dialogue": [
       "Shalom, Explorer! Welcome to Congregation Shaarei Tefillah on Morseland Avenue!",
-      "Take this Pocket Siddur — press K (or tap 📖 Siddur) to shine a peaceful blessing that dispels bad guys!"
+      "Take this Pocket Prayer Book — press K (or tap 📖 Prayer Book) to shine a peaceful blessing that dispels spooky foes!"
     ],
     "rewardItem": "pocket_siddur"
   },
@@ -341,7 +349,7 @@
     "healHearts": 2,
     "dialogue": [
       "Welcome to Temple Emanuel on Ward Street! Head east down Ward Street to reach Ward Elementary Baseball Field!",
-      "Take a Pocket Siddur too — press K (or tap 📖 Siddur) whenever you need to dispel bad guys!"
+      "Take a Pocket Prayer Book too — press K (or tap 📖 Prayer Book) whenever you need to calm spooky foes!"
     ],
     "rewardItem": "songbook_star",
     "bonusItem": "pocket_siddur"
@@ -357,7 +365,7 @@
     "npcName": "Neighbor Avi",
     "healHearts": 2,
     "dialogue": [
-      "Shalom, Explorer! Have some warm honey cake (+2 hearts!) and take a Pocket Siddur to dispel bad guys (press K)!"
+      "Shalom, Explorer! Have some warm honey cake (+2 hearts!) and take a Pocket Prayer Book to calm spooky foes (press K)!"
     ],
     "rewardItem": "honey_cake",
     "bonusItem": "pocket_siddur"

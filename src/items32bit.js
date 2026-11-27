@@ -53,7 +53,7 @@ export function upgradeItemsAndFxTo32Bit(sprites) {
   // 1. 32x32 2x HD PICKUP ITEM SPRITES (Zero boxy 8-bit backgrounds!)
   // =========================================================================
 
-  // 1) Pocket Siddur (Closed — rich 3D angled royal-blue leather prayerbook w/ gold Star of David & crimson ribbon!)
+  // 1) Pocket Prayer Book (Closed — rich 3D angled royal-blue leather prayer book w/ universal golden sunburst & crimson ribbon!)
   {
     const { canvas, ctx } = makeHdCanvas(32, 32);
     // Soft golden aura behind book
@@ -82,18 +82,16 @@ export function upgradeItemsAndFxTo32Bit(sprites) {
     px(ctx, 21, 6, 2, 2, "#fff5b8");
     px(ctx, 12, 21, 2, 2, "#fff5b8");
     px(ctx, 21, 21, 2, 2, "#fff5b8");
-    // Crisp embossed Gold Star of David emblem on cover!
-    px(ctx, 17, 9, 2, 1, "#fff6b8");
-    px(ctx, 16, 10, 4, 1, "#f4d35e");
-    px(ctx, 14, 11, 8, 1, "#fff6b8");
-    px(ctx, 15, 12, 6, 1, "#f4d35e");
-    px(ctx, 16, 13, 4, 2, "#2e6fd1");
-    px(ctx, 15, 13, 1, 2, "#f4d35e");
-    px(ctx, 20, 13, 1, 2, "#f4d35e");
-    px(ctx, 15, 15, 6, 1, "#f4d35e");
-    px(ctx, 14, 16, 8, 1, "#fff6b8");
-    px(ctx, 16, 17, 4, 1, "#f4d35e");
-    px(ctx, 17, 18, 2, 1, "#fff6b8");
+    // Universal embossed Golden Radiant Starburst emblem on Prayer Book cover!
+    px(ctx, 17, 9, 2, 10, "#f4d35e");
+    px(ctx, 13, 13, 10, 2, "#f4d35e");
+    px(ctx, 15, 11, 6, 6, "#f4d35e");
+    px(ctx, 16, 12, 4, 4, "#fff6b8");
+    px(ctx, 14, 10, 2, 2, "#e6b84c");
+    px(ctx, 20, 10, 2, 2, "#e6b84c");
+    px(ctx, 14, 16, 2, 2, "#e6b84c");
+    px(ctx, 20, 16, 2, 2, "#e6b84c");
+    px(ctx, 17, 13, 2, 2, "#ffffff");
     // Gilded cream page block along right & bottom edges
     px(ctx, 24, 6, 2, 19, "#f7ebd0");
     px(ctx, 25, 7, 1, 17, "#d9c291");
@@ -465,6 +463,161 @@ export function upgradeItemsAndFxTo32Bit(sprites) {
     px(ctx, 9, 16, 2, 2, "#ffa8c8");
     px(ctx, 21, 16, 2, 2, "#ffa8c8");
     sprites.item_ghost = canvas;
+  }
+
+  // 16b) World-Religion Interfaith Keepsake Sprites (all 2x HD 32x32 pixel art!)
+  // Golden Menorah Keepsake (Jewish synagogue)
+  {
+    const { canvas, ctx } = makeHdCanvas(32, 32);
+    pxEllipse(ctx, 16, 14, 12, 11, "rgba(255, 224, 102, 0.2)");
+    // Base & central stem
+    px(ctx, 9, 25, 14, 3, "#593b0a");
+    px(ctx, 10, 26, 12, 2, "#e6b84c");
+    px(ctx, 14, 9, 4, 17, "#593b0a");
+    px(ctx, 15, 10, 2, 16, "#f4d35e");
+    // Curved golden branches
+    px(ctx, 6, 13, 20, 3, "#593b0a");
+    px(ctx, 7, 14, 18, 2, "#e6b84c");
+    px(ctx, 10, 17, 12, 3, "#593b0a");
+    px(ctx, 11, 18, 10, 2, "#f4d35e");
+    for (const bx of [6, 10, 15, 20, 24]) {
+      px(ctx, bx, 10, 2, 6, "#f4d35e");
+      px(ctx, bx, 7, 2, 3, "#ff922b");
+      px(ctx, bx, 6, 2, 2, "#fff6b8");
+    }
+    sprites.item_menorah = canvas;
+  }
+
+  // Stained-Glass Sunbeam Charm (Christian church)
+  {
+    const { canvas, ctx } = makeHdCanvas(32, 32);
+    pxEllipse(ctx, 16, 16, 12, 12, "rgba(138, 218, 255, 0.22)");
+    // Pointed gothic arched window frame
+    px(ctx, 8, 9, 16, 19, "#242c3a");
+    pxEllipse(ctx, 16, 10, 8, 7, "#242c3a");
+    // Colorful stained-glass panes (ruby, sapphire, emerald, gold)
+    px(ctx, 10, 11, 5, 7, "#e63946");
+    px(ctx, 17, 11, 5, 7, "#2e7dd1");
+    px(ctx, 10, 19, 5, 7, "#2ca868");
+    px(ctx, 17, 19, 5, 7, "#f4d35e");
+    pxEllipse(ctx, 16, 9, 5.5, 4.5, "#ffe066");
+    px(ctx, 15, 6, 2, 20, "#242c3a");
+    px(ctx, 9, 18, 14, 1, "#242c3a");
+    px(ctx, 15, 8, 2, 2, "#ffffff");
+    sprites.item_stained_glass = canvas;
+  }
+
+  // Crescent Brass Lantern (Muslim mosque)
+  {
+    const { canvas, ctx } = makeHdCanvas(32, 32);
+    pxEllipse(ctx, 16, 17, 12, 12, "rgba(255, 208, 102, 0.24)");
+    // Ornate dome cap + ring
+    px(ctx, 14, 3, 4, 3, "#b8861e");
+    pxEllipse(ctx, 16, 9, 7, 4, "#593b0a");
+    pxEllipse(ctx, 16, 9, 5.5, 3, "#e6b84c");
+    // Warm amber-teal glass lantern chamber
+    px(ctx, 9, 11, 14, 13, "#4a2e08");
+    px(ctx, 11, 12, 10, 11, "#26a89c");
+    px(ctx, 12, 13, 8, 9, "#ffe066");
+    // Golden crescent moon emblem inside glass!
+    pxEllipse(ctx, 15, 17, 3.2, 3.2, "#fff9d6");
+    pxEllipse(ctx, 17, 17, 2.5, 2.5, "#26a89c");
+    px(ctx, 9, 24, 14, 4, "#593b0a");
+    px(ctx, 10, 25, 12, 2, "#e6b84c");
+    sprites.item_crescent_lantern = canvas;
+  }
+
+  // Golden Lotus Bell (Buddhist temple)
+  {
+    const { canvas, ctx } = makeHdCanvas(32, 32);
+    pxEllipse(ctx, 16, 17, 12, 11, "rgba(255, 192, 216, 0.22)");
+    // Blooming pink lotus petals cradling a golden bell!
+    pxEllipse(ctx, 10, 21, 5.5, 3.5, "#d95b8c");
+    pxEllipse(ctx, 22, 21, 5.5, 3.5, "#d95b8c");
+    pxEllipse(ctx, 16, 22, 7.5, 4.0, "#ff8fb8");
+    pxEllipse(ctx, 16, 21, 5.2, 2.5, "#ffd4e5");
+    // Golden bell resting above lotus
+    pxEllipse(ctx, 16, 12, 6, 6, "#593b0a");
+    pxEllipse(ctx, 16, 12, 4.8, 4.8, "#e6b84c");
+    px(ctx, 11, 13, 10, 6, "#f4d35e");
+    px(ctx, 12, 9, 3, 6, "#fff6b8");
+    px(ctx, 15, 4, 2, 3, "#e6b84c");
+    sprites.item_lotus_bell = canvas;
+  }
+
+  // Festive Clay Diya Lamp (Hindu temple)
+  {
+    const { canvas, ctx } = makeHdCanvas(32, 32);
+    pxEllipse(ctx, 16, 14, 12, 11, "rgba(255, 178, 72, 0.26)");
+    // Glowing golden flame!
+    pxEllipse(ctx, 16, 11, 3.8, 5.8, "#ff7824");
+    pxEllipse(ctx, 16, 12, 2.5, 4.0, "#ffe066");
+    px(ctx, 15, 11, 2, 3, "#ffffff");
+    // Painted terracotta diya oil bowl
+    pxEllipse(ctx, 16, 21, 11, 5.5, "#59220e");
+    pxEllipse(ctx, 16, 21, 9.5, 4.4, "#c94e24");
+    pxEllipse(ctx, 16, 19, 8.5, 2.5, "#e69638");
+    // Festive yellow & turquoise painted dots on rim!
+    px(ctx, 9, 22, 2, 2, "#ffe066");
+    px(ctx, 15, 23, 2, 2, "#4fd1de");
+    px(ctx, 21, 22, 2, 2, "#ffe066");
+    sprites.item_diya_lamp = canvas;
+  }
+
+  // Warm Langar Sweet Box (Sikh Gurdwara)
+  {
+    const { canvas, ctx } = makeHdCanvas(32, 32);
+    pxEllipse(ctx, 16, 17, 12, 11, "rgba(255, 210, 102, 0.22)");
+    // Festive saffron & gold gift sweet box
+    px(ctx, 5, 10, 22, 17, "#592808");
+    px(ctx, 6, 11, 20, 15, "#e88424");
+    px(ctx, 7, 12, 18, 5, "#ffa947");
+    // Crimson ribbon bow & golden sweet lid trim
+    px(ctx, 14, 11, 4, 15, "#d9322c");
+    px(ctx, 6, 17, 20, 3, "#d9322c");
+    pxEllipse(ctx, 13, 9, 3.5, 2.5, "#f4d35e");
+    pxEllipse(ctx, 19, 9, 3.5, 2.5, "#f4d35e");
+    px(ctx, 15, 8, 2, 3, "#fff6b8");
+    sprites.item_langar_box = canvas;
+  }
+
+  // Woven Omamori Charm (Shinto shrine)
+  {
+    const { canvas, ctx } = makeHdCanvas(32, 32);
+    pxEllipse(ctx, 16, 17, 12, 12, "rgba(255, 156, 182, 0.22)");
+    // Braided gold cord loop at top
+    px(ctx, 12, 3, 8, 2, "#f4d35e");
+    px(ctx, 11, 5, 2, 4, "#e6b84c");
+    px(ctx, 19, 5, 2, 4, "#e6b84c");
+    // Brocade crimson silk charm pouch with gold embroidery!
+    px(ctx, 8, 8, 16, 20, "#5c121e");
+    px(ctx, 9, 9, 14, 18, "#d9324b");
+    px(ctx, 10, 10, 12, 16, "#f04c66");
+    // Gold knot & sakura blossom embroidery
+    px(ctx, 10, 11, 12, 2, "#ffe066");
+    px(ctx, 13, 15, 6, 7, "#fff5db");
+    px(ctx, 15, 16, 2, 5, "#d9324b");
+    px(ctx, 10, 24, 12, 2, "#ffe066");
+    sprites.item_omamori = canvas;
+  }
+
+  // Unity Peace Medallion (Interfaith Quest Reward!)
+  {
+    const { canvas, ctx } = makeHdCanvas(32, 32);
+    pxEllipse(ctx, 16, 17, 13, 13, "rgba(255, 232, 122, 0.3)");
+    // Sky-blue ribbon top
+    px(ctx, 11, 2, 10, 6, "#245ca8");
+    px(ctx, 13, 2, 6, 5, "#54a8ff");
+    // Gleaming golden circular medallion
+    pxEllipse(ctx, 16, 18, 10.5, 10.5, "#593b0a");
+    pxEllipse(ctx, 16, 18, 9.2, 9.2, "#e6b84c");
+    pxEllipse(ctx, 15.5, 17.5, 7.6, 7.6, "#ffe066");
+    // Peaceful white dove silhouette in center + olive sprig!
+    pxEllipse(ctx, 16, 18, 4.2, 2.8, "#ffffff");
+    px(ctx, 11, 14, 5, 4, "#ffffff");
+    px(ctx, 18, 15, 4, 3, "#ffffff");
+    px(ctx, 21, 17, 2, 2, "#38b868"); // green olive leaf!
+    sprites.item_unity_medallion = canvas;
   }
 
   // 17) Golden D20 Icosahedron Die (Home Base Secret Reading Nook treasure!)

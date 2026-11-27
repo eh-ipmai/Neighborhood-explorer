@@ -16,6 +16,238 @@ import {
   isIsraelLocation,
 } from "../biomes.js";
 
+/**
+ * Respectful, kid-friendly registry of local faith traditions discovered from real OSM
+ * houses of worship (religion=*, building=*, and multilingual names).
+ * Every local house of worship offers a warm hospitality treat, its own authentic
+ * tradition keepsake item, AND the universal Pocket Prayer Book (`pocket_siddur`)!
+ */
+export const FAITH_TRADITIONS = {
+  jewish: {
+    id: "jewish",
+    label: "Synagogue",
+    greeting: "Shalom",
+    npcNames: ["Cantor Rachel", "Neighbor Avi", "Rabbi David"],
+    rewardItem: "brass_menorah_pin",
+    healHearts: 2,
+    sprite: "synagogue_building",
+    dialogue: (name, hero) => [
+      `Shalom ${hero}! Welcome to ${name}! Enjoy a warm kiddush treat (+2 hearts!) and this Golden Menorah Keepsake!`,
+      "Take this Pocket Prayer Book too — press K (or tap 📖 Prayer Book) to shine a peaceful light that calms spooky graveyard foes!",
+    ],
+  },
+  christian: {
+    id: "christian",
+    label: "Church",
+    greeting: "Peace",
+    npcNames: ["Bellringer Eli", "Choir Leader Clara", "Pastor Ingrid"],
+    rewardItem: "stained_glass_charm",
+    healHearts: 2,
+    sprite: "civic_hall",
+    dialogue: (name, hero) => [
+      `Welcome to ${name}, ${hero}! Enjoy a warm bake-sale treat (+2 hearts!) and this Stained-Glass Sunbeam Charm!`,
+      "Take this Pocket Prayer Book too — press K (or tap 📖 Prayer Book) to shine a peaceful light that calms spooky graveyard foes!",
+    ],
+  },
+  muslim: {
+    id: "muslim",
+    label: "Mosque",
+    greeting: "Salam",
+    npcNames: ["Calligrapher Tariq", "Imam Sami", "Neighbor Layla"],
+    rewardItem: "crescent_lantern_charm",
+    healHearts: 2,
+    sprite: "civic_hall",
+    dialogue: (name, hero) => [
+      `Salam ${hero}! Welcome to ${name}! Enjoy sweet honey dates & tea (+2 hearts!) and this Crescent Brass Lantern!`,
+      "Take this Pocket Prayer Book too — press K (or tap 📖 Prayer Book) to shine a peaceful light that calms spooky graveyard foes!",
+    ],
+  },
+  buddhist: {
+    id: "buddhist",
+    label: "Buddhist Temple",
+    greeting: "Peace",
+    npcNames: ["Monk Kenji", "Gardener Mei", "Storyteller Tenzin"],
+    rewardItem: "lotus_bell_charm",
+    healHearts: 2,
+    sprite: "civic_hall",
+    dialogue: (name, hero) => [
+      `Welcome to ${name}, ${hero}! Enjoy calming tea & sweet rice cakes (+2 hearts!) and this Golden Lotus Bell!`,
+      "Take this Pocket Prayer Book too — press K (or tap 📖 Prayer Book) to shine a peaceful light that calms spooky graveyard foes!",
+    ],
+  },
+  hindu: {
+    id: "hindu",
+    label: "Hindu Temple",
+    greeting: "Namaste",
+    npcNames: ["Musician Priya", "Artisan Vikram", "Neighbor Ananya"],
+    rewardItem: "diya_oil_lamp",
+    healHearts: 2,
+    sprite: "civic_hall",
+    dialogue: (name, hero) => [
+      `Namaste ${hero}! Welcome to ${name}! Enjoy sweet cardamom laddu (+2 hearts!) and this Festive Clay Diya Lamp!`,
+      "Take this Pocket Prayer Book too — press K (or tap 📖 Prayer Book) to shine a peaceful light that calms spooky graveyard foes!",
+    ],
+  },
+  sikh: {
+    id: "sikh",
+    label: "Gurdwara",
+    greeting: "Sat Sri Akal",
+    npcNames: ["Chef Harpreet", "Neighbor Simran", "Musician Dev"],
+    rewardItem: "langar_sweet_box",
+    healHearts: 3,
+    sprite: "civic_hall",
+    dialogue: (name, hero) => [
+      `Sat Sri Akal ${hero}! Welcome to ${name}! Everyone is welcome at our free community Langar kitchen (+3 hearts!) — take this Warm Langar Sweet Box!`,
+      "Take this Pocket Prayer Book too — press K (or tap 📖 Prayer Book) to shine a peaceful light that calms spooky graveyard foes!",
+    ],
+  },
+  shinto: {
+    id: "shinto",
+    label: "Shinto Shrine",
+    greeting: "Konnichiwa",
+    npcNames: ["Shrine Keeper Yuki", "Artisan Ren"],
+    rewardItem: "omamori_charm",
+    healHearts: 2,
+    sprite: "civic_hall",
+    dialogue: (name, hero) => [
+      `Welcome to ${name}, ${hero}! Enjoy sweet matcha mochi (+2 hearts!) and this Woven Omamori Charm!`,
+      "Take this Pocket Prayer Book too — press K (or tap 📖 Prayer Book) to shine a peaceful light that calms spooky graveyard foes!",
+    ],
+  },
+  interfaith: {
+    id: "interfaith",
+    label: "House of Worship",
+    greeting: "Welcome",
+    npcNames: ["Choir Leader Noah", "Community Host Hana"],
+    rewardItem: "chime_keychain",
+    healHearts: 2,
+    sprite: "civic_hall",
+    dialogue: (name, hero) => [
+      `Welcome to ${name}, ${hero}! Enjoy a warm neighborhood snack (+2 hearts!) and this Peace Chime Keychain!`,
+      "Take this Pocket Prayer Book too — press K (or tap 📖 Prayer Book) to shine a peaceful light that calms spooky graveyard foes!",
+    ],
+  },
+};
+
+/**
+ * Detect which faith tradition an OpenStreetMap house of worship belongs to using
+ * standard OSM `religion=*`, `building=*`, and multilingual place-name clues.
+ */
+export function detectFaithTradition(tags = {}) {
+  const rel = String(tags.religion || "").toLowerCase().trim();
+  const b = String(tags.building || "").toLowerCase().trim();
+  const denom = String(tags.denomination || "").toLowerCase().trim();
+  const lower = `${tags.name || ""} ${tags["name:en"] || ""} ${tags["name:he"] || ""} ${tags["name:ar"] || ""}`.toLowerCase();
+
+  if (
+    rel === "jewish" ||
+    b === "synagogue" ||
+    lower.includes("synagogue") ||
+    lower.includes("beit knesset") ||
+    lower.includes("shul") ||
+    lower.includes("chabad") ||
+    lower.includes("beth el") ||
+    lower.includes("congregation ") ||
+    lower.includes("בית כנסת") ||
+    lower.includes("בית הכנסת")
+  ) {
+    return "jewish";
+  }
+  if (
+    rel === "muslim" ||
+    b === "mosque" ||
+    lower.includes("mosque") ||
+    lower.includes("masjid") ||
+    lower.includes("islamic center") ||
+    lower.includes("islamic centre") ||
+    lower.includes("moské") ||
+    lower.includes("moschee") ||
+    lower.includes("mosquée") ||
+    lower.includes("مسجد") ||
+    lower.includes("جامع") ||
+    lower.includes("מסגד")
+  ) {
+    return "muslim";
+  }
+  if (
+    rel === "buddhist" ||
+    b === "pagoda" ||
+    lower.includes("buddhist") ||
+    lower.includes("pagoda") ||
+    lower.includes("wat ") ||
+    lower.includes("vihara") ||
+    lower.includes("zen center") ||
+    lower.includes("zen centre") ||
+    lower.includes("寺")
+  ) {
+    return "buddhist";
+  }
+  if (
+    rel === "hindu" ||
+    lower.includes("hindu") ||
+    lower.includes("mandir") ||
+    lower.includes("iskcon") ||
+    lower.includes("swaminarayan") ||
+    lower.includes("मंदिर")
+  ) {
+    return "hindu";
+  }
+  if (
+    rel === "sikh" ||
+    b === "gurdwara" ||
+    lower.includes("gurdwara") ||
+    lower.includes("gurudwara") ||
+    lower.includes("sikh")
+  ) {
+    return "sikh";
+  }
+  if (
+    rel === "shinto" ||
+    b === "shrine" ||
+    lower.includes("shinto") ||
+    lower.includes("jinja") ||
+    lower.includes("taisha") ||
+    lower.includes("jingu") ||
+    lower.includes("神社") ||
+    lower.includes("神宮")
+  ) {
+    return "shinto";
+  }
+  if (
+    rel === "christian" ||
+    b === "church" ||
+    b === "cathedral" ||
+    b === "chapel" ||
+    b === "basilica" ||
+    denom.includes("catholic") ||
+    denom.includes("lutheran") ||
+    denom.includes("baptist") ||
+    denom.includes("methodist") ||
+    denom.includes("orthodox") ||
+    denom.includes("anglican") ||
+    denom.includes("protestant") ||
+    lower.includes("church") ||
+    lower.includes("cathedral") ||
+    lower.includes("chapel") ||
+    lower.includes("parish") ||
+    lower.includes("basilica") ||
+    lower.includes("abbey") ||
+    lower.includes("kirke") ||
+    lower.includes("kyrka") ||
+    lower.includes("kirche") ||
+    lower.includes("domkirke") ||
+    lower.includes("église") ||
+    lower.includes("eglise") ||
+    lower.includes("iglesia") ||
+    lower.includes("chiesa") ||
+    lower.includes("כנסייה") ||
+    lower.includes("كنيسة")
+  ) {
+    return "christian";
+  }
+  return "interfaith";
+}
+
 const CATEGORY_TEMPLATES = {
   library: {
     priority: 10,
@@ -102,18 +334,18 @@ const CATEGORY_TEMPLATES = {
     ],
   },
   house_of_worship: {
-    priority: 7,
-    maxCount: 2,
+    priority: 8,
+    maxCount: 4,
     sprite: "civic_hall",
     xp: 60,
-    npcNames: ["Neighbor Avi", "Choir Leader Noah", "Cantor Rachel"],
+    npcNames: ["Choir Leader Noah", "Cantor Rachel", "Neighbor Tariq", "Musician Priya"],
     rewardItem: "chime_keychain",
     bonusItem: "pocket_siddur",
     healHearts: 2,
     givesSnacks: true,
     dialogue: (name, hero) => [
-      `Welcome to ${name}, ${hero}! Here's a warm snack (+2 hearts!) and a Pocket Blessing Book!`,
-      "Press K (or tap 📖 Siddur) anytime to shine a peaceful blessing that dispels spooky graveyard foes!",
+      `Welcome to ${name}, ${hero}! Here's a warm snack (+2 hearts!) and a Pocket Prayer Book!`,
+      "Press K (or tap 📖 Prayer Book) anytime to shine a peaceful light that calms spooky graveyard foes!",
     ],
   },
   water: {
@@ -271,12 +503,30 @@ function classifyOsmPoi(tags = {}) {
   if (
     amenity === "place_of_worship" ||
     building === "church" ||
+    building === "cathedral" ||
+    building === "chapel" ||
     building === "synagogue" ||
     building === "mosque" ||
+    building === "temple" ||
+    building === "shrine" ||
+    building === "gurdwara" ||
+    building === "pagoda" ||
     lower.includes("synagogue") ||
     lower.includes("beit knesset") ||
     lower.includes("בית כנסת") ||
-    lower.includes("בית הכנסת")
+    lower.includes("בית הכנסת") ||
+    lower.includes("mosque") ||
+    lower.includes("masjid") ||
+    lower.includes("מסגד") ||
+    lower.includes("مسجد") ||
+    lower.includes("cathedral") ||
+    lower.includes("kirke") ||
+    lower.includes("église") ||
+    lower.includes("kirche") ||
+    lower.includes("mandir") ||
+    lower.includes("gurdwara") ||
+    lower.includes("神社") ||
+    lower.includes("寺")
   ) {
     return "house_of_worship";
   }
@@ -611,8 +861,10 @@ export function generateLandmarksAndQuests({
     const name = formatBilingualName(el.tags, { labelMode });
     if (!name) continue;
     const tpl = CATEGORY_TEMPLATES[cat];
+    const religion = cat === "house_of_worship" ? detectFaithTradition(el.tags) : null;
     candidates.push({
       category: cat,
+      ...(religion ? { religion } : {}),
       name,
       address: formatInternationalAddress(el.tags, { labelMode, countryCode }) || formatOsmAddress(el.tags),
       lat: pos.lat,
@@ -624,7 +876,22 @@ export function generateLandmarksAndQuests({
     });
   }
 
-  // Sort by priority desc, preferring well-paced walkable distances (15..140 tiles)
+  // Sort by priority desc, preferring well-paced walkable distances (15..140 tiles),
+  // AND ensure houses of worship from DISTINCT local religions get first pick before duplicates!
+  const seenCandidateReligions = new Set();
+  candidates.sort((a, b) => {
+    if (b.priority !== a.priority) return b.priority - a.priority;
+    const scoreDist = (d) => Math.abs(d - 55);
+    return scoreDist(a.distFromHome) - scoreDist(b.distFromHome);
+  });
+  for (const cand of candidates) {
+    if (cand.category === "house_of_worship" && cand.religion) {
+      if (!seenCandidateReligions.has(cand.religion)) {
+        seenCandidateReligions.add(cand.religion);
+        cand.priority += 1.5; // First representative of each local faith tradition gets top interfaith priority!
+      }
+    }
+  }
   candidates.sort((a, b) => {
     if (b.priority !== a.priority) return b.priority - a.priority;
     const scoreDist = (d) => Math.abs(d - 55);
@@ -632,6 +899,7 @@ export function generateLandmarksAndQuests({
   });
 
   const catCounts = {};
+  const religionCounts = {};
   let autoAdded = 0;
   for (const cand of candidates) {
     if (autoAdded >= maxAutoLandmarks) break;
@@ -651,17 +919,25 @@ export function generateLandmarksAndQuests({
 
     const snapped = snapToWalkableTile(worldMap, cand.tx, cand.ty, 10, avoidPoints);
     const id = makeUniqueId(cand.name);
-    const npcName = tpl.npcNames[countSoFar % tpl.npcNames.length];
+    let npcName = tpl.npcNames[countSoFar % tpl.npcNames.length];
     let dialogue = tpl.dialogue(cand.name, heroName);
-    if (isIsrael && (cand.category === "food_shop" || cand.category === "ice_cream_bakery")) {
+    let rewardItem = tpl.rewardItem;
+    let healHearts = tpl.healHearts;
+    let sprite = tpl.sprite;
+
+    if (cand.category === "house_of_worship") {
+      const trad = FAITH_TRADITIONS[cand.religion] || FAITH_TRADITIONS.interfaith;
+      const rCount = religionCounts[trad.id] || 0;
+      religionCounts[trad.id] = rCount + 1;
+      npcName = trad.npcNames[rCount % trad.npcNames.length];
+      dialogue = trad.dialogue(cand.name, heroName);
+      rewardItem = trad.rewardItem;
+      healHearts = trad.healHearts;
+      sprite = trad.sprite;
+    } else if (isIsrael && (cand.category === "food_shop" || cand.category === "ice_cream_bakery")) {
       dialogue = [
         `Shalom ${heroName}! Welcome to ${cand.name}! Fresh warm burekas, pita & treats right off the counter (+${tpl.healHearts || 2} hearts)!`,
         "We packed extra snacks in your bag too — press N to share with neighbors or feed friendly street cats!",
-      ];
-    } else if (isIsrael && cand.category === "house_of_worship") {
-      dialogue = [
-        `Shalom ${heroName}! Welcome to ${cand.name}! Here's a warm kiddush snack (+2 hearts!) and a Pocket Siddur!`,
-        "Press K (or tap 📖 Siddur) anytime to shine a peaceful blessing that dispels spooky graveyard foes!",
       ];
     }
     const lm = {
@@ -672,15 +948,16 @@ export function generateLandmarksAndQuests({
       ...(typeof cand.lon === "number" ? { lon: cand.lon } : {}),
       tileX: snapped.x,
       tileY: snapped.y,
-      sprite: tpl.sprite,
+      sprite,
       ...(tpl.npcStyle ? { npcStyle: tpl.npcStyle } : {}),
       discoveryXP: tpl.xp,
       npcName,
-      ...(tpl.healHearts ? { healHearts: tpl.healHearts } : {}),
+      ...(healHearts ? { healHearts } : {}),
       ...(tpl.givesSnacks ? { givesSnacks: true } : {}),
       dialogue,
-      rewardItem: tpl.rewardItem,
+      rewardItem,
       ...(tpl.bonusItem ? { bonusItem: tpl.bonusItem } : {}),
+      ...(cand.religion ? { religion: cand.religion } : {}),
       category: cand.category,
     };
 
@@ -729,28 +1006,32 @@ export function generateLandmarksAndQuests({
   );
   if (!hasSwordGiver && nonHomeLandmarks.length > 0) {
     const swordHost =
-      nonHomeLandmarks.find((l) => l.isCustom) ||
-      nonHomeLandmarks.find((l) => l.category === "park" || l.category === "fire_station") ||
+      nonHomeLandmarks.find((l) => l.isCustom && !l.bonusItem) ||
+      nonHomeLandmarks.find((l) => (l.category === "park" || l.category === "fire_station") && !l.bonusItem) ||
+      nonHomeLandmarks.find((l) => l.category !== "house_of_worship" && !l.bonusItem) ||
+      nonHomeLandmarks.find((l) => !l.bonusItem) ||
       nonHomeLandmarks[0];
-    swordHost.bonusItem = "graveyard_sword";
-    swordHost.dialogue = [
-      ...swordHost.dialogue,
-      "Take this Explorer's Sword too — press J (or tap ⚔️ Sword) to fend off spooky graveyard foes and shoo wild critters!",
-    ];
+    if (!swordHost.bonusItem) {
+      swordHost.bonusItem = "graveyard_sword";
+      swordHost.dialogue = [
+        ...swordHost.dialogue,
+        "Take this Explorer's Sword too — press J (or tap ⚔️ Sword) to fend off spooky graveyard foes and shoo wild critters!",
+      ];
+    }
   }
 
-  const hasSiddurGiver = landmarks.some(
+  const hasPrayerBookGiver = landmarks.some(
     (l) => l.rewardItem === "pocket_siddur" || l.bonusItem === "pocket_siddur"
   );
-  if (!hasSiddurGiver && nonHomeLandmarks.length > 0) {
-    const siddurHost =
+  if (!hasPrayerBookGiver && nonHomeLandmarks.length > 0) {
+    const prayerHost =
       nonHomeLandmarks.find((l) => l.category === "house_of_worship" || l.category === "civic" || l.category === "library") ||
       nonHomeLandmarks[nonHomeLandmarks.length - 1];
-    if (!siddurHost.bonusItem) {
-      siddurHost.bonusItem = "pocket_siddur";
-      siddurHost.dialogue = [
-        ...siddurHost.dialogue,
-        "Take this Pocket Blessing Book too — press K (or tap 📖 Siddur) to shine a peaceful light that dispels spooky foes!",
+    if (!prayerHost.bonusItem) {
+      prayerHost.bonusItem = "pocket_siddur";
+      prayerHost.dialogue = [
+        ...prayerHost.dialogue,
+        "Take this Pocket Prayer Book too — press K (or tap 📖 Prayer Book) to shine a peaceful light that calms spooky foes!",
       ];
     }
   }
@@ -949,6 +1230,47 @@ export function generateLandmarksAndQuests({
     });
   }
 
-  // Strip internal helper field `category` only if undesired? Keeping `category` is helpful & backwards-compatible!
+  // 5g. Quest 5 — Houses of Faith & Friendship (celebrates ALL local religions discovered in the neighborhood!)
+  const worshipLandmarks = nonHomeLandmarks.filter((l) => l.category === "house_of_worship");
+  if (worshipLandmarks.length > 0) {
+    // Prefer up to 4 stops covering distinct local faith traditions first!
+    const picked = [];
+    const pickedReligions = new Set();
+    for (const w of worshipLandmarks) {
+      const r = w.religion || "interfaith";
+      if (!pickedReligions.has(r) && picked.length < 4) {
+        picked.push(w);
+        pickedReligions.add(r);
+      }
+    }
+    for (const w of worshipLandmarks) {
+      if (picked.length >= 3) break;
+      if (!picked.includes(w)) picked.push(w);
+    }
+    const distinctTraditionLabels = [...pickedReligions]
+      .map((r) => (FAITH_TRADITIONS[r] || FAITH_TRADITIONS.interfaith).label)
+      .join(", ");
+    quests.push({
+      id: "quest_05_houses_of_faith",
+      tier: 3,
+      title: `${cityShort} Houses of Faith & Peace`,
+      description:
+        pickedReligions.size > 1
+          ? `Visit neighbors across ${cityShort}'s local houses of worship (${distinctTraditionLabels}) to collect keepsakes and earn the Unity Peace Medallion!`
+          : `Visit ${picked.map((p) => p.name).join(" and ")} to collect a Pocket Prayer Book and earn the Unity Peace Medallion!`,
+      steps: picked.map((w, idx) => ({
+        stepIndex: idx + 1,
+        instruction: `Visit ${w.npcName} at ${w.name}${w.address ? ` (${w.address})` : ""} to collect a local keepsake & Pocket Prayer Book.`,
+        targetLandmarkId: w.id,
+        completionTrigger: "npc_talk",
+      })),
+      rewards: {
+        xp: 220,
+        coins: 65,
+        item: "unity_peace_medallion",
+      },
+    });
+  }
+
   return { landmarks, quests };
 }

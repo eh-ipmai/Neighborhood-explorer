@@ -126,5 +126,36 @@
       "coins": 75,
       "item": "ghost_lantern_cloak"
     }
+  },
+  {
+    "id": "quest_05_houses_of_faith",
+    "tier": 4,
+    "title": "Houses of Faith & Friendship",
+    "description": "Visit neighbors across Newton's historic churches and synagogues to collect local keepsakes and earn the Unity Peace Medallion!",
+    "steps": [
+      {
+        "stepIndex": 1,
+        "instruction": "Meet Bellringer Eli at Newton Centre Square (First Baptist, 848 Beacon St).",
+        "targetLandmarkId": "first_baptist_plaza",
+        "completionTrigger": "npc_talk"
+      },
+      {
+        "stepIndex": 2,
+        "instruction": "Climb Herrick Road Hill to visit Choir Leader Noah at Wilson Chapel (234 Herrick Rd).",
+        "targetLandmarkId": "wilson_chapel",
+        "completionTrigger": "npc_talk"
+      },
+      {
+        "stepIndex": 3,
+        "instruction": "Head north to Ward Street to greet the Kiddush Host at Congregation Beth El (561 Ward St).",
+        "targetLandmarkId": "beth_el_atereth_israel",
+        "completionTrigger": "npc_talk"
+      }
+    ],
+    "rewards": {
+      "xp": 240,
+      "coins": 70,
+      "item": "unity_peace_medallion"
+    }
   }
 ]

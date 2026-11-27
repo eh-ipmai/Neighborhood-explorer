@@ -2141,9 +2141,178 @@ function bake32BitRoadrunnerRight(stepFrame = 0, alert = false) {
 }
 
 /**
- * Bake 32-bit Pure Pixel Annoying Sidewalk Protestor waving a big cardboard picket sign + megaphone!
+ * Biome-specific peaceful marcher / protestor outfit silhouettes & palettes.
+ * Each biome gives neighbors authentic local clothing cuts, headwear, footwear,
+ * and accessories (fur-trimmed winter parkas, Mediterranean linen & sun hats,
+ * tropical Aloha shirts & shorts, European trench coats & berets, Nordic/Alpine
+ * Fair Isle sweaters, desert wide-brim sun hats & bandanas, East Asian streetwear).
  */
-function bake32BitProtestorRight(variant = 0, shoutFrame = 0, climate = "mild") {
+export const PROTESTOR_BIOME_STYLES = {
+  new_england_autumn: {
+    id: "new_england_autumn",
+    topStyle: "jacket",
+    bottomStyle: "pants",
+    shoeStyle: "boots",
+    neckStyle: "scarf",
+    variants: [
+      { skin: ["#f5caa0", "#ffe0bd"], top: "#9c2f3a", topHi: "#c94b56", topDark: "#631b24", bottom: "#2f3d54", bottomHi: "#485d7d", shoe: "#4f2e1c", hair: "#4a2e1e", headType: "beanie", head: "#d9922b", headDark: "#9c6216", accent: "#f0cf6b", accentDark: "#d9a742", signBg: "#f7ebd2", signStripe: "#d93b36" },
+      { skin: ["#e3b084", "#f5cba4"], top: "#d4912a", topHi: "#f2b84b", topDark: "#8f5c16", bottom: "#2b394f", bottomHi: "#435675", shoe: "#422618", hair: "#2b211e", headType: "beanie", head: "#2f6e57", headDark: "#1c4536", accent: "#e85d4a", accentDark: "#b33a2b", signBg: "#fff6d6", signStripe: "#24573d" },
+      { skin: ["#f5caa0", "#ffe0bd"], top: "#2c737d", topHi: "#489ea8", topDark: "#1a4850", bottom: "#363842", bottomHi: "#505463", shoe: "#593520", hair: "#734224", headType: "beanie", head: "#b83b36", headDark: "#7a221f", accent: "#f0cf6b", accentDark: "#d9a742", signBg: "#f5efe6", signStripe: "#2b528c" },
+    ],
+  },
+  winter_parka: {
+    id: "winter_parka",
+    topStyle: "parka",
+    bottomStyle: "snowpants",
+    shoeStyle: "snowboots",
+    neckStyle: "scarf",
+    mittens: true,
+    variants: [
+      { skin: ["#f7d4b2", "#ffe6cc"], top: "#2b528c", topHi: "#4d78b8", topDark: "#18325c", bottom: "#1f2a3d", bottomHi: "#324361", shoe: "#382820", hair: "#4a2e1e", headType: "pom_beanie", head: "#d93b36", headDark: "#8c1e1a", accent: "#f0f4fa", accentDark: "#c7d6e8", signBg: "#f2f8ff", signStripe: "#245ca8" },
+      { skin: ["#e8ba92", "#fad2b0"], top: "#b53636", topHi: "#e05858", topDark: "#751c1c", bottom: "#263040", bottomHi: "#3c4c63", shoe: "#4a3324", hair: "#2b211e", headType: "pom_beanie", head: "#f0e6d2", headDark: "#b8aa92", accent: "#3a78c2", accentDark: "#24518a", signBg: "#fff8eb", signStripe: "#b53636" },
+      { skin: ["#f5caa0", "#ffe0bd"], top: "#2e6b5e", topHi: "#4c9686", topDark: "#1a4239", bottom: "#1d2633", bottomHi: "#314054", shoe: "#3d2c1e", hair: "#9e6b36", headType: "pom_beanie", head: "#f2b84b", headDark: "#b57e1b", accent: "#e85d4a", accentDark: "#ad3628", signBg: "#f5f8ff", signStripe: "#2e6b5e" },
+    ],
+  },
+  israel_jerusalem: {
+    id: "israel_jerusalem",
+    topStyle: "short_shirt",
+    bottomStyle: "pants",
+    shoeStyle: "sandals",
+    neckStyle: "collar",
+    variants: [
+      { skin: ["#e5b388", "#f7cea6"], top: "#3a84c9", topHi: "#66aef0", topDark: "#22558a", bottom: "#8c7a5b", bottomHi: "#b39f7d", shoe: "#6b472b", hair: "#241b17", headType: "bucket_hat", head: "#f2e7cc", headDark: "#bfa97c", accent: "#245ca8", accentDark: "#183d73", sunglasses: false, signBg: "#fff9eb", signStripe: "#245ca8" },
+      { skin: ["#d49a6a", "#ebb486"], top: "#f5efe0", topHi: "#ffffff", topDark: "#c7bda8", bottom: "#3d5940", bottomHi: "#5a7d5e", shoe: "#593b24", hair: "#1f1816", headType: "kippah", head: "#245ca8", headDark: "#143769", accent: "#e87e38", accentDark: "#b05419", sunglasses: true, signBg: "#fff6d6", signStripe: "#245ca8" },
+      { skin: ["#e8ba92", "#fad2b0"], top: "#d97736", topHi: "#f59c5b", topDark: "#994b1a", bottom: "#3b4c63", bottomHi: "#566c8a", shoe: "#4f3622", hair: "#3d2518", headType: "cap", head: "#2f6e57", headDark: "#1b4536", accent: "#f4d35e", accentDark: "#c29c2b", sunglasses: false, signBg: "#f5f2e8", signStripe: "#24573d" },
+    ],
+  },
+  israel_coastal: {
+    id: "israel_coastal",
+    topStyle: "tee",
+    bottomStyle: "shorts",
+    shoeStyle: "sandals",
+    neckStyle: "none",
+    variants: [
+      { skin: ["#e0a87b", "#f5c49c"], top: "#29a8b8", topHi: "#5cd8e6", topDark: "#176d78", bottom: "#c4ad82", bottomHi: "#e0cca4", shoe: "#3a78c2", hair: "#261c18", headType: "sun_hat", head: "#f2d89c", headDark: "#c7a461", accent: "#245ca8", accentDark: "#183c70", sunglasses: true, signBg: "#f0fbff", signStripe: "#1e88a8" },
+      { skin: ["#f0c097", "#ffdbb8"], top: "#f26b4e", topHi: "#ff957a", topDark: "#b53f28", bottom: "#27436e", bottomHi: "#3f6399", shoe: "#d95b26", hair: "#4a2c18", headType: "cap", head: "#ffffff", headDark: "#c7cfd9", accent: "#29a8b8", accentDark: "#186e7a", sunglasses: true, signBg: "#fff6e0", signStripe: "#e05b38" },
+      { skin: ["#d49a6a", "#ebb486"], top: "#ffffff", topHi: "#ffffff", topDark: "#cbd6e3", bottom: "#2f7868", bottomHi: "#4ba390", shoe: "#245ca8", hair: "#1f1816", headType: "none", head: "#245ca8", headDark: "#163b70", accent: "#245ca8", accentDark: "#183d73", sunglasses: true, signBg: "#fff9e8", signStripe: "#245ca8" },
+    ],
+  },
+  desert: {
+    id: "desert",
+    topStyle: "vest_shirt",
+    bottomStyle: "pants",
+    shoeStyle: "boots",
+    neckStyle: "bandana",
+    variants: [
+      { skin: ["#d99e70", "#f0ba8d"], top: "#d96b38", topHi: "#f59462", topDark: "#96401b", bottom: "#7d684c", bottomHi: "#a38b6a", shoe: "#5c3920", hair: "#291c15", headType: "wide_hat", head: "#d9b984", headDark: "#9c7c4c", accent: "#26a8b8", accentDark: "#166f7a", sunglasses: true, signBg: "#fff5e0", signStripe: "#c94d24" },
+      { skin: ["#e8b88e", "#fad2ae"], top: "#c7a46b", topHi: "#e6c791", topDark: "#8c6d3e", bottom: "#4d4238", bottomHi: "#6e5f52", shoe: "#4a2d18", hair: "#3d2618", headType: "wide_hat", head: "#a65938", headDark: "#6e351d", accent: "#f2c64b", accentDark: "#ba8f22", sunglasses: false, signBg: "#fff8e8", signStripe: "#9c4724" },
+      { skin: ["#c98d60", "#e3a87b"], top: "#5e8f68", topHi: "#84ba8f", topDark: "#3a5e42", bottom: "#8c7456", bottomHi: "#b39876", shoe: "#54341e", hair: "#1e1715", headType: "wide_hat", head: "#e6cfa3", headDark: "#b09668", accent: "#d93b36", accentDark: "#94211d", sunglasses: false, signBg: "#f7f0e0", signStripe: "#3a6e47" },
+    ],
+  },
+  tropical_coastal: {
+    id: "tropical_coastal",
+    topStyle: "aloha",
+    bottomStyle: "shorts",
+    shoeStyle: "sandals",
+    neckStyle: "none",
+    variants: [
+      { skin: ["#d49668", "#edb082"], top: "#e84855", topHi: "#ff7a85", topDark: "#a62430", bottom: "#d9c496", bottomHi: "#f2e0b8", shoe: "#289c8e", hair: "#1f1715", headType: "sun_hat", head: "#f2d58d", headDark: "#bf9d52", accent: "#ffe066", accentDark: "#38d9a9", sunglasses: true, signBg: "#fff7e0", signStripe: "#e84855" },
+      { skin: ["#b87a52", "#d6976e"], top: "#1e9ca8", topHi: "#4fd1de", topDark: "#12646e", bottom: "#f2e6cf", bottomHi: "#ffffff", shoe: "#e86842", hair: "#1a1412", headType: "sun_hat", head: "#ebd08f", headDark: "#b59651", accent: "#ff7854", accentDark: "#ffe066", sunglasses: true, signBg: "#ebfffc", signStripe: "#168794" },
+      { skin: ["#e5b388", "#f7cea6"], top: "#f2b82e", topHi: "#ffd966", topDark: "#b88212", bottom: "#27537d", bottomHi: "#3f74a8", shoe: "#e84855", hair: "#3d2416", headType: "cap", head: "#28b8a8", headDark: "#177a70", accent: "#ff5c8a", accentDark: "#4fd1de", sunglasses: false, signBg: "#fffbe6", signStripe: "#1e9ca8" },
+    ],
+  },
+  european_historic: {
+    id: "european_historic",
+    topStyle: "trench",
+    bottomStyle: "pants",
+    shoeStyle: "boots",
+    neckStyle: "scarf",
+    variants: [
+      { skin: ["#f5caa0", "#ffe0bd"], top: "#c49a62", topHi: "#e0ba82", topDark: "#876539", bottom: "#242c3d", bottomHi: "#3a465e", shoe: "#2e1f18", hair: "#4a2c18", headType: "beret", head: "#b82e3b", headDark: "#7a1922", accent: "#244778", accentDark: "#162d4f", signBg: "#fff9ed", signStripe: "#244778" },
+      { skin: ["#f0c299", "#ffdbb8"], top: "#3b4252", topHi: "#576178", topDark: "#232833", bottom: "#1d222e", bottomHi: "#323a4d", shoe: "#241a16", hair: "#7a4a24", headType: "flat_cap", head: "#2f614d", headDark: "#1b3b2e", accent: "#e0a838", accentDark: "#a8771b", signBg: "#f5f4f0", signStripe: "#8c2b32" },
+      { skin: ["#e6b68c", "#fad0aa"], top: "#243d63", topHi: "#3c5f94", topDark: "#142540", bottom: "#363842", bottomHi: "#505463", shoe: "#3d261a", hair: "#261e1b", headType: "beret", head: "#6e2942", headDark: "#451627", accent: "#f0e6d2", accentDark: "#bfb399", signBg: "#fff7e8", signStripe: "#243d63" },
+    ],
+  },
+  alpine: {
+    id: "alpine",
+    topStyle: "nordic_sweater",
+    bottomStyle: "pants",
+    shoeStyle: "boots",
+    neckStyle: "collar",
+    variants: [
+      { skin: ["#f7d2b0", "#ffe6cc"], top: "#2a6349", topHi: "#448c6b", topDark: "#183d2c", bottom: "#4a3c31", bottomHi: "#6b5848", shoe: "#3d2518", hair: "#8f5c2c", headType: "alpine_hat", head: "#2d523c", headDark: "#1a3324", accent: "#e8463a", accentDark: "#fff7e6", signBg: "#fff8eb", signStripe: "#c9382e" },
+      { skin: ["#f2c69e", "#ffdeb8"], top: "#2b4d78", topHi: "#4772ab", topDark: "#182e4d", bottom: "#363b47", bottomHi: "#4f5666", shoe: "#422819", hair: "#4a2e1e", headType: "pom_beanie", head: "#e8e3d5", headDark: "#b5ae9c", accent: "#f2c64b", accentDark: "#245ca8", signBg: "#f2f8ff", signStripe: "#2b4d78" },
+      { skin: ["#e8ba92", "#fad2b0"], top: "#a63d33", topHi: "#d45d50", topDark: "#6e221b", bottom: "#2e3d36", bottomHi: "#475e53", shoe: "#382216", hair: "#2b201c", headType: "alpine_hat", head: "#5e4a38", headDark: "#3b2e22", accent: "#f5efe0", accentDark: "#3a8f7a", signBg: "#fff6e6", signStripe: "#2a6349" },
+    ],
+  },
+  east_asian_urban: {
+    id: "east_asian_urban",
+    topStyle: "streetwear",
+    bottomStyle: "wide_pants",
+    shoeStyle: "sneakers",
+    neckStyle: "hoodie",
+    variants: [
+      { skin: ["#f7d6b5", "#ffead1"], top: "#2c4c7d", topHi: "#4871b0", topDark: "#1a2f52", bottom: "#292e3b", bottomHi: "#424a5e", shoe: "#f2f5fa", hair: "#1a1820", headType: "bucket_hat", head: "#242833", headDark: "#12151c", accent: "#ffffff", accentDark: "#d4dde8", glasses: false, signBg: "#fff2f6", signStripe: "#d94c7a" },
+      { skin: ["#f2cca8", "#ffe2c4"], top: "#4f8a68", topHi: "#74b58f", topDark: "#2e5940", bottom: "#d9cdb8", bottomHi: "#f2e7d5", shoe: "#ffffff", hair: "#1c1a24", headType: "none", head: "#1c1a24", headDark: "#100f14", accent: "#fff8eb", accentDark: "#e3d6be", glasses: true, signBg: "#f2fff7", signStripe: "#2e7854" },
+      { skin: ["#f7d6b5", "#ffead1"], top: "#e884a2", topHi: "#ffa8c2", topDark: "#b05471", bottom: "#363e52", bottomHi: "#505c78", shoe: "#f7f5f0", hair: "#241d26", headType: "cap", head: "#f5efe6", headDark: "#c7bfb4", accent: "#ffffff", accentDark: "#ffd4e0", glasses: false, signBg: "#fff5f8", signStripe: "#2c4c7d" },
+    ],
+  },
+  temperate_green: {
+    id: "temperate_green",
+    topStyle: "tee",
+    bottomStyle: "shorts",
+    shoeStyle: "sneakers",
+    neckStyle: "none",
+    variants: [
+      { skin: ["#f5caa0", "#ffe0bd"], top: "#2b6ec9", topHi: "#5499f0", topDark: "#1a4687", bottom: "#b8a078", bottomHi: "#d9c29c", shoe: "#e8f0f7", hair: "#4a2e1e", headType: "cap", head: "#d93b36", headDark: "#94211d", accent: "#ffffff", accentDark: "#cbd6e3", signBg: "#fff9e6", signStripe: "#245ca8" },
+      { skin: ["#d99e70", "#f0ba8d"], top: "#389c5e", topHi: "#61c988", topDark: "#21663b", bottom: "#2e405c", bottomHi: "#466087", shoe: "#f2f5fa", hair: "#241c1a", headType: "cap", head: "#f2c64b", headDark: "#bd9122", accent: "#ffffff", accentDark: "#d4dde8", signBg: "#f2fff5", signStripe: "#247844" },
+      { skin: ["#f0c299", "#ffdbb8"], top: "#e8a82e", topHi: "#ffd066", topDark: "#ad7615", bottom: "#3a4559", bottomHi: "#556480", shoe: "#e84855", hair: "#734224", headType: "none", head: "#734224", headDark: "#4a2914", accent: "#2b6ec9", accentDark: "#1a4687", signBg: "#fff8eb", signStripe: "#d95b26" },
+    ],
+  },
+};
+
+/**
+ * Resolve which biome/seasonal outfit style sidewalk protestors wear.
+ */
+export function resolveProtestorOutfitStyle(biomeConfig = null, season = "fall") {
+  // Backwards-compatible support for legacy climate strings ("cold" | "warm" | "mild")
+  if (typeof biomeConfig === "string") {
+    if (PROTESTOR_BIOME_STYLES[biomeConfig]) return biomeConfig;
+    if (biomeConfig === "cold") return "winter_parka";
+    if (biomeConfig === "warm") return "israel_jerusalem";
+    return "new_england_autumn";
+  }
+
+  const id = biomeConfig?.id || "";
+  if (
+    id === "tundra" ||
+    biomeConfig?.hasSnowGround ||
+    (season === "winter" &&
+      (!biomeConfig ||
+        id === "new_england_autumn" ||
+        id === "temperate_green" ||
+        id === "european_historic" ||
+        id === "alpine" ||
+        id === "east_asian_urban"))
+  ) {
+    return "winter_parka";
+  }
+  if (id === "israel_jerusalem" || id === "israel_galilee") return "israel_jerusalem";
+  if (id === "israel_coastal") return "israel_coastal";
+  if (id === "israel_desert" || id === "southwest_desert") return "desert";
+  if (id === "tropical_coastal") return "tropical_coastal";
+  if (id === "european_historic") return "european_historic";
+  if (id === "alpine") return "alpine";
+  if (id === "east_asian_urban") return "east_asian_urban";
+  if (id === "temperate_green") return "temperate_green";
+  return "new_england_autumn";
+}
+
+/**
+ * Bake 32-bit Pure Pixel Sidewalk Protestor waving a big cardboard picket sign + megaphone,
+ * dressed in authentic biome-specific outfits, headwear, footwear & accessories!
+ */
+function bake32BitProtestorRight(variant = 0, shoutFrame = 0, styleOrClimate = "new_england_autumn") {
   const w = 48;
   const h = 64;
   const g = new PixelGrid(w, h);
@@ -2152,71 +2321,241 @@ function bake32BitProtestorRight(variant = 0, shoutFrame = 0, climate = "mild") 
   const signLift = shoutFrame === 1 ? -3 : 0;
   const stride = shoutFrame === 1 ? 2 : 0;
 
-  const themes =
-    climate === "warm"
-      ? [
-          { jacket: "#2c74b8", jacketHi: "#4c9ae0", jacketDark: "#1b4a78", hair: "#2b2019", beanie: "#e8d6a8", beanieDark: "#b59d6b", signBg: "#fff8e8", signStripe: "#245ca8" },
-          { jacket: "#e87e38", jacketHi: "#ff9e59", jacketDark: "#a84f18", hair: "#4a2c18", beanie: "#f4f2eb", beanieDark: "#c7c2b6", signBg: "#fff6d6", signStripe: "#d95b26" },
-          { jacket: "#3a9c6d", jacketHi: "#5ec492", jacketDark: "#226646", hair: "#241d1a", beanie: "#3678b5", beanieDark: "#1f4d78", signBg: "#f5efe6", signStripe: "#24573d" },
-        ]
-      : climate === "cold"
-        ? [
-            { jacket: "#2b528c", jacketHi: "#4d78b8", jacketDark: "#18325c", hair: "#4a2e1e", beanie: "#d93b36", beanieDark: "#8c1e1a", signBg: "#f2f8ff", signStripe: "#245ca8" },
-            { jacket: "#b53636", jacketHi: "#e05858", jacketDark: "#751c1c", hair: "#2b211e", beanie: "#f0e6d2", beanieDark: "#b8aa92", signBg: "#fff8eb", signStripe: "#b53636" },
-            { jacket: "#2e6b5e", jacketHi: "#4c9686", jacketDark: "#1a4239", hair: "#734224", beanie: "#f2b84b", beanieDark: "#b57e1b", signBg: "#f5f8ff", signStripe: "#2e6b5e" },
-          ]
-        : [
-            { jacket: "#9c2f3a", jacketHi: "#c94b56", jacketDark: "#631b24", hair: "#4a2e1e", beanie: "#d9922b", beanieDark: "#9c6216", signBg: "#f7ebd2", signStripe: "#d93b36" },
-            { jacket: "#d4912a", jacketHi: "#f2b84b", jacketDark: "#8f5c16", hair: "#2b211e", beanie: "#2f6e57", beanieDark: "#1c4536", signBg: "#fff6d6", signStripe: "#24573d" },
-            { jacket: "#2c737d", jacketHi: "#489ea8", jacketDark: "#1a4850", hair: "#734224", beanie: "#b83b36", beanieDark: "#7a221f", signBg: "#f5efe6", signStripe: "#2b528c" },
-          ];
-  const th = themes[variant % themes.length];
+  const styleKey = resolveProtestorOutfitStyle(styleOrClimate);
+  const styleCfg = PROTESTOR_BIOME_STYLES[styleKey] || PROTESTOR_BIOME_STYLES.new_england_autumn;
+  const th = styleCfg.variants[variant % styleCfg.variants.length];
+  const skinMid = th.skin?.[0] || LIAM_PAL.skinMid;
+  const skinHi = th.skin?.[1] || LIAM_PAL.skinHi;
 
   // 1. Tall wooden picket-sign pole & BIG hand-painted cardboard protest sign held high!
   const poleX = cx - 8;
   g.rect(poleX, 16 + signLift, 3, 28, "#8c542c", "pole");
   g.rect(poleX, 16 + signLift, 1, 28, "#bd7c46", "pole");
-  // Big rectangular protest sign board overhead!
   const signX = poleX - 10;
   const signY = 4 + signLift;
   g.rect(signX, signY, 24, 15, "#b8966e", "sign");
   g.rect(signX + 1, signY + 1, 22, 13, th.signBg, "sign");
-  // Bold colorful hand-painted lettering bars & exclamation point on sign!
   g.rect(signX + 3, signY + 3, 14, 2, th.signStripe, "sign");
   g.rect(signX + 3, signY + 7, 11, 2, "#291a18", "sign");
   g.rect(signX + 3, signY + 11, 15, 2, th.signStripe, "sign");
   g.rect(signX + 19, signY + 3, 2, 6, th.signStripe, "sign");
   g.rect(signX + 19, signY + 11, 2, 2, th.signStripe, "sign");
 
-  // 2. Marching legs & autumn boots
-  g.rect(cx - 5 - stride, topY + 33, 5, 11, "#2f3d54", "pants");
-  g.rect(cx - 4 - stride, topY + 34, 2, 9, "#485d7d", "pants");
-  g.rect(cx - 6 - stride, topY + 43, 7, 4, "#4f2e1c", "shoe");
-  g.rect(cx + 1 + stride, topY + 33, 5, 11, "#243042", "pants");
-  g.rect(cx + 2 + stride, topY + 34, 2, 9, "#3a4d69", "pants");
-  g.rect(cx + 1 + stride, topY + 43, 7, 4, "#4f2e1c", "shoe");
+  // 2. Legs & Footwear tailored to biome (shorts + sandals, wide streetwear pants + white sneakers, snowpants + fur boots, trousers + boots)
+  const legPositions = [
+    { lx: cx - 5 - stride, isFront: false },
+    { lx: cx + 1 + stride, isFront: true },
+  ];
+  for (const { lx, isFront } of legPositions) {
+    const legCol = isFront ? th.bottom : th.bottom;
+    const legHi = isFront ? th.bottomHi : th.bottom;
+    const legW = styleCfg.bottomStyle === "wide_pants" ? 6 : 5;
 
-  // 3. Back arm gripping picket pole + torso autumn jacket + scarf
-  g.rect(poleX - 1, topY + 19 + signLift, 5, 4, LIAM_PAL.skinMid, "skin");
-  g.rect(cx - 7, topY + 21, 14, 13, th.jacket, "polo");
-  g.rect(cx - 5, topY + 22, 9, 10, th.jacketHi, "polo");
-  g.rect(cx - 7, topY + 32, 14, 2, th.jacketDark, "polo");
-  // Cozy autumn knit scarf
-  g.rect(cx - 6, topY + 20, 12, 3, "#f0cf6b", "scarf");
-  g.rect(cx + 1, topY + 23, 3, 6, "#d9a742", "scarf");
+    if (styleCfg.bottomStyle === "shorts") {
+      // Breezy summer/coastal shorts + sunlit lower leg!
+      g.rect(lx, topY + 33, legW, 6, legCol, "pants");
+      g.rect(lx + 1, topY + 34, 2, 4, legHi, "pants");
+      g.rect(lx + 1, topY + 39, 3, 5, skinMid, "skin");
+      g.rect(lx + 2, topY + 39, 1, 4, skinHi, "skin");
+    } else if (styleCfg.bottomStyle === "snowpants") {
+      // Insulated puffy winter snow trousers with quilted knee seam
+      g.rect(lx, topY + 33, 6, 11, legCol, "pants");
+      g.rect(lx + 1, topY + 34, 3, 9, legHi, "pants");
+      g.rect(lx, topY + 38, 6, 1, "#121926", "pants");
+    } else {
+      g.rect(lx, topY + 33, legW, 11, legCol, "pants");
+      g.rect(lx + 1, topY + 34, 2, 9, legHi, "pants");
+    }
 
-  // 4. Sculpted side-ish head with knit beanie & open shouting mouth!
-  g.ellipse(cx, topY + 12, 7.2, 7.4, LIAM_PAL.skinMid, "skin");
-  g.ellipse(cx + 2, topY + 11, 4.4, 4.6, LIAM_PAL.skinHi, "skin");
-  g.rect(cx + 6, topY + 13, 2, 2, LIAM_PAL.skinMid, "skin"); // nose
-  // Hair & ribbed autumn knit beanie
+    // Biome footwear
+    if (styleCfg.shoeStyle === "sandals") {
+      // Strapped sandals / coastal flip-flops showing sunlit toes!
+      g.rect(lx, topY + 44, 6, 2, th.shoe, "shoe");
+      g.rect(lx + 1, topY + 43, 4, 1, skinMid, "skin");
+      g.rect(lx + 2, topY + 43, 2, 1, th.shoe, "shoe");
+    } else if (styleCfg.shoeStyle === "snowboots") {
+      // Fur-trimmed insulated winter snow boots!
+      g.rect(lx - 1, topY + 42, 7, 2, "#f0f4fa", "scarf");
+      g.rect(lx - 1, topY + 44, 7, 3, th.shoe, "shoe");
+    } else if (styleCfg.shoeStyle === "sneakers") {
+      // Crisp chunky modern sneakers with white sole & colored accent
+      g.rect(lx - 1, topY + 43, 7, 3, th.shoe, "shoe");
+      g.rect(lx - 1, topY + 45, 7, 2, "#d8e0eb", "shoe");
+      g.rect(lx + 1, topY + 43, 3, 1, th.topHi, "shoe");
+    } else {
+      g.rect(lx - 1, topY + 43, 7, 4, th.shoe, "shoe");
+    }
+  }
+
+  // 3. Back hand gripping picket pole (with cozy mittens in winter!) + Biome Torso Silhouette!
+  const handCol = styleCfg.mittens ? th.head : skinMid;
+  const handMat = styleCfg.mittens ? "cap" : "skin";
+  g.rect(poleX - 1, topY + 19 + signLift, 5, 4, handCol, handMat);
+
+  if (styleCfg.topStyle === "trench") {
+    // Chic European long tailored trench/peacoat extending slightly over hips + lapels & double buttons!
+    g.rect(cx - 7, topY + 21, 14, 16, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 13, th.topHi, "polo");
+    g.rect(cx - 7, topY + 35, 14, 2, th.topDark, "polo");
+    g.rect(cx + 1, topY + 26, 2, 2, th.topDark, "polo"); // coat buttons
+    g.rect(cx + 1, topY + 30, 2, 2, th.topDark, "polo");
+    g.rect(cx - 7, topY + 29, 14, 2, th.topDark, "polo"); // tailored belt
+  } else if (styleCfg.topStyle === "parka") {
+    // Puffy quilted Arctic/Winter down parka with fluffy white faux-fur hood collar!
+    g.rect(cx - 8, topY + 21, 16, 14, th.top, "polo");
+    g.rect(cx - 6, topY + 22, 11, 11, th.topHi, "polo");
+    g.rect(cx - 8, topY + 25, 16, 1, th.topDark, "polo"); // puffer baffle seams
+    g.rect(cx - 8, topY + 29, 16, 1, th.topDark, "polo");
+    g.rect(cx - 8, topY + 33, 16, 2, th.topDark, "polo");
+    // Fluffy fur-trimmed hood collar resting on shoulders
+    g.rect(cx - 7, topY + 19, 14, 3, "#f5f8fc", "scarf");
+    g.rect(cx - 6, topY + 20, 12, 1, "#dce6f2", "scarf");
+  } else if (styleCfg.topStyle === "aloha") {
+    // Vibrant Tropical Aloha / Floral short-sleeve shirt with pixel hibiscus blossoms!
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+    // Crisp colorful floral pattern dots
+    g.rect(cx - 4, topY + 24, 2, 2, th.accent, "scarf");
+    g.rect(cx + 1, topY + 27, 2, 2, th.accentDark, "scarf");
+    g.rect(cx - 3, topY + 29, 2, 2, th.accentDark, "scarf");
+    g.rect(cx + 3, topY + 23, 2, 2, th.accent, "scarf");
+  } else if (styleCfg.topStyle === "nordic_sweater") {
+    // Cozy Alpine / Nordic Fair Isle sweater with pixel snowflake chest band + mountain vest!
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
+    // Iconic Fair Isle zigzag chest band!
+    g.rect(cx - 7, topY + 24, 14, 4, th.accentDark, "scarf");
+    for (let nx = cx - 6; nx <= cx + 5; nx += 3) {
+      g.rect(nx, topY + 25, 2, 2, th.accent, "scarf");
+    }
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+  } else if (styleCfg.topStyle === "vest_shirt") {
+    // Desert breathable cotton shirt with light canvas utility vest & chest pocket
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
+    g.rect(cx - 6, topY + 22, 12, 10, "#d9c496", "scarf");
+    g.rect(cx - 4, topY + 23, 3, 9, th.topHi, "polo"); // open vest front
+    g.rect(cx + 1, topY + 26, 4, 3, "#bfa370", "scarf"); // utility pocket
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+  } else if (styleCfg.topStyle === "streetwear") {
+    // East Asian Urban layered overshirt/cardigan with crisp white tee peek at hem & collar!
+    g.rect(cx - 7, topY + 21, 14, 12, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 9, th.topHi, "polo");
+    g.rect(cx - 2, topY + 22, 4, 11, th.accent, "scarf"); // crisp inner white tee
+    g.rect(cx - 7, topY + 32, 14, 2, th.accent, "scarf"); // layered white tee hem
+    g.rect(cx - 7, topY + 31, 14, 1, th.topDark, "polo");
+  } else if (styleCfg.topStyle === "short_shirt" || styleCfg.topStyle === "tee") {
+    // Breezy Mediterranean / Summer short-sleeve shirt or casual tee
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+    if (styleCfg.topStyle === "short_shirt") {
+      // Crisp button placket & chest pocket
+      g.line(cx + 1, topY + 22, cx + 1, topY + 32, th.topDark, "polo");
+      g.rect(cx - 4, topY + 25, 3, 3, th.topDark, "polo");
+    } else if (th.accent) {
+      // Casual tee chest stripe!
+      g.rect(cx - 6, topY + 25, 12, 2, th.accent, "scarf");
+    }
+  } else {
+    // Classic New England Autumn jacket
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+  }
+
+  // Neck accessory (knit scarf, desert bandana, collar, or hoodie cords)
+  if (styleCfg.neckStyle === "scarf") {
+    g.rect(cx - 6, topY + 20, 12, 3, th.accent, "scarf");
+    g.rect(cx + 1, topY + 23, 3, 6, th.accentDark, "scarf");
+  } else if (styleCfg.neckStyle === "bandana") {
+    // Triangular desert neckerchief bandana!
+    g.rect(cx - 5, topY + 20, 11, 2, th.accent, "scarf");
+    g.rect(cx - 2, topY + 22, 7, 2, th.accent, "scarf");
+    g.rect(cx, topY + 24, 4, 2, th.accentDark, "scarf");
+  } else if (styleCfg.neckStyle === "collar") {
+    g.rect(cx - 4, topY + 20, 9, 2, th.topHi, "polo");
+  } else if (styleCfg.neckStyle === "hoodie") {
+    g.rect(cx - 6, topY + 20, 12, 2, th.topDark, "polo");
+    g.rect(cx, topY + 22, 1, 4, th.accent, "scarf");
+    g.rect(cx + 3, topY + 22, 1, 4, th.accent, "scarf");
+  }
+
+  // 4. Sculpted side-ish head + biome-specific headwear, sunglasses/glasses & shouting expression!
+  g.ellipse(cx, topY + 12, 7.2, 7.4, skinMid, "skin");
+  g.ellipse(cx + 2, topY + 11, 4.4, 4.6, skinHi, "skin");
+  g.rect(cx + 6, topY + 13, 2, 2, skinMid, "skin"); // nose
   g.rect(cx - 7, topY + 8, 6, 8, th.hair, "hair");
-  g.ellipse(cx - 1, topY + 6.5, 7.6, 4.6, th.beanie, "cap");
-  g.rect(cx - 8, topY + 8, 16, 2, th.beanieDark || "#291a18", "cap");
-  // Intense shouting eyebrow, eye & wide-open shouting mouth on frame 1!
-  g.rect(cx + 3, topY + 10, 4, 1, "#291a18", "skin");
-  g.rect(cx + 4, topY + 11, 2, 3, "#1c1312", "skin");
-  g.set(cx + 4, topY + 11, "#ffffff", "skin");
+
+  // Biome Headwear!
+  const ht = th.headType || "beanie";
+  if (ht === "pom_beanie") {
+    g.ellipse(cx - 2, topY + 1, 2.5, 2.2, th.accent, "scarf"); // fluffy pom-pom!
+    g.ellipse(cx - 1, topY + 6.5, 7.6, 4.6, th.head, "cap");
+    g.rect(cx - 8, topY + 8, 16, 2, th.headDark, "cap");
+  } else if (ht === "sun_hat" || ht === "wide_hat") {
+    // Wide woven straw sun hat or desert safari brim!
+    g.ellipse(cx, topY + 8, 11.2, 2.3, th.headDark, "cap");
+    g.ellipse(cx, topY + 7.5, 10.4, 1.8, th.head, "cap");
+    g.ellipse(cx - 1, topY + 5, 6.2, 3.2, th.head, "cap");
+    g.rect(cx - 6, topY + 6, 12, 2, th.accent, "scarf"); // colorful hatband!
+  } else if (ht === "bucket_hat") {
+    // Classic Mediterranean / East Asian urban bucket hat with sloped brim!
+    g.ellipse(cx - 1, topY + 5.5, 6.4, 3.4, th.head, "cap");
+    g.rect(cx - 9, topY + 7, 18, 2, th.head, "cap");
+    g.rect(cx - 8, topY + 8, 17, 2, th.headDark, "cap");
+  } else if (ht === "cap") {
+    // Baseball / sun cap with visor jutting forward!
+    g.ellipse(cx - 1, topY + 6.5, 7.4, 4.4, th.head, "cap");
+    g.rect(cx - 7, topY + 8, 15, 2, th.headDark, "cap");
+    g.rect(cx + 4, topY + 8, 8, 2, th.headDark, "cap");
+  } else if (ht === "kippah") {
+    // Full dark hair crown + neat knitted kippah at back-crown!
+    g.ellipse(cx, topY + 7.5, 7.4, 4.2, th.hair, "hair");
+    g.ellipse(cx - 3, topY + 4.5, 4.5, 2.6, th.head, "cap");
+    g.rect(cx - 7, topY + 6, 8, 1, th.headDark, "cap");
+  } else if (ht === "beret") {
+    // Chic tilted European artist/cafe beret!
+    g.ellipse(cx - 2, topY + 5.5, 8.6, 3.6, th.head, "cap");
+    g.ellipse(cx - 3, topY + 4.5, 5.5, 2.0, th.head, "cap");
+    g.rect(cx - 2, topY + 2, 2, 2, th.headDark, "cap"); // beret stem!
+    g.rect(cx - 7, topY + 8, 14, 1, th.headDark, "cap");
+  } else if (ht === "flat_cap") {
+    // Classic European wool flat cap / newsboy cap!
+    g.ellipse(cx - 1, topY + 6.5, 8.2, 3.4, th.head, "cap");
+    g.rect(cx - 7, topY + 8, 17, 2, th.headDark, "cap");
+  } else if (ht === "alpine_hat") {
+    // Alpine mountain felt cap with jaunty red feather!
+    g.ellipse(cx - 1, topY + 5.5, 6.8, 3.6, th.head, "cap");
+    g.rect(cx - 9, topY + 8, 18, 2, th.headDark, "cap");
+    g.rect(cx - 5, topY + 6, 10, 2, th.accentDark, "scarf");
+    g.line(cx - 5, topY + 6, cx - 9, topY + 1, th.accent, "scarf"); // jaunty feather!
+  } else if (ht === "none") {
+    // Neat uncovered hair silhouette (sunny coastal / East Asian urban look)
+    g.ellipse(cx - 1, topY + 7.2, 7.6, 4.4, th.hair, "hair");
+    g.rect(cx + 1, topY + 7, 6, 2, th.hair, "hair");
+  } else {
+    // Default ribbed knit beanie
+    g.ellipse(cx - 1, topY + 6.5, 7.6, 4.6, th.head, "cap");
+    g.rect(cx - 8, topY + 8, 16, 2, th.headDark || "#291a18", "cap");
+  }
+
+  // Face: expressive eye, optional sunglasses / urban round glasses & shouting mouth!
+  if (th.sunglasses) {
+    g.rect(cx + 2, topY + 11, 6, 3, "#141824", "cap");
+    g.rect(cx + 3, topY + 11, 4, 2, "#38b6ff", "scarf");
+    g.set(cx + 3, topY + 11, "#ffffff", "scarf");
+  } else {
+    g.rect(cx + 3, topY + 10, 4, 1, "#291a18", "skin");
+    g.rect(cx + 4, topY + 11, 2, 3, "#1c1312", "skin");
+    g.set(cx + 4, topY + 11, "#ffffff", "skin");
+    if (th.glasses) {
+      g.rect(cx + 3, topY + 10, 4, 1, "#242836", "cap");
+      g.rect(cx + 3, topY + 14, 4, 1, "#242836", "cap");
+      g.set(cx + 2, topY + 11, "#242836", "cap");
+    }
+  }
   if (shoutFrame === 1) {
     g.rect(cx + 4, topY + 15, 3, 3, "#7a1c1c", "skin");
     g.rect(cx + 5, topY + 15, 2, 1, "#ffffff", "skin");
@@ -2224,15 +2563,23 @@ function bake32BitProtestorRight(variant = 0, shoutFrame = 0, climate = "mild") 
     g.rect(cx + 4, topY + 16, 3, 2, "#8c2b2b", "skin");
   }
 
-  // 5. Front arm holding a loud red-and-white MEGAPHONE!
-  g.rect(cx + 4, topY + 22, 6, 4, th.jacketHi, "polo");
-  g.rect(cx + 9, topY + 21, 3, 4, LIAM_PAL.skinMid, "skin");
+  // 5. Front arm (short sleeve shows sunlit forearm on warm/summer biomes!) holding a loud MEGAPHONE!
+  const isShortSleeve =
+    styleCfg.topStyle === "tee" ||
+    styleCfg.topStyle === "aloha" ||
+    styleCfg.topStyle === "short_shirt";
+  if (isShortSleeve) {
+    g.rect(cx + 4, topY + 22, 3, 4, th.topHi, "polo");
+    g.rect(cx + 7, topY + 22, 5, 3, skinMid, "skin");
+  } else {
+    g.rect(cx + 4, topY + 22, 6, 4, th.topHi, "polo");
+    g.rect(cx + 9, topY + 21, 3, 4, handCol, handMat);
+  }
   const megaY = shoutFrame === 1 ? topY + 14 : topY + 17;
   g.rect(cx + 10, megaY + 2, 4, 4, "#d93b36", "mega");
   g.rect(cx + 13, megaY + 1, 3, 6, "#f7f5f0", "mega");
   g.rect(cx + 16, megaY, 3, 8, "#d93b36", "mega");
   if (shoutFrame === 1) {
-    // Little cartoon shout sound waves flying out of the megaphone!
     g.rect(cx + 20, megaY + 1, 2, 1, "#ffe066", "wave");
     g.rect(cx + 21, megaY + 4, 2, 1, "#ffe066", "wave");
     g.rect(cx + 20, megaY + 7, 2, 1, "#ffe066", "wave");
@@ -2242,10 +2589,10 @@ function bake32BitProtestorRight(variant = 0, shoutFrame = 0, climate = "mild") 
     ...LIAM_SELOUT,
     pole: "#361d10",
     sign: "#291a18",
-    scarf: "#754d14",
+    scarf: "#4a3820",
     mega: "#421515",
     wave: "#a65912",
-    polo: th.jacketDark,
+    polo: th.topDark,
   });
   return g.toCanvas(0.5, { cx: cx, cy: 60, rx: 10, ry: 3.0 });
 }
@@ -2708,13 +3055,7 @@ export function bake32BitStreetLifeSprites(chants = [], opts = {}) {
   const out = {};
   const biomeConfig = opts.biomeConfig || null;
   const season = opts.season || "fall";
-  const climate =
-    biomeConfig?.wildlifeStyle === "tundra" ||
-    (season === "winter" && (!biomeConfig || biomeConfig.wildlifeStyle === "new_england" || biomeConfig.wildlifeStyle === "europe"))
-      ? "cold"
-      : biomeConfig?.wildlifeStyle === "israel" || biomeConfig?.wildlifeStyle === "desert" || biomeConfig?.id === "tropical_coastal"
-        ? "warm"
-        : "mild";
+  const protestorStyle = resolveProtestorOutfitStyle(biomeConfig, season);
 
   // Roving Wild Turkeys (strut left/right + dramatic puffed tail fan!)
   const tR0 = bake32BitTurkeyRight(0, false);
@@ -2783,10 +3124,10 @@ export function bake32BitStreetLifeSprites(chants = [], opts = {}) {
     out[`${kind}_alert_left`] = mirrorCanvasHorizontal(al);
   }
 
-  // 3 Annoying Sidewalk Protestor variants (waving signs & shouting into megaphones, climate-dressed!)
+  // 3 Sidewalk Protestor variants (waving signs & shouting into megaphones, dressed in biome-specific outfits!)
   for (let v = 0; v < 3; v++) {
-    const pR0 = bake32BitProtestorRight(v, 0, climate);
-    const pR1 = bake32BitProtestorRight(v, 1, climate);
+    const pR0 = bake32BitProtestorRight(v, 0, protestorStyle);
+    const pR1 = bake32BitProtestorRight(v, 1, protestorStyle);
     out[`protestor_${v}_right_0`] = pR0;
     out[`protestor_${v}_right_1`] = pR1;
     out[`protestor_${v}_left_0`] = mirrorCanvasHorizontal(pR0);
@@ -3248,7 +3589,7 @@ export function bake32BitStreetLifeSprites(chants = [], opts = {}) {
     accent: "#1a1c24",
     textColor: "#1a1404",
   });
-  out.bubble_fire_clear = bakePixelSpeechBubble(`${cityLabel} FIRE HERE!`, {
+  out.bubble_fire_clear = bakePixelSpeechBubble("FIRE RESCUE HERE!", {
     bg: "#ffebe8",
     accent: "#d9221c",
     textColor: "#4a1210",

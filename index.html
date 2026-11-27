@@ -231,11 +231,34 @@
         letter-spacing: 0.05em;
       }
 
-      /* Single Compact Menu Toggle + Collapsible Tools Drawer */
+      /* Top-Right Quick Action Row: Build Neighborhood + Collapsible Tools Drawer */
       .tools-menu-wrap {
         position: relative;
         display: flex;
+        align-items: center;
         justify-content: flex-end;
+        gap: 6px;
+      }
+
+      #btn-studio-hud {
+        height: 28px;
+        padding: 0 11px;
+        border-radius: 999px;
+        border: 1.5px solid var(--snes-gold);
+        background: linear-gradient(180deg, rgba(46, 98, 66, 0.96) 0%, rgba(24, 56, 38, 0.96) 100%);
+        color: #fff6c9;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+      }
+
+      #btn-studio-hud:hover {
+        border-color: #ffe885;
+        background: linear-gradient(180deg, rgba(60, 124, 84, 0.98) 0%, rgba(32, 74, 50, 0.98) 100%);
+        color: #ffffff;
       }
 
       #btn-tools-menu {
@@ -1586,6 +1609,7 @@
       </button>
 
       <div class="tools-menu-wrap">
+        <button id="btn-studio-hud" type="button" aria-label="Build Neighborhood">🌍 Build Neighborhood</button>
         <button id="btn-tools-menu" type="button" aria-expanded="false" aria-controls="tools-drawer">⚙️ Menu</button>
         <div id="tools-drawer" role="menu" aria-label="Explorer Options">
           <button id="btn-studio" class="drawer-item studio-highlight" type="button" role="menuitem">🌍 Build Neighborhood</button>
@@ -1623,7 +1647,7 @@
           <button id="btn-inside" class="mini-btn inside-btn" type="button" style="display:none;" aria-label="Go Inside House">🏠 Inside (I)</button>
           <button id="btn-snack" class="mini-btn snack-btn" type="button" style="display:none;" aria-label="Give Snack or Feed">🥨 Snack (N)</button>
           <button id="btn-sword" class="mini-btn combat-btn" type="button" style="display:none;" aria-label="Swing Graveyard Sword">⚔️ Sword (J)</button>
-          <button id="btn-siddur" class="mini-btn siddur-btn" type="button" style="display:none;" aria-label="Raise Pocket Siddur">📖 Siddur (K)</button>
+          <button id="btn-siddur" class="mini-btn siddur-btn" type="button" style="display:none;" aria-label="Raise Prayer Book">📖 Prayer Book (K)</button>
         </div>
         <div class="action-row">
           <button id="btn-faster" class="touch-btn btn-faster" type="button" aria-label="Go Faster">

@@ -24,8 +24,12 @@ import {
 } from "../src/streetsigns.js";
 import { parseNominatimResult } from "../src/generator/geocode.js";
 import { buildNeighborhoodPackage } from "../src/generator/pack_builder.js";
+import { detectFaithTradition, FAITH_TRADITIONS, generateLandmarksAndQuests } from "../src/generator/poi_landmarks.js";
+import { ITEM_CATALOG } from "../src/quests.js";
+import { upgradeItemsAndFxTo32Bit } from "../src/items32bit.js";
+import { bake32BitVehicleSprites } from "../src/vehicles32bit.js";
 import { buildParkFeatures } from "../src/parks.js";
-import { buildStreetLife } from "../src/streetlife.js";
+import { buildStreetLife, performSiddurDispel } from "../src/streetlife.js";
 import { buildRoadTraffic } from "../src/traffic.js";
 import { PALETTES, HOUSE_COLOR_PRESETS, resolveHouseStyle, getBuildingVisualCategory } from "../src/tileset.js";
 
@@ -343,4 +347,115 @@ test("Language selector is generic (English Only or Bilingual) and formats any w
   const optionValues = [...selectBody.matchAll(/<option value="([^"]+)">/g)].map((m) => m[1]);
   assert.deepEqual(optionValues, ["bilingual", "en"], "Language dropdown should strictly offer Bilingual and English Only");
   assert.equal(/עברית|hebrew/i.test(selectBody), false, "Language dropdown should not be Hebrew-specific");
+});
+
+test("Universal Prayer Book naming & quests/items from all local religions work cleanly worldwide", () => {
+  // 1. User-facing Prayer Book naming (button, item catalog, dispel toast) & top-right Build Neighborhood HUD button
+  const html = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf8");
+  assert.ok(html.includes("📖 Prayer Book (K)"), "Touch button should say Prayer Book (K)");
+  assert.equal(html.includes("📖 Siddur"), false, "Touch button should no longer say Siddur");
+  const topRightMatch = html.match(/<div id="top-right-stack">([\s\S]*?)<div id="tools-drawer"/);
+  assert.ok(topRightMatch && topRightMatch[1].includes('id="btn-studio-hud"'), "Top-right HUD should expose a direct Build Neighborhood button");
+  assert.equal(ITEM_CATALOG.pocket_siddur.name, "Pocket Prayer Book");
+
+  const dispel = performSiddurDispel({ spookyChars: [], turkeys: [], critters: [] }, { x: 0, y: 0 });
+  assert.equal(dispel.toast.includes("Siddur"), false);
+
+  // 2. Faith tradition detection across world religions
+  assert.equal(detectFaithTradition({ amenity: "place_of_worship", religion: "jewish", name: "Great Synagogue" }), "jewish");
+  assert.equal(detectFaithTradition({ amenity: "place_of_worship", religion: "christian", name: "Oslo Domkirke" }), "christian");
+  assert.equal(detectFaithTradition({ amenity: "place_of_worship", religion: "muslim", name: "Al-Noor Mosque" }), "muslim");
+  assert.equal(detectFaithTradition({ amenity: "place_of_worship", religion: "buddhist", name: "Lotus Pagoda" }), "buddhist");
+  assert.equal(detectFaithTradition({ amenity: "place_of_worship", religion: "hindu", name: "Shiva Mandir" }), "hindu");
+  assert.equal(detectFaithTradition({ amenity: "place_of_worship", religion: "sikh", name: "Sri Guru Singh Sabha Gurdwara" }), "sikh");
+  assert.equal(detectFaithTradition({ amenity: "place_of_worship", religion: "shinto", name: "Meiji Jingu 神社" }), "shinto");
+
+  // 3. Multi-religion town generates distinct faith landmarks, unique tradition keepsakes, Pocket Prayer Book, and interfaith quest!
+  const originLat = 31.7767;
+  const originLon = 35.2345;
+  const size = 128;
+  const mockMap = {
+    tileSize: 16,
+    scaleMetersPerTile: 6,
+    dimensions: { width: size, height: size },
+    origin: { lat: originLat, lon: originLon, name: "Home Base", spawnTile: { x: 64, y: 64 } },
+    mapCenter: { lat: originLat, lon: originLon },
+    layers: { base: new Array(size * size).fill(1), collision: new Array(size * size).fill(0) },
+    buildings: [],
+    streetZones: [],
+  };
+  const multiFaithElements = [
+    { type: "node", id: 1, lat: originLat + 0.0012, lon: originLon + 0.0012, tags: { amenity: "place_of_worship", religion: "jewish", name: "Hurva Synagogue" } },
+    { type: "node", id: 2, lat: originLat + 0.0014, lon: originLon - 0.0014, tags: { amenity: "place_of_worship", religion: "muslim", name: "Al-Noor Mosque" } },
+    { type: "node", id: 3, lat: originLat - 0.0014, lon: originLon + 0.0014, tags: { amenity: "place_of_worship", religion: "christian", name: "St. Mark's Church" } },
+    { type: "node", id: 4, lat: originLat - 0.0015, lon: originLon - 0.0015, tags: { amenity: "place_of_worship", religion: "hindu", name: "Peace Mandir" } },
+    { type: "node", id: 5, lat: originLat + 0.0020, lon: originLon, tags: { leisure: "park", name: "Peace Garden Park" } },
+  ];
+
+  const { landmarks, quests } = generateLandmarksAndQuests({
+    elements: multiFaithElements,
+    worldMap: mockMap,
+    meta: { heroName: "Sam", cityShort: "Old City", homeAddress: "1 Plaza", labelMode: "bilingual", countryCode: "il" },
+  });
+
+  const worshipLms = landmarks.filter((l) => l.category === "house_of_worship");
+  assert.equal(worshipLms.length, 4, "Should discover all 4 distinct local faith traditions");
+  const religions = new Set(worshipLms.map((l) => l.religion));
+  assert.deepEqual([...religions].sort(), ["christian", "hindu", "jewish", "muslim"]);
+
+  const rewardItems = new Set(worshipLms.map((l) => l.rewardItem));
+  assert.ok(rewardItems.has("brass_menorah_pin"));
+  assert.ok(rewardItems.has("crescent_lantern_charm"));
+  assert.ok(rewardItems.has("stained_glass_charm"));
+  assert.ok(rewardItems.has("diya_oil_lamp"));
+  for (const w of worshipLms) {
+    assert.equal(w.bonusItem, "pocket_siddur", "Every local house of worship should grant Pocket Prayer Book");
+    assert.ok(w.dialogue.join(" ").includes("Pocket Prayer Book"), "Dialogue should refer to Pocket Prayer Book");
+  }
+
+  const faithQuest = quests.find((q) => q.id === "quest_05_houses_of_faith");
+  assert.ok(faithQuest, "Should auto-generate Houses of Faith & Peace quest across all local religions");
+  assert.equal(faithQuest.steps.length, 4);
+  assert.equal(faithQuest.rewards.item, "unity_peace_medallion");
+
+  // 4. All 8 new 32-bit interfaith item sprites bake cleanly
+  const prevDoc = globalThis.document;
+  globalThis.document = {
+    createElement: () => ({
+      width: 0,
+      height: 0,
+      getContext: () => ({ imageSmoothingEnabled: false, fillStyle: "", fillRect() {} }),
+    }),
+  };
+  try {
+    const itemSprites = {};
+    upgradeItemsAndFxTo32Bit(itemSprites);
+    for (const key of [
+      "item_siddur",
+      "item_menorah",
+      "item_stained_glass",
+      "item_crescent_lantern",
+      "item_lotus_bell",
+      "item_diya_lamp",
+      "item_langar_box",
+      "item_omamori",
+      "item_unity_medallion",
+    ]) {
+      assert.ok(itemSprites[key], `Missing 32-bit sprite ${key}`);
+      assert.equal(itemSprites[key].width, 32);
+    }
+
+    // 5. Emergency vehicles use universal labels ("EMS", "POLICE", "FIRE") — zero "NFD" or "NEWTON"!
+    const vehicleLabels = [];
+    bake32BitVehicleSprites({
+      drawMiniText: (_ctx, str) => vehicleLabels.push(str),
+    });
+    assert.ok(vehicleLabels.includes("FIRE"), "Fire truck should display FIRE");
+    assert.ok(vehicleLabels.includes("POLICE"), "Police car should display POLICE");
+    assert.ok(vehicleLabels.includes("EMS"), "Ambulance should display EMS");
+    assert.equal(vehicleLabels.some((s) => /NFD|NPD|NEWTON/i.test(s)), false, "Vehicles must not display city-specific NFD/NPD/NEWTON text");
+  } finally {
+    if (prevDoc === undefined) delete globalThis.document;
+    else globalThis.document = prevDoc;
+  }
 });

@@ -74,6 +74,7 @@ export function createNeighborhoodStudio({
 } = {}) {
   const modalEl = document.getElementById("studio-modal");
   const btnOpenStudio = document.getElementById("btn-studio");
+  const btnOpenStudioHud = document.getElementById("btn-studio-hud");
   const btnCloseStudio = document.getElementById("btn-studio-close");
 
   const tabButtons = Array.from(document.querySelectorAll("[data-studio-tab]"));
@@ -756,11 +757,13 @@ export function createNeighborhoodStudio({
   for (const btn of tabButtons) {
     btn.addEventListener("click", () => switchTab(btn.dataset.studioTab));
   }
-  btnOpenStudio?.addEventListener("click", () => {
+  const openStudioFromButton = () => {
     document.getElementById("tools-drawer")?.classList.remove("open");
     document.getElementById("btn-tools-menu")?.classList.remove("open");
     open("build");
-  });
+  };
+  btnOpenStudio?.addEventListener("click", openStudioFromButton);
+  btnOpenStudioHud?.addEventListener("click", openStudioFromButton);
   btnCloseStudio?.addEventListener("click", close);
   modalEl?.addEventListener("pointerdown", (e) => {
     if (e.target === modalEl) close();

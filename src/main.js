@@ -1257,8 +1257,8 @@ async function boot() {
     if (homeInterior.state.active) return;
     if (!questSystem.hasSiddur()) {
       const siddurHint = neighborhoodMeta.isNewton
-        ? "📖 Visit Beth El, Shaarei Tefillah, Temple Emanuel, or Chabad for a Pocket Siddur!"
-        : "📖 Visit a local house of worship or community hall for a Pocket Blessing Book!";
+        ? "📖 Visit any local house of worship (Beth El, First Baptist, Wilson Chapel, St. Paul's, or Temple Emanuel) for a Pocket Prayer Book!"
+        : "📖 Visit any local house of worship or community hall for a Pocket Prayer Book!";
       ui?.showSafetyToast(siddurHint, 2600);
       return;
     }
@@ -1370,10 +1370,10 @@ async function boot() {
     };
     const hitToast =
       vehicleKind === "bike"
-        ? `💥 CRASH! An annoying spandex biker nailed you! Full ${cityShort} EMS, Police & Fire response!`
+        ? "💥 CRASH! An annoying spandex biker nailed you! Full EMS, Police & Fire response!"
         : vehicleKind === "truck"
-          ? `💥 CRASH! A giant truck hit you! Full ${cityShort} EMS, Police & Fire response!`
-          : `💥 CRASH! A car hit you! Full ${cityShort} EMS, Police & Fire response!`;
+          ? "💥 CRASH! A giant truck hit you! Full EMS, Police & Fire response!"
+          : "💥 CRASH! A car hit you! Full EMS, Police & Fire response!";
     ui?.showSafetyToast(hitToast, 2600);
   }
 
@@ -2455,7 +2455,7 @@ async function boot() {
             speaker: `Mom • ${homeAddrLabel}`,
             lines: [
               `${heroName.toUpperCase()}!! OH MY GOODNESS, I AM SO HAPPY YOU'RE ALIVE!!`,
-              `The ${cityShort} EMS paramedics brought you all the way home after you got hit by ${culprit} — you ALWAYS have to watch out for traffic on the road!!`,
+              `The EMS paramedics brought you all the way home after you got hit by ${culprit} — you ALWAYS have to watch out for traffic on the road!!`,
               "Thank goodness you're okay... AND YOU ARE GROUNDED FOREVER!!",
             ],
             onComplete: () => {

@@ -2379,7 +2379,7 @@ export function performSiddurDispel(
     positions,
     toast:
       dispelledCount > 0
-        ? `📖 Shalom! Your Pocket Siddur peacefully calmed ${dispelledCount} spooky ${dispelledCount === 1 ? "foe" : "foes"} in a wave of light!`
-        : "📖 Shalom! A warm golden blessing shimmered around you!",
+        ? `📖 Peace! Your Pocket Prayer Book peacefully calmed ${dispelledCount} spooky ${dispelledCount === 1 ? "foe" : "foes"} in a wave of light!`
+        : "📖 Peace! A warm golden blessing shimmered around you!",
   };
 }

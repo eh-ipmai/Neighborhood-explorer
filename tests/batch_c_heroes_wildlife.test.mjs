@@ -11,6 +11,8 @@ import {
   bakeSmb3HeroSprite,
   bakeSmb3HeroFanfareSprite,
   bake32BitStreetLifeSprites,
+  PROTESTOR_BIOME_STYLES,
+  resolveProtestorOutfitStyle,
 } from "../src/characters.js";
 import { buildStreetLife, getRegionalStreetChants } from "../src/streetlife.js";
 import { buildParkFeatures } from "../src/parks.js";
@@ -199,4 +201,46 @@ test("Regional wildlife, chants & park sports adapt cleanly across Israel, Coast
   assert.equal(meta.heroProfile.hairStyle, "curly");
   assert.equal(meta.heroProfile.headwear, "cap");
   assert.equal(meta.heroProfile.tzitzit, false);
+});
+
+test("Peaceful sidewalk protestors wear distinct biome-specific outfits, headwear & footwear across all 12 biomes", () => {
+  assert.equal(resolveProtestorOutfitStyle(BIOME_PRESETS.new_england_autumn, "fall"), "new_england_autumn");
+  assert.equal(resolveProtestorOutfitStyle(BIOME_PRESETS.new_england_autumn, "winter"), "winter_parka");
+  assert.equal(resolveProtestorOutfitStyle(BIOME_PRESETS.tundra, "summer"), "winter_parka");
+  assert.equal(resolveProtestorOutfitStyle(BIOME_PRESETS.european_historic, "fall"), "european_historic");
+  assert.equal(resolveProtestorOutfitStyle(BIOME_PRESETS.european_historic, "winter"), "winter_parka");
+  assert.equal(resolveProtestorOutfitStyle(BIOME_PRESETS.israel_jerusalem, "winter"), "israel_jerusalem");
+  assert.equal(resolveProtestorOutfitStyle(BIOME_PRESETS.israel_coastal, "summer"), "israel_coastal");
+  assert.equal(resolveProtestorOutfitStyle(BIOME_PRESETS.southwest_desert, "fall"), "desert");
+  assert.equal(resolveProtestorOutfitStyle(BIOME_PRESETS.tropical_coastal, "summer"), "tropical_coastal");
+  assert.equal(resolveProtestorOutfitStyle(BIOME_PRESETS.alpine, "fall"), "alpine");
+  assert.equal(resolveProtestorOutfitStyle(BIOME_PRESETS.east_asian_urban, "spring"), "east_asian_urban");
+  assert.equal(resolveProtestorOutfitStyle(BIOME_PRESETS.temperate_green, "summer"), "temperate_green");
+
+  // Every biome preset maps to a valid PROTESTOR_BIOME_STYLES entry & bakes distinct 32-bit sprites!
+  const cleanup = installMockCanvasDom();
+  try {
+    const signatures = new Set();
+    for (const [biomeId, cfg] of Object.entries(BIOME_PRESETS)) {
+      const styleKey = resolveProtestorOutfitStyle(cfg, "fall");
+      assert.ok(PROTESTOR_BIOME_STYLES[styleKey], `Missing protestor outfit style for ${biomeId} -> ${styleKey}`);
+      const sprites = bake32BitStreetLifeSprites(["READ MY SIGN!!"], { biomeConfig: cfg, season: "fall" });
+      for (let v = 0; v < 3; v++) {
+        for (const f of [0, 1]) {
+          const rSpr = sprites[`protestor_${v}_right_${f}`];
+          const lSpr = sprites[`protestor_${v}_left_${f}`];
+          assert.equal(rSpr.width, 48, `${biomeId} protestor_${v}_right_${f} width`);
+          assert.equal(rSpr.height, 64, `${biomeId} protestor_${v}_right_${f} height`);
+          assert.ok(rSpr._calls.length > 100, `${biomeId} protestor should render rich 32-bit pixel art`);
+          assert.ok(lSpr && lSpr.width === 48);
+        }
+      }
+      // Fingerprint variant 0's rendered color palette + pixel count to verify biomes are visually distinct!
+      const colors = [...new Set(sprites.protestor_0_right_0._calls.map((c) => c[4]))].sort().join(",");
+      signatures.add(`${styleKey}:${colors}`);
+    }
+    assert.ok(signatures.size >= 10, `Expected 10 distinct biome protestor outfit styles, got ${signatures.size}`);
+  } finally {
+    cleanup();
+  }
 });
