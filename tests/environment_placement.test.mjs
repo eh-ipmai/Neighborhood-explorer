@@ -7,8 +7,10 @@ import {
   classifyBuildingKind,
   computeBuildingPlacementMeta,
   rasterizeOsmData,
+  repairStreetConnectivity,
+  TILE_IDS,
 } from "../src/generator/rasterizer.js";
-import { buildOverpassQuery } from "../src/generator/osm_fetch.js";
+import { buildOverpassQuery, fetchOsmApiTiled } from "../src/generator/osm_fetch.js";
 import {
   BUILDING_STYLE_PRESETS,
   getBuildingVisualCategory,
@@ -246,4 +248,48 @@ test("Precision placement invariants hold across live Newton Centre world_map.js
   } finally {
     cleanup();
   }
+});
+
+test("Oslo dense-city resilience: border-touching roads never OOM repairStreetConnectivity & dense HTTP 400 tiles auto-subdivide 2x2", async () => {
+  // 1. Regression test for Oslo border-tile crash (e.g. Damstredet at y=0 bridged from nearby island)
+  const W = 40;
+  const H = 40;
+  const base = new Array(W * H).fill(TILE_IDS.GRASS);
+  // Main road touching border y = 0 and running down to y = 20
+  for (let y = 0; y <= 20; y++) {
+    base[y * W + 10] = TILE_IDS.RESIDENTIAL_ROAD;
+  }
+  // Small disconnected island 3 tiles east of y = 0 border tile!
+  base[1 * W + 13] = TILE_IDS.RESIDENTIAL_ROAD;
+  base[2 * W + 13] = TILE_IDS.RESIDENTIAL_ROAD;
+  base[3 * W + 13] = TILE_IDS.RESIDENTIAL_ROAD;
+
+  const t0 = Date.now();
+  repairStreetConnectivity(base, [], W, H);
+  assert.ok(Date.now() - t0 < 2000, "repairStreetConnectivity on border road must complete immediately without looping");
+
+  // 2. Regression test for dense-city HTTP 400 automatic 2x2 quadtree subdivision in fetchOsmApiTiled
+  let callCount = 0;
+  const mockFetch = async (url) => {
+    callCount++;
+    // First tile simulates OSM API 50,000-node cap (HTTP 400); smaller sub-tiles succeed!
+    if (callCount === 1) {
+      return { ok: false, status: 400, json: async () => ({}) };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        elements: [{ type: "node", id: callCount, lat: 59.913, lon: 10.739 }],
+      }),
+    };
+  };
+
+  const els = await fetchOsmApiTiled(
+    { south: 59.91, north: 59.92, west: 10.73, east: 10.75 },
+    { gridMeters: 800, fetchImpl: mockFetch, delayBetweenTilesMs: 0 }
+  );
+  // 2x2 initial grid (4 tiles): tile 1 splits into 4 sub-tiles -> 1 failed + 4 sub + 3 remaining = 8 calls, 7 unique nodes
+  assert.equal(callCount, 8, "Should split dense HTTP 400 tile into 4 sub-tiles instead of aborting");
+  assert.equal(els.length, 7, "Should collect all elements from subdivided + remaining tiles");
 });

@@ -143,9 +143,57 @@ function hashString(str) {
 }
 
 /**
- * Bresenham line rasterizer with configurable brush radius.
+ * Clip a 2D line segment to an expanded axis-aligned bounding box (Liang-Barsky)
+ * so huge regional OSM ways (ferries, coastlines, motorways) never waste iterations far off-map.
+ */
+function clipSegmentToBounds(x0, y0, x1, y1, minX, minY, maxX, maxY) {
+  let t0 = 0;
+  let t1 = 1;
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const clip = (p, q) => {
+    if (p === 0) return q >= 0;
+    const r = q / p;
+    if (p < 0) {
+      if (r > t1) return false;
+      if (r > t0) t0 = r;
+    } else {
+      if (r < t0) return false;
+      if (r < t1) t1 = r;
+    }
+    return true;
+  };
+  if (
+    !clip(-dx, x0 - minX) ||
+    !clip(dx, maxX - x0) ||
+    !clip(-dy, y0 - minY) ||
+    !clip(dy, maxY - y0)
+  ) {
+    return null;
+  }
+  return {
+    x0: Math.round(x0 + t0 * dx),
+    y0: Math.round(y0 + t0 * dy),
+    x1: Math.round(x0 + t1 * dx),
+    y1: Math.round(y0 + t1 * dy),
+  };
+}
+
+/**
+ * Bresenham line rasterizer with configurable brush radius and automatic bounds clipping.
  */
 function drawLine(grid, width, height, x0, y0, x1, y1, value, radius = 0, filterFn = null) {
+  if (!Number.isFinite(x0) || !Number.isFinite(y0) || !Number.isFinite(x1) || !Number.isFinite(y1)) {
+    return;
+  }
+  const pad = Math.max(0, radius) + 2;
+  const clipped = clipSegmentToBounds(x0, y0, x1, y1, -pad, -pad, width - 1 + pad, height - 1 + pad);
+  if (!clipped) return;
+  x0 = clipped.x0;
+  y0 = clipped.y0;
+  x1 = clipped.x1;
+  y1 = clipped.y1;
+
   let cx = x0;
   let cy = y0;
   const dx = Math.abs(x1 - x0);
@@ -154,7 +202,8 @@ function drawLine(grid, width, height, x0, y0, x1, y1, value, radius = 0, filter
   const sy = y0 < y1 ? 1 : -1;
   let err = dx - dy;
 
-  while (true) {
+  let safety = dx + dy + 8;
+  while (safety-- > 0) {
     for (let oy = -radius; oy <= radius; oy++) {
       for (let ox = -radius; ox <= radius; ox++) {
         const px = cx + ox;
@@ -831,6 +880,14 @@ export function simplifyRoadPolyline(points, { epsilon = 2.4, snapMaxDrift = 3, 
  * (instead of noisy 1-tile Bresenham stair-steps every few tiles).
  */
 function drawSimplifiedSegment(grid, width, height, x0, y0, x1, y1, value, radius = 0, filterFn = null) {
+  const pad = Math.max(0, radius) + 4;
+  const clipped = clipSegmentToBounds(x0, y0, x1, y1, -pad, -pad, width - 1 + pad, height - 1 + pad);
+  if (!clipped) return;
+  x0 = clipped.x0;
+  y0 = clipped.y0;
+  x1 = clipped.x1;
+  y1 = clipped.y1;
+
   const dx = x1 - x0;
   const dy = y1 - y0;
   const adx = Math.abs(dx);
@@ -2381,22 +2438,28 @@ export function repairStreetConnectivity(base, streetZones = [], width, height) 
 
   // Helper: find a crisp 4-way orthogonal bridge path from (sx, sy) to (gx, gy) avoiding buildings & water!
   const findCleanBridgePath = (sx, sy, gx, gy, maxCost = 18) => {
+    if (!inBounds(sx, sy, width, height) || !inBounds(gx, gy, width, height)) return null;
     const pad = 4;
-    const minX = Math.max(1, Math.min(sx, gx) - pad);
-    const maxX = Math.min(width - 2, Math.max(sx, gx) + pad);
-    const minY = Math.max(1, Math.min(sy, gy) - pad);
-    const maxY = Math.min(height - 2, Math.max(sy, gy) + pad);
+    // IMPORTANT: Keep [minX..maxX] x [minY..maxY] inclusive of border tiles (0 / width-1 / height-1)
+    // so startL and goalL can NEVER fall outside the local grid and alias or underflow!
+    const minX = Math.max(0, Math.min(sx, gx) - pad);
+    const maxX = Math.min(width - 1, Math.max(sx, gx) + pad);
+    const minY = Math.max(0, Math.min(sy, gy) - pad);
+    const maxY = Math.min(height - 1, Math.max(sy, gy) + pad);
     const w = maxX - minX + 1;
     const h = maxY - minY + 1;
+    const area = w * h;
+    if (area <= 0) return null;
 
     const toLocal = (x, y) => (y - minY) * w + (x - minX);
-    const dist = new Float32Array(w * h).fill(1e9);
-    const prev = new Int32Array(w * h).fill(-1);
-    const prevDir = new Int8Array(w * h).fill(-1);
+    const dist = new Float32Array(area).fill(1e9);
+    const prev = new Int32Array(area).fill(-1);
+    const prevDir = new Int8Array(area).fill(-1);
     const open = [];
 
     const startL = toLocal(sx, sy);
     const goalL = toLocal(gx, gy);
+    if (startL < 0 || startL >= area || goalL < 0 || goalL >= area) return null;
     dist[startL] = 0;
     open.push({ l: startL, f: Math.abs(gx - sx) + Math.abs(gy - sy) });
 
@@ -2407,7 +2470,8 @@ export function repairStreetConnectivity(base, streetZones = [], width, height) 
       [0, -1],
     ];
 
-    while (open.length > 0) {
+    let maxIter = area * 12;
+    while (open.length > 0 && maxIter-- > 0) {
       let bestI = 0;
       for (let i = 1; i < open.length; i++) {
         if (open[i].f < open[bestI].f) bestI = i;
@@ -2459,15 +2523,20 @@ export function repairStreetConnectivity(base, streetZones = [], width, height) 
       }
     }
 
-    if (prev[goalL] === -1) return null;
+    if (prev[goalL] === -1 || prev[goalL] === undefined) return null;
     const path = [];
+    const seen = new Uint8Array(area);
     let cur = goalL;
-    while (cur !== -1) {
+    let steps = 0;
+    while (cur >= 0 && cur < area && !seen[cur] && steps++ <= area) {
+      seen[cur] = 1;
       const lx = cur % w;
       const ly = (cur - lx) / w;
       path.push({ x: lx + minX, y: ly + minY });
+      if (cur === startL) break;
       cur = prev[cur];
     }
+    if (cur !== startL) return null;
     path.reverse();
     return path;
   };
@@ -5050,6 +5119,7 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     mapCenter,
     origin,
     scaleMetersPerTile,
+    labelMode,
   });
 
   const extractedGraveyards = !isNewtonPreset

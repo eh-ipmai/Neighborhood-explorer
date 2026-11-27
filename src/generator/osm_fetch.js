@@ -7,9 +7,9 @@
  */
 
 export const OVERPASS_ENDPOINTS = [
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
-  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ];
 
 function sleep(ms) {
@@ -61,6 +61,9 @@ out tags geom;
 /**
  * Fetch via official OpenStreetMap API v0.6 tiled bounding-box grid.
  * Returns complete raw nodes + ways (including all POI tags & house addresses).
+ * Automatically subdivides dense city tiles 2x2 on HTTP 400 (50k-node limit)
+ * and retries politely on HTTP 429/509/5xx so ultra-dense capitals (Oslo, Tokyo,
+ * London, Paris) always download cleanly in-browser and in Node!
  */
 export async function fetchOsmApiTiled(
   bbox,
@@ -70,11 +73,11 @@ export async function fetchOsmApiTiled(
     onProgress = null,
     timeoutMs = 30000,
     delayBetweenTilesMs = 120,
+    maxSubdivideDepth = 2,
     userAgent = "NeighborhoodExplorerRPG/1.0 (https://github.com/eh-ipmai/Neighborhood-explorer)",
   } = {}
 ) {
   const tilesPerSide = gridMeters > 2400 ? 5 : gridMeters > 1600 ? 4 : gridMeters > 950 ? 3 : 2;
-  const total = tilesPerSide * tilesPerSide;
   const latStep = (bbox.north - bbox.south) / tilesPerSide;
   const lonStep = (bbox.east - bbox.west) / tilesPerSide;
   const dedup = new Map();
@@ -82,22 +85,41 @@ export async function fetchOsmApiTiled(
   const headers = { Accept: "application/json" };
   if (!isBrowser && userAgent) headers["User-Agent"] = userAgent;
 
-  let done = 0;
+  const queue = [];
   for (let r = 0; r < tilesPerSide; r++) {
     for (let c = 0; c < tilesPerSide; c++) {
-      const s = bbox.south + r * latStep;
-      const n = bbox.south + (r + 1) * latStep;
-      const w = bbox.west + c * lonStep;
-      const e = bbox.west + (c + 1) * lonStep;
-      const url = `https://api.openstreetmap.org/api/0.6/map.json?bbox=${w.toFixed(6)},${s.toFixed(6)},${e.toFixed(6)},${n.toFixed(6)}`;
-
-      onProgress?.({
-        stage: "fetch",
-        completed: done,
-        total,
-        message: `Downloading neighborhood map tile ${done + 1} of ${total}...`,
+      queue.push({
+        south: bbox.south + r * latStep,
+        north: bbox.south + (r + 1) * latStep,
+        west: bbox.west + c * lonStep,
+        east: bbox.west + (c + 1) * lonStep,
+        depth: 0,
       });
+    }
+  }
 
+  let total = queue.length;
+  let done = 0;
+
+  while (queue.length > 0) {
+    const tile = queue.shift();
+    const url = `https://api.openstreetmap.org/api/0.6/map.json?bbox=${tile.west.toFixed(6)},${tile.south.toFixed(6)},${tile.east.toFixed(6)},${tile.north.toFixed(6)}`;
+
+    onProgress?.({
+      stage: "fetch",
+      completed: done,
+      total,
+      message: `Downloading neighborhood map tile ${done + 1} of ${total}...`,
+    });
+
+    let fetched = false;
+    let subdivided = false;
+    let lastStatus = 0;
+
+    for (let attempt = 0; attempt < 3 && !fetched && !subdivided; attempt++) {
+      if (attempt > 0) {
+        await sleep(800 * attempt);
+      }
       const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
       const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
       try {
@@ -105,6 +127,34 @@ export async function fetchOsmApiTiled(
           headers,
           ...(controller ? { signal: controller.signal } : {}),
         });
+        lastStatus = res.status;
+
+        // Dense urban tile exceeded OSM API's 50,000-node cap -> automatically quadtree-split 2x2!
+        if (res.status === 400 && tile.depth < maxSubdivideDepth) {
+          const midLat = (tile.south + tile.north) / 2;
+          const midLon = (tile.west + tile.east) / 2;
+          const nextDepth = tile.depth + 1;
+          queue.unshift(
+            { south: tile.south, north: midLat, west: tile.west, east: midLon, depth: nextDepth },
+            { south: tile.south, north: midLat, west: midLon, east: tile.east, depth: nextDepth },
+            { south: midLat, north: tile.north, west: tile.west, east: midLon, depth: nextDepth },
+            { south: midLat, north: tile.north, west: midLon, east: tile.east, depth: nextDepth }
+          );
+          total += 3; // replaced 1 dense tile with 4 smaller sub-tiles
+          subdivided = true;
+          onProgress?.({
+            stage: "fetch",
+            completed: done,
+            total,
+            message: `Dense city block detected — splitting into smaller tiles (${done}/${total})...`,
+          });
+          break;
+        }
+
+        if (res.status === 429 || res.status === 509 || res.status >= 500) {
+          if (attempt < 2) continue;
+          throw new Error(`OSM API tile ${done + 1}/${total} returned HTTP ${res.status}`);
+        }
         if (!res.ok) {
           throw new Error(`OSM API tile ${done + 1}/${total} returned HTTP ${res.status}`);
         }
@@ -112,21 +162,28 @@ export async function fetchOsmApiTiled(
         for (const el of data.elements || []) {
           dedup.set(`${el.type}:${el.id}`, el);
         }
+        fetched = true;
+      } catch (err) {
+        if (attempt >= 2 || (lastStatus > 0 && lastStatus < 500 && lastStatus !== 429)) {
+          throw err;
+        }
       } finally {
         if (timer) clearTimeout(timer);
       }
+    }
 
-      done++;
-      onProgress?.({
-        stage: "fetch",
-        completed: done,
-        total,
-        message: `Downloaded ${done}/${total} map tiles (${dedup.size.toLocaleString()} real-world features)`,
-      });
+    if (subdivided) continue;
 
-      if (delayBetweenTilesMs > 0 && done < total) {
-        await sleep(delayBetweenTilesMs);
-      }
+    done++;
+    onProgress?.({
+      stage: "fetch",
+      completed: done,
+      total,
+      message: `Downloaded ${done}/${total} map tiles (${dedup.size.toLocaleString()} real-world features)`,
+    });
+
+    if (delayBetweenTilesMs > 0 && queue.length > 0) {
+      await sleep(delayBetweenTilesMs);
     }
   }
 

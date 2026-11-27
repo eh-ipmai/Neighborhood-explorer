@@ -250,9 +250,6 @@ export function createNeighborhoodStudio({
       if (selectBiome && chip.dataset.quickBiome) {
         selectBiome.value = chip.dataset.quickBiome;
       }
-      if (selectLabels && chip.dataset.quickBiome?.startsWith("israel_")) {
-        selectLabels.value = "bilingual";
-      }
       setStatus(buildErrorEl, "");
       inputAddress?.focus();
     });

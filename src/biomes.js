@@ -759,7 +759,7 @@ export function hasHebrewScript(str = "") {
 
 /**
  * Format an OpenStreetMap element's name cleanly according to labelMode:
- *  - "bilingual": "Emek Refaim St · עמק רפאים" when both English & local non-Latin tags exist
+ *  - "bilingual": "English · Local" whenever both English & local tags exist and differ
  *  - "en": prefers name:en / int_name, falling back to local name
  *  - "local": prefers local name, falling back to name:en
  */
@@ -767,25 +767,19 @@ export function formatBilingualName(tags = {}, { labelMode = "bilingual" } = {})
   if (!tags || typeof tags !== "object") return "";
   const local = String(tags.name || "").trim();
   const en = String(tags["name:en"] || tags.int_name || "").trim();
-  const he = String(tags["name:he"] || "").trim();
 
   if (labelMode === "en") {
-    return en || local || he;
+    return en || local;
   }
   if (labelMode === "local") {
-    return local || he || en;
+    return local || en;
   }
 
-  // Bilingual mode (default): pair English + Local when they differ (especially Latin + Hebrew/non-Latin!)
-  const primaryLocal = he || local;
-  if (en && primaryLocal && en.toLowerCase() !== primaryLocal.toLowerCase()) {
-    // Only combine when one is non-Latin (like Hebrew/Arabic/Japanese) or distinctly different
-    if (hasNonLatinScript(primaryLocal) || hasNonLatinScript(en)) {
-      return `${en} · ${primaryLocal}`;
-    }
-    return en;
+  // Bilingual mode (default): pair English + Local whenever both exist and differ (works globally for any language!)
+  if (en && local && en.toLowerCase() !== local.toLowerCase()) {
+    return `${en} · ${local}`;
   }
-  return en || primaryLocal || "";
+  return en || local || "";
 }
 
 /**
@@ -800,7 +794,7 @@ export function formatInternationalAddress(tags = {}, { labelMode = "bilingual",
   if (labelMode === "en") {
     street = stEn || stLocal;
   } else if (labelMode === "bilingual" && stEn && stLocal && stEn.toLowerCase() !== stLocal.toLowerCase()) {
-    street = hasNonLatinScript(stLocal) ? `${stEn} · ${stLocal}` : stEn;
+    street = `${stEn} · ${stLocal}`;
   }
 
   if (!num) return street;

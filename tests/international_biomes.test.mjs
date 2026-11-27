@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 
 import {
   BIOME_PRESETS,
@@ -316,4 +318,29 @@ test("End-to-end offline Jerusalem bilingual neighborhood pack builds with Jerus
   // 6. Traffic initializes cleanly
   const traffic = buildRoadTraffic(pack.worldMap);
   assert.ok(Array.isArray(traffic.vehicles));
+});
+
+test("Language selector is generic (English Only or Bilingual) and formats any world language cleanly", () => {
+  // Norwegian / European bilingual naming works identically to Hebrew/non-Latin
+  assert.equal(
+    formatBilingualName({ name: "Slottet", "name:en": "The Royal Palace" }, { labelMode: "bilingual" }),
+    "The Royal Palace · Slottet"
+  );
+  assert.equal(
+    formatBilingualName({ name: "Slottet", "name:en": "The Royal Palace" }, { labelMode: "en" }),
+    "The Royal Palace"
+  );
+  assert.equal(
+    formatBilingualName({ name: "Karl Johans gate" }, { labelMode: "bilingual" }),
+    "Karl Johans gate"
+  );
+
+  // Studio UI language selector offers strictly 2 generic options (bilingual & en), not Hebrew-specific
+  const html = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf8");
+  const selectMatch = html.match(/<select id="studio-labels">([\s\S]*?)<\/select>/);
+  assert.ok(selectMatch, "Expected #studio-labels dropdown in index.html");
+  const selectBody = selectMatch[1];
+  const optionValues = [...selectBody.matchAll(/<option value="([^"]+)">/g)].map((m) => m[1]);
+  assert.deepEqual(optionValues, ["bilingual", "en"], "Language dropdown should strictly offer Bilingual and English Only");
+  assert.equal(/עברית|hebrew/i.test(selectBody), false, "Language dropdown should not be Hebrew-specific");
 });

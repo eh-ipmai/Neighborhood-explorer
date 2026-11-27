@@ -5,6 +5,7 @@ import path from "node:path";
 
 import {
   createStreetSignSystem,
+  findVectorRoadIntersections,
   abbreviateStreetName,
   extractHouseNumber,
   extractStreetFromAddress,
@@ -45,6 +46,20 @@ test("active street sign system places reachable intersection signs across Newto
   const nearSpawn = sys.findNearbySign(spawn.x, spawn.y, 12);
   assert.ok(nearSpawn, "Expected an active street sign within 12 tiles of Home Base spawn");
   assert.ok(nearSpawn.sign.label.length > 0);
+  assert.equal(nearSpawn.sign.isIntersection, true, "Nearest sign to Home Base should be a real street intersection");
+
+  // Real-life street-sign placement invariant: signs sit at real geometric intersections, NOT random mid-block spots!
+  const geomIntersections = findVectorRoadIntersections(worldMap.vectorRoads);
+  assert.ok(geomIntersections.length >= 200, "Expected geometric vectorRoad intersections in Newton Centre");
+  const intersectionRatio = intersections.length / Math.max(1, sys.signs.length);
+  assert.ok(
+    intersectionRatio >= 0.98,
+    `Expected >= 98% of street signs to be real intersections (got ${(intersectionRatio * 100).toFixed(1)}%)`
+  );
+  for (const s of intersections) {
+    const nearGeom = geomIntersections.some((g) => Math.hypot(g.x - s.tx, g.y - s.ty) <= 5.5);
+    assert.ok(nearGeom, `Intersection sign ${s.id} (${s.label}) must sit right beside a real geometric road intersection`);
+  }
 });
 
 test("street-sign directions engine computes real street-following turn-by-turn routes", () => {

@@ -118,7 +118,7 @@ export async function geocodeAddress(
   {
     fetchImpl = globalThis.fetch,
     countryCodes = "",
-    acceptLanguage = "en,he",
+    acceptLanguage = "en",
     limit = 3,
     timeoutMs = 15000,
     userAgent = "NeighborhoodExplorerRPG/1.0 (https://github.com/eh-ipmai/Neighborhood-explorer)",

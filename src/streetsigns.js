@@ -307,9 +307,177 @@ function detectStreetBranches(tx, ty, streetNorm, zoneIndex, worldMap) {
 }
 
 /**
+ * Exact 2D geometric distance from point (px, py) to segment (ax, ay)-(bx, by),
+ * returning { dist, x, y } for the closest point on the segment.
+ */
+function closestPointOnSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  if (len2 < 1e-9) {
+    return { dist: Math.hypot(px - ax, py - ay), x: ax, y: ay };
+  }
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
+  const cx = ax + dx * t;
+  const cy = ay + dy * t;
+  return { dist: Math.hypot(px - cx, py - cy), x: cx, y: cy };
+}
+
+/**
+ * Exact 2D segment-segment intersection or T-junction contact (within `junctionTol` tiles).
+ */
+function findSegmentMeetingPoint(a, b, junctionTol = 0.85) {
+  const rX = a.x2 - a.x1;
+  const rY = a.y2 - a.y1;
+  const sX = b.x2 - b.x1;
+  const sY = b.y2 - b.y1;
+  const denom = rX * sY - rY * sX;
+  if (Math.abs(denom) > 1e-6) {
+    const qpX = b.x1 - a.x1;
+    const qpY = b.y1 - a.y1;
+    const t = (qpX * sY - qpY * sX) / denom;
+    const u = (qpX * rY - qpY * rX) / denom;
+    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+      return { x: a.x1 + t * rX, y: a.y1 + t * rY };
+    }
+  }
+  // T-junction / Y-junction endpoint-to-segment check
+  const candidates = [
+    closestPointOnSegment(a.x1, a.y1, b.x1, b.y1, b.x2, b.y2),
+    closestPointOnSegment(a.x2, a.y2, b.x1, b.y1, b.x2, b.y2),
+    closestPointOnSegment(b.x1, b.y1, a.x1, a.y1, a.x2, a.y2),
+    closestPointOnSegment(b.x2, b.y2, a.x1, a.y1, a.x2, a.y2),
+  ];
+  let best = null;
+  for (const c of candidates) {
+    if (c.dist <= junctionTol && (!best || c.dist < best.dist)) {
+      best = c;
+    }
+  }
+  return best ? { x: best.x, y: best.y } : null;
+}
+
+/**
+ * Find every REAL geometric street-to-street intersection from OpenStreetMap vector road polylines!
+ * Only pairs of genuinely intersecting/T-joining DIFFERENT named roads produce intersections.
+ */
+export function findVectorRoadIntersections(vectorRoads) {
+  const roads = Array.isArray(vectorRoads?.roads) ? vectorRoads.roads : [];
+  if (roads.length === 0) return [];
+
+  const CELL = 8;
+  const buckets = new Map();
+  const segments = [];
+
+  for (const r of roads) {
+    if (!r?.name || !Array.isArray(r.pts) || r.pts.length < 4) continue;
+    const norm = normalizeStreetKey(r.name);
+    if (!norm) continue;
+    const type = r.cls === "highway" || r.cls === "main" ? "arterial" : "residential";
+    const prio = r.cls === "highway" ? 4 : r.cls === "main" ? 3 : 2;
+    for (let i = 0; i + 3 < r.pts.length; i += 2) {
+      const x1 = r.pts[i];
+      const y1 = r.pts[i + 1];
+      const x2 = r.pts[i + 2];
+      const y2 = r.pts[i + 3];
+      if (Math.hypot(x2 - x1, y2 - y1) < 1e-4) continue;
+      const seg = {
+        id: segments.length,
+        name: r.name,
+        norm,
+        type,
+        prio,
+        x1,
+        y1,
+        x2,
+        y2,
+        minX: Math.min(x1, x2) - 1,
+        maxX: Math.max(x1, x2) + 1,
+        minY: Math.min(y1, y2) - 1,
+        maxY: Math.max(y1, y2) + 1,
+      };
+      segments.push(seg);
+      const cx0 = Math.floor(seg.minX / CELL);
+      const cx1 = Math.floor(seg.maxX / CELL);
+      const cy0 = Math.floor(seg.minY / CELL);
+      const cy1 = Math.floor(seg.maxY / CELL);
+      for (let cy = cy0; cy <= cy1; cy++) {
+        for (let cx = cx0; cx <= cx1; cx++) {
+          const k = `${cx},${cy}`;
+          let arr = buckets.get(k);
+          if (!arr) {
+            arr = [];
+            buckets.set(k, arr);
+          }
+          arr.push(seg);
+        }
+      }
+    }
+  }
+
+  const byPair = new Map(); // pairKey -> [{ x, y, streets, prio }]
+  const checkedSegPairs = new Set();
+
+  for (const list of buckets.values()) {
+    if (list.length < 2) continue;
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
+      for (let j = i + 1; j < list.length; j++) {
+        const b = list[j];
+        if (a.norm === b.norm || a.norm.includes(b.norm) || b.norm.includes(a.norm)) continue;
+        const sk = a.id < b.id ? `${a.id}:${b.id}` : `${b.id}:${a.id}`;
+        if (checkedSegPairs.has(sk)) continue;
+        checkedSegPairs.add(sk);
+        if (a.maxX < b.minX || a.minX > b.maxX || a.maxY < b.minY || a.minY > b.maxY) continue;
+
+        const pt = findSegmentMeetingPoint(a, b, 0.85);
+        if (!pt) continue;
+
+        const pairKey = a.norm < b.norm ? `${a.norm}|${b.norm}` : `${b.norm}|${a.norm}`;
+        let clusterList = byPair.get(pairKey);
+        if (!clusterList) {
+          clusterList = [];
+          byPair.set(pairKey, clusterList);
+        }
+        // Merge duplicate crossing points at the same intersection (e.g. dual-carriageway lanes)
+        const mergeDist = Math.max(a.prio, b.prio) >= 4 ? 11 : 7;
+        const existing = clusterList.find((c) => Math.hypot(c.x - pt.x, c.y - pt.y) < mergeDist);
+        if (existing) {
+          existing.x = (existing.x * existing.count + pt.x) / (existing.count + 1);
+          existing.y = (existing.y * existing.count + pt.y) / (existing.count + 1);
+          existing.count += 1;
+        } else {
+          const streets = [
+            { name: a.name, norm: a.norm, type: a.type, prio: a.prio, dist: 0 },
+            { name: b.name, norm: b.norm, type: b.type, prio: b.prio, dist: 0 },
+          ].sort((s1, s2) => (s2.prio !== s1.prio ? s2.prio - s1.prio : s1.name.localeCompare(s2.name)));
+          clusterList.push({
+            x: pt.x,
+            y: pt.y,
+            count: 1,
+            pairKey,
+            prio: a.prio + b.prio,
+            streets,
+          });
+        }
+      }
+    }
+  }
+
+  const out = [];
+  for (const list of byPair.values()) {
+    for (const item of list) out.push(item);
+  }
+  // Place major avenue intersections first so key corners always get crisp priority
+  out.sort((a, b) => (b.prio !== a.prio ? b.prio - a.prio : a.pairKey.localeCompare(b.pairKey)));
+  return out;
+}
+
+/**
  * Build the active street-sign system:
- *  - Places real green street signs at every named cross-street intersection (including crosswalk corners!)
- *    and along long road stretches so players can always check a sign nearby.
+ *  - Places real street signs strictly where they belong in real life: at true named
+ *    street-to-street intersections (computed geometrically from OSM vectorRoads when available,
+ *    or true perpendicular road corners on tile-only maps), avoiding mid-block sign clutter!
  *  - Computes street-following turn-by-turn directions from any tile/sign to any target.
  */
 export function createStreetSignSystem(worldMap, { parkOccupiedGrid = null, landmarks = [] } = {}) {
@@ -323,11 +491,25 @@ export function createStreetSignSystem(worldMap, { parkOccupiedGrid = null, land
   const subgrid = getNavigationSubgrid(worldMap);
   const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
 
+  // Never place a signpost right on a building doorway or landmark tile
+  const reservedTiles = new Set();
+  for (const b of worldMap.buildings || []) {
+    if (!b?.bounds) continue;
+    const midX = Math.floor((b.bounds.minX + b.bounds.maxX) / 2);
+    reservedTiles.add(`${midX},${b.bounds.maxY + 1}`);
+  }
+  for (const lm of landmarks || []) {
+    const lx = lm.walkTileX ?? lm.tileX;
+    const ly = lm.walkTileY ?? lm.tileY;
+    if (typeof lx === "number" && typeof ly === "number") reservedTiles.add(`${lx},${ly}`);
+  }
+
   const isSignTileClear = (tx, ty) => {
     if (tx < 2 || ty < 2 || tx >= width - 2 || ty >= height - 2) return false;
     const idx = ty * width + tx;
     if (collision[idx] !== 0) return false;
     if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) return false;
+    if (reservedTiles.has(`${tx},${ty}`)) return false;
     if (useSub) {
       const px = tx * tileSize + tileSize * 0.5;
       const py = ty * tileSize + tileSize * 0.5;
@@ -339,24 +521,35 @@ export function createStreetSignSystem(worldMap, { parkOccupiedGrid = null, land
     return true;
   };
 
-  // If a candidate intersection corner tile got paved over by a curved vector road,
-  // nudge the sign 1-2 tiles onto the nearest clean non-road sidewalk/lawn edge!
-  const resolveCleanSignTile = (tx, ty) => {
-    if (isSignTileClear(tx, ty)) return { tx, ty };
-    if (!useSub) return null;
-    for (let r = 1; r <= 2; r++) {
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          const nx = tx + dx;
-          const ny = ty + dy;
-          if (!isSignTileClear(nx, ny)) continue;
-          const nt = base[ny * width + nx];
-          if (nt === 1 || nt === 0 || nt === 11) return { tx: nx, ty: ny };
+  // Find the cleanest sidewalk corner tile right beside an intersection center (ix, iy)
+  const findBestCornerNear = (ix, iy, maxRadius = 4) => {
+    const cx = Math.round(ix);
+    const cy = Math.round(iy);
+    let best = null;
+    let bestScore = Infinity;
+    for (let dy = -maxRadius; dy <= maxRadius; dy++) {
+      for (let dx = -maxRadius; dx <= maxRadius; dx++) {
+        const tx = cx + dx;
+        const ty = cy + dy;
+        if (!isSignTileClear(tx, ty)) continue;
+        const nt = base[ty * width + tx];
+        if (nt !== 1 && nt !== 0 && nt !== 11) continue;
+        const d = Math.hypot(tx + 0.5 - ix, ty + 0.5 - iy);
+        if (d > maxRadius + 0.5) continue;
+        const touchesRoad =
+          isRoadTileId(base[(ty - 1) * width + tx]) ||
+          isRoadTileId(base[(ty + 1) * width + tx]) ||
+          isRoadTileId(base[ty * width + (tx - 1)]) ||
+          isRoadTileId(base[ty * width + (tx + 1)]);
+        // Strongly prefer sidewalk tiles directly bordering the road curb!
+        const score = d + (nt === 1 ? 0 : 2.2) + (touchesRoad ? 0 : 1.5);
+        if (score < bestScore) {
+          bestScore = score;
+          best = { tx, ty };
         }
       }
     }
-    return null;
+    return best;
   };
 
   const signs = [];
@@ -428,86 +621,63 @@ export function createStreetSignSystem(worldMap, { parkOccupiedGrid = null, land
     return false;
   }
 
-  // Pass 1: Place signs at REAL cross-street intersections (including crosswalk corners!)
-  const placedIntersectionPairs = new Map(); // pairKey -> [{ tx, ty }]
-  for (let ty = 2; ty < height - 2; ty++) {
-    for (let tx = 2; tx < width - 2; tx++) {
-      const idx = ty * width + tx;
-      if (base[idx] !== 1 || collision[idx] !== 0) continue;
-      if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) continue;
+  // Pass 1 (Vector Geometry): Place ONE clean signpost at every REAL geometric street intersection!
+  const vectorIntersections = findVectorRoadIntersections(worldMap.vectorRoads);
+  if (vectorIntersections.length > 0) {
+    for (const inter of vectorIntersections) {
+      const corner = findBestCornerNear(inter.x, inter.y, 4);
+      if (!corner) continue;
+      // Keep intersections crisp & uncluttered: one sign per corner cluster (min 5 tiles apart)
+      if (hasSignWithin(corner.tx, corner.ty, 5)) continue;
+      addSign(corner.tx, corner.ty, inter.streets, true);
+    }
+  } else {
+    // Fallback for offline/synthetic tile-only maps without vectorRoads:
+    // Place signs strictly at real perpendicular street corners (N/S road meeting E/W road)!
+    const placedIntersectionPairs = new Map();
+    for (let ty = 2; ty < height - 2; ty++) {
+      for (let tx = 2; tx < width - 2; tx++) {
+        const idx = ty * width + tx;
+        if (base[idx] !== 1 || collision[idx] !== 0) continue;
+        if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) continue;
 
-      const n = base[(ty - 1) * width + tx];
-      const s = base[(ty + 1) * width + tx];
-      const w = base[ty * width + (tx - 1)];
-      const e = base[ty * width + (tx + 1)];
-      const touchesRoad = isRoadTileId(n) || isRoadTileId(s) || isRoadTileId(w) || isRoadTileId(e);
-      if (!touchesRoad) continue;
+        const n = base[(ty - 1) * width + tx];
+        const s = base[(ty + 1) * width + tx];
+        const w = base[ty * width + (tx - 1)];
+        const e = base[ty * width + (tx + 1)];
+        const isTrueCorner = (isRoadTileId(n) || isRoadTileId(s)) && (isRoadTileId(w) || isRoadTileId(e));
+        if (!isTrueCorner) continue;
 
-      // Prefer true street corners (touching both an N/S road and E/W road, or a crosswalk)
-      const isCornerOrCross =
-        ((isRoadTileId(n) || isRoadTileId(s)) && (isRoadTileId(w) || isRoadTileId(e))) ||
-        n === 4 ||
-        s === 4 ||
-        w === 4 ||
-        e === 4;
-      if (!isCornerOrCross) continue;
+        const nearbyStreets = zoneIndex
+          .queryStreetsNear(tx, ty, 2)
+          .filter((st) => st.type === "arterial" || st.type === "residential");
+        if (nearbyStreets.length < 2) continue;
 
-      const nearbyStreets = zoneIndex.queryStreetsNear(tx, ty, 2);
-      // Filter to road-level streets if at least 2 road-level streets exist; otherwise include trails/sidewalks
-      const roadStreets = nearbyStreets.filter((st) => st.type === "arterial" || st.type === "residential");
-      const chosen = roadStreets.length >= 2 ? roadStreets : nearbyStreets;
-      if (chosen.length < 2) continue;
+        const pairKey = [nearbyStreets[0].norm, nearbyStreets[1].norm].sort().join("|");
+        const prevLocs = placedIntersectionPairs.get(pairKey) || [];
+        if (prevLocs.some((p) => Math.hypot(p.tx - tx, p.ty - ty) < 11)) continue;
+        if (!isSignTileClear(tx, ty) || hasSignWithin(tx, ty, 7)) continue;
 
-      const pairKey = [chosen[0].norm, chosen[1].norm].sort().join("|");
-      const prevLocs = placedIntersectionPairs.get(pairKey) || [];
-      // Keep street corners clean & uncluttered: one sign per intersection (or across wide divided highways >11 tiles)
-      if (prevLocs.some((p) => Math.hypot(p.tx - tx, p.ty - ty) < 11)) continue;
-      const cleanPos = resolveCleanSignTile(tx, ty);
-      if (!cleanPos) continue;
-      if (hasSignWithin(cleanPos.tx, cleanPos.ty, 9)) continue;
-
-      addSign(cleanPos.tx, cleanPos.ty, chosen, true);
-      prevLocs.push({ tx: cleanPos.tx, ty: cleanPos.ty });
-      placedIntersectionPairs.set(pairKey, prevLocs);
+        addSign(tx, ty, nearbyStreets, true);
+        prevLocs.push({ tx, ty });
+        placedIntersectionPairs.set(pairKey, prevLocs);
+      }
     }
   }
 
-  // Pass 2: Place mid-block street confirmation signs on long named stretches (every ~16 tiles)
-  // so players walking out of Home Base or down long avenues always encounter a sign promptly!
-  for (let ty = 2; ty < height - 2; ty += 2) {
-    for (let tx = 2; tx < width - 2; tx += 2) {
-      const idx = ty * width + tx;
-      if (base[idx] !== 1 || collision[idx] !== 0) continue;
-      if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) continue;
-
-      const n = base[(ty - 1) * width + tx];
-      const s = base[(ty + 1) * width + tx];
-      const w = base[ty * width + (tx - 1)];
-      const e = base[ty * width + (tx + 1)];
-      if (!(isRoadTileId(n) || isRoadTileId(s) || isRoadTileId(w) || isRoadTileId(e))) continue;
-      const cleanPos = resolveCleanSignTile(tx, ty);
-      if (!cleanPos) continue;
-      if (hasSignWithin(cleanPos.tx, cleanPos.ty, 14)) continue;
-
-      const nearbyStreets = zoneIndex.queryStreetsNear(cleanPos.tx, cleanPos.ty, 2);
-      if (nearbyStreets.length === 0) continue;
-      addSign(cleanPos.tx, cleanPos.ty, nearbyStreets, nearbyStreets.length >= 2);
-    }
-  }
-
-  // Ensure there's always a welcoming street sign very close to Home Base spawn!
+  // Only if Home Base spawn itself is on a super-long dead-end/cul-de-sac with ZERO real
+  // intersections within 14 tiles, place a single welcoming corner sign near Home Base so
+  // Signpost Mode always remains playable right outside the front door!
   const spawn = worldMap.origin?.spawnTile;
-  if (spawn && !hasSignWithin(spawn.x, spawn.y, 8)) {
+  if (spawn && !hasSignWithin(spawn.x, spawn.y, 12)) {
     let bestSpawnCorner = null;
     for (let r = 1; r <= 12 && !bestSpawnCorner; r++) {
       for (let dy = -r; dy <= r && !bestSpawnCorner; dy++) {
         for (let dx = -r; dx <= r && !bestSpawnCorner; dx++) {
           const tx = spawn.x + dx;
           const ty = spawn.y + dy;
-          if (tx < 1 || ty < 1 || tx >= width - 1 || ty >= height - 1) continue;
-          const idx = ty * width + tx;
-          if (base[idx] !== 1 || collision[idx] !== 0) continue;
           if (!isSignTileClear(tx, ty)) continue;
+          if (base[ty * width + tx] !== 1) continue;
           const touchesRoad =
             isRoadTileId(base[(ty - 1) * width + tx]) ||
             isRoadTileId(base[(ty + 1) * width + tx]) ||

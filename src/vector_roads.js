@@ -14,6 +14,8 @@
  * context in renderChunkRoads) so it runs in Node unit tests, Canvas 2D, and Kaplay WebGL.
  */
 
+import { formatBilingualName } from "./biomes.js";
+
 const METERS_PER_DEG_LAT = 111320;
 
 const DRIVABLE_OSM_HIGHWAYS = new Set([
@@ -558,7 +560,7 @@ function extractDualCarriagewayMedians(roads, crosswalks) {
  */
 export function extractVectorRoadsFromOsm(
   elements,
-  { width, height, mapCenter, origin, scaleMetersPerTile = 6 } = {}
+  { width, height, mapCenter, origin, scaleMetersPerTile = 6, labelMode = "bilingual" } = {}
 ) {
   const center = mapCenter || origin || { lat: 42.3292, lon: -71.1942 };
   const nodeMap = new Map();
@@ -656,7 +658,7 @@ export function extractVectorRoadsFromOsm(
 
     internalRoads.push({
       id: way.id ? `w${way.id}` : `w_${internalRoads.length}`,
-      name: tags.name ? String(tags.name) : "",
+      name: formatBilingualName(tags, { labelMode }),
       hw: info.hw,
       cls: info.cls,
       lanes: info.lanes,
