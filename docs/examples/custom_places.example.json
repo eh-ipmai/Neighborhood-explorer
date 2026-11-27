@@ -1,0 +1,49 @@
+{
+  "_comment": "Optional custom places & goals file for npm run create:neighborhood -- --address \"...\" --places my_places.json",
+  "places": [
+    {
+      "id": "grandmas_house",
+      "name": "Grandma's House",
+      "address": "42 Oak Street",
+      "npcName": "Grandma",
+      "category": "custom",
+      "healHearts": 5,
+      "givesSnacks": true,
+      "dialogue": [
+        "Hi sweetheart! I baked warm chocolate chip cookies just for your adventure!",
+        "All your hearts are restored and your snack pocket is full!"
+      ],
+      "rewardItem": "grandmas_cookie_tin",
+      "rewardItemMeta": {
+        "name": "Grandma's Cookie Tin",
+        "icon": "🍪",
+        "sprite": "item_challah",
+        "desc": "Warm chocolate chip cookies from Grandma's kitchen!"
+      }
+    },
+    {
+      "id": "best_friends_house",
+      "name": "Sam's House",
+      "address": "118 Maple Avenue",
+      "npcName": "Sam",
+      "category": "custom",
+      "dialogue": [
+        "Hey! You made it to my house using the street signs!",
+        "Let's go check out the park together!"
+      ]
+    }
+  ],
+  "quests": [
+    {
+      "title": "Family & Friends Loop",
+      "description": "Navigate the neighborhood to say hi to Grandma and Sam!",
+      "targetPlaceIds": ["grandmas_house", "best_friends_house"],
+      "rewards": {
+        "xp": 150,
+        "coins": 50,
+        "item": "running_shoes",
+        "outfit": "baseball"
+      }
+    }
+  ]
+}
