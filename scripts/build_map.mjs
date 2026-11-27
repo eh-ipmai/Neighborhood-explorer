@@ -18,6 +18,12 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { extractVectorRoadsFromOsm, buildOfflineVectorRoads } from "../src/vector_roads.js";
+import {
+  isNewtonCentreMap,
+  extractOriginAddress,
+  parseAddressParts,
+  getNeighborhoodMeta,
+} from "../src/neighborhood_meta.js";
 
 dns.setDefaultResultOrder("ipv4first");
 
@@ -228,15 +234,18 @@ function fillPolygon(grid, width, height, points, value, filterFn = null) {
   return painted;
 }
 
-function isHighwayRoadName(name = "") {
+function isHighwayRoadName(name = "", { isNewton = true } = {}) {
   const lower = String(name).toLowerCase();
+  if (isNewton && (lower.includes("boylston") || lower.includes("route 9"))) {
+    return true;
+  }
   return (
-    lower.includes("boylston") ||
-    lower.includes("route 9") ||
     lower.includes("parkway") ||
     lower.includes("turnpike") ||
     lower.includes("expressway") ||
-    lower.includes("highway")
+    lower.includes("highway") ||
+    lower.includes("freeway") ||
+    lower.includes("interstate")
   );
 }
 
@@ -251,7 +260,7 @@ function isTrailName(name = "") {
   );
 }
 
-function classifyRoad(tags = {}) {
+function classifyRoad(tags = {}, { isNewton = true } = {}) {
   const hw = tags.highway;
   if (!hw) return null;
 
@@ -263,7 +272,7 @@ function classifyRoad(tags = {}) {
     hw === "trunk" ||
     hw === "motorway_link" ||
     hw === "trunk_link" ||
-    (hw === "primary" && isHighwayRoadName(tags.name))
+    (hw === "primary" && isHighwayRoadName(tags.name, { isNewton }))
   ) {
     return { tile: TILE_IDS.HIGHWAY, zoneType: "arterial", radius: 1 };
   }
@@ -4137,6 +4146,101 @@ export function ensureWalkableSpawn(base, collision, width, height, targetX, tar
   return { x: targetX, y: targetY };
 }
 
+function isCemeteryFeature(tags = {}) {
+  return (
+    tags.landuse === "cemetery" ||
+    tags.landuse === "grave_yard" ||
+    tags.amenity === "grave_yard"
+  );
+}
+
+/**
+ * Extract real OpenStreetMap cemeteries / graveyards as portable `worldMap.graveyards[]`
+ * zones so any neighborhood in the country automatically renders authentic spooky grounds!
+ */
+export function extractGraveyardsFromOsm(
+  elements,
+  { width, height, mapCenter, scaleMetersPerTile = 6 } = {}
+) {
+  if (!Array.isArray(elements) || !mapCenter) return [];
+  const nodes = new Map();
+  for (const el of elements) {
+    if (el && el.type === "node") nodes.set(el.id, el);
+  }
+
+  const graveyards = [];
+  for (const el of elements) {
+    if (!el || el.type !== "way" || !isCemeteryFeature(el.tags || {})) continue;
+    let pts = [];
+    if (Array.isArray(el.geometry) && el.geometry.length >= 3) {
+      pts = el.geometry.map((pt) =>
+        projectLatLonToTile(pt.lat, pt.lon, mapCenter.lat, mapCenter.lon, width, height, scaleMetersPerTile)
+      );
+    } else if (Array.isArray(el.nodes) && el.nodes.length >= 3) {
+      for (const nid of el.nodes) {
+        const n = nodes.get(nid);
+        if (n) {
+          pts.push(
+            projectLatLonToTile(n.lat, n.lon, mapCenter.lat, mapCenter.lon, width, height, scaleMetersPerTile)
+          );
+        }
+      }
+    }
+    if (pts.length < 3) continue;
+
+    let minX = width;
+    let maxX = -1;
+    let minY = height;
+    let maxY = -1;
+    let sumX = 0;
+    let sumY = 0;
+    for (const p of pts) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+      sumX += p.x;
+      sumY += p.y;
+    }
+
+    minX = Math.max(2, Math.floor(minX));
+    minY = Math.max(2, Math.floor(minY));
+    maxX = Math.min(width - 3, Math.ceil(maxX));
+    maxY = Math.min(height - 3, Math.ceil(maxY));
+    const spanX = maxX - minX + 1;
+    const spanY = maxY - minY + 1;
+    if (spanX < 4 || spanY < 4) continue;
+
+    const cx = Math.max(minX, Math.min(maxX, Math.round(sumX / pts.length)));
+    const cy = Math.max(minY, Math.min(maxY, Math.round(sumY / pts.length)));
+    const seeds = [{ x: cx, y: cy }];
+    if (spanX >= 14) {
+      seeds.push({ x: Math.round(minX + spanX * 0.28), y: cy });
+      seeds.push({ x: Math.round(minX + spanX * 0.72), y: cy });
+    }
+    if (spanY >= 14) {
+      seeds.push({ x: cx, y: Math.round(minY + spanY * 0.28) });
+      seeds.push({ x: cx, y: Math.round(minY + spanY * 0.72) });
+    }
+
+    const name = el.tags?.name ? String(el.tags.name).trim() : "Historic Burying Ground";
+    const foundedMatch = String(el.tags?.start_date || "").match(/\d{4}/);
+    const founded = foundedMatch ? Number(foundedMatch[0]) : null;
+    graveyards.push({
+      id: `osm_graveyard_${el.id}`,
+      name,
+      founded,
+      subtitle: founded ? `${name} (${founded})` : `${name} — Spooky Grounds`,
+      entrance: { x: cx, y: maxY },
+      seeds,
+      allowInternalRoads: spanX * spanY >= 240,
+      shapes: [{ minX, minY, maxX, maxY }],
+    });
+  }
+
+  return graveyards;
+}
+
 /**
  * Step 2 & 3: Rasterize OSM elements (Overpass JSON `elements`) onto the tile grid
  * following strict 5-layer priority order and preserving 1-to-1 per-address buildings[].
@@ -4148,6 +4252,10 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
   const scaleMetersPerTile = config.scaleMetersPerTile ?? DEFAULT_CONFIG.scaleMetersPerTile;
   const origin = { ...DEFAULT_CONFIG.origin, ...(config.origin || {}) };
   const mapCenter = config.mapCenter || { lat: origin.lat, lon: origin.lon };
+  const isNewtonPreset = isNewtonCentreMap({ origin, meta: config.meta });
+  const originAddress =
+    extractOriginAddress(origin, config.meta) || (isNewtonPreset ? "565 Boylston St" : "");
+  const originAddrParts = parseAddressParts(originAddress);
 
   const base = new Array(width * height).fill(TILE_IDS.GRASS);
   const streetZones = [];
@@ -4229,13 +4337,13 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     } else if (tags.highway === "crossing" || tags.footway === "crossing") {
       crossingWays.push(way);
     } else if (tags.highway) {
-      const roadInfo = classifyRoad(tags);
+      const roadInfo = classifyRoad(tags, { isNewton: isNewtonPreset });
       if (roadInfo) roadWays.push({ way, roadInfo });
     } else if (isSandFeature(tags)) {
       sandWays.push(way);
     } else if (isDirtFeature(tags)) {
       dirtWays.push(way);
-    } else if (isParkFeature(tags)) {
+    } else if (isParkFeature(tags) || isCemeteryFeature(tags)) {
       parkWays.push(way);
     }
   }
@@ -4561,17 +4669,22 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
       ? `${houseNumber} ${street}`
       : houseNumber || bName || "";
     const bounds = { minX, minY, maxX, maxY };
+    const matchesOriginAddr =
+      Boolean(originAddrParts.houseNumber) &&
+      houseNumber.toLowerCase() === originAddrParts.houseNumber.toLowerCase() &&
+      (!originAddrParts.streetToken || street.toLowerCase().includes(originAddrParts.streetToken));
     const isHomeBase =
-      (houseNumber === "565" && street.toLowerCase().includes("boylston")) ||
+      matchesOriginAddr ||
       (homeX >= minX && homeX <= maxX && homeY >= minY && homeY <= maxY);
 
+    const resolvedHomeAddr = originAddress || address || "Home Base";
     const kind = isHomeBase ? "house" : classifyBuildingKind(tags, bounds, address, bName);
     const id = way.id ? `osm_${way.id}` : `b_${minX}_${minY}`;
     const styleKey = address || String(way.id || `${minX}_${minY}`);
     const styleIndex = isHomeBase ? 0 : (hashString(styleKey) % 7) + 1;
     const arch =
       kind === "house"
-        ? classifyHouseArch({ id, address: isHomeBase ? "565 Boylston St" : address, bounds, isHomeBase, tags })
+        ? classifyHouseArch({ id, address: isHomeBase ? resolvedHomeAddr : address, bounds, isHomeBase, tags })
         : undefined;
     const osmColor = tags["building:colour"] ? String(tags["building:colour"]) : "";
     const osmRoofColor = tags["roof:colour"] ? String(tags["roof:colour"]) : "";
@@ -4580,7 +4693,7 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
       id,
       houseNumber,
       street,
-      address: isHomeBase ? "565 Boylston St" : address,
+      address: isHomeBase ? resolvedHomeAddr : address,
       name: isHomeBase ? "Home Base" : bName,
       kind,
       ...(arch ? { arch } : {}),
@@ -4592,34 +4705,37 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     });
   }
 
-  // Local neighborhood detail: small parking lot immediately to the left (west) of 575 Boylston St
-  // (NEVER overwrite RESIDENTIAL_ROAD so Jackson Street stays cleanly connected to Boylston St!)
-  const b575 = buildings.find(
-    (b) => b.houseNumber === "575" && b.street.toLowerCase().includes("boylston")
-  );
-  if (b575) {
-    const lotMinX = Math.max(0, b575.bounds.minX - 2);
-    const lotMaxX = Math.max(0, b575.bounds.minX - 1);
-    const lotMinY = b575.bounds.minY;
-    const lotMaxY = Math.max(lotMinY, b575.bounds.maxY - 1);
-    for (let ty = lotMinY; ty <= lotMaxY; ty++) {
-      for (let tx = lotMinX; tx <= lotMaxX; tx++) {
-        const idx = ty * width + tx;
-        const cur = base[idx];
-        if (cur === TILE_IDS.GRASS || cur === TILE_IDS.TALL_GRASS) {
-          base[idx] = TILE_IDS.PARKING_LOT;
+  // Local Newton Centre detail: small parking lot immediately west of 575 Boylston St
+  if (isNewtonPreset) {
+    const b575 = buildings.find(
+      (b) => b.houseNumber === "575" && b.street.toLowerCase().includes("boylston")
+    );
+    if (b575) {
+      const lotMinX = Math.max(0, b575.bounds.minX - 2);
+      const lotMaxX = Math.max(0, b575.bounds.minX - 1);
+      const lotMinY = b575.bounds.minY;
+      const lotMaxY = Math.max(lotMinY, b575.bounds.maxY - 1);
+      for (let ty = lotMinY; ty <= lotMaxY; ty++) {
+        for (let tx = lotMinX; tx <= lotMaxX; tx++) {
+          const idx = ty * width + tx;
+          const cur = base[idx];
+          if (cur === TILE_IDS.GRASS || cur === TILE_IDS.TALL_GRASS) {
+            base[idx] = TILE_IDS.PARKING_LOT;
+          }
         }
       }
     }
   }
 
   // Smooth small road kinks, normalize bloated crosswalk swamps, eliminate diagonal pinches,
-  // repair severed street mouths, prioritize Newton Centre proper roads, guarantee crisp 1-tile sidewalks
+  // repair severed street mouths, prioritize Newton Centre proper roads (when Newton preset), guarantee crisp 1-tile sidewalks
   simplifyGridPaths(base, width, height);
   normalizeCrosswalkBlobs(base, width, height);
   eliminateDiagonalRoadPinches(base, width, height);
   repairStreetConnectivity(base, streetZones, width, height);
-  prioritizeNewtonCentreRoads(base, width, height);
+  if (isNewtonPreset) {
+    prioritizeNewtonCentreRoads(base, width, height);
+  }
   eliminateDiagonalRoadPinches(base, width, height);
   enforceContinuousRoadSidewalks(base, width, height);
   slimOversizedSidewalks(base, width, height, [{ x: homeX, y: homeY, radius: 1 }]);
@@ -4631,7 +4747,7 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
   const cleanBuildings = tightenBuildingBoundsToWalls(enlargedBuildings, base, width, height);
 
   // Clear any unowned orphan BUILDING_WALL tiles inside Newton Centre proper after road-priority trimming
-  if (width === 512 && height === 512) {
+  if (isNewtonPreset && width === 512 && height === 512) {
     const covered = new Uint8Array(width * height);
     for (const b of cleanBuildings) {
       if (!b.bounds) continue;
@@ -4652,7 +4768,9 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
   }
 
   // Enforce crisp curb-to-curb pedestrian crosswalks (zero floating mid-road crosswalks!)
-  carveCommonwealthCarriageway(base, streetZones, width, height, []);
+  if (isNewtonPreset) {
+    carveCommonwealthCarriageway(base, streetZones, width, height, []);
+  }
   validateAndCleanCrosswalks(base, width, height);
 
   // Place solid concrete Jersey median barriers down multi-lane divided highways
@@ -4667,10 +4785,10 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
       : 0
   );
 
-  // Guarantee walkable Home Base spawn right on the sidewalk by Home Base (565 Boylston St)
+  // Guarantee walkable Home Base spawn right on the sidewalk by Home Base
   const spawnTile = ensureWalkableSpawn(base, collision, width, height, homeX, homeY);
 
-  // If no building explicitly matched 565 Boylston St, tag the closest residential house to origin as Home Base
+  // If no building explicitly matched the origin address, tag the closest residential house to origin as Home Base
   if (cleanBuildings.length > 0 && !cleanBuildings.some((b) => b.isHomeBase)) {
     let closest = null;
     let bestDist = Infinity;
@@ -4686,7 +4804,7 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     }
     if (closest) {
       closest.isHomeBase = true;
-      closest.address = "565 Boylston St";
+      closest.address = closest.address || originAddress || "Home Base";
       closest.name = "Home Base";
       closest.styleIndex = 0;
     }
@@ -4700,9 +4818,26 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     scaleMetersPerTile,
   });
 
+  const extractedGraveyards = !isNewtonPreset
+    ? extractGraveyardsFromOsm(elements, { width, height, mapCenter, scaleMetersPerTile })
+    : [];
+
+  const resolvedMeta = config.meta
+    ? {
+        ...config.meta,
+        preset: config.meta.preset || (isNewtonPreset ? "newton" : "generic"),
+      }
+    : !isNewtonPreset
+      ? {
+          preset: "generic",
+          homeAddress: originAddress || "Home Base",
+        }
+      : undefined;
+
   return {
     tileSize,
     scaleMetersPerTile,
+    ...(resolvedMeta ? { meta: resolvedMeta } : {}),
     origin: {
       ...origin,
       spawnTile,
@@ -4716,6 +4851,7 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     },
     streetZones,
     buildings: cleanBuildings,
+    ...(!isNewtonPreset ? { graveyards: extractedGraveyards } : {}),
     vectorRoads,
   };
 }
@@ -5150,15 +5286,16 @@ export function enrichWorldMap(worldMap) {
   const { width, height } = worldMap.dimensions;
   const base = worldMap.layers.base.slice();
   const streetZones = worldMap.streetZones || [];
+  const isNewtonPreset = isNewtonCentreMap(worldMap);
 
-  // 1. Upgrade major state highways (Boylston St / Route 9, Hammond Pond Parkway) from main_road -> highway
+  // 1. Upgrade major state highways from main_road -> highway
   //    (First reset any prior HIGHWAY_MEDIAN back to HIGHWAY so --enrich is idempotent!)
   for (let i = 0; i < base.length; i++) {
     if (base[i] === TILE_IDS.HIGHWAY_MEDIAN) base[i] = TILE_IDS.HIGHWAY;
   }
   const nonHwArterialGrid = new Uint8Array(width * height);
   for (const z of streetZones) {
-    if (!z || !z.bounds || z.type !== "arterial" || isHighwayRoadName(z.name)) continue;
+    if (!z || !z.bounds || z.type !== "arterial" || isHighwayRoadName(z.name, { isNewton: isNewtonPreset })) continue;
     const minX = Math.max(0, Math.floor(z.bounds.minX));
     const maxX = Math.min(width - 1, Math.floor(z.bounds.maxX));
     const minY = Math.max(0, Math.floor(z.bounds.minY));
@@ -5171,7 +5308,7 @@ export function enrichWorldMap(worldMap) {
     }
   }
   for (const z of streetZones) {
-    if (!z || !z.bounds || !isHighwayRoadName(z.name)) continue;
+    if (!z || !z.bounds || !isHighwayRoadName(z.name, { isNewton: isNewtonPreset })) continue;
     const minX = Math.max(0, Math.floor(z.bounds.minX));
     const maxX = Math.min(width - 1, Math.floor(z.bounds.maxX));
     const minY = Math.max(0, Math.floor(z.bounds.minY));
@@ -5312,8 +5449,8 @@ export function enrichWorldMap(worldMap) {
     }
   }
 
-  // 4. Real Newton Centre park fields, baseball diamond, dirt woodland trails & sandy beaches (512x512 map)
-  if (width === 512 && height === 512) {
+  // 4. Real Newton Centre park fields, baseball diamond, dirt woodland trails & sandy beaches (Newton 512x512 preset only)
+  if (isNewtonPreset && width === 512 && height === 512) {
     const paintCircle = (cx, cy, rx, ry, tileId, filterFn) => {
       for (let ty = Math.max(0, cy - ry); ty <= Math.min(height - 1, cy + ry); ty++) {
         for (let tx = Math.max(0, cx - rx); tx <= Math.min(width - 1, cx + rx); tx++) {
@@ -5428,7 +5565,7 @@ export function enrichWorldMap(worldMap) {
 
   // 6. Enrich every building with refined kind & architectural style (12 residential architectures + 13 building kinds!)
   const villageCenters =
-    width === 512 && height === 512
+    isNewtonPreset && width === 512 && height === 512
       ? [
           { cx: 256, cy: 238, r: 28 }, // Newton Centre Square (Centre St / Beacon St / Langley Rd)
           { cx: 74, cy: 388, r: 16 },  // Newton Highlands Village (Lincoln St / Walnut St)
@@ -5448,36 +5585,37 @@ export function enrichWorldMap(worldMap) {
     const lowerAddr = String(next.address || "").toLowerCase();
     const lowerName = String(next.name || "").toLowerCase();
 
-    // Boston College (BC) Newton Campus, Upper Campus & Messina College school buildings!
+    // Boston College (BC) Newton Campus, Upper Campus & Messina College school buildings (Newton preset only!)
     const isBcCampusBuilding =
-      lowerName.includes("boston college") ||
-      lowerName.includes("bc law") ||
-      lowerName.includes("bc ") ||
-      lowerName.includes("cushing hall") ||
-      lowerName.includes("hardey house") ||
-      lowerName.includes("barat house") ||
-      lowerName.includes("duchesne") ||
-      lowerName.includes("stuart hall") ||
-      lowerName.includes("stuart commons") ||
-      lowerName.includes("keyes") ||
-      lowerName.includes("mary house") ||
-      lowerName.includes("trinity chapel") ||
-      lowerName.includes("medeiros") ||
-      lowerName.includes("claver") ||
-      lowerName.includes("more hall") ||
-      lowerAddr.includes("885 centre") ||
-      lowerAddr.includes("855 centre") ||
-      lowerAddr.includes("300 hammond pond") ||
-      lowerAddr.includes("60 tudor") ||
-      lowerAddr.includes("40;42;44;46 tudor");
+      isNewtonPreset &&
+      (lowerName.includes("boston college") ||
+        lowerName.includes("bc law") ||
+        lowerName.includes("bc ") ||
+        lowerName.includes("cushing hall") ||
+        lowerName.includes("hardey house") ||
+        lowerName.includes("barat house") ||
+        lowerName.includes("duchesne") ||
+        lowerName.includes("stuart hall") ||
+        lowerName.includes("stuart commons") ||
+        lowerName.includes("keyes") ||
+        lowerName.includes("mary house") ||
+        lowerName.includes("trinity chapel") ||
+        lowerName.includes("medeiros") ||
+        lowerName.includes("claver") ||
+        lowerName.includes("more hall") ||
+        lowerAddr.includes("885 centre") ||
+        lowerAddr.includes("855 centre") ||
+        lowerAddr.includes("300 hammond pond") ||
+        lowerAddr.includes("60 tudor") ||
+        lowerAddr.includes("40;42;44;46 tudor"));
 
     // Newton Cemetery Gothic Chapel & Mausoleum Crypts (791 Walnut St)
-    if (next.id === "osm_214738001") {
+    if (isNewtonPreset && next.id === "osm_214738001") {
       next.kind = "civic";
       next.name = "Newton Cemetery Chapel";
       next.address = "791 Walnut Street";
       next.gothicCrypt = true;
-    } else if (next.id === "osm_214738698" || next.id === "osm_214739197") {
+    } else if (isNewtonPreset && (next.id === "osm_214738698" || next.id === "osm_214739197")) {
       next.name = next.name || "Stone Mausoleum";
       next.gothicCrypt = true;
     } else if (isBcCampusBuilding) {
@@ -5495,18 +5633,20 @@ export function enrichWorldMap(worldMap) {
       }
     } else if (
       // Exact Newton landmark building kinds (Fire Stations, Bakeries, Bookshops, Medical Plazas)
-      lowerAddr.includes("1164 centre") ||
-      lowerAddr.includes("31 willow") ||
-      lowerName.includes("fire")
+      (isNewtonPreset && (lowerAddr.includes("1164 centre") || lowerAddr.includes("31 willow"))) ||
+      lowerName.includes("fire station") ||
+      lowerName.includes("fire hq") ||
+      (isNewtonPreset && lowerName.includes("fire"))
     ) {
       next.kind = "fire_station";
     } else if (
-      lowerAddr.includes("1280 centre") ||
-      lowerAddr.includes("46 langley") ||
-      lowerAddr.includes("940 boylston")
+      isNewtonPreset &&
+      (lowerAddr.includes("1280 centre") ||
+        lowerAddr.includes("46 langley") ||
+        lowerAddr.includes("940 boylston"))
     ) {
       next.kind = "bakery_cafe";
-    } else if (lowerAddr.includes("10 langley") || lowerAddr.includes("27 lincoln")) {
+    } else if (isNewtonPreset && (lowerAddr.includes("10 langley") || lowerAddr.includes("27 lincoln"))) {
       next.kind = "corner_market";
     } else if (next.kind === "house" || !next.kind) {
       const inferredKind = classifyBuildingKind({}, next.bounds, next.address, next.name);
@@ -5571,7 +5711,7 @@ export function enrichWorldMap(worldMap) {
     protectedTiles.push({ x: worldMap.origin.spawnTile.x, y: worldMap.origin.spawnTile.y, radius: 1 });
   }
   const landmarksPath = path.resolve(process.cwd(), "data", "landmarks.json");
-  if (width === 512 && height === 512 && fs.existsSync(landmarksPath)) {
+  if (isNewtonPreset && width === 512 && height === 512 && fs.existsSync(landmarksPath)) {
     try {
       const lms = JSON.parse(fs.readFileSync(landmarksPath, "utf8"));
       if (Array.isArray(lms)) {
@@ -5589,20 +5729,22 @@ export function enrichWorldMap(worldMap) {
   widenResidentialStreets(base, width, height, protectedTiles);
   regularizeRoadShapes(base, width, height, protectedTiles);
   sanitizeRoadHierarchy(base, width, height);
-  prioritizeNewtonCentreRoads(base, width, height);
+  if (isNewtonPreset) {
+    prioritizeNewtonCentreRoads(base, width, height);
+  }
   eliminateDiagonalRoadPinches(base, width, height);
   enforceContinuousRoadSidewalks(base, width, height);
 
   slimOversizedSidewalks(base, width, height, protectedTiles);
   enforceContinuousRoadSidewalks(base, width, height);
-  // Carve authentic Commonwealth Avenue grassy tree-lined Carriage Lane after outer sidewalks
-  // so the Olmsted parkway separator stays lush grass (PARK) while outer sidewalks stay continuous!
-  carveCommonwealthCarriageway(base, streetZones, width, height, protectedTiles);
+  // Carve authentic Commonwealth Avenue grassy tree-lined Carriage Lane after outer sidewalks (Newton preset only)
+  if (isNewtonPreset) {
+    carveCommonwealthCarriageway(base, streetZones, width, height, protectedTiles);
+  }
   sanitizeRoadHierarchy(base, width, height);
 
-  // 6c. Restore & add Boston College Newton Campus academic school buildings on the 512x512 map
-  //     AFTER road/sidewalk slimming so crisp, path-safe Collegiate Gothic school buildings always stamp cleanly!
-  if (width === 512 && height === 512) {
+  // 6c. Restore & add Boston College Newton Campus academic school buildings on the Newton 512x512 map
+  if (isNewtonPreset && width === 512 && height === 512) {
     const isBlockedBcTile = (t) =>
       t === TILE_IDS.RESIDENTIAL_ROAD ||
       t === TILE_IDS.MAIN_ROAD ||
@@ -5723,9 +5865,8 @@ export function enrichWorldMap(worldMap) {
   );
   const tightenedBuildings = tightenBuildingBoundsToWalls(enlargedBuildings, base, width, height);
 
-  // Clear any leftover unowned orphan BUILDING_WALL tiles inside BC Newton Campus & Newton Centre proper
-  // so no invisible solid wall blocks the player walking across BC Law's quad or newly widened village roads!
-  if (width === 512 && height === 512) {
+  // Clear any leftover unowned orphan BUILDING_WALL tiles inside BC Newton Campus & Newton Centre proper (Newton preset only)
+  if (isNewtonPreset && width === 512 && height === 512) {
     const bcCovered = new Uint8Array(width * height);
     for (const b of tightenedBuildings) {
       if (!b.bounds) continue;

@@ -9,6 +9,7 @@
 
 import { buildGraveyardMask } from "./graveyards.js";
 import { getNavigationSubgrid } from "./subgrid.js";
+import { isNewtonCentreMap } from "./neighborhood_meta.js";
 
 const TILE_PARK = 11;
 const TILE_DIRT = 9;
@@ -145,8 +146,8 @@ export function buildParkFeatures(worldMap, excludedGrid = null) {
     }
   }
 
-  // 1. Place signature baseball diamonds on real dirt+park athletic bowls (e.g. Ward Field & Offline Park)
-  if (width === 512 && height === 512) {
+  // 1. Place signature baseball diamonds on real dirt+park athletic bowls (Newton preset & Offline Park)
+  if (isNewtonCentreMap(worldMap) && width === 512 && height === 512) {
     // Ward Elementary Baseball Field (around 472, 38)
     if (canPlace(468, 35, 7, 7, [TILE_PARK, TILE_DIRT, TILE_SAND])) {
       markField("baseball_diamond", 468, 35, 7, 7);
@@ -155,7 +156,7 @@ export function buildParkFeatures(worldMap, excludedGrid = null) {
     if (canPlace(206, 351, 6, 4, [TILE_PARK, TILE_DIRT, TILE_SAND])) {
       markField("basketball_court", 206, 351, 6, 4);
     }
-  } else if (width === 128 && height === 128) {
+  } else if (isNewtonCentreMap(worldMap) && width === 128 && height === 128) {
     // Offline demo park baseball diamond & basketball court
     const cx = Math.floor(width / 2);
     const cy = Math.floor(height / 2);

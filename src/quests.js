@@ -4,9 +4,21 @@
  */
 
 import { getNavigationSubgrid } from "./subgrid.js";
+import { getNeighborhoodMeta } from "./neighborhood_meta.js";
 
 export const SAVE_STORAGE_KEY = "neighborhood_explorer_save_v1";
 export const FOG_GRID_SIZE = 32; // 32x32 cells over the map (16x16 tiles per cell on 512x512)
+
+const DYNAMIC_ITEM_META = new Map();
+
+export function registerDynamicItems(itemsMap) {
+  if (!itemsMap || typeof itemsMap !== "object") return;
+  for (const [id, meta] of Object.entries(itemsMap)) {
+    if (id && meta && typeof meta === "object") {
+      DYNAMIC_ITEM_META.set(id, meta);
+    }
+  }
+}
 
 export const ITEM_CATALOG = {
   folded_map: { name: "Folded Paper Map", icon: "🗺️", sprite: "item_map", desc: "Unrolls Newton Centre streets as you explore!" },
@@ -64,6 +76,7 @@ const OUTFIT_DISPLAY_NAMES = {
 
 export function getItemMeta(itemId) {
   return (
+    DYNAMIC_ITEM_META.get(itemId) ||
     ITEM_CATALOG[itemId] || {
       name: String(itemId || "Mystery Item")
         .replace(/_/g, " ")
@@ -257,10 +270,21 @@ export function getTraversalGear(safetyXP, inventorySet) {
   return { id: "sneakers", label: "FAST", mult: 1.65 };
 }
 
-export function createQuestSystem({ landmarks = [], quests = [], worldMap, storage = null } = {}) {
+export function createQuestSystem({ landmarks = [], quests = [], worldMap, storage = null, storageKey = null } = {}) {
   const mapW = worldMap.dimensions.width;
   const mapH = worldMap.dimensions.height;
   const scaleMeters = worldMap.scaleMetersPerTile || 6;
+  const neighborhoodMeta = getNeighborhoodMeta(worldMap);
+  const effectiveStorageKey = storageKey || neighborhoodMeta.saveStorageKey;
+
+  if (worldMap?.meta?.items) {
+    registerDynamicItems(worldMap.meta.items);
+  }
+  for (const lm of landmarks) {
+    if (lm?.rewardItem && lm?.rewardItemMeta) {
+      DYNAMIC_ITEM_META.set(lm.rewardItem, lm.rewardItemMeta);
+    }
+  }
 
   // Build reachable world positions for every landmark NPC
   const landmarkMap = new Map();
@@ -337,7 +361,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
   function loadSaved() {
     if (!storage) return;
     try {
-      const raw = storage.getItem(SAVE_STORAGE_KEY);
+      const raw = storage.getItem(effectiveStorageKey);
       if (!raw) return;
       const saved = JSON.parse(raw);
       if (typeof saved.safetyXP === "number") state.safetyXP = saved.safetyXP;
@@ -425,7 +449,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
         if (state.fogCells[i] === 1) fogRevealedIndices.push(i);
       }
       storage.setItem(
-        SAVE_STORAGE_KEY,
+        effectiveStorageKey,
         JSON.stringify({
           safetyXP: state.safetyXP,
           coins: state.coins,
@@ -476,7 +500,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
     for (const obj of interactables) obj.opened = false;
     if (storage) {
       try {
-        storage.removeItem(SAVE_STORAGE_KEY);
+        storage.removeItem(effectiveStorageKey);
       } catch {
         // ignore
       }
@@ -718,7 +742,9 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
         if (questEvent.unlockedOutfit) {
           const outfitExtra =
             questEvent.unlockedOutfit === "wetsuit"
-              ? " Now you can wade through Crystal Lake, Bullough's Pond & water areas!"
+              ? neighborhoodMeta.isNewton
+                ? " Now you can wade through Crystal Lake, Bullough's Pond & water areas!"
+                : " Now you can wade through local lakes, ponds & water areas!"
               : "";
           lines.push(`🎉 New Outfit Unlocked: ${OUTFIT_DISPLAY_NAMES[questEvent.unlockedOutfit]}!${outfitExtra} Press O to switch outfits!`);
           fanfareQueue.push({
@@ -748,7 +774,7 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
       "chestnut_hill_mall",
     ]);
     let gainedSnacks = 0;
-    if (SNACK_LANDMARKS.has(lm.id)) {
+    if (SNACK_LANDMARKS.has(lm.id) || lm.givesSnacks || (Number(lm.healHearts) || 0) > 0) {
       gainedSnacks = addSnacks(lm.id === "home_base" ? getMaxSnacks() : 2);
     }
 
@@ -807,7 +833,9 @@ export function createQuestSystem({ landmarks = [], quests = [], worldMap, stora
         if (questEvent.unlockedOutfit) {
           const outfitExtra =
             questEvent.unlockedOutfit === "wetsuit"
-              ? " Now you can wade through Crystal Lake, Bullough's Pond & water areas!"
+              ? neighborhoodMeta.isNewton
+                ? " Now you can wade through Crystal Lake, Bullough's Pond & water areas!"
+                : " Now you can wade through local lakes, ponds & water areas!"
               : "";
           lines.push(`🎉 New Outfit Unlocked: ${OUTFIT_DISPLAY_NAMES[questEvent.unlockedOutfit]}!${outfitExtra} Press O to switch outfits!`);
           fanfareQueue.push({

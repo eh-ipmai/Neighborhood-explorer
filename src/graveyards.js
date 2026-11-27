@@ -10,6 +10,8 @@
  *     flapping pixel bats, and drifting mist wisps — strictly off roads & sidewalks!
  */
 
+import { isNewtonCentreMap } from "./neighborhood_meta.js";
+
 const TILE_GRASS = 0;
 const TILE_SIDEWALK = 1;
 const TILE_RES_ROAD = 2;
@@ -58,11 +60,11 @@ export function getGraveyardZones(worldMap) {
   const { width, height } = worldMap.dimensions;
 
   // Respect explicit graveyards[] saved in world_map.json if provided
-  if (Array.isArray(worldMap.graveyards) && worldMap.graveyards.length > 0) {
+  if (Array.isArray(worldMap.graveyards)) {
     return worldMap.graveyards;
   }
 
-  if (width === 512 && height === 512) {
+  if (isNewtonCentreMap(worldMap) && width === 512 && height === 512) {
     return [
       {
         id: "east_parish_burying_ground",
@@ -109,7 +111,7 @@ export function getGraveyardZones(worldMap) {
     ];
   }
 
-  if (width === 128 && height === 128) {
+  if (isNewtonCentreMap(worldMap) && width === 128 && height === 128) {
     // Offline demo map spooky graveyard corner (NW of Centre St / north of woods)
     return [
       {

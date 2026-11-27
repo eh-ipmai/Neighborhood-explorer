@@ -14,6 +14,7 @@
 
 import { buildGraveyardMask, getGraveyardGhostPos } from "./graveyards.js";
 import { getNavigationSubgrid } from "./subgrid.js";
+import { getNeighborhoodMeta } from "./neighborhood_meta.js";
 
 export const CRITTER_ARCHETYPES = {
   squirrel: {
@@ -199,6 +200,22 @@ export function buildStreetLife(
   const base = worldMap.layers.base;
   const collision = worldMap.layers.collision;
   const tileSize = worldMap.tileSize || 16;
+  const neighborhoodMeta = getNeighborhoodMeta(worldMap);
+  const localChants = neighborhoodMeta.isNewton
+    ? PROTEST_CHANTS
+    : PROTEST_CHANTS.map((c) =>
+        c === "HONK FOR NEWTON!" ? `HONK FOR ${neighborhoodMeta.cityShort.toUpperCase().slice(0, 12)}!` : c
+      );
+  const localQuips = neighborhoodMeta.isNewton
+    ? PROTESTOR_QUIPS
+    : [
+        "Hi neighbor! Marching for MORE ICE CREAM really works up an appetite — got a snack to share?",
+        "We're marching peacefully for MORE PARKS & AUTUMN LEAVES! A snack break sounds amazing!",
+        "Hey there, Explorer! Our tummies are rumbling — share a snack and we'll happily step aside!",
+        `FREE SNACKS FOR EVERY KID IN ${neighborhoodMeta.cityShort.toUpperCase()}! Speaking of which, do you have a snack?`,
+        "Ooh, marching down the neighborhood sidewalk makes us super hungry! Got a snack from your kitchen?",
+        "Thanks for saying hi, neighbor! If you have a snack to share, we'll gladly clear the sidewalk!",
+      ];
   const home = spawnTile || worldMap.origin?.spawnTile || { x: Math.floor(width / 2), y: Math.floor(height / 2) };
   const subgrid = getNavigationSubgrid(worldMap);
   const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
@@ -328,7 +345,7 @@ export function buildStreetLife(
     const { isMob = false, mobId = null, offsetX = 0, offsetY = 0, markRadius = 4, axisOverride = null } = opts;
     const patrol = measureSidewalkPatrol(base, collision, width, height, tx, ty, subgrid, tileSize);
     const h = hash2(tx, ty, 709 + idx);
-    const chantIdx = idx % PROTEST_CHANTS.length;
+    const chantIdx = idx % localChants.length;
     let ax = tx * tileSize + tileSize / 2 + offsetX;
     let ay = ty * tileSize + tileSize / 2 + offsetY;
     if (useSub && subgrid.isRoadAtPx(ax, ay)) {
@@ -342,10 +359,10 @@ export function buildStreetLife(
       mobId,
       variant: idx % 3,
       chantIndex: chantIdx,
-      chantText: PROTEST_CHANTS[chantIdx],
+      chantText: localChants[chantIdx],
       quip: isMob
         ? "Marching together makes us hungry! Share a snack with our group and we'll happily clear the sidewalk!"
-        : PROTESTOR_QUIPS[idx % PROTESTOR_QUIPS.length],
+        : localQuips[idx % localQuips.length],
       x: ax,
       y: ay,
       anchorX: ax,
@@ -451,11 +468,14 @@ export function buildStreetLife(
     addProtestor(cand.tx, cand.ty, protestors.length);
   }
 
-  // --- 1b. Guarantee at least 1 Protestor Mob near Home Base corridor (14..32 tiles) and 1 in Newton Centre! ---
+  // --- 1b. Guarantee at least 1 Protestor Mob near Home Base corridor and 1 near town center! ---
+  const townCenterAnchor = neighborhoodMeta.isNewton
+    ? { cx: 256, cy: 238, minR: 4, maxR: 26 }
+    : { cx: Math.floor(width / 2), cy: Math.floor(height / 2), minR: 8, maxR: 28 };
   const mobAnchors = width >= 200
     ? [
         { cx: home.x, cy: home.y, minR: 14, maxR: 32 },
-        { cx: 256, cy: 238, minR: 4, maxR: 26 },
+        townCenterAnchor,
       ]
     : [{ cx: home.x, cy: home.y, minR: 13, maxR: 28 }];
 
@@ -748,7 +768,20 @@ export function buildStreetLife(
     }
   });
 
-  return { turkeys, squirrels, cats, dogs, critters, protestors, mobs, spookyChars, joggers: buildSidewalkJoggers(worldMap, spawnTile), graveyardGrid: effectiveGraveGrid };
+  return {
+    turkeys,
+    squirrels,
+    cats,
+    dogs,
+    critters,
+    protestors,
+    mobs,
+    spookyChars,
+    joggers: buildSidewalkJoggers(worldMap, spawnTile),
+    graveyardGrid: effectiveGraveGrid,
+    isNewton: neighborhoodMeta.isNewton,
+    cityShort: neighborhoodMeta.cityShort,
+  };
 }
 
 /**
@@ -1152,13 +1185,17 @@ export function interactWithStreetLife(streetLife, entry, playerX, playerY, opti
         }
       }
     }
+    const snackHint =
+      streetLife?.isNewton === false
+        ? '🥨 "Marching makes us hungry! Grab snacks from your kitchen at Home Base or local shops & cafes!"'
+        : '🥨 "Marching makes us hungry! Grab snacks from your kitchen at Home Base, J.P. Licks, or Rosenfeld\'s Bagels!"';
     return {
       kind: "protestor",
       isMob: Boolean(pr.isMob),
       sharedSnack: false,
       needsSnack: true,
       blocked: true,
-      toast: '🥨 "Marching makes us hungry! Grab snacks from your kitchen at Home Base, J.P. Licks, or Rosenfeld\'s Bagels!"',
+      toast: snackHint,
       sound: "protestor",
     };
   }
@@ -1177,7 +1214,10 @@ export function interactWithStreetLife(streetLife, entry, playerX, playerY, opti
     tk.shooedCount += 1;
     return {
       kind: "turkey",
-      toast: "🦃 GOBBLE GOBBLE! The wild Newton turkey fluffed its feathers and bolted!",
+      toast:
+        streetLife?.isNewton === false
+          ? "🦃 GOBBLE GOBBLE! The wild neighborhood turkey fluffed its feathers and bolted!"
+          : "🦃 GOBBLE GOBBLE! The wild Newton turkey fluffed its feathers and bolted!",
       sound: "turkey",
     };
   }
@@ -1262,7 +1302,10 @@ export function checkStreetLifeContact(
         speed: 132,
         duration: 0.24,
         bubbleSprite: "bubble_ouch",
-        toast: "💥 OUCH! A bold wild Newton turkey pecked & knocked you back!",
+        toast:
+          streetLife?.isNewton === false
+            ? "💥 OUCH! A bold wild neighborhood turkey pecked & knocked you back!"
+            : "💥 OUCH! A bold wild Newton turkey pecked & knocked you back!",
       };
     }
   }

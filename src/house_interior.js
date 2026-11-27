@@ -19,6 +19,7 @@
  */
 
 import { DEFAULT_HITBOX, TILE_SIZE } from "./player.js";
+import { getNeighborhoodMeta } from "./neighborhood_meta.js";
 
 export const INTERIOR_ROOMS = {
   main_floor: {
@@ -2587,7 +2588,17 @@ function bakeInteriorAnimOverlay(roomId, frameIdx, state = {}) {
   return canvas;
 }
 
-export function createHomeInteriorSystem(questSystem) {
+export function createHomeInteriorSystem(questSystem, { worldMap = null, meta = null } = {}) {
+  const neighborhoodMeta = meta || (worldMap ? getNeighborhoodMeta(worldMap) : {
+    isNewton: true,
+    homeAddress: "565 Boylston St",
+    cityShort: "Newton",
+    townName: "Newton Centre",
+    heroName: "Liam",
+  });
+  const homeAddrLabel = neighborhoodMeta.homeAddress || "Home Base";
+  const cityLabel = neighborhoodMeta.cityShort || "the Neighborhood";
+
   const state = {
     active: false,
     roomId: "main_floor",
@@ -2659,7 +2670,14 @@ export function createHomeInteriorSystem(questSystem) {
   }
 
   function getRoom() {
-    return INTERIOR_ROOMS[state.roomId] || INTERIOR_ROOMS.main_floor;
+    const baseRoom = INTERIOR_ROOMS[state.roomId] || INTERIOR_ROOMS.main_floor;
+    if (baseRoom.id === "main_floor") {
+      return {
+        ...baseRoom,
+        name: `${homeAddrLabel.toUpperCase()} — INSIDE HOME`,
+      };
+    }
+    return baseRoom;
   }
 
   function enterHouse(returnX, returnY) {
@@ -2731,7 +2749,7 @@ export function createHomeInteriorSystem(questSystem) {
         {
           id: "exit_door",
           kind: "house_prop",
-          label: "Step Outside (565 Boylston St)",
+          label: `Step Outside (${homeAddrLabel})`,
           shortLabel: "GO<br/>OUTSIDE",
           icon: "🚪",
           x: 9.5 * TILE_SIZE,
@@ -2992,7 +3010,7 @@ export function createHomeInteriorSystem(questSystem) {
         x: next.x,
         y: next.y,
         facing: next.facing,
-        toast: "🏠 Back downstairs in the 565 Boylston St Living Room!",
+        toast: `🏠 Back downstairs in the ${homeAddrLabel} Living Room!`,
       };
     }
 
@@ -3039,7 +3057,7 @@ export function createHomeInteriorSystem(questSystem) {
         x: next.x,
         y: next.y,
         facing: next.facing,
-        toast: "🏠 Returned upstairs to 565 Boylston St!",
+        toast: `🏠 Returned upstairs to ${homeAddrLabel}!`,
       };
     }
 
@@ -3058,7 +3076,7 @@ export function createHomeInteriorSystem(questSystem) {
         action: "dialogue",
         speaker: "🧙 Gnome Wizard Statue",
         lines: [
-          '"Greetings, Explorer of Newton! Arcane geometry unlocks the vault!"',
+          `"Greetings, Explorer of ${cityLabel}! Arcane geometry unlocks the vault!"`,
           '"Press the SAPPHIRE switch SECOND — right after the Bard\'s Emerald rune — then consult the Eldritch Knight!"',
         ],
       };

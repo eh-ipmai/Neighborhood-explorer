@@ -98,6 +98,7 @@ import { buildParkingLotCars } from "./parking_lots.js";
 import { computeRoadTileMarkings } from "./road_markings.js";
 import { createVectorRoadRenderer } from "./vector_roads.js";
 import { getNavigationSubgrid } from "./subgrid.js";
+import { getNeighborhoodMeta } from "./neighborhood_meta.js";
 
 const VIEW_W = 320;
 const VIEW_H = 180;
@@ -328,14 +329,22 @@ async function boot() {
     loadJson("./data/house_colors.json").catch(() => ({})),
   ]);
 
+  const neighborhoodMeta = getNeighborhoodMeta(worldMap);
+  const houseColorsStorageKey = neighborhoodMeta.houseColorsStorageKey || HOUSE_COLORS_STORAGE_KEY;
+  const homeAddrLabel = neighborhoodMeta.homeAddress;
+  const heroName = neighborhoodMeta.heroName;
+  const cityShort = neighborhoodMeta.cityShort;
+
   // Merge data/house_colors.json with any live localStorage paints from iPad scouting
   const rawColorEntries = {};
-  for (const [key, val] of Object.entries(baseHouseColors || {})) {
-    if (key.startsWith("_") || !val || typeof val !== "object") continue;
-    rawColorEntries[key] = { ...val };
+  if (neighborhoodMeta.isNewton) {
+    for (const [key, val] of Object.entries(baseHouseColors || {})) {
+      if (key.startsWith("_") || !val || typeof val !== "object") continue;
+      rawColorEntries[key] = { ...val };
+    }
   }
   try {
-    const saved = JSON.parse(localStorage.getItem(HOUSE_COLORS_STORAGE_KEY) || "{}");
+    const saved = JSON.parse(localStorage.getItem(houseColorsStorageKey) || "{}");
     for (const [key, val] of Object.entries(saved)) {
       if (val && typeof val === "object") rawColorEntries[key] = { ...val };
     }
@@ -356,7 +365,7 @@ async function boot() {
 
   function persistLocalColors() {
     try {
-      localStorage.setItem(HOUSE_COLORS_STORAGE_KEY, JSON.stringify(rawColorEntries));
+      localStorage.setItem(houseColorsStorageKey, JSON.stringify(rawColorEntries));
     } catch {
       // ignore
     }
@@ -377,7 +386,7 @@ async function boot() {
     worldMap,
     storage: typeof localStorage !== "undefined" ? localStorage : null,
   });
-  const homeInterior = createHomeInteriorSystem(questSystem);
+  const homeInterior = createHomeInteriorSystem(questSystem, { worldMap, meta: neighborhoodMeta });
   const homeBaseBuilding = buildings.find((b) => b.isHomeBase) || null;
   const homeDoorTile = homeBaseBuilding?.bounds
     ? {
@@ -753,7 +762,7 @@ async function boot() {
             kind: "home_door",
             target: {
               id: "home_door",
-              name: "565 Boylston St (Your House)",
+              name: `${homeAddrLabel} (Your House)`,
               tx: homeDoorTile.x,
               ty: homeDoorTile.y,
             },
@@ -820,7 +829,7 @@ async function boot() {
       return { title: "SALZBERG HOUSE", tag: "200 Cotton St", unknown: false };
     }
     if (Math.hypot(tx - spawnTile.x, ty - spawnTile.y) <= 7) {
-      return { title: "HOME BASE", tag: "565 Boylston St", unknown: false };
+      return { title: "HOME BASE", tag: homeAddrLabel, unknown: false };
     }
     const lastSign = questSystem.state.lastCheckedSignId
       ? streetSignSystem.getSignById(questSystem.state.lastCheckedSignId)
@@ -998,7 +1007,13 @@ async function boot() {
     if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
     if (homeInterior.state.active) return;
     if (!questSystem.hasSword()) {
-      ui?.showSafetyToast("⚔️ Visit the Salzberg Family Home (200 Cotton St) to get the Graveyard Sword!", 2400);
+      const swordGiver = questSystem.landmarks.find(
+        (lm) => lm.rewardItem === "graveyard_sword" || lm.bonusItem === "graveyard_sword"
+      );
+      const swordHint = swordGiver
+        ? `⚔️ Visit ${swordGiver.name} to get the Graveyard Sword!`
+        : "⚔️ Explore local landmarks or switch to Easy Mode (G) to unlock the Graveyard Sword!";
+      ui?.showSafetyToast(swordHint, 2400);
       return;
     }
     if (playerState.swordCooldown > 0) return;
@@ -1182,7 +1197,10 @@ async function boot() {
       const countLabel = questSystem.state.gpsAssist ? "∞" : questSystem.state.snacks;
       ui?.showSafetyToast(`🥨 You have ${countLabel} snacks & ${questSystem.state.acorns} acorns ready! Walk near marchers or wild animals and press N to feed!`, 2600);
     } else {
-      ui?.showSafetyToast("🥨 Out of snacks & acorns! Visit Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's Bagels to restock!", 2600);
+      const snackHint = neighborhoodMeta.isNewton
+        ? "🥨 Out of snacks & acorns! Visit Home Base Kitchen, Mom, J.P. Licks, or Rosenfeld's Bagels to restock!"
+        : "🥨 Out of snacks & acorns! Visit Home Base Kitchen, Mom, or local bakeries & cafes to restock!";
+      ui?.showSafetyToast(snackHint, 2600);
     }
   }
 
@@ -1191,7 +1209,10 @@ async function boot() {
     if (ui?.isMapOpen() || ui?.isPaintOpen() || ui?.isDialogueOpen() || ui?.isSignOpen() || activeFanfare) return;
     if (homeInterior.state.active) return;
     if (!questSystem.hasSiddur()) {
-      ui?.showSafetyToast("📖 Visit Beth El, Shaarei Tefillah, Temple Emanuel, or Chabad for a Pocket Siddur!", 2600);
+      const siddurHint = neighborhoodMeta.isNewton
+        ? "📖 Visit Beth El, Shaarei Tefillah, Temple Emanuel, or Chabad for a Pocket Siddur!"
+        : "📖 Visit a local house of worship or community hall for a Pocket Blessing Book!";
+      ui?.showSafetyToast(siddurHint, 2600);
       return;
     }
     if (playerState.siddurCooldown > 0) return;
@@ -1302,10 +1323,10 @@ async function boot() {
     };
     const hitToast =
       vehicleKind === "bike"
-        ? "💥 CRASH! An annoying spandex biker nailed you! Full Newton EMS, Police & Fire response!"
+        ? `💥 CRASH! An annoying spandex biker nailed you! Full ${cityShort} EMS, Police & Fire response!`
         : vehicleKind === "truck"
-          ? "💥 CRASH! A giant truck hit you! Full Newton EMS, Police & Fire response!"
-          : "💥 CRASH! A car hit you! Full Newton EMS, Police & Fire response!";
+          ? `💥 CRASH! A giant truck hit you! Full ${cityShort} EMS, Police & Fire response!`
+          : `💥 CRASH! A car hit you! Full ${cityShort} EMS, Police & Fire response!`;
     ui?.showSafetyToast(hitToast, 2600);
   }
 
@@ -1335,7 +1356,7 @@ async function boot() {
     k.setCamRot(0);
     playDoorChime();
     ui?.showSafetyToast(
-      "🏠 Welcome inside 565 Boylston St! Try the Kitchen Snacks, Closet, Bookshelf & D&D Pool Table!",
+      `🏠 Welcome inside ${homeAddrLabel}! Try the Kitchen Snacks, Closet, Bookshelf & D&D Pool Table!`,
       3000
     );
   }
@@ -1352,7 +1373,7 @@ async function boot() {
     if (canEnterNearbyHouse(tx, ty)) {
       enterHomeBaseHouse();
     } else {
-      ui?.showSafetyToast("🏠 Walk up to 565 Boylston St (Home Base) and press I to go inside!", 2400);
+      ui?.showSafetyToast(`🏠 Walk up to ${homeAddrLabel} (Home Base) and press I to go inside!`, 2400);
     }
   }
 
@@ -1364,7 +1385,7 @@ async function boot() {
     playerState.moving = false;
     playerState.isWading = false;
     playDoorChime();
-    ui?.showSafetyToast("🏡 Stepped back outside onto 565 Boylston St!", 2000);
+    ui?.showSafetyToast(`🏡 Stepped back outside onto ${homeAddrLabel}!`, 2000);
   }
 
   function handleInteriorInteraction(propId) {
@@ -1804,12 +1825,12 @@ async function boot() {
     playOutfitSwapSfx(next);
     ui?.showSafetyToast(
       next === "link"
-        ? "🗡️ Hyah! Liam put on his Legend of Zelda Link Tunic, Hylian Cap & Shield!"
+        ? `🗡️ Hyah! ${heroName} put on the Legend of Zelda Link Tunic, Hylian Cap & Shield!`
         : next === "wetsuit"
-          ? "🤿 Splash! Liam put on his Summer Wetsuit & Snorkel — ready to wade through water!"
+          ? `🤿 Splash! ${heroName} put on the Summer Wetsuit & Snorkel — ready to wade through water!`
           : next === "baseball"
-            ? "⚾ Play Ball! Liam put on his Little League Uniform!"
-            : "👕 Liam switched to his Polo, Kippah & Tzitzit!",
+            ? `⚾ Play Ball! ${heroName} put on the Little League Uniform!`
+            : `👕 ${heroName} switched to Polo, Kippah & Tzitzit!`,
       2400
     );
   }
@@ -1944,6 +1965,7 @@ async function boot() {
     onDialogueOpen: (speaker) => playDialogueOpenSfx(speaker),
     onDialogueAdvance: () => playDialogueAdvanceSfx(),
   });
+  ui.setNeighborhoodMeta(neighborhoodMeta);
 
   k.onKeyPress("c", () => {
     showDebug = !showDebug;
@@ -2233,7 +2255,7 @@ async function boot() {
           cs.emtProgress = 0;
           cs.dustTimer = 0;
           playEmtRadioBeepSfx();
-          ui.showSafetyToast("🩺 Paramedics tending Liam inside the CAUTION tape perimeter!", 1800);
+          ui.showSafetyToast(`🩺 Paramedics tending ${heroName} inside the CAUTION tape perimeter!`, 1800);
         }
       } else if (cs.phase === "emt_treat") {
         cs.timer -= dt;
@@ -2257,7 +2279,7 @@ async function boot() {
           cs.timer = 1.4;
           cs.emtProgress = 0;
           playEmtRadioBeepSfx();
-          ui.showSafetyToast("🚑 Wheeling Liam onto the ambulance ramp!", 1800);
+          ui.showSafetyToast(`🚑 Wheeling ${heroName} onto the ambulance ramp!`, 1800);
         }
       } else if (cs.phase === "emt_load") {
         cs.timer -= dt;
@@ -2313,10 +2335,10 @@ async function boot() {
                 ? "a giant truck"
                 : "a car";
           ui.openDialogue({
-            speaker: "Mom • 565 Boylston St",
+            speaker: `Mom • ${homeAddrLabel}`,
             lines: [
-              "LIAM!! OH MY GOODNESS, I AM SO HAPPY YOU'RE ALIVE!!",
-              `The Newton EMS paramedics brought you all the way home after you got hit by ${culprit} — you ALWAYS have to watch out for traffic on the road!!`,
+              `${heroName.toUpperCase()}!! OH MY GOODNESS, I AM SO HAPPY YOU'RE ALIVE!!`,
+              `The ${cityShort} EMS paramedics brought you all the way home after you got hit by ${culprit} — you ALWAYS have to watch out for traffic on the road!!`,
               "Thank goodness you're okay... AND YOU ARE GROUNDED FOREVER!!",
             ],
             onComplete: () => {

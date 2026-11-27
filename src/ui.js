@@ -104,6 +104,7 @@ export function createUI({
   const dialogueTextEl = document.getElementById("dialogue-text");
 
   const mapModalEl = document.getElementById("map-modal");
+  const paperMapTitleEl = document.getElementById("paper-map-title");
   const mapCanvasEl = document.getElementById("paper-map-canvas");
   const miniMapBtnEl = document.getElementById("mini-map-btn");
   const miniMapCanvasEl = document.getElementById("mini-map-canvas");
@@ -183,6 +184,27 @@ export function createUI({
 
   // --- SNES Typewriter Dialogue State ---
   let dialogueState = null;
+
+  let activeMeta = {
+    townName: "Newton Centre",
+    homeAddress: "565 Boylston St",
+    heroName: "Liam",
+    isNewton: true,
+  };
+
+  function setNeighborhoodMeta(meta) {
+    if (!meta || typeof meta !== "object") return;
+    activeMeta = { ...activeMeta, ...meta };
+    if (paperMapTitleEl) {
+      paperMapTitleEl.textContent = `🗺️ Folded Paper Map — ${activeMeta.townName || "Neighborhood"}`;
+    }
+    if (streetZoneEl && streetNameEl?.textContent === "HOME BASE") {
+      streetZoneEl.textContent = activeMeta.homeAddress || "Home Base";
+    }
+    if (!activeMeta.isNewton && typeof document !== "undefined" && activeMeta.townName) {
+      document.title = `Neighborhood Explorer — ${activeMeta.townName}`;
+    }
+  }
 
   function openDialogue({ speaker, lines, onComplete }) {
     if (!dialogueBoxEl || !lines || lines.length === 0) {
@@ -1006,7 +1028,7 @@ export function createUI({
     const displayName = gpsAssist
       ? streetZone
         ? streetZone.name
-        : originName || "Newton Centre"
+        : originName || activeMeta.townName || "Neighborhood"
       : signBanner?.title || "UNKNOWN STREET";
     const displayTag = gpsAssist
       ? streetZone
@@ -1043,7 +1065,7 @@ export function createUI({
       } else if (nearbyInteraction) {
         let label = "";
         if (nearbyInteraction.kind === "home_door") {
-          label = "🏠 565 Boylston St — Go Inside";
+          label = `🏠 ${activeMeta.homeAddress || "Home Base"} — Go Inside`;
         } else if (nearbyInteraction.kind === "house_prop") {
           label = `${nearbyInteraction.target?.icon || "✨"} ${nearbyInteraction.target?.label || "Inspect"}`;
         } else if (nearbyInteraction.kind === "sign") {
@@ -1170,6 +1192,7 @@ export function createUI({
       gameoverOverlayEl?.classList.remove("open");
     },
     isGameOverOpen: () => Boolean(gameoverOverlayEl?.classList.contains("open")),
+    setNeighborhoodMeta,
     updateHUD,
   };
 }
