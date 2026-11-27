@@ -1,6 +1,6 @@
 # Neighborhood Explorer — Universal 16-Bit SNES RPG Toolkit
 
-Turn **any real-world neighborhood in the country** into a playable 16-bit SNES exploration RPG for kids — complete with real OpenStreetMap streets, per-address houses, parks, playgrounds, libraries, local shops, spooky cemeteries, street-sign wayfinding, pedestrian safety mechanics, and customizable family landmarks & quests.
+Turn **any real-world neighborhood in the world** into a playable 16-bit SNES exploration RPG for kids — complete with real OpenStreetMap streets, per-address houses, parks, playgrounds, libraries, local shops, spooky cemeteries, street-sign wayfinding, pedestrian safety mechanics, and customizable family landmarks & quests.
 
 Built for **iPad Safari** (touch-first, WebGL + automatic 4x HD Canvas 2D fallback) and **Desktop / Windows / macOS / Linux**.
 
