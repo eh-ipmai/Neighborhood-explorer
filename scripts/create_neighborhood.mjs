@@ -81,7 +81,11 @@ Options:
   --lat <num> --lon <num>  Optional explicit coordinates (skips address geocoding)
   --hero "<name>"          Kid / explorer name (default: "Explorer")
   --town "<name>"          Optional town display name override (e.g., "Austin, TX")
+  --biome <id|auto>        Regional biome preset (default: "auto"; e.g., israel_jerusalem, european_historic, tundra)
+  --labels <mode>          Street & place label mode: bilingual (default) | en | local
   --size <preset>          walkable (256x256, ~20-40s, default) | standard (384x384) | full (512x512, ~1-2m)
+  --width <n> --height <n> Optional custom tile dimensions (overrides --size)
+  --scale <meters>         Real-world meters per 16px tile (default: 6)
   --places <file.json>     Optional JSON file with custom places & quests (see docs/examples/custom_places.example.json)
   --out-dir <dir>          Output directory (default: data/ — use e.g. packs/austin to keep Newton intact)
   --overpass               Prefer Overpass API mirrors over tiled OSM API
