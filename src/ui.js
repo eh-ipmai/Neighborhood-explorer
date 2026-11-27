@@ -925,9 +925,20 @@ export function createUI({
     );
     setClass(btnGps, "gpsAct", "active", navMode !== "signs");
     if (btnOutfit) {
+      const isSoccerBiome =
+        activeMeta.biomeConfig?.parkSports === "soccer_primary" ||
+        activeMeta.biomeConfig?.parkSports === "coastal_beach" ||
+        activeMeta.biomeConfig?.parkSports === "europe_tennis_soccer";
+      const everydayLabel =
+        activeMeta.heroProfile?.headwear === "kippah" || activeMeta.isNewton ? "Polo" : "Explorer";
+      const sportLabel = isSoccerBiome ? "⚽ Outfit: Soccer" : "⚾ Outfit: Baseball";
       if (unlockedOutfitsCount <= 1) {
-        setText(btnOutfit, "outfitTxt", "👕 Outfit: Polo 🔒");
-        setTitle(btnOutfit, "outfitTitle", "Complete quests to unlock Baseball, Wetsuit & Link outfits!");
+        setText(btnOutfit, "outfitTxt", `👕 Outfit: ${everydayLabel} 🔒`);
+        setTitle(
+          btnOutfit,
+          "outfitTitle",
+          `Complete quests to unlock ${isSoccerBiome ? "Soccer" : "Baseball"}, Wetsuit & Link outfits!`
+        );
       } else {
         setText(
           btnOutfit,
@@ -937,8 +948,8 @@ export function createUI({
             : heroOutfit === "wetsuit"
               ? "🤿 Outfit: Wetsuit"
               : heroOutfit === "baseball"
-                ? "⚾ Outfit: Baseball"
-                : "👕 Outfit: Polo"
+                ? sportLabel
+                : `👕 Outfit: ${everydayLabel}`
         );
         setTitle(btnOutfit, "outfitTitle", `Switch between ${unlockedOutfitsCount} unlocked outfits (O)`);
       }
@@ -989,6 +1000,18 @@ export function createUI({
         } else if (nearbyInteraction.kind === "dog") {
           setText(btnLookIcon, "lookIcon", canFeedAnimal ? (hasSnack || gpsAssist ? "🥨" : "🌰") : "🐕");
           setHtml(btnLookLabel, "lookLbl", canFeedAnimal ? "FEED<br/>PUP" : "SHOO<br/>PUP");
+        } else if (nearbyInteraction.kind === "parakeet") {
+          setText(btnLookIcon, "lookIcon", canFeedAnimal ? (hasSnack || gpsAssist ? "🥨" : "🌰") : "🦜");
+          setHtml(btnLookLabel, "lookLbl", canFeedAnimal ? "FEED<br/>BIRD" : "SHOO<br/>BIRD");
+        } else if (nearbyInteraction.kind === "hyrax") {
+          setText(btnLookIcon, "lookIcon", canFeedAnimal ? (hasSnack || gpsAssist ? "🥨" : "🌰") : "🐹");
+          setHtml(btnLookLabel, "lookLbl", canFeedAnimal ? "FEED<br/>HYRAX" : "SHOO<br/>HYRAX");
+        } else if (nearbyInteraction.kind === "arctic_fox" || nearbyInteraction.kind === "red_fox") {
+          setText(btnLookIcon, "lookIcon", canFeedAnimal ? (hasSnack || gpsAssist ? "🥨" : "🌰") : "🦊");
+          setHtml(btnLookLabel, "lookLbl", canFeedAnimal ? "FEED<br/>FOX" : "SHOO<br/>FOX");
+        } else if (nearbyInteraction.kind === "roadrunner") {
+          setText(btnLookIcon, "lookIcon", canFeedAnimal ? (hasSnack || gpsAssist ? "🥨" : "🌰") : "🐦");
+          setHtml(btnLookLabel, "lookLbl", canFeedAnimal ? "FEED<br/>BIRD" : "SHOO<br/>BIRD");
         } else if (nearbyInteraction.kind === "spooky") {
           setText(btnLookIcon, "lookIcon", "🔦");
           setHtml(btnLookLabel, "lookLbl", "SPOOK<br/>BACK!");
@@ -1088,6 +1111,15 @@ export function createUI({
           label = canFeedAnimal ? "🥨 Prowling Cat — Feed a treat!" : "🐱 Prowling Cat — Shoo or bring snacks!";
         } else if (nearbyInteraction.kind === "dog") {
           label = canFeedAnimal ? "🥨 Runaway Dog — Feed a treat!" : "🐕 Runaway Dog — Shoo or bring snacks!";
+        } else if (nearbyInteraction.kind === "parakeet") {
+          label = canFeedAnimal ? "🥨 Green Parakeet — Feed a treat!" : "🦜 Green Parakeet — Shoo or bring snacks!";
+        } else if (nearbyInteraction.kind === "hyrax") {
+          label = canFeedAnimal ? "🥨 Rock Hyrax — Feed a treat!" : "🐹 Rock Hyrax — Shoo or bring snacks!";
+        } else if (nearbyInteraction.kind === "arctic_fox" || nearbyInteraction.kind === "red_fox") {
+          const foxTitle = nearbyInteraction.target?.name || "Fox";
+          label = canFeedAnimal ? `🥨 ${foxTitle} — Feed a treat!` : `🦊 ${foxTitle} — Shoo or bring snacks!`;
+        } else if (nearbyInteraction.kind === "roadrunner") {
+          label = canFeedAnimal ? "🥨 Roadrunner — Feed a treat!" : "🐦 Roadrunner — Shoo or bring snacks!";
         } else if (nearbyInteraction.kind === "spooky") {
           label = `👻 ${nearbyInteraction.target?.name || "Spooky Foe"} — Spook Back or Swing Sword!`;
         } else {

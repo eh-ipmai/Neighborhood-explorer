@@ -77,7 +77,7 @@ export const BIOME_PRESETS = {
     hasFallenLeaves: false,
     hasLeafPiles: false,
     ambientParticleStyle: "jacaranda_petals",
-    parkSports: "soccer_primary",
+    parkSports: "coastal_beach",
     wildlifeStyle: "israel",
   },
   israel_galilee: {
@@ -174,7 +174,7 @@ export const BIOME_PRESETS = {
     hasLeafPiles: false,
     ambientParticleStyle: "desert_motes",
     parkSports: "us_baseball",
-    wildlifeStyle: "temperate",
+    wildlifeStyle: "desert",
   },
 };
 

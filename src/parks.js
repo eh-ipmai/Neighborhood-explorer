@@ -125,6 +125,42 @@ export function buildParkFeatures(worldMap, excludedGrid = null) {
         offsetY: -10,
         sortYOffset: 12,
       });
+    } else if (kind === "tennis_court") {
+      props.push({
+        sprite: "tennis_net",
+        tx: tx + Math.floor(w / 2),
+        ty: ty + Math.floor(h / 2),
+        offsetX: -6,
+        offsetY: -12,
+        sortYOffset: 12,
+      });
+    } else if (kind === "beach_volleyball") {
+      props.push({
+        sprite: "volleyball_net",
+        tx: tx + Math.floor(w / 2),
+        ty: ty + Math.floor(h / 2),
+        offsetX: -6,
+        offsetY: -14,
+        sortYOffset: 12,
+      });
+    } else if (kind === "ice_rink") {
+      const midY = ty + Math.floor(h / 2);
+      props.push({
+        sprite: "hockey_goal_left",
+        tx,
+        ty: midY,
+        offsetX: 2,
+        offsetY: -8,
+        sortYOffset: 12,
+      });
+      props.push({
+        sprite: "hockey_goal_right",
+        tx: tx + w - 1,
+        ty: midY,
+        offsetX: -4,
+        offsetY: -8,
+        sortYOffset: 12,
+      });
     } else if (kind === "playground") {
       props.push({
         sprite: "swing_set",
@@ -170,14 +206,25 @@ export function buildParkFeatures(worldMap, excludedGrid = null) {
   }
 
   // 2. Automatically populate large & medium PARK clusters across the whole neighborhood
-  //    Pass A: Large athletic fields (baseball/soccer in US; soccer pitches in Israel/Europe!)
+  //    Pass A: Large athletic fields (baseball/soccer in US; soccer pitches in Israel/Europe; ice rinks in Winter/Tundra!)
   const biomeConfig = getBiomeConfig(worldMap);
-  const preferSoccerOnly = biomeConfig.parkSports === "soccer_primary";
+  const parkSports = biomeConfig.parkSports || "us_baseball";
+  const isWinterIce = parkSports === "winter_ice" || worldMap?.meta?.season === "winter" && (biomeConfig.id === "new_england_autumn" || biomeConfig.id === "tundra" || biomeConfig.id === "alpine");
+  const isCoastalBeach = parkSports === "coastal_beach";
+  const isEuropeTennis = parkSports === "europe_tennis_soccer";
+  const preferSoccerOnly =
+    parkSports === "soccer_primary" || isCoastalBeach || isEuropeTennis;
+
   for (let ty = 3; ty < height - 10; ty += 4) {
     for (let tx = 3; tx < width - 10; tx += 4) {
       if (base[ty * width + tx] !== TILE_PARK || occupiedGrid[ty * width + tx]) continue;
       const h = hash2d(tx, ty);
-      if (preferSoccerOnly) {
+      if (isWinterIce) {
+        if (canPlace(tx, ty, 7, 5, [TILE_PARK], 5)) {
+          markField("ice_rink", tx, ty, 7, 5);
+          continue;
+        }
+      } else if (preferSoccerOnly) {
         if (canPlace(tx, ty, 8, 5, [TILE_PARK], 5)) {
           markField("soccer_field", tx, ty, 8, 5);
           continue;
@@ -204,13 +251,23 @@ export function buildParkFeatures(worldMap, excludedGrid = null) {
     }
   }
 
-  //    Pass B: Full basketball courts (6x4) & playgrounds (4x3) in medium parks
+  //    Pass B: Medium courts (basketball / tennis / beach volleyball / ice rink / playground)
   for (let ty = 2; ty < height - 6; ty += 3) {
     for (let tx = 2; tx < width - 8; tx += 3) {
       if (base[ty * width + tx] !== TILE_PARK || occupiedGrid[ty * width + tx]) continue;
       if (canPlace(tx, ty, 6, 4, [TILE_PARK, TILE_SAND], 5)) {
         const h = hash2d(tx, ty);
-        if (h % 3 === 0) {
+        if (isWinterIce) {
+          markField(h % 3 === 0 ? "playground" : "ice_rink", tx, ty, h % 3 === 0 ? 4 : 6, h % 3 === 0 ? 3 : 4);
+        } else if (isCoastalBeach) {
+          if (h % 3 === 0) markField("beach_volleyball", tx, ty, 5, 3);
+          else if (h % 3 === 1) markField("tennis_court", tx, ty, 6, 4);
+          else markField("playground", tx, ty, 4, 3);
+        } else if (isEuropeTennis || parkSports === "soccer_primary") {
+          if (h % 3 === 0) markField("tennis_court", tx, ty, 6, 4);
+          else if (h % 3 === 1) markField("basketball_court", tx, ty, 6, 4);
+          else markField("playground", tx, ty, 4, 3);
+        } else if (h % 3 === 0) {
           markField("playground", tx, ty, 4, 3);
         } else {
           markField("basketball_court", tx, ty, 6, 4);

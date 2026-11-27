@@ -25,6 +25,55 @@ export const HERO_OUTFITS = {
   link: { id: "link", label: "Hero of Hyrule", shortLabel: "Link", icon: "🗡️" },
 };
 
+export const HERO_HAIR_STYLES = {
+  short: { id: "short", label: "Short Hair" },
+  ponytail: { id: "ponytail", label: "Long Ponytail" },
+  bob: { id: "bob", label: "Shoulder Bob" },
+  curly: { id: "curly", label: "Curly Hair" },
+};
+
+export const HERO_HAIR_COLORS = {
+  light_brown: { id: "light_brown", label: "Light Brown", spec: "#f2d8a2", hi: "#d9ae71", mid: "#b58148", shade: "#8c5b2f", deep: "#633c1c", out: "#422712" },
+  dark_brown: { id: "dark_brown", label: "Dark Brown", spec: "#8c6548", hi: "#6e4930", mid: "#4f321e", shade: "#382112", deep: "#24130a", out: "#1a0d07" },
+  black: { id: "black", label: "Jet Black", spec: "#5c6475", hi: "#3c4252", mid: "#242833", shade: "#171921", deep: "#0d0f14", out: "#0a0b0f" },
+  blonde: { id: "blonde", label: "Golden Blonde", spec: "#fff7bf", hi: "#ffe375", mid: "#e0b443", shade: "#b38422", deep: "#7d5810", out: "#4f360a" },
+  auburn: { id: "auburn", label: "Auburn Red", spec: "#ffad75", hi: "#d96c38", mid: "#ad4421", shade: "#7d2b14", deep: "#521a0b", out: "#361007" },
+};
+
+export const HERO_SKIN_TONES = {
+  warm: { id: "warm", label: "Warm Peach", hi: "#ffe8cf", mid: "#fad0a8", shade: "#e3a67b", deep: "#c27d57", cheek: "#f08c7d", out: "#7d482e" },
+  light: { id: "light", label: "Fair", hi: "#fff2e6", mid: "#fce0cb", shade: "#e3baa0", deep: "#c4947a", cheek: "#f59ca6", out: "#825540" },
+  tan: { id: "tan", label: "Olive / Tan", hi: "#f0c89c", mid: "#d9a573", shade: "#b88050", deep: "#8f5d34", cheek: "#d97a68", out: "#5c361c" },
+  deep: { id: "deep", label: "Rich Brown", hi: "#b87c54", mid: "#8f5938", shade: "#6b3e24", deep: "#4a2916", cheek: "#a8534a", out: "#30190c" },
+};
+
+export const HERO_HEADWEAR = {
+  kippah: { id: "kippah", label: "Knitted Kippah" },
+  none: { id: "none", label: "No Hat (Show Hair)" },
+  cap: { id: "cap", label: "Explorer Cap" },
+  sun_hat: { id: "sun_hat", label: "Sun Hat" },
+  beanie: { id: "beanie", label: "Winter Beanie" },
+};
+
+export const DEFAULT_HERO_PROFILE = {
+  hairStyle: "short",
+  hairColor: "light_brown",
+  skinTone: "warm",
+  headwear: "kippah",
+  tzitzit: true,
+};
+
+export function resolveHeroProfile(raw = null) {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_HERO_PROFILE };
+  return {
+    hairStyle: HERO_HAIR_STYLES[raw.hairStyle] ? raw.hairStyle : DEFAULT_HERO_PROFILE.hairStyle,
+    hairColor: HERO_HAIR_COLORS[raw.hairColor] ? raw.hairColor : DEFAULT_HERO_PROFILE.hairColor,
+    skinTone: HERO_SKIN_TONES[raw.skinTone] ? raw.skinTone : DEFAULT_HERO_PROFILE.skinTone,
+    headwear: HERO_HEADWEAR[raw.headwear] ? raw.headwear : DEFAULT_HERO_PROFILE.headwear,
+    tzitzit: raw.tzitzit !== undefined ? Boolean(raw.tzitzit) : raw.headwear === "kippah",
+  };
+}
+
 /**
  * Pure discrete integer pixel buffer with material tags for true 32-bit
  * selective colored outlining ("sel-out") and pixel-perfect horizontal mirroring.
@@ -432,46 +481,223 @@ function draw32BitTzitzit(g, x, y, sway = 0, sideView = false) {
   g.set(x + s2 + sway, y + 5, LIAM_PAL.tzShade, "tzitzit");
 }
 
-function draw32BitHeadFront(g, cx, topY, outfit, happyFanfare = false) {
+function drawHeroHairExtraFront(g, cx, topY, profile, hSpec, hHi, hMid, hShade, hDeep) {
+  if (profile.hairStyle === "ponytail") {
+    // Sweeping ponytail peeking cheerfully off the side!
+    g.ellipse(cx + 9.5, topY + 13, 3.2, 5.2, hMid, "hair");
+    g.ellipse(cx + 10.5, topY + 15, 2.4, 3.8, hShade, "hair");
+    g.rect(cx + 8, topY + 10, 2, 2, "#e84a7f", "orange"); // hair tie
+    g.set(cx + 9, topY + 12, hHi, "hair");
+  } else if (profile.hairStyle === "bob") {
+    // Full shoulder-length bob framing both cheeks!
+    g.rect(cx - 10, topY + 9, 3, 12, hMid, "hair");
+    g.rect(cx - 9, topY + 10, 1, 9, hHi, "hair");
+    g.rect(cx - 10, topY + 19, 3, 2, hDeep, "hair");
+    g.rect(cx + 8, topY + 9, 3, 12, hMid, "hair");
+    g.rect(cx + 9, topY + 10, 1, 9, hHi, "hair");
+    g.rect(cx + 8, topY + 19, 3, 2, hDeep, "hair");
+  } else if (profile.hairStyle === "curly") {
+    // Voluminous bouncy curls framing crown & temples!
+    for (const [ox, oy, r] of [
+      [-8, 7, 3.4], [8, 7, 3.4], [-9, 12, 3.0], [9, 12, 3.0], [-4, 4, 3.2], [4, 4, 3.2], [0, 3, 3.2],
+    ]) {
+      g.ellipse(cx + ox, topY + oy, r, r, hMid, "hair");
+      g.ellipse(cx + ox - 0.5, topY + oy - 0.8, r * 0.55, r * 0.55, hHi, "hair");
+    }
+    g.set(cx - 3, topY + 3, hSpec, "hair");
+  }
+}
+
+function drawHeroHairExtraBack(g, cx, topY, profile, hHi, hMid, hShade, hDeep) {
+  if (profile.hairStyle === "ponytail") {
+    g.rect(cx - 2, topY + 14, 5, 2, "#e84a7f", "orange");
+    g.ellipse(cx, topY + 20, 4.2, 5.5, hMid, "hair");
+    g.ellipse(cx - 1, topY + 19, 2.2, 3.5, hHi, "hair");
+    g.rect(cx - 2, topY + 24, 5, 2, hDeep, "hair");
+  } else if (profile.hairStyle === "bob") {
+    g.rect(cx - 9, topY + 13, 19, 9, hMid, "hair");
+    g.rect(cx - 8, topY + 20, 17, 2, hDeep, "hair");
+    g.rect(cx - 6, topY + 14, 13, 4, hHi, "hair");
+  } else if (profile.hairStyle === "curly") {
+    for (const [ox, oy, r] of [
+      [-7, 6, 3.6], [7, 6, 3.6], [-8, 12, 3.4], [8, 12, 3.4], [-5, 17, 3.2], [5, 17, 3.2], [0, 18, 3.5],
+    ]) {
+      g.ellipse(cx + ox, topY + oy, r, r, hMid, "hair");
+      g.ellipse(cx + ox - 0.5, topY + oy - 0.8, r * 0.5, r * 0.5, hHi, "hair");
+    }
+  }
+}
+
+function drawHeroHairExtraSide(g, cx, topY, profile, hHi, hMid, hShade, hDeep) {
+  if (profile.hairStyle === "ponytail") {
+    g.rect(cx - 10, topY + 12, 2, 3, "#e84a7f", "orange");
+    g.ellipse(cx - 13, topY + 16, 3.8, 5.2, hMid, "hair");
+    g.ellipse(cx - 13, topY + 14, 2.2, 3.2, hHi, "hair");
+    g.rect(cx - 15, topY + 20, 3, 2, hDeep, "hair");
+  } else if (profile.hairStyle === "bob") {
+    g.rect(cx - 9, topY + 12, 9, 10, hMid, "hair");
+    g.rect(cx - 8, topY + 13, 5, 7, hHi, "hair");
+    g.rect(cx - 9, topY + 20, 8, 2, hDeep, "hair");
+  } else if (profile.hairStyle === "curly") {
+    for (const [ox, oy, r] of [
+      [-6, 6, 3.6], [0, 4, 3.4], [-8, 11, 3.4], [-7, 16, 3.2],
+    ]) {
+      g.ellipse(cx + ox, topY + oy, r, r, hMid, "hair");
+      g.ellipse(cx + ox - 0.5, topY + oy - 0.8, r * 0.5, r * 0.5, hHi, "hair");
+    }
+  }
+}
+
+function drawEverydayHeadwearFront(g, cx, topY, headwear) {
+  if (headwear === "none") return;
+  if (headwear === "sun_hat") {
+    // Wide woven straw/linen Mediterranean sun hat with royal-blue ribbon!
+    g.ellipse(cx, topY + 7, 11.5, 2.8, "#d9b473", "jersey");
+    g.ellipse(cx, topY + 6.5, 10.5, 2.0, "#f2d89c", "jersey");
+    g.ellipse(cx, topY + 4.5, 6.8, 3.4, "#e8c682", "jersey");
+    g.rect(cx - 6, topY + 5, 13, 2, "#2457a3", "kippah");
+    return;
+  }
+  if (headwear === "beanie") {
+    // Cozy winter knit beanie with pom-pom!
+    g.ellipse(cx, topY + 1, 2.6, 2.2, "#fff5e0", "jersey");
+    g.ellipse(cx, topY + 5.5, 8.8, 4.6, "#c93838", "orange");
+    g.ellipse(cx - 1, topY + 4, 6.2, 2.6, "#eb5e55", "orange");
+    g.rect(cx - 8, topY + 7, 17, 3, "#f0e6d2", "jersey");
+    for (let bx = cx - 7; bx <= cx + 7; bx += 2) g.set(bx, topY + 8, "#c93838", "orange");
+    return;
+  }
+  if (headwear === "cap") {
+    g.ellipse(cx, topY + 6, 8.8, 4.8, "#245ca8", "kippah");
+    g.ellipse(cx - 1, topY + 4.2, 6.0, 2.5, "#4d8ce0", "kippah");
+    g.ellipse(cx, topY + 9, 9.0, 2.0, "#1c4382", "kippah");
+    g.rect(cx - 7, topY + 8, 15, 1, "#6ba8f2", "kippah");
+    return;
+  }
+  // Default: Royal-blue knitted kippah
+  g.ellipse(cx, topY + 4, 5.8, 3.4, LIAM_PAL.kipMid, "kippah");
+  g.ellipse(cx - 1, topY + 3, 3.6, 1.8, LIAM_PAL.kipHi, "kippah");
+  for (let kx = cx - 4; kx <= cx + 4; kx += 2) {
+    g.set(kx, topY + 4, LIAM_PAL.kipShade, "kippah");
+    g.set(kx + 1, topY + 3, LIAM_PAL.kipHi, "kippah");
+  }
+  g.rect(cx - 5, topY + 6, 11, 1, LIAM_PAL.kipRimHi, "kippah");
+  for (let kx = cx - 4; kx <= cx + 4; kx += 2) {
+    g.set(kx, topY + 6, LIAM_PAL.kipRimShade, "kippah");
+  }
+  g.rect(cx - 5, topY + 7, 11, 1, LIAM_PAL.kipDeep, "kippah");
+}
+
+function drawEverydayHeadwearBack(g, cx, topY, headwear) {
+  if (headwear === "none") return;
+  if (headwear === "sun_hat") {
+    g.ellipse(cx, topY + 8, 11.5, 3.2, "#d9b473", "jersey");
+    g.ellipse(cx, topY + 7, 10.5, 2.2, "#f2d89c", "jersey");
+    g.ellipse(cx, topY + 5, 6.8, 3.6, "#e8c682", "jersey");
+    g.rect(cx - 6, topY + 6, 13, 2, "#2457a3", "kippah");
+    return;
+  }
+  if (headwear === "beanie") {
+    g.ellipse(cx, topY + 1, 2.6, 2.2, "#fff5e0", "jersey");
+    g.ellipse(cx, topY + 6.5, 8.8, 5.2, "#c93838", "orange");
+    g.rect(cx - 8, topY + 9, 17, 3, "#f0e6d2", "jersey");
+    return;
+  }
+  if (headwear === "cap") {
+    g.ellipse(cx, topY + 7, 8.8, 6.0, "#245ca8", "kippah");
+    g.rect(cx - 8, topY + 10, 17, 2, "#1c4382", "kippah");
+    return;
+  }
+  g.ellipse(cx, topY + 8, 5.8, 5.2, LIAM_PAL.kipShade, "kippah");
+  g.ellipse(cx, topY + 7.5, 4.8, 4.3, LIAM_PAL.kipMid, "kippah");
+  g.ellipse(cx - 1, topY + 6, 2.8, 2.2, LIAM_PAL.kipHi, "kippah");
+  for (let ky = topY + 5; ky <= topY + 10; ky += 2) {
+    for (let kx = cx - 3; kx <= cx + 3; kx += 2) {
+      if ((kx - cx) * (kx - cx) + (ky - (topY + 8)) * (ky - (topY + 8)) <= 12) {
+        g.set(kx, ky, LIAM_PAL.kipDeep, "kippah");
+      }
+    }
+  }
+  for (let deg = 20; deg <= 160; deg += 15) {
+    const r = (deg * Math.PI) / 180;
+    const rx = cx + Math.cos(r) * 5.2;
+    const ry = topY + 8 + Math.sin(r) * 4.6;
+    g.set(rx, ry, LIAM_PAL.kipRimHi, "kippah");
+  }
+}
+
+function drawEverydayHeadwearSide(g, cx, topY, headwear) {
+  if (headwear === "none") return;
+  if (headwear === "sun_hat") {
+    g.ellipse(cx, topY + 7.5, 11.2, 2.5, "#d9b473", "jersey");
+    g.ellipse(cx, topY + 7, 10.2, 1.8, "#f2d89c", "jersey");
+    g.ellipse(cx - 1, topY + 5, 6.5, 3.2, "#e8c682", "jersey");
+    g.rect(cx - 7, topY + 6, 13, 2, "#2457a3", "kippah");
+    return;
+  }
+  if (headwear === "beanie") {
+    g.ellipse(cx - 2, topY + 1, 2.6, 2.2, "#fff5e0", "jersey");
+    g.ellipse(cx - 1, topY + 6, 8.2, 4.6, "#c93838", "orange");
+    g.rect(cx - 8, topY + 8, 15, 3, "#f0e6d2", "jersey");
+    return;
+  }
+  if (headwear === "cap") {
+    g.ellipse(cx - 1, topY + 6.5, 8.2, 4.8, "#245ca8", "kippah");
+    g.rect(cx + 4, topY + 8, 9, 2, "#1c4382", "kippah");
+    g.rect(cx + 5, topY + 8, 7, 1, "#6ba8f2", "kippah");
+    return;
+  }
+  g.ellipse(cx - 4, topY + 5, 4.8, 3.2, LIAM_PAL.kipMid, "kippah");
+  g.ellipse(cx - 4.5, topY + 4, 3.0, 1.6, LIAM_PAL.kipHi, "kippah");
+  g.set(cx - 6, topY + 5, LIAM_PAL.kipShade, "kippah");
+  g.set(cx - 3, topY + 5, LIAM_PAL.kipShade, "kippah");
+  g.line(cx - 8, topY + 6, cx, topY + 8, LIAM_PAL.kipRimHi, "kippah");
+  g.line(cx - 7, topY + 7, cx - 1, topY + 8, LIAM_PAL.kipDeep, "kippah");
+}
+
+function draw32BitHeadFront(g, cx, topY, outfit, happyFanfare = false, opts = {}) {
+  const profile = resolveHeroProfile(opts.heroProfile);
+  const hairPal = HERO_HAIR_COLORS[profile.hairColor] || HERO_HAIR_COLORS.light_brown;
+  const skinPal = HERO_SKIN_TONES[profile.skinTone] || HERO_SKIN_TONES.warm;
+  const isSoccerKit = outfit === "baseball" && opts.soccerKit;
   const isLink = outfit === "link";
-  const hSpec = isLink ? LIAM_PAL.linkHairSpec : LIAM_PAL.hairSpec;
-  const hHi = isLink ? LIAM_PAL.linkHairHi : LIAM_PAL.hairHi;
-  const hMid = isLink ? LIAM_PAL.linkHairMid : LIAM_PAL.hairMid;
-  const hShade = isLink ? LIAM_PAL.linkHairShade : LIAM_PAL.hairShade;
-  const hDeep = isLink ? LIAM_PAL.linkHairDeep : LIAM_PAL.hairDeep;
+  const hSpec = isLink ? LIAM_PAL.linkHairSpec : hairPal.spec;
+  const hHi = isLink ? LIAM_PAL.linkHairHi : hairPal.hi;
+  const hMid = isLink ? LIAM_PAL.linkHairMid : hairPal.mid;
+  const hShade = isLink ? LIAM_PAL.linkHairShade : hairPal.shade;
+  const hDeep = isLink ? LIAM_PAL.linkHairDeep : hairPal.deep;
 
   // 1. Sculpted rounded 32-bit head oval (18x18 px)
-  g.ellipse(cx, topY + 13, 8.2, 8.2, LIAM_PAL.skinMid, "skin");
+  g.ellipse(cx, topY + 13, 8.2, 8.2, skinPal.mid, "skin");
   // Warm forehead & cheek highlights
-  g.ellipse(cx - 1, topY + 11, 5.5, 4.5, LIAM_PAL.skinHi, "skin");
-  // Sculpted jawline & chin shadow (classic 32-bit warmth!)
-  g.rect(cx - 5, topY + 19, 11, 1, LIAM_PAL.skinShade, "skin");
-  g.rect(cx - 3, topY + 20, 7, 1, LIAM_PAL.skinDeep, "skin");
+  g.ellipse(cx - 1, topY + 11, 5.5, 4.5, skinPal.hi, "skin");
+  // Sculpted jawline & chin shadow
+  g.rect(cx - 5, topY + 19, 11, 1, skinPal.shade, "skin");
+  g.rect(cx - 3, topY + 20, 7, 1, skinPal.deep, "skin");
   // Sculpted ears — classic POINTED Hylian elf ears when dressed as Link!
   if (isLink) {
-    g.rect(cx - 11, topY + 12, 4, 3, LIAM_PAL.skinMid, "skin");
-    g.rect(cx - 12, topY + 12, 2, 2, LIAM_PAL.skinHi, "skin");
-    g.rect(cx - 10, topY + 14, 3, 1, LIAM_PAL.skinShade, "skin");
-    g.rect(cx + 8, topY + 12, 4, 3, LIAM_PAL.skinMid, "skin");
-    g.rect(cx + 11, topY + 12, 2, 2, LIAM_PAL.skinHi, "skin");
-    g.rect(cx + 8, topY + 14, 3, 1, LIAM_PAL.skinShade, "skin");
+    g.rect(cx - 11, topY + 12, 4, 3, skinPal.mid, "skin");
+    g.rect(cx - 12, topY + 12, 2, 2, skinPal.hi, "skin");
+    g.rect(cx - 10, topY + 14, 3, 1, skinPal.shade, "skin");
+    g.rect(cx + 8, topY + 12, 4, 3, skinPal.mid, "skin");
+    g.rect(cx + 11, topY + 12, 2, 2, skinPal.hi, "skin");
+    g.rect(cx + 8, topY + 14, 3, 1, skinPal.shade, "skin");
   } else {
-    g.rect(cx - 9, topY + 12, 2, 4, LIAM_PAL.skinMid, "skin");
-    g.set(cx - 9, topY + 13, LIAM_PAL.skinShade, "skin");
-    g.set(cx - 8, topY + 14, LIAM_PAL.skinDeep, "skin");
-    g.rect(cx + 8, topY + 12, 2, 4, LIAM_PAL.skinMid, "skin");
-    g.set(cx + 9, topY + 13, LIAM_PAL.skinShade, "skin");
-    g.set(cx + 8, topY + 14, LIAM_PAL.skinDeep, "skin");
+    g.rect(cx - 9, topY + 12, 2, 4, skinPal.mid, "skin");
+    g.set(cx - 9, topY + 13, skinPal.shade, "skin");
+    g.set(cx - 8, topY + 14, skinPal.deep, "skin");
+    g.rect(cx + 8, topY + 12, 2, 4, skinPal.mid, "skin");
+    g.set(cx + 9, topY + 13, skinPal.shade, "skin");
+    g.set(cx + 8, topY + 14, skinPal.deep, "skin");
   }
 
-  // 2. Hair (golden-blonde swept Link bangs OR Liam's straight light-brown hair!)
+  // 2. Hair (customizable style & color, or golden-blonde Link bangs!)
+  if (!isLink) drawHeroHairExtraFront(g, cx, topY, profile, hSpec, hHi, hMid, hShade, hDeep);
   g.ellipse(cx, topY + 8, 8.6, 5.5, hMid, "hair");
-  // Side locks framing temples cleanly (longer sideburns for Link!)
   g.rect(cx - 8, topY + 8, 2, isLink ? 8 : 5, hShade, "hair");
   g.rect(cx + 7, topY + 8, 2, isLink ? 8 : 5, hShade, "hair");
   g.set(cx - 8, topY + (isLink ? 15 : 12), hDeep, "hair");
   g.set(cx + 8, topY + (isLink ? 15 : 12), hDeep, "hair");
-  // Fringe across forehead
   g.rect(cx - 7, topY + 9, 15, 2, hMid, "hair");
   for (let hx = cx - 6; hx <= cx + 6; hx += 3) {
     g.line(hx, topY + 5, hx, topY + 10, hShade, "hair");
@@ -479,18 +705,17 @@ function draw32BitHeadFront(g, cx, topY, outfit, happyFanfare = false) {
   }
   g.rect(cx - 5, topY + 5, 11, 2, hHi, "hair");
   g.rect(cx - 3, topY + 5, 6, 1, hSpec, "hair");
-  g.rect(cx - 6, topY + 11, 13, 1, LIAM_PAL.skinShade, "skin");
+  g.rect(cx - 6, topY + 11, 13, 1, skinPal.shade, "skin");
   g.rect(cx - 7, topY + 10, 15, 1, hDeep, "hair");
   g.set(cx - 2, topY + 10, hShade, "hair");
   g.set(cx + 3, topY + 10, hShade, "hair");
   if (isLink) {
-    // Classic Link center-parted golden bangs sweeping across forehead!
     g.rect(cx - 6, topY + 10, 4, 2, hHi, "hair");
     g.rect(cx + 3, topY + 10, 4, 2, hHi, "hair");
-    g.set(cx, topY + 10, LIAM_PAL.skinHi, "skin");
+    g.set(cx, topY + 10, skinPal.hi, "skin");
   }
 
-  // 3. Expressive 32-bit eyes (lash line + warm hazel/Hylian-blue iris + white catchlight!)
+  // 3. Expressive 32-bit eyes
   for (const side of [-1, 1]) {
     const ex = side < 0 ? cx - 5 : cx + 3;
     const ey = topY + 13;
@@ -501,66 +726,55 @@ function draw32BitHeadFront(g, cx, topY, outfit, happyFanfare = false) {
     g.set(ex, ey + 1, LIAM_PAL.white, "skin");
     g.set(ex + 2, ey + 3, "#e8f0fa", "skin");
   }
-  // Cute sculpted nose + warm rosy cheeks + cheerful smile!
-  g.set(cx, topY + 16, LIAM_PAL.skinShade, "skin");
-  g.set(cx, topY + 15, LIAM_PAL.skinHi, "skin");
-  g.rect(cx - 6, topY + 16, 2, 1, LIAM_PAL.cheek, "skin");
-  g.rect(cx + 5, topY + 16, 2, 1, LIAM_PAL.cheek, "skin");
+  g.set(cx, topY + 16, skinPal.shade, "skin");
+  g.set(cx, topY + 15, skinPal.hi, "skin");
+  g.rect(cx - 6, topY + 16, 2, 1, skinPal.cheek, "skin");
+  g.rect(cx + 5, topY + 16, 2, 1, skinPal.cheek, "skin");
   if (happyFanfare) {
     g.rect(cx - 2, topY + 17, 5, 2, LIAM_PAL.mouthDark, "skin");
     g.rect(cx - 1, topY + 17, 3, 1, LIAM_PAL.white, "skin");
     g.rect(cx - 1, topY + 18, 3, 1, LIAM_PAL.mouth, "skin");
   } else {
     g.rect(cx - 1, topY + 18, 3, 1, LIAM_PAL.mouth, "skin");
-    g.set(cx - 2, topY + 17, LIAM_PAL.skinShade, "skin");
-    g.set(cx + 2, topY + 17, LIAM_PAL.skinShade, "skin");
+    g.set(cx - 2, topY + 17, skinPal.shade, "skin");
+    g.set(cx + 2, topY + 17, skinPal.shade, "skin");
   }
 
-  // 4. Headwear: Link's Iconic Pointy Emerald Cap, Royal-Blue Kippah, Team Giants Cap, OR Swim Goggles!
+  // 4. Headwear
   if (isLink) {
-    // Iconic Legend of Zelda Long Pointed Emerald Hylian Cap draping to the right with golden rim!
     g.ellipse(cx, topY + 5, 9.2, 4.6, LIAM_PAL.linkGreenMid, "linkGreen");
     g.ellipse(cx - 1, topY + 3.5, 6.5, 2.5, LIAM_PAL.linkGreenHi, "linkGreen");
     g.rect(cx - 4, topY + 2, 6, 1, LIAM_PAL.linkGreenSpec, "linkGreen");
-    // Sweeping pointed cap tail draping cleanly off the side!
     g.rect(cx + 6, topY + 2, 6, 4, LIAM_PAL.linkGreenMid, "linkGreen");
     g.rect(cx + 7, topY + 2, 4, 2, LIAM_PAL.linkGreenHi, "linkGreen");
     g.rect(cx + 10, topY + 4, 4, 4, LIAM_PAL.linkGreenShade, "linkGreen");
     g.rect(cx + 12, topY + 6, 3, 3, LIAM_PAL.linkGreenDeep, "linkGreen");
     g.set(cx + 14, topY + 8, LIAM_PAL.linkGreenShade, "linkGreen");
-    // Golden-trimmed Hylian cap brim sitting cleanly over blonde bangs!
     g.rect(cx - 8, topY + 8, 17, 2, LIAM_PAL.linkGreenShade, "linkGreen");
     g.rect(cx - 7, topY + 8, 15, 1, LIAM_PAL.linkGold, "linkGreen");
   } else if (outfit === "wetsuit") {
-    // Wide single-pane Dive Mask + J-shaped Snorkel Tube sticking high up above Liam's head!
-    // Dive mask strap at temples
     g.rect(cx - 8, topY + 13, 2, 2, LIAM_PAL.goggleStrap, "goggle");
     g.rect(cx + 7, topY + 13, 2, 2, LIAM_PAL.goggleStrap, "goggle");
-    // Wide single-window dive mask frame + nose pocket + gleaming aqua glass!
     g.rect(cx - 7, topY + 11, 15, 6, LIAM_PAL.goggleStrap, "goggle");
     g.rect(cx - 6, topY + 11, 13, 1, LIAM_PAL.tealHi, "goggle");
     g.rect(cx - 6, topY + 12, 13, 4, LIAM_PAL.goggleGlass, "goggle");
     g.rect(cx - 5, topY + 12, 5, 1, LIAM_PAL.goggleGlassHi, "goggle");
     g.set(cx - 4, topY + 12, LIAM_PAL.white, "goggle");
     g.rect(cx + 2, topY + 12, 3, 1, LIAM_PAL.goggleGlassHi, "goggle");
-    // Eyes peeking cleanly through the wide dive mask glass + silicone nose pocket!
     g.set(cx - 4, topY + 14, LIAM_PAL.eyeLash, "goggle");
     g.set(cx + 4, topY + 14, LIAM_PAL.eyeLash, "goggle");
     g.rect(cx - 1, topY + 15, 3, 2, LIAM_PAL.tealShade, "goggle");
-    // J-shaped Snorkel breathing tube from mouth curving around cheek & rising high above his head!
-    g.rect(cx + 1, topY + 17, 4, 2, LIAM_PAL.wetMid, "goggle");     // Mouthpiece
-    g.rect(cx + 5, topY + 17, 5, 2, LIAM_PAL.goggleStrap, "goggle"); // Lower J-curve
+    g.rect(cx + 1, topY + 17, 4, 2, LIAM_PAL.wetMid, "goggle");
+    g.rect(cx + 5, topY + 17, 5, 2, LIAM_PAL.goggleStrap, "goggle");
     g.rect(cx + 6, topY + 17, 3, 1, LIAM_PAL.tealHi, "goggle");
-    g.rect(cx + 9, topY + 2, 3, 17, LIAM_PAL.goggleStrap, "goggle"); // Tall vertical snorkel straw!
-    g.rect(cx + 9, topY + 2, 1, 16, LIAM_PAL.tealHi, "goggle");      // Specular tube highlight
-    g.rect(cx + 11, topY + 3, 1, 15, LIAM_PAL.tealShade, "goggle");  // Tube shadow
-    g.rect(cx + 8, topY + 13, 4, 2, LIAM_PAL.wetMid, "goggle");      // Snorkel keeper clip
-    // High-vis bright orange snorkel splash-guard tip sticking up above the water!
+    g.rect(cx + 9, topY + 2, 3, 17, LIAM_PAL.goggleStrap, "goggle");
+    g.rect(cx + 9, topY + 2, 1, 16, LIAM_PAL.tealHi, "goggle");
+    g.rect(cx + 11, topY + 3, 1, 15, LIAM_PAL.tealShade, "goggle");
+    g.rect(cx + 8, topY + 13, 4, 2, LIAM_PAL.wetMid, "goggle");
     g.rect(cx + 9, topY - 1, 3, 4, LIAM_PAL.orangeMid, "orange");
     g.rect(cx + 9, topY - 1, 2, 2, LIAM_PAL.orangeHi, "orange");
     g.set(cx + 10, topY - 1, LIAM_PAL.zipGold, "orange");
-  } else if (outfit === "baseball") {
-    // 6-panel black cap dome
+  } else if (outfit === "baseball" && !isSoccerKit) {
     g.ellipse(cx, topY + 6, 8.8, 5.2, LIAM_PAL.capMid, "cap");
     g.ellipse(cx - 1, topY + 4, 6.2, 3.0, LIAM_PAL.capHi, "cap");
     g.rect(cx - 8, topY + 7, 17, 2, LIAM_PAL.capShade, "cap");
@@ -573,44 +787,40 @@ function draw32BitHeadFront(g, cx, topY, outfit, happyFanfare = false) {
     g.ellipse(cx, topY + 9, 9.2, 2.2, LIAM_PAL.orangeMid, "orange");
     g.rect(cx - 7, topY + 8, 15, 1, LIAM_PAL.orangeHi, "orange");
     g.rect(cx - 7, topY + 10, 15, 1, LIAM_PAL.orangeShade, "orange");
+  } else if (isSoccerKit) {
+    // Soccer Kit: sporty blue-and-white athletic headband + optional kippah!
+    g.rect(cx - 8, topY + 8, 17, 2, "#245ca8", "kippah");
+    g.rect(cx - 7, topY + 8, 15, 1, "#ffffff", "jersey");
+    if (profile.headwear === "kippah") drawEverydayHeadwearFront(g, cx, topY, "kippah");
   } else {
-    // Royal-blue knitted kippah perched cleanly on Liam's straight light-brown hair!
-    g.ellipse(cx, topY + 4, 5.8, 3.4, LIAM_PAL.kipMid, "kippah");
-    g.ellipse(cx - 1, topY + 3, 3.6, 1.8, LIAM_PAL.kipHi, "kippah");
-    for (let kx = cx - 4; kx <= cx + 4; kx += 2) {
-      g.set(kx, topY + 4, LIAM_PAL.kipShade, "kippah");
-      g.set(kx + 1, topY + 3, LIAM_PAL.kipHi, "kippah");
-    }
-    g.rect(cx - 5, topY + 6, 11, 1, LIAM_PAL.kipRimHi, "kippah");
-    for (let kx = cx - 4; kx <= cx + 4; kx += 2) {
-      g.set(kx, topY + 6, LIAM_PAL.kipRimShade, "kippah");
-    }
-    g.rect(cx - 5, topY + 7, 11, 1, LIAM_PAL.kipDeep, "kippah");
+    drawEverydayHeadwearFront(g, cx, topY, profile.headwear);
   }
 }
 
-function draw32BitHeadBack(g, cx, topY, outfit) {
+function draw32BitHeadBack(g, cx, topY, outfit, opts = {}) {
+  const profile = resolveHeroProfile(opts.heroProfile);
+  const hairPal = HERO_HAIR_COLORS[profile.hairColor] || HERO_HAIR_COLORS.light_brown;
+  const skinPal = HERO_SKIN_TONES[profile.skinTone] || HERO_SKIN_TONES.warm;
+  const isSoccerKit = outfit === "baseball" && opts.soccerKit;
   const isLink = outfit === "link";
-  const hHi = isLink ? LIAM_PAL.linkHairHi : LIAM_PAL.hairHi;
-  const hMid = isLink ? LIAM_PAL.linkHairMid : LIAM_PAL.hairMid;
-  const hShade = isLink ? LIAM_PAL.linkHairShade : LIAM_PAL.hairShade;
-  const hDeep = isLink ? LIAM_PAL.linkHairDeep : LIAM_PAL.hairDeep;
+  const hHi = isLink ? LIAM_PAL.linkHairHi : hairPal.hi;
+  const hMid = isLink ? LIAM_PAL.linkHairMid : hairPal.mid;
+  const hShade = isLink ? LIAM_PAL.linkHairShade : hairPal.shade;
+  const hDeep = isLink ? LIAM_PAL.linkHairDeep : hairPal.deep;
 
-  // Neck & ears visible from behind (pointed Hylian ears for Link!)
-  g.rect(cx - 3, topY + 19, 7, 3, LIAM_PAL.skinShade, "skin");
+  g.rect(cx - 3, topY + 19, 7, 3, skinPal.shade, "skin");
   if (isLink) {
-    g.rect(cx - 11, topY + 12, 4, 3, LIAM_PAL.skinMid, "skin");
-    g.rect(cx - 12, topY + 12, 2, 2, LIAM_PAL.skinHi, "skin");
-    g.rect(cx + 8, topY + 12, 4, 3, LIAM_PAL.skinMid, "skin");
-    g.rect(cx + 11, topY + 12, 2, 2, LIAM_PAL.skinHi, "skin");
+    g.rect(cx - 11, topY + 12, 4, 3, skinPal.mid, "skin");
+    g.rect(cx - 12, topY + 12, 2, 2, skinPal.hi, "skin");
+    g.rect(cx + 8, topY + 12, 4, 3, skinPal.mid, "skin");
+    g.rect(cx + 11, topY + 12, 2, 2, skinPal.hi, "skin");
   } else {
-    g.rect(cx - 9, topY + 12, 2, 4, LIAM_PAL.skinMid, "skin");
-    g.set(cx - 9, topY + 14, LIAM_PAL.skinShade, "skin");
-    g.rect(cx + 8, topY + 12, 2, 4, LIAM_PAL.skinMid, "skin");
-    g.set(cx + 9, topY + 14, LIAM_PAL.skinShade, "skin");
+    g.rect(cx - 9, topY + 12, 2, 4, skinPal.mid, "skin");
+    g.set(cx - 9, topY + 14, skinPal.shade, "skin");
+    g.rect(cx + 8, topY + 12, 2, 4, skinPal.mid, "skin");
+    g.set(cx + 9, topY + 14, skinPal.shade, "skin");
   }
 
-  // Full sculpted hair cascading neatly to the nape!
   g.ellipse(cx, topY + 12, 8.6, 8.4, hMid, "hair");
   for (let hx = cx - 6; hx <= cx + 6; hx += 2) {
     g.line(hx, topY + 6, hx, topY + 18, hShade, "hair");
@@ -618,86 +828,73 @@ function draw32BitHeadBack(g, cx, topY, outfit) {
   }
   g.rect(cx - 6, topY + 18, 13, 2, hDeep, "hair");
   g.rect(cx - 5, topY + 17, 11, 1, hShade, "hair");
+  if (!isLink) drawHeroHairExtraBack(g, cx, topY, profile, hHi, hMid, hShade, hDeep);
 
   if (isLink) {
-    // Full back view of Link's iconic Long Pointy Emerald Hylian Cap draping down his back!
     g.ellipse(cx, topY + 7, 9.0, 6.2, LIAM_PAL.linkGreenMid, "linkGreen");
     g.ellipse(cx - 1, topY + 4.5, 6.4, 3.0, LIAM_PAL.linkGreenHi, "linkGreen");
     g.rect(cx - 8, topY + 10, 17, 2, LIAM_PAL.linkGreenShade, "linkGreen");
     g.rect(cx - 7, topY + 11, 15, 1, LIAM_PAL.linkGold, "linkGreen");
-    // Draping conical cap tail hanging cheerfully down back-center!
     g.rect(cx - 4, topY + 11, 9, 4, LIAM_PAL.linkGreenMid, "linkGreen");
     g.rect(cx - 3, topY + 12, 6, 3, LIAM_PAL.linkGreenHi, "linkGreen");
     g.rect(cx - 2, topY + 15, 6, 3, LIAM_PAL.linkGreenShade, "linkGreen");
     g.rect(cx, topY + 18, 3, 2, LIAM_PAL.linkGreenDeep, "linkGreen");
   } else if (outfit === "wetsuit") {
-    // Wide silicone dive-mask strap + tall snorkel breathing tube sticking high up above head!
     g.rect(cx - 8, topY + 12, 17, 3, LIAM_PAL.goggleStrap, "goggle");
     g.rect(cx - 7, topY + 12, 15, 1, LIAM_PAL.tealHi, "goggle");
     g.rect(cx - 2, topY + 12, 5, 3, LIAM_PAL.white, "goggle");
     g.rect(cx - 1, topY + 13, 3, 1, LIAM_PAL.tealShade, "goggle");
-    // Tall snorkel tube rising up on the left side (from behind!) with bright orange top tip
     g.rect(cx - 11, topY + 2, 3, 16, LIAM_PAL.goggleStrap, "goggle");
     g.rect(cx - 11, topY + 2, 1, 15, LIAM_PAL.tealHi, "goggle");
     g.rect(cx - 9, topY + 3, 1, 14, LIAM_PAL.tealShade, "goggle");
     g.rect(cx - 11, topY + 12, 4, 2, LIAM_PAL.wetMid, "goggle");
     g.rect(cx - 11, topY - 1, 3, 4, LIAM_PAL.orangeMid, "orange");
     g.rect(cx - 11, topY - 1, 2, 2, LIAM_PAL.orangeHi, "orange");
-  } else if (outfit === "baseball") {
+  } else if (outfit === "baseball" && !isSoccerKit) {
     g.ellipse(cx, topY + 7, 8.8, 6.2, LIAM_PAL.capMid, "cap");
     g.ellipse(cx - 1, topY + 5, 6.4, 3.2, LIAM_PAL.capHi, "cap");
     g.rect(cx - 8, topY + 10, 17, 3, LIAM_PAL.capShade, "cap");
     g.rect(cx - 1, topY + 1, 3, 1, LIAM_PAL.orangeMid, "orange");
-    g.rect(cx - 3, topY + 10, 7, 3, LIAM_PAL.hairMid, "hair");
+    g.rect(cx - 3, topY + 10, 7, 3, hMid, "hair");
     g.rect(cx - 3, topY + 11, 7, 1, LIAM_PAL.orangeMid, "orange");
     g.set(cx, topY + 11, LIAM_PAL.orangeHi, "orange");
+  } else if (isSoccerKit) {
+    g.rect(cx - 8, topY + 9, 17, 2, "#245ca8", "kippah");
+    if (profile.headwear === "kippah") drawEverydayHeadwearBack(g, cx, topY, "kippah");
   } else {
-    g.ellipse(cx, topY + 8, 5.8, 5.2, LIAM_PAL.kipShade, "kippah");
-    g.ellipse(cx, topY + 7.5, 4.8, 4.3, LIAM_PAL.kipMid, "kippah");
-    g.ellipse(cx - 1, topY + 6, 2.8, 2.2, LIAM_PAL.kipHi, "kippah");
-    for (let ky = topY + 5; ky <= topY + 10; ky += 2) {
-      for (let kx = cx - 3; kx <= cx + 3; kx += 2) {
-        if ((kx - cx) * (kx - cx) + (ky - (topY + 8)) * (ky - (topY + 8)) <= 12) {
-          g.set(kx, ky, LIAM_PAL.kipDeep, "kippah");
-        }
-      }
-    }
-    for (let deg = 20; deg <= 160; deg += 15) {
-      const r = (deg * Math.PI) / 180;
-      const rx = cx + Math.cos(r) * 5.2;
-      const ry = topY + 8 + Math.sin(r) * 4.6;
-      g.set(rx, ry, LIAM_PAL.kipRimHi, "kippah");
-    }
+    drawEverydayHeadwearBack(g, cx, topY, profile.headwear);
   }
 }
 
-function draw32BitHeadRight(g, cx, topY, outfit) {
+function draw32BitHeadRight(g, cx, topY, outfit, opts = {}) {
+  const profile = resolveHeroProfile(opts.heroProfile);
+  const hairPal = HERO_HAIR_COLORS[profile.hairColor] || HERO_HAIR_COLORS.light_brown;
+  const skinPal = HERO_SKIN_TONES[profile.skinTone] || HERO_SKIN_TONES.warm;
+  const isSoccerKit = outfit === "baseball" && opts.soccerKit;
   const isLink = outfit === "link";
-  const hSpec = isLink ? LIAM_PAL.linkHairSpec : LIAM_PAL.hairSpec;
-  const hHi = isLink ? LIAM_PAL.linkHairHi : LIAM_PAL.hairHi;
-  const hMid = isLink ? LIAM_PAL.linkHairMid : LIAM_PAL.hairMid;
-  const hShade = isLink ? LIAM_PAL.linkHairShade : LIAM_PAL.hairShade;
-  const hDeep = isLink ? LIAM_PAL.linkHairDeep : LIAM_PAL.hairDeep;
+  const hSpec = isLink ? LIAM_PAL.linkHairSpec : hairPal.spec;
+  const hHi = isLink ? LIAM_PAL.linkHairHi : hairPal.hi;
+  const hMid = isLink ? LIAM_PAL.linkHairMid : hairPal.mid;
+  const hShade = isLink ? LIAM_PAL.linkHairShade : hairPal.shade;
+  const hDeep = isLink ? LIAM_PAL.linkHairDeep : hairPal.deep;
 
-  // 1. Sculpted 32-bit side profile head facing RIGHT!
-  g.ellipse(cx, topY + 13, 7.6, 8.0, LIAM_PAL.skinMid, "skin");
-  g.ellipse(cx + 2, topY + 12, 4.8, 5.2, LIAM_PAL.skinHi, "skin");
-  g.rect(cx + 7, topY + 14, 2, 2, LIAM_PAL.skinMid, "skin");
-  g.set(cx + 8, topY + 14, LIAM_PAL.skinHi, "skin");
-  g.set(cx + 7, topY + 16, LIAM_PAL.skinShade, "skin");
-  g.rect(cx - 2, topY + 19, 8, 1, LIAM_PAL.skinShade, "skin");
-  g.rect(cx, topY + 20, 5, 1, LIAM_PAL.skinDeep, "skin");
-  g.rect(cx + 4, topY + 16, 2, 1, LIAM_PAL.cheek, "skin");
+  g.ellipse(cx, topY + 13, 7.6, 8.0, skinPal.mid, "skin");
+  g.ellipse(cx + 2, topY + 12, 4.8, 5.2, skinPal.hi, "skin");
+  g.rect(cx + 7, topY + 14, 2, 2, skinPal.mid, "skin");
+  g.set(cx + 8, topY + 14, skinPal.hi, "skin");
+  g.set(cx + 7, topY + 16, skinPal.shade, "skin");
+  g.rect(cx - 2, topY + 19, 8, 1, skinPal.shade, "skin");
+  g.rect(cx, topY + 20, 5, 1, skinPal.deep, "skin");
+  g.rect(cx + 4, topY + 16, 2, 1, skinPal.cheek, "skin");
   g.rect(cx + 5, topY + 18, 2, 1, LIAM_PAL.mouth, "skin");
 
-  // 2. Expressive side-profile 32-bit eye!
   g.rect(cx + 4, topY + 12, 3, 1, LIAM_PAL.eyeLash, "skin");
   g.rect(cx + 4, topY + 13, 3, 3, LIAM_PAL.eyeLash, "skin");
   g.set(cx + 5, topY + 14, isLink ? "#2e78c7" : LIAM_PAL.eyeIris, "skin");
   g.set(cx + 5, topY + 15, isLink ? "#64b5f6" : LIAM_PAL.eyeIrisHi, "skin");
   g.set(cx + 4, topY + 13, LIAM_PAL.white, "skin");
 
-  // 3. Hair sweeping smoothly over crown & down the back!
+  if (!isLink) drawHeroHairExtraSide(g, cx, topY, profile, hHi, hMid, hShade, hDeep);
   g.ellipse(cx - 1, topY + 8, 8.0, 5.0, hMid, "hair");
   g.rect(cx - 8, topY + 8, 7, 10, hMid, "hair");
   g.rect(cx - 8, topY + 10, 3, 8, hShade, "hair");
@@ -706,54 +903,45 @@ function draw32BitHeadRight(g, cx, topY, outfit) {
   g.rect(cx - 3, topY + 5, 6, 1, hSpec, "hair");
   g.rect(cx + 1, topY + 8, 7, 2, hMid, "hair");
   g.rect(cx + 2, topY + 10, 6, 1, hDeep, "hair");
-  // Sculpted ear (pointed Hylian elf ear sweeping back for Link!)
   if (isLink) {
-    g.rect(cx - 5, topY + 12, 6, 3, LIAM_PAL.skinMid, "skin");
-    g.rect(cx - 6, topY + 12, 3, 2, LIAM_PAL.skinHi, "skin");
-    g.rect(cx - 4, topY + 14, 4, 1, LIAM_PAL.skinShade, "skin");
+    g.rect(cx - 5, topY + 12, 6, 3, skinPal.mid, "skin");
+    g.rect(cx - 6, topY + 12, 3, 2, skinPal.hi, "skin");
+    g.rect(cx - 4, topY + 14, 4, 1, skinPal.shade, "skin");
   } else {
-    g.rect(cx - 2, topY + 12, 3, 4, LIAM_PAL.skinMid, "skin");
-    g.set(cx - 1, topY + 13, LIAM_PAL.skinShade, "skin");
-    g.set(cx - 1, topY + 14, LIAM_PAL.skinDeep, "skin");
+    g.rect(cx - 2, topY + 12, 3, 4, skinPal.mid, "skin");
+    g.set(cx - 1, topY + 13, skinPal.shade, "skin");
+    g.set(cx - 1, topY + 14, skinPal.deep, "skin");
   }
 
-  // 4. Headwear in side profile
   if (isLink) {
-    // Iconic Link Pointy Emerald Cap sweeping dynamically back behind his head!
     g.ellipse(cx - 1, topY + 5.5, 8.6, 4.4, LIAM_PAL.linkGreenMid, "linkGreen");
     g.ellipse(cx - 1, topY + 4, 6.0, 2.2, LIAM_PAL.linkGreenHi, "linkGreen");
     g.rect(cx - 3, topY + 2, 5, 1, LIAM_PAL.linkGreenSpec, "linkGreen");
-    // Long pointed tail streaming back to the left!
     g.rect(cx - 14, topY + 4, 8, 5, LIAM_PAL.linkGreenMid, "linkGreen");
     g.rect(cx - 13, topY + 4, 6, 2, LIAM_PAL.linkGreenHi, "linkGreen");
     g.rect(cx - 16, topY + 7, 5, 4, LIAM_PAL.linkGreenShade, "linkGreen");
     g.rect(cx - 18, topY + 9, 3, 3, LIAM_PAL.linkGreenDeep, "linkGreen");
-    // Golden-trimmed front cap rim
     g.rect(cx - 7, topY + 8, 15, 2, LIAM_PAL.linkGreenShade, "linkGreen");
     g.rect(cx - 6, topY + 8, 14, 1, LIAM_PAL.linkGold, "linkGreen");
   } else if (outfit === "wetsuit") {
-    // Dive mask strap + protruding dive mask + J-shaped Snorkel tube rising straight up above head!
     g.rect(cx - 8, topY + 13, 12, 2, LIAM_PAL.goggleStrap, "goggle");
     g.rect(cx - 7, topY + 13, 10, 1, LIAM_PAL.tealHi, "goggle");
-    // Wide protruding dive mask covering eyes & nose
     g.rect(cx + 3, topY + 11, 6, 6, LIAM_PAL.goggleStrap, "goggle");
     g.rect(cx + 4, topY + 11, 4, 1, LIAM_PAL.tealHi, "goggle");
     g.rect(cx + 4, topY + 12, 5, 4, LIAM_PAL.goggleGlass, "goggle");
     g.rect(cx + 5, topY + 12, 3, 1, LIAM_PAL.goggleGlassHi, "goggle");
     g.set(cx + 8, topY + 12, LIAM_PAL.white, "goggle");
-    // J-shaped snorkel tube from mouth curving back along jaw & shooting straight up above head!
-    g.rect(cx + 5, topY + 17, 4, 2, LIAM_PAL.wetMid, "goggle");      // Mouthpiece
-    g.rect(cx + 1, topY + 17, 5, 2, LIAM_PAL.goggleStrap, "goggle"); // Curved lower bend
+    g.rect(cx + 5, topY + 17, 4, 2, LIAM_PAL.wetMid, "goggle");
+    g.rect(cx + 1, topY + 17, 5, 2, LIAM_PAL.goggleStrap, "goggle");
     g.rect(cx + 2, topY + 17, 3, 1, LIAM_PAL.tealHi, "goggle");
-    g.rect(cx, topY + 2, 3, 17, LIAM_PAL.goggleStrap, "goggle");     // Tall vertical snorkel straw!
+    g.rect(cx, topY + 2, 3, 17, LIAM_PAL.goggleStrap, "goggle");
     g.rect(cx + 1, topY + 2, 1, 16, LIAM_PAL.tealHi, "goggle");
     g.rect(cx, topY + 3, 1, 15, LIAM_PAL.tealShade, "goggle");
-    g.rect(cx - 1, topY + 13, 4, 2, LIAM_PAL.wetMid, "goggle");      // Snorkel keeper clip on strap
-    // High-vis bright orange splash-guard top sticking high above his head!
+    g.rect(cx - 1, topY + 13, 4, 2, LIAM_PAL.wetMid, "goggle");
     g.rect(cx, topY - 1, 3, 4, LIAM_PAL.orangeMid, "orange");
     g.rect(cx + 1, topY - 1, 2, 2, LIAM_PAL.orangeHi, "orange");
     g.set(cx + 1, topY - 1, LIAM_PAL.zipGold, "orange");
-  } else if (outfit === "baseball") {
+  } else if (outfit === "baseball" && !isSoccerKit) {
     g.ellipse(cx - 1, topY + 6.5, 8.2, 4.8, LIAM_PAL.capMid, "cap");
     g.ellipse(cx - 2, topY + 4.5, 5.5, 2.5, LIAM_PAL.capHi, "cap");
     g.rect(cx - 8, topY + 8, 15, 2, LIAM_PAL.capShade, "cap");
@@ -762,19 +950,20 @@ function draw32BitHeadRight(g, cx, topY, outfit) {
     g.rect(cx + 5, topY + 8, 8, 1, LIAM_PAL.orangeHi, "orange");
     g.rect(cx + 5, topY + 10, 9, 1, LIAM_PAL.orangeShade, "orange");
     g.rect(cx + 6, topY + 10, 5, 1, LIAM_PAL.orangeDeep, "orange");
+  } else if (isSoccerKit) {
+    g.rect(cx - 8, topY + 8, 15, 2, "#245ca8", "kippah");
+    if (profile.headwear === "kippah") drawEverydayHeadwearSide(g, cx, topY, "kippah");
   } else {
-    g.ellipse(cx - 4, topY + 5, 4.8, 3.2, LIAM_PAL.kipMid, "kippah");
-    g.ellipse(cx - 4.5, topY + 4, 3.0, 1.6, LIAM_PAL.kipHi, "kippah");
-    g.set(cx - 6, topY + 5, LIAM_PAL.kipShade, "kippah");
-    g.set(cx - 3, topY + 5, LIAM_PAL.kipShade, "kippah");
-    g.line(cx - 8, topY + 6, cx, topY + 8, LIAM_PAL.kipRimHi, "kippah");
-    g.line(cx - 7, topY + 7, cx - 1, topY + 8, LIAM_PAL.kipDeep, "kippah");
+    drawEverydayHeadwearSide(g, cx, topY, profile.headwear);
   }
 }
 
-function draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, facing, stepFrame, outfit, onScooter) {
+function draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, facing, stepFrame, outfit, onScooter, opts = {}) {
+  const profile = resolveHeroProfile(opts.heroProfile);
+  const skinPal = HERO_SKIN_TONES[profile.skinTone] || HERO_SKIN_TONES.warm;
   const isBack = facing === "up";
-  const isBB = outfit === "baseball";
+  const isSoccerKit = outfit === "baseball" && Boolean(opts.soccerKit);
+  const isBB = outfit === "baseball" && !isSoccerKit;
   const isWet = outfit === "wetsuit";
   const isLink = outfit === "link";
   const liftL = !onScooter && stepFrame === 1 ? -2 : 0;
@@ -784,51 +973,70 @@ function draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, facing, stepFrame, outfit
   const tzSway = stepFrame === 1 ? -1 : stepFrame === 2 ? 1 : 0;
 
   // 1. Legs & Boots/Sneakers (drawn first behind torso hem!)
-  const pHi = isLink ? LIAM_PAL.linkCreamHi : isWet ? LIAM_PAL.wetHi : isBB ? LIAM_PAL.bbPantsHi : LIAM_PAL.pantsHi;
-  const pMid = isLink ? LIAM_PAL.linkCreamMid : isWet ? LIAM_PAL.wetMid : isBB ? LIAM_PAL.bbPantsMid : LIAM_PAL.pantsMid;
-  const pSh = isLink ? LIAM_PAL.linkCreamShade : isWet ? LIAM_PAL.wetShade : isBB ? LIAM_PAL.bbPantsShade : LIAM_PAL.pantsShade;
-  const pDeep = isLink ? LIAM_PAL.linkCreamShade : isWet ? LIAM_PAL.wetDeep : isBB ? LIAM_PAL.bbPantsShade : LIAM_PAL.pantsDeep;
+  const pHi = isLink ? LIAM_PAL.linkCreamHi : isWet ? LIAM_PAL.wetHi : isSoccerKit ? "#2d5ca6" : isBB ? LIAM_PAL.bbPantsHi : LIAM_PAL.pantsHi;
+  const pMid = isLink ? LIAM_PAL.linkCreamMid : isWet ? LIAM_PAL.wetMid : isSoccerKit ? "#1c3f7a" : isBB ? LIAM_PAL.bbPantsMid : LIAM_PAL.pantsMid;
+  const pSh = isLink ? LIAM_PAL.linkCreamShade : isWet ? LIAM_PAL.wetShade : isSoccerKit ? "#132c57" : isBB ? LIAM_PAL.bbPantsShade : LIAM_PAL.pantsShade;
+  const pDeep = isLink ? LIAM_PAL.linkCreamShade : isWet ? LIAM_PAL.wetDeep : isSoccerKit ? "#0e2040" : isBB ? LIAM_PAL.bbPantsShade : LIAM_PAL.pantsDeep;
   const pMat = isLink ? "jersey" : isWet ? "wetsuit" : isBB ? "jersey" : "pants";
 
   // Left leg
-  g.rect(cx - 6, topY + 33 + liftL, 6, 11, pMid, pMat);
-  g.rect(cx - 5, topY + 34 + liftL, 3, 8, pHi, pMat);
-  g.rect(cx - 1, topY + 34 + liftL, 1, 9, pDeep, pMat);
-  if (isWet) {
-    g.rect(cx - 6, topY + 34 + liftL, 2, 9, LIAM_PAL.tealMid, "wetsuit");
-    g.rect(cx - 6, topY + 34 + liftL, 1, 8, LIAM_PAL.tealHi, "wetsuit");
-    g.rect(cx - 4, topY + 38 + liftL, 3, 2, LIAM_PAL.wetShade, "wetsuit");
-  } else if (isBB) {
-    g.rect(cx - 6, topY + 41 + liftL, 6, 2, LIAM_PAL.orangeMid, "orange");
-    g.rect(cx - 5, topY + 41 + liftL, 4, 1, LIAM_PAL.orangeHi, "orange");
-    g.rect(cx - 6, topY + 43 + liftL, 6, 1, LIAM_PAL.capMid, "cap");
+  if (isSoccerKit) {
+    // Athletic soccer shorts + sunlit knee + blue/white striped socks!
+    g.rect(cx - 6, topY + 33 + liftL, 6, 5, pMid, "pants");
+    g.rect(cx - 5, topY + 34 + liftL, 3, 3, pHi, "pants");
+    g.rect(cx - 6, topY + 38 + liftL, 6, 3, skinPal.mid, "skin");
+    g.rect(cx - 5, topY + 38 + liftL, 3, 2, skinPal.hi, "skin");
+    g.rect(cx - 6, topY + 41 + liftL, 6, 3, "#ffffff", "jersey");
+    g.rect(cx - 6, topY + 41 + liftL, 6, 1, "#245ca8", "kippah");
   } else {
-    g.rect(cx - 6, topY + 43 + liftL, 6, 1, pSh, pMat);
+    g.rect(cx - 6, topY + 33 + liftL, 6, 11, pMid, pMat);
+    g.rect(cx - 5, topY + 34 + liftL, 3, 8, pHi, pMat);
+    g.rect(cx - 1, topY + 34 + liftL, 1, 9, pDeep, pMat);
+    if (isWet) {
+      g.rect(cx - 6, topY + 34 + liftL, 2, 9, LIAM_PAL.tealMid, "wetsuit");
+      g.rect(cx - 6, topY + 34 + liftL, 1, 8, LIAM_PAL.tealHi, "wetsuit");
+      g.rect(cx - 4, topY + 38 + liftL, 3, 2, LIAM_PAL.wetShade, "wetsuit");
+    } else if (isBB) {
+      g.rect(cx - 6, topY + 41 + liftL, 6, 2, LIAM_PAL.orangeMid, "orange");
+      g.rect(cx - 5, topY + 41 + liftL, 4, 1, LIAM_PAL.orangeHi, "orange");
+      g.rect(cx - 6, topY + 43 + liftL, 6, 1, LIAM_PAL.capMid, "cap");
+    } else {
+      g.rect(cx - 6, topY + 43 + liftL, 6, 1, pSh, pMat);
+    }
   }
   draw32BitSneaker(g, cx - 7, topY + 44 + liftL, facing, outfit, liftL < 0);
 
   // Right leg
-  g.rect(cx + 1, topY + 33 + liftR, 6, 11, pMid, pMat);
-  g.rect(cx + 2, topY + 34 + liftR, 3, 8, pHi, pMat);
-  g.rect(cx + 1, topY + 34 + liftR, 1, 9, pDeep, pMat);
-  if (isWet) {
-    g.rect(cx + 5, topY + 34 + liftR, 2, 9, LIAM_PAL.tealMid, "wetsuit");
-    g.rect(cx + 6, topY + 34 + liftR, 1, 8, LIAM_PAL.tealHi, "wetsuit");
-    g.rect(cx + 2, topY + 38 + liftR, 3, 2, LIAM_PAL.wetShade, "wetsuit");
-  } else if (isBB) {
-    g.rect(cx + 1, topY + 41 + liftR, 6, 2, LIAM_PAL.orangeMid, "orange");
-    g.rect(cx + 2, topY + 41 + liftR, 4, 1, LIAM_PAL.orangeHi, "orange");
-    g.rect(cx + 1, topY + 43 + liftR, 6, 1, LIAM_PAL.capMid, "cap");
+  if (isSoccerKit) {
+    g.rect(cx + 1, topY + 33 + liftR, 6, 5, pMid, "pants");
+    g.rect(cx + 2, topY + 34 + liftR, 3, 3, pHi, "pants");
+    g.rect(cx + 1, topY + 38 + liftR, 6, 3, skinPal.mid, "skin");
+    g.rect(cx + 2, topY + 38 + liftR, 3, 2, skinPal.hi, "skin");
+    g.rect(cx + 1, topY + 41 + liftR, 6, 3, "#ffffff", "jersey");
+    g.rect(cx + 1, topY + 41 + liftR, 6, 1, "#245ca8", "kippah");
   } else {
-    g.rect(cx + 1, topY + 43 + liftR, 6, 1, pSh, pMat);
+    g.rect(cx + 1, topY + 33 + liftR, 6, 11, pMid, pMat);
+    g.rect(cx + 2, topY + 34 + liftR, 3, 8, pHi, pMat);
+    g.rect(cx + 1, topY + 34 + liftR, 1, 9, pDeep, pMat);
+    if (isWet) {
+      g.rect(cx + 5, topY + 34 + liftR, 2, 9, LIAM_PAL.tealMid, "wetsuit");
+      g.rect(cx + 6, topY + 34 + liftR, 1, 8, LIAM_PAL.tealHi, "wetsuit");
+      g.rect(cx + 2, topY + 38 + liftR, 3, 2, LIAM_PAL.wetShade, "wetsuit");
+    } else if (isBB) {
+      g.rect(cx + 1, topY + 41 + liftR, 6, 2, LIAM_PAL.orangeMid, "orange");
+      g.rect(cx + 2, topY + 41 + liftR, 4, 1, LIAM_PAL.orangeHi, "orange");
+      g.rect(cx + 1, topY + 43 + liftR, 6, 1, LIAM_PAL.capMid, "cap");
+    } else {
+      g.rect(cx + 1, topY + 43 + liftR, 6, 1, pSh, pMat);
+    }
   }
   draw32BitSneaker(g, cx + 1, topY + 44 + liftR, facing, outfit, liftR < 0);
 
-  // 2. Arms (Hero's emerald sleeves & cream gauntlets, wetsuit sleeves, or short sleeves!)
-  const slHi = isLink ? LIAM_PAL.linkGreenHi : isWet ? LIAM_PAL.tealHi : isBB ? LIAM_PAL.orangeHi : LIAM_PAL.poloHi;
-  const slMid = isLink ? LIAM_PAL.linkGreenMid : isWet ? LIAM_PAL.tealMid : isBB ? LIAM_PAL.orangeMid : LIAM_PAL.poloMid;
-  const slSh = isLink ? LIAM_PAL.linkGreenShade : isWet ? LIAM_PAL.tealShade : isBB ? LIAM_PAL.orangeShade : LIAM_PAL.poloShade;
-  const slMat = isLink ? "linkGreen" : isWet ? "wetsuit" : isBB ? "orange" : "polo";
+  // 2. Arms (Hero's emerald sleeves & cream gauntlets, wetsuit sleeves, soccer sleeves, or short sleeves!)
+  const slHi = isLink ? LIAM_PAL.linkGreenHi : isWet ? LIAM_PAL.tealHi : isSoccerKit ? "#ffffff" : isBB ? LIAM_PAL.orangeHi : LIAM_PAL.poloHi;
+  const slMid = isLink ? LIAM_PAL.linkGreenMid : isWet ? LIAM_PAL.tealMid : isSoccerKit ? "#dce8f8" : isBB ? LIAM_PAL.orangeMid : LIAM_PAL.poloMid;
+  const slSh = isLink ? LIAM_PAL.linkGreenShade : isWet ? LIAM_PAL.tealShade : isSoccerKit ? "#245ca8" : isBB ? LIAM_PAL.orangeShade : LIAM_PAL.poloShade;
+  const slMat = isLink ? "linkGreen" : isWet ? "wetsuit" : isSoccerKit ? "jersey" : isBB ? "orange" : "polo";
 
   for (const [side, swing] of [[-1, armSwingL], [1, armSwingR]]) {
     const ax = side < 0 ? cx - 10 : cx + 7;
@@ -838,22 +1046,22 @@ function draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, facing, stepFrame, outfit
       g.rect(ax, ay, 4, 5, LIAM_PAL.linkGreenMid, "linkGreen");
       g.rect(ax + (side < 0 ? 1 : 0), ay + 1, 2, 3, LIAM_PAL.linkGreenHi, "linkGreen");
       g.rect(ax, ay + 5, 4, 3, LIAM_PAL.linkCreamMid, "jersey");
-      g.rect(ax, ay + 7, 4, 2, LIAM_PAL.linkLeatherMid, "linkLeather"); // Leather wrist bracer
-      g.rect(ax + (side < 0 ? 0 : 1), ay + 9, 3, 2, LIAM_PAL.skinMid, "skin");
+      g.rect(ax, ay + 7, 4, 2, LIAM_PAL.linkLeatherMid, "linkLeather");
+      g.rect(ax + (side < 0 ? 0 : 1), ay + 9, 3, 2, skinPal.mid, "skin");
     } else if (isWet) {
       g.rect(ax, ay, 4, 8, LIAM_PAL.wetMid, "wetsuit");
       g.rect(ax + (side < 0 ? 0 : 2), ay, 2, 7, LIAM_PAL.tealMid, "wetsuit");
       g.rect(ax + (side < 0 ? 0 : 3), ay + 1, 1, 5, LIAM_PAL.tealHi, "wetsuit");
       g.rect(ax, ay + 7, 4, 1, LIAM_PAL.tealShade, "wetsuit");
-      g.rect(ax + (side < 0 ? 0 : 1), ay + 8, 3, 3, LIAM_PAL.skinMid, "skin");
-      g.rect(ax + (side < 0 ? 1 : 1), ay + 8, 2, 2, LIAM_PAL.skinHi, "skin");
+      g.rect(ax + (side < 0 ? 0 : 1), ay + 8, 3, 3, skinPal.mid, "skin");
+      g.rect(ax + (side < 0 ? 1 : 1), ay + 8, 2, 2, skinPal.hi, "skin");
     } else {
       g.rect(ax, ay, 4, 6, slMid, slMat);
       g.rect(ax + (side < 0 ? 1 : 0), ay + 1, 2, 4, slHi, slMat);
       g.rect(ax, ay + 5, 4, 1, isBB ? LIAM_PAL.capMid : slSh, slMat);
-      g.rect(ax + (side < 0 ? 0 : 1), ay + 6, 3, 5, LIAM_PAL.skinMid, "skin");
-      g.rect(ax + (side < 0 ? 1 : 1), ay + 6, 2, 3, LIAM_PAL.skinHi, "skin");
-      g.rect(ax + (side < 0 ? 0 : 1), ay + 10, 3, 1, LIAM_PAL.skinShade, "skin");
+      g.rect(ax + (side < 0 ? 0 : 1), ay + 6, 3, 5, skinPal.mid, "skin");
+      g.rect(ax + (side < 0 ? 1 : 1), ay + 6, 2, 3, skinPal.hi, "skin");
+      g.rect(ax + (side < 0 ? 0 : 1), ay + 10, 3, 1, skinPal.shade, "skin");
     }
   }
 
@@ -927,6 +1135,24 @@ function draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, facing, stepFrame, outfit
       g.rect(cx, topY + 22, 1, 4, LIAM_PAL.zipGold, "wetsuit");
     }
     g.rect(cx - 7, topY + 32, 15, 2, LIAM_PAL.wetShade, "wetsuit");
+  } else if (isSoccerKit) {
+    // Royal-blue & white vertical-striped Team Soccer Jersey (Israel / World Soccer Kit!)
+    g.rect(cx - 7, topY + 21, 15, 13, "#ffffff", "jersey");
+    g.rect(cx - 6, topY + 22, 3, 11, "#245ca8", "kippah");
+    g.rect(cx - 1, topY + 22, 3, 11, "#245ca8", "kippah");
+    g.rect(cx + 4, topY + 22, 3, 11, "#245ca8", "kippah");
+    g.rect(cx - 5, topY + 21, 11, 2, "#1c4382", "kippah");
+    g.rect(cx - 4, topY + 21, 9, 1, "#5ca0f0", "kippah");
+    if (!isBack) {
+      // Tiny golden team crest on chest!
+      g.rect(cx - 5, topY + 24, 2, 2, "#f4d35e", "orange");
+    } else {
+      // Crisp jersey #10 on back!
+      g.rect(cx - 3, topY + 24, 2, 6, "#f4d35e", "orange");
+      g.rect(cx + 1, topY + 24, 3, 6, "#f4d35e", "orange");
+      g.rect(cx + 2, topY + 25, 1, 4, "#245ca8", "kippah");
+    }
+    g.rect(cx - 7, topY + 32, 15, 2, "#1c3f7a", "pants");
   } else if (isBB) {
     g.rect(cx - 7, topY + 21, 15, 13, LIAM_PAL.jerseyMid, "jersey");
     g.rect(cx - 5, topY + 22, 11, 10, LIAM_PAL.jerseyHi, "jersey");
@@ -973,7 +1199,7 @@ function draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, facing, stepFrame, outfit
       g.rect(cx - 4, topY + 24, 3, 1, LIAM_PAL.collarShade, "polo");
       g.rect(cx + 2, topY + 24, 3, 1, LIAM_PAL.collarShade, "polo");
       g.rect(cx - 1, topY + 22, 3, 6, LIAM_PAL.poloDeep, "polo");
-      g.set(cx, topY + 22, LIAM_PAL.skinShade, "skin");
+      g.set(cx, topY + 22, skinPal.shade, "skin");
       g.set(cx, topY + 24, LIAM_PAL.white, "polo");
       g.set(cx, topY + 26, LIAM_PAL.white, "polo");
     } else {
@@ -982,26 +1208,29 @@ function draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, facing, stepFrame, outfit
     }
   }
 
-  // 4. Crisp multi-strand hanging white Tzitzit peeking cleanly at BOTH hips (everyday & baseball)!
-  if (!isWet && !isLink) {
+  // 4. Crisp multi-strand hanging white Tzitzit peeking cleanly at BOTH hips (when enabled in Hero Profile)!
+  if (!isWet && !isLink && profile.tzitzit) {
     draw32BitTzitzit(g, cx - 7, topY + 34, tzSway, false);
     draw32BitTzitzit(g, cx + 6, topY + 34, tzSway, false);
   }
 }
 
-function draw32BitTorsoAndLegsRight(g, cx, topY, stepFrame, outfit, onScooter) {
-  const isBB = outfit === "baseball";
+function draw32BitTorsoAndLegsRight(g, cx, topY, stepFrame, outfit, onScooter, opts = {}) {
+  const profile = resolveHeroProfile(opts.heroProfile);
+  const skinPal = HERO_SKIN_TONES[profile.skinTone] || HERO_SKIN_TONES.warm;
+  const isSoccerKit = outfit === "baseball" && Boolean(opts.soccerKit);
+  const isBB = outfit === "baseball" && !isSoccerKit;
   const isWet = outfit === "wetsuit";
   const isLink = outfit === "link";
-  const pHi = isLink ? LIAM_PAL.linkCreamHi : isWet ? LIAM_PAL.wetHi : isBB ? LIAM_PAL.bbPantsHi : LIAM_PAL.pantsHi;
-  const pMid = isLink ? LIAM_PAL.linkCreamMid : isWet ? LIAM_PAL.wetMid : isBB ? LIAM_PAL.bbPantsMid : LIAM_PAL.pantsMid;
-  const pSh = isLink ? LIAM_PAL.linkCreamShade : isWet ? LIAM_PAL.wetShade : isBB ? LIAM_PAL.bbPantsShade : LIAM_PAL.pantsShade;
+  const pHi = isLink ? LIAM_PAL.linkCreamHi : isWet ? LIAM_PAL.wetHi : isSoccerKit ? "#2d5ca6" : isBB ? LIAM_PAL.bbPantsHi : LIAM_PAL.pantsHi;
+  const pMid = isLink ? LIAM_PAL.linkCreamMid : isWet ? LIAM_PAL.wetMid : isSoccerKit ? "#1c3f7a" : isBB ? LIAM_PAL.bbPantsMid : LIAM_PAL.pantsMid;
+  const pSh = isLink ? LIAM_PAL.linkCreamShade : isWet ? LIAM_PAL.wetShade : isSoccerKit ? "#132c57" : isBB ? LIAM_PAL.bbPantsShade : LIAM_PAL.pantsShade;
   const pMat = isLink ? "jersey" : isWet ? "wetsuit" : isBB ? "jersey" : "pants";
 
-  const slHi = isLink ? LIAM_PAL.linkGreenHi : isWet ? LIAM_PAL.tealHi : isBB ? LIAM_PAL.orangeHi : LIAM_PAL.poloHi;
-  const slMid = isLink ? LIAM_PAL.linkGreenMid : isWet ? LIAM_PAL.wetMid : isBB ? LIAM_PAL.orangeMid : LIAM_PAL.poloMid;
-  const slSh = isLink ? LIAM_PAL.linkGreenShade : isWet ? LIAM_PAL.tealShade : isBB ? LIAM_PAL.orangeShade : LIAM_PAL.poloShade;
-  const slMat = isLink ? "linkGreen" : isWet ? "wetsuit" : isBB ? "orange" : "polo";
+  const slHi = isLink ? LIAM_PAL.linkGreenHi : isWet ? LIAM_PAL.tealHi : isSoccerKit ? "#ffffff" : isBB ? LIAM_PAL.orangeHi : LIAM_PAL.poloHi;
+  const slMid = isLink ? LIAM_PAL.linkGreenMid : isWet ? LIAM_PAL.wetMid : isSoccerKit ? "#dce8f8" : isBB ? LIAM_PAL.orangeMid : LIAM_PAL.poloMid;
+  const slSh = isLink ? LIAM_PAL.linkGreenShade : isWet ? LIAM_PAL.tealShade : isSoccerKit ? "#245ca8" : isBB ? LIAM_PAL.orangeShade : LIAM_PAL.poloShade;
+  const slMat = isLink ? "linkGreen" : isWet ? "wetsuit" : isSoccerKit ? "jersey" : isBB ? "orange" : "polo";
 
   // 1. Dynamic 32-bit striding legs in side profile!
   const stride = onScooter ? 0 : stepFrame === 1 ? 1 : stepFrame === 2 ? -1 : 0;
@@ -1009,31 +1238,43 @@ function draw32BitTorsoAndLegsRight(g, cx, topY, stepFrame, outfit, onScooter) {
   const frontLegX = cx - 2 + stride * 4;
 
   // Back leg
-  g.rect(backLegX, topY + 34, 5, 10, pSh, pMat);
-  if (isBB) g.rect(backLegX, topY + 41, 5, 2, LIAM_PAL.orangeShade, "orange");
+  if (isSoccerKit) {
+    g.rect(backLegX, topY + 34, 5, 4, pSh, "pants");
+    g.rect(backLegX, topY + 38, 5, 3, skinPal.shade, "skin");
+    g.rect(backLegX, topY + 41, 5, 3, "#e0e8f5", "jersey");
+  } else {
+    g.rect(backLegX, topY + 34, 5, 10, pSh, pMat);
+    if (isBB) g.rect(backLegX, topY + 41, 5, 2, LIAM_PAL.orangeShade, "orange");
+  }
   draw32BitSneaker(g, backLegX - 1, topY + 44, "right", outfit, stride !== 0 && stride < 0);
 
   // Front leg
-  g.rect(frontLegX, topY + 33, 6, 11, pMid, pMat);
-  g.rect(frontLegX + 2, topY + 34, 3, 8, pHi, pMat);
-  if (isWet) {
-    g.rect(frontLegX + 1, topY + 34, 2, 9, LIAM_PAL.tealMid, "wetsuit");
-    g.rect(frontLegX + 1, topY + 35, 1, 7, LIAM_PAL.tealHi, "wetsuit");
-  } else if (isBB) {
-    g.rect(frontLegX, topY + 41, 6, 2, LIAM_PAL.orangeMid, "orange");
-    g.rect(frontLegX + 1, topY + 41, 4, 1, LIAM_PAL.orangeHi, "orange");
+  if (isSoccerKit) {
+    g.rect(frontLegX, topY + 33, 6, 5, pMid, "pants");
+    g.rect(frontLegX + 2, topY + 34, 3, 3, pHi, "pants");
+    g.rect(frontLegX, topY + 38, 6, 3, skinPal.mid, "skin");
+    g.rect(frontLegX, topY + 41, 6, 3, "#ffffff", "jersey");
+    g.rect(frontLegX, topY + 41, 6, 1, "#245ca8", "kippah");
+  } else {
+    g.rect(frontLegX, topY + 33, 6, 11, pMid, pMat);
+    g.rect(frontLegX + 2, topY + 34, 3, 8, pHi, pMat);
+    if (isWet) {
+      g.rect(frontLegX + 1, topY + 34, 2, 9, LIAM_PAL.tealMid, "wetsuit");
+      g.rect(frontLegX + 1, topY + 35, 1, 7, LIAM_PAL.tealHi, "wetsuit");
+    } else if (isBB) {
+      g.rect(frontLegX, topY + 41, 6, 2, LIAM_PAL.orangeMid, "orange");
+      g.rect(frontLegX + 1, topY + 41, 4, 1, LIAM_PAL.orangeHi, "orange");
+    }
   }
   draw32BitSneaker(g, frontLegX, topY + 44, "right", outfit, stride !== 0 && stride > 0);
 
-  // 2. Side-profile Torso (Link Tunic + Back Shield/Sword OR Wetsuit OR Jersey OR Polo)
+  // 2. Side-profile Torso (Link Tunic + Back Shield/Sword OR Wetsuit OR Soccer Kit OR Jersey OR Polo)
   if (isLink) {
-    // Hylian Shield & Master Sword hilt strapped cleanly on Link's back (left side in right-profile!)
     g.rect(cx - 10, topY + 21, 4, 13, LIAM_PAL.shieldSilver, "linkShield");
     g.rect(cx - 9, topY + 22, 3, 11, LIAM_PAL.shieldBlue, "linkShield");
     g.rect(cx - 9, topY + 25, 2, 3, LIAM_PAL.linkGold, "linkShield");
     g.rect(cx - 9, topY + 15, 3, 6, LIAM_PAL.swordHilt, "linkShield");
     g.rect(cx - 10, topY + 14, 2, 2, LIAM_PAL.linkGoldHi, "linkShield");
-    // Emerald Hero's Tunic + flared skirt + brown leather belt & gold buckle!
     g.rect(cx - 6, topY + 21, 13, 16, LIAM_PAL.linkGreenMid, "linkGreen");
     g.rect(cx - 7, topY + 33, 15, 4, LIAM_PAL.linkGreenMid, "linkGreen");
     g.rect(cx - 3, topY + 22, 9, 9, LIAM_PAL.linkGreenHi, "linkGreen");
@@ -1049,6 +1290,12 @@ function draw32BitTorsoAndLegsRight(g, cx, topY, stepFrame, outfit, onScooter) {
     g.rect(cx - 1, topY + 23, 2, 9, LIAM_PAL.tealHi, "wetsuit");
     g.rect(cx - 4, topY + 21, 9, 2, LIAM_PAL.wetDeep, "wetsuit");
     g.rect(cx - 6, topY + 32, 13, 2, LIAM_PAL.wetDeep, "wetsuit");
+  } else if (isSoccerKit) {
+    g.rect(cx - 6, topY + 21, 13, 13, "#ffffff", "jersey");
+    g.rect(cx - 5, topY + 22, 3, 11, "#245ca8", "kippah");
+    g.rect(cx + 1, topY + 22, 3, 11, "#245ca8", "kippah");
+    g.rect(cx - 4, topY + 21, 9, 2, "#1c4382", "kippah");
+    g.rect(cx - 6, topY + 32, 13, 2, "#1c3f7a", "pants");
   } else if (isBB) {
     g.rect(cx - 6, topY + 21, 13, 13, LIAM_PAL.jerseyMid, "jersey");
     g.rect(cx - 3, topY + 22, 9, 10, LIAM_PAL.jerseyHi, "jersey");
@@ -1067,7 +1314,7 @@ function draw32BitTorsoAndLegsRight(g, cx, topY, stepFrame, outfit, onScooter) {
   }
 
   // 3. White Tzitzit hanging neatly at the side hip & swaying on stride!
-  if (!isWet && !isLink) {
+  if (!isWet && !isLink && profile.tzitzit) {
     draw32BitTzitzit(g, cx - 2, topY + 34, stride === 0 ? 0 : -1, true);
   }
 
@@ -1078,16 +1325,16 @@ function draw32BitTorsoAndLegsRight(g, cx, topY, stepFrame, outfit, onScooter) {
   g.rect(armX, armY + 1, 3, 4, slHi, slMat);
   g.rect(armX - 1, armY + 5, 5, 1, isBB ? LIAM_PAL.capMid : slSh, slMat);
   if (onScooter) {
-    g.rect(armX + 3, armY + 2, 6, 3, LIAM_PAL.skinMid, "skin");
-    g.rect(armX + 4, armY + 2, 4, 2, LIAM_PAL.skinHi, "skin");
+    g.rect(armX + 3, armY + 2, 6, 3, skinPal.mid, "skin");
+    g.rect(armX + 4, armY + 2, 4, 2, skinPal.hi, "skin");
   } else if (isLink) {
     g.rect(armX, armY + 6, 4, 2, LIAM_PAL.linkCreamMid, "jersey");
     g.rect(armX, armY + 8, 4, 2, LIAM_PAL.linkLeatherMid, "linkLeather");
-    g.rect(armX, armY + 10, 3, 2, LIAM_PAL.skinMid, "skin");
+    g.rect(armX, armY + 10, 3, 2, skinPal.mid, "skin");
   } else {
-    g.rect(armX, armY + 6, 4, 5, LIAM_PAL.skinMid, "skin");
-    g.rect(armX + 1, armY + 6, 2, 3, LIAM_PAL.skinHi, "skin");
-    g.rect(armX, armY + 10, 3, 1, LIAM_PAL.skinShade, "skin");
+    g.rect(armX, armY + 6, 4, 5, skinPal.mid, "skin");
+    g.rect(armX + 1, armY + 6, 2, 3, skinPal.hi, "skin");
+    g.rect(armX, armY + 10, 3, 1, skinPal.shade, "skin");
   }
 }
 
@@ -1129,70 +1376,72 @@ function draw32BitScooter(g, facing, outfit) {
 /**
  * Bake a crisp 48x56 32-bit all-pixel sprite of Liam (drawn at 0.5 logical scale -> 24x28 world units).
  */
-export function bakeSmb3HeroSprite(facing, stepFrame, onScooter, outfit = "polo") {
+export function bakeSmb3HeroSprite(facing, stepFrame, onScooter, outfit = "polo", opts = {}) {
   const g = new PixelGrid(48, 56);
   const cx = 24;
   const bobY = !onScooter && stepFrame !== 0 ? -1 : 0;
   const renderFacing = facing === "left" ? "right" : facing;
+  const profile = resolveHeroProfile(opts.heroProfile);
+  const hairPal = HERO_HAIR_COLORS[profile.hairColor] || HERO_HAIR_COLORS.light_brown;
+  const skinPal = HERO_SKIN_TONES[profile.skinTone] || HERO_SKIN_TONES.warm;
 
   if (onScooter) {
     draw32BitScooter(g, renderFacing, outfit);
   }
 
   if (renderFacing === "down" || renderFacing === "up") {
-    draw32BitTorsoAndLegsFrontOrBack(g, cx, 2 + bobY, renderFacing, stepFrame, outfit, onScooter);
+    draw32BitTorsoAndLegsFrontOrBack(g, cx, 2 + bobY, renderFacing, stepFrame, outfit, onScooter, opts);
     if (renderFacing === "down") {
-      draw32BitHeadFront(g, cx, 2 + bobY, outfit, false);
+      draw32BitHeadFront(g, cx, 2 + bobY, outfit, false, opts);
     } else {
-      draw32BitHeadBack(g, cx, 2 + bobY, outfit);
+      draw32BitHeadBack(g, cx, 2 + bobY, outfit, opts);
     }
   } else {
-    draw32BitTorsoAndLegsRight(g, cx, 2 + bobY, stepFrame, outfit, onScooter);
-    draw32BitHeadRight(g, cx, 2 + bobY, outfit);
+    draw32BitTorsoAndLegsRight(g, cx, 2 + bobY, stepFrame, outfit, onScooter, opts);
+    draw32BitHeadRight(g, cx, 2 + bobY, outfit, opts);
   }
 
-  g.applySelOut(LIAM_SELOUT);
+  g.applySelOut({ ...LIAM_SELOUT, hair: hairPal.out, skin: skinPal.out });
   const finalGrid = facing === "left" ? g.flipHorizontal() : g;
   return finalGrid.toCanvas(0.5, { cx: 24, cy: 52, rx: 11, ry: 3.2 });
 }
 
 /**
- * Bake Liam's 48x56 32-bit celebratory 2-handed overhead Item Fanfare pose!
+ * Bake hero's 48x56 32-bit celebratory 2-handed overhead Item Fanfare pose!
  */
-export function bakeSmb3HeroFanfareSprite(outfit = "polo") {
+export function bakeSmb3HeroFanfareSprite(outfit = "polo", opts = {}) {
   const g = new PixelGrid(48, 56);
   const cx = 24;
   const topY = 3;
-  const isBB = outfit === "baseball";
+  const profile = resolveHeroProfile(opts.heroProfile);
+  const hairPal = HERO_HAIR_COLORS[profile.hairColor] || HERO_HAIR_COLORS.light_brown;
+  const skinPal = HERO_SKIN_TONES[profile.skinTone] || HERO_SKIN_TONES.warm;
+  const isSoccerKit = outfit === "baseball" && Boolean(opts.soccerKit);
+  const isBB = outfit === "baseball" && !isSoccerKit;
   const isWet = outfit === "wetsuit";
   const isLink = outfit === "link";
-  const slHi = isLink ? LIAM_PAL.linkGreenHi : isWet ? LIAM_PAL.tealHi : isBB ? LIAM_PAL.orangeHi : LIAM_PAL.poloHi;
-  const slMid = isLink ? LIAM_PAL.linkGreenMid : isWet ? LIAM_PAL.wetMid : isBB ? LIAM_PAL.orangeMid : LIAM_PAL.poloMid;
-  const slMat = isLink ? "linkGreen" : isWet ? "wetsuit" : isBB ? "orange" : "polo";
+  const slHi = isLink ? LIAM_PAL.linkGreenHi : isWet ? LIAM_PAL.tealHi : isSoccerKit ? "#ffffff" : isBB ? LIAM_PAL.orangeHi : LIAM_PAL.poloHi;
+  const slMid = isLink ? LIAM_PAL.linkGreenMid : isWet ? LIAM_PAL.wetMid : isSoccerKit ? "#dce8f8" : isBB ? LIAM_PAL.orangeMid : LIAM_PAL.poloMid;
+  const slMat = isLink ? "linkGreen" : isWet ? "wetsuit" : isSoccerKit ? "jersey" : isBB ? "orange" : "polo";
 
-  // Draw legs + sneakers + torso cleanly via idle front pose
-  draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, "down", 0, outfit, false);
+  draw32BitTorsoAndLegsFrontOrBack(g, cx, topY, "down", 0, outfit, false, opts);
 
-  // Clear resting side arms and replace with triumphantly raised arms!
   for (let y = topY + 21; y <= topY + 34; y++) {
     for (let x = cx - 11; x <= cx - 8; x++) g.clear(x, y);
     for (let x = cx + 8; x <= cx + 11; x++) g.clear(x, y);
   }
   for (const side of [-1, 1]) {
     const ax = side < 0 ? cx - 12 : cx + 9;
-    // Raised sleeve & forearm
     g.rect(ax, topY + 17, 4, 7, slMid, slMat);
     g.rect(ax + 1, topY + 18, 2, 5, slHi, slMat);
-    g.rect(ax, topY + 9, 4, 8, LIAM_PAL.skinMid, "skin");
-    g.rect(ax + 1, topY + 10, 2, 6, LIAM_PAL.skinHi, "skin");
-    // Open celebratory hands!
-    g.rect(ax - (side < 0 ? 1 : 0), topY + 6, 5, 4, LIAM_PAL.skinHi, "skin");
-    g.rect(ax, topY + 9, 4, 1, LIAM_PAL.skinShade, "skin");
+    g.rect(ax, topY + 9, 4, 8, skinPal.mid, "skin");
+    g.rect(ax + 1, topY + 10, 2, 6, skinPal.hi, "skin");
+    g.rect(ax - (side < 0 ? 1 : 0), topY + 6, 5, 4, skinPal.hi, "skin");
+    g.rect(ax, topY + 9, 4, 1, skinPal.shade, "skin");
   }
 
-  // Happy beaming head!
-  draw32BitHeadFront(g, cx, topY, outfit, true);
-  g.applySelOut(LIAM_SELOUT);
+  draw32BitHeadFront(g, cx, topY, outfit, true, opts);
+  g.applySelOut({ ...LIAM_SELOUT, hair: hairPal.out, skin: skinPal.out });
   return g.toCanvas(0.5, { cx: 24, cy: 52, rx: 11, ry: 3.2 });
 }
 
@@ -1745,9 +1994,156 @@ function bake32BitDogRight(variant = 0, stepFrame = 0, alert = false) {
 }
 
 /**
+ * Bake 32-bit Pure Pixel Israeli Ring-Necked Green Parakeet (Drara — bright emerald plumage, coral beak & turquoise tail!).
+ */
+function bake32BitParakeetRight(stepFrame = 0, alert = false) {
+  const g = new PixelGrid(38, 32);
+  const cx = 20;
+  const hop = stepFrame === 1 || alert ? -3 : 0;
+  // Long sleek turquoise-emerald tail feathers sweeping down-left
+  g.line(cx - 5, 20 + hop, cx - 15, 26 + hop, "#1c8a7a", "tail");
+  g.line(cx - 5, 19 + hop, cx - 14, 24 + hop, "#38c99a", "tail");
+  // Little hopping talons
+  g.rect(cx - 1, 25, 2, 4, "#968572", "feet");
+  g.rect(cx + 2, 25, 2, 4, "#7a6b5b", "feet");
+  // Vibrant lime-emerald parrot body & flapping wing!
+  g.ellipse(cx, 18 + hop, 7.2, 5.2, "#2ea83b", "body");
+  g.ellipse(cx + 1, 16.5 + hop, 5.5, 3.5, "#6be052", "body");
+  if (alert || stepFrame === 1) {
+    // Wing lifted cheerfully!
+    g.ellipse(cx - 2, 12 + hop, 6.2, 3.6, "#238a32", "wing");
+    g.ellipse(cx - 2, 11 + hop, 4.4, 2.2, "#8df266", "wing");
+  } else {
+    g.ellipse(cx - 1, 18 + hop, 5.4, 3.0, "#1f7a2d", "wing");
+    g.rect(cx - 4, 17 + hop, 6, 1, "#8df266", "wing");
+  }
+  // Head, black/rose ring-neck collar, bright eye & curved coral-red beak!
+  const hx = cx + 6;
+  const hy = 12 + hop;
+  g.ellipse(hx, hy, 4.5, 4.2, "#4fd448", "head");
+  g.ellipse(hx, hy - 1.5, 3.0, 2.0, "#9df576", "head");
+  g.rect(hx - 3, hy + 3, 5, 1, "#e84a7f", "beak"); // rose collar ring
+  g.rect(hx + 3, hy - 1, 4, 3, "#e63b2e", "beak"); // curved coral beak!
+  g.rect(hx + 4, hy - 1, 2, 1, "#ff7d6b", "beak");
+  g.set(hx + 6, hy + 2, "#a82019", "beak");
+  g.rect(hx + 1, hy - 1, 2, 2, "#1a1414", "head");
+  g.set(hx + 1, hy - 1, "#ffffff", "head");
+
+  g.applySelOut({ tail: "#0f3d36", body: "#124219", wing: "#0f3815", head: "#124219", beak: "#661410", feet: "#3d332a" });
+  return g.toCanvas(0.5, { cx, cy: 28, rx: 8.5, ry: 2.5 });
+}
+
+/**
+ * Bake 32-bit Pure Pixel Jerusalem Rock Hyrax (Shafan Sela — plump warm honey-brown fur, cute round ears!).
+ */
+function bake32BitHyraxRight(stepFrame = 0, alert = false) {
+  const g = new PixelGrid(38, 30);
+  const cx = 19;
+  const hop = stepFrame === 1 ? -1 : alert ? -2 : 0;
+  // Stubby quick paws
+  g.rect(cx - 7 + (stepFrame ? -1 : 0), 22, 4, 4, "#5c422c", "feet");
+  g.rect(cx + 5 + (stepFrame ? 1 : 0), 22, 4, 4, "#6e5036", "feet");
+  // Plump rounded honey-brown hyrax body with cream dorsal patch
+  g.ellipse(cx - 1, 18 + hop, 9.5, 6.2, "#7d5b3e", "body");
+  g.ellipse(cx, 16.5 + hop, 7.6, 4.4, "#a67d56", "body");
+  g.ellipse(cx - 1, 15 + hop, 4.5, 2.0, "#d4b48a", "body");
+  // Cute blunt snout, round little ears & bright dark eyes
+  const hx = cx + 8;
+  const hy = (alert ? 13 : 15) + hop;
+  g.ellipse(hx, hy, 4.8, 4.4, "#8f6948", "head");
+  g.ellipse(hx + 1, hy - 1, 3.0, 2.2, "#ba9168", "head");
+  g.rect(hx - 3, hy - 5, 3, 3, "#6e4e34", "head");
+  g.set(hx - 2, hy - 4, "#e3b29c", "head");
+  g.rect(hx + 1, hy - 1, 2, 2, "#1c1512", "head");
+  g.set(hx + 1, hy - 1, "#ffffff", "head");
+  g.rect(hx + 4, hy + 1, 2, 2, "#382419", "head");
+  g.applySelOut({ body: "#2e1e12", head: "#2e1e12", feet: "#2e1e12" });
+  return g.toCanvas(0.5, { cx, cy: 26, rx: 10.5, ry: 2.6 });
+}
+
+/**
+ * Bake 32-bit Pure Pixel Fox (variant "arctic" = snow-white Arctic Fox; "red" = russet European Red Fox!).
+ */
+function bake32BitFoxRight(style = "arctic", stepFrame = 0, alert = false) {
+  const g = new PixelGrid(46, 36);
+  const cx = 24;
+  const isArctic = style === "arctic";
+  const furDark = isArctic ? "#b8c7d9" : "#a83e18";
+  const furMid = isArctic ? "#e8f0f7" : "#db5c24";
+  const furHi = isArctic ? "#ffffff" : "#ff8b47";
+  const tipCol = isArctic ? "#ffffff" : "#fff8eb";
+  const pawCol = isArctic ? "#8fa2ba" : "#241e21";
+  const bob = stepFrame === 1 ? -1 : 0;
+
+  // Giant fluffy brushy fox tail!
+  g.ellipse(cx - 12, 19 + bob, 7.5, 4.5, furDark, "tail");
+  g.ellipse(cx - 11, 18 + bob, 6.2, 3.2, furMid, "tail");
+  g.ellipse(cx - 17, 17 + bob, 3.6, 2.8, tipCol, "tail");
+  // Agile fox legs
+  g.rect(cx - 6 + (stepFrame ? -2 : 0), 23, 3, 8, pawCol, "feet");
+  g.rect(cx + 6 + (stepFrame ? 2 : 0), 23, 3, 8, pawCol, "feet");
+  // Sleek fox torso & fluffy chest ruff
+  g.ellipse(cx, 19 + bob, 9.2, 5.4, furDark, "body");
+  g.ellipse(cx + 1, 18 + bob, 7.8, 4.0, furMid, "body");
+  g.ellipse(cx + 2, 16.5 + bob, 5.5, 2.2, furHi, "body");
+  g.ellipse(cx + 7, 20 + bob, 3.8, 3.2, tipCol, "belly");
+  // Pointed fox head, tall triangular ears & narrow snout
+  const hx = cx + 10;
+  const hy = (alert ? 12 : 14) + bob;
+  g.rect(hx - 4, hy - 7, 3, 5, pawCol, "head");
+  g.set(hx - 3, hy - 5, furHi, "head");
+  g.rect(hx + 1, hy - 7, 3, 5, furMid, "head");
+  g.ellipse(hx, hy, 5.2, 4.2, furMid, "head");
+  g.ellipse(hx, hy - 1.5, 3.6, 2.0, furHi, "head");
+  g.rect(hx + 3, hy, 5, 3, tipCol, "head");
+  g.rect(hx + 7, hy, 2, 2, "#1c181a", "head");
+  g.rect(hx + 2, hy - 2, 2, 2, isArctic ? "#3a8ee6" : "#d98b1e", "head");
+  g.set(hx + 2, hy - 2, "#ffffff", "head");
+
+  g.applySelOut({ tail: "#384252", body: "#38241e", belly: "#667080", head: "#38241e", feet: "#1a1820" });
+  return g.toCanvas(0.5, { cx, cy: 31, rx: 11.5, ry: 2.8 });
+}
+
+/**
+ * Bake 32-bit Pure Pixel Desert Roadrunner (crested head, long cocked tail, rapid-striding legs!).
+ */
+function bake32BitRoadrunnerRight(stepFrame = 0, alert = false) {
+  const g = new PixelGrid(44, 34);
+  const cx = 22;
+  const bob = stepFrame === 1 ? -1 : 0;
+  // Long cocked speckled tail sticking up-left!
+  g.line(cx - 5, 19 + bob, cx - 17, 11 + bob, "#5c422c", "tail");
+  g.line(cx - 5, 18 + bob, cx - 16, 10 + bob, "#9e7752", "tail");
+  g.rect(cx - 18, 9 + bob, 3, 2, "#f5ebda", "tail");
+  // Fast-striding long legs!
+  const l1 = stepFrame === 1 ? cx - 4 : cx + 2;
+  const l2 = stepFrame === 1 ? cx + 5 : cx - 2;
+  g.line(cx, 22, l1, 30, "#c49b5e", "feet");
+  g.line(cx + 1, 22, l2, 30, "#9e7742", "feet");
+  // Streamlined speckled brown-and-cream body
+  g.ellipse(cx, 19 + bob, 8.2, 4.4, "#75553b", "body");
+  g.ellipse(cx + 1, 18 + bob, 6.4, 2.8, "#b8936a", "body");
+  g.ellipse(cx + 2, 21 + bob, 5.2, 1.8, "#f2e5cf", "belly");
+  // Sleek neck, tufted head crest & sharp desert beak!
+  const hx = cx + 9;
+  const hy = (alert ? 10 : 12) + bob;
+  g.line(cx + 5, 17 + bob, hx - 1, hy + 2, "#9e7752", "head");
+  g.ellipse(hx, hy, 4.2, 3.4, "#8c6644", "head");
+  // Perky swept-back head crest!
+  g.rect(hx - 5, hy - 5, 5, 3, "#4f3622", "head");
+  g.rect(hx - 4, hy - 4, 3, 1, "#cf9d6b", "head");
+  g.rect(hx + 3, hy - 1, 6, 2, "#6e5540", "beak");
+  g.rect(hx + 1, hy - 1, 2, 2, "#1c1412", "head");
+  g.set(hx + 1, hy - 1, "#ffffff", "head");
+
+  g.applySelOut({ tail: "#2e1e12", body: "#2e1e12", belly: "#665542", head: "#2e1e12", beak: "#2e1e12", feet: "#4a3822" });
+  return g.toCanvas(0.5, { cx, cy: 30, rx: 9.5, ry: 2.4 });
+}
+
+/**
  * Bake 32-bit Pure Pixel Annoying Sidewalk Protestor waving a big cardboard picket sign + megaphone!
  */
-function bake32BitProtestorRight(variant = 0, shoutFrame = 0) {
+function bake32BitProtestorRight(variant = 0, shoutFrame = 0, climate = "mild") {
   const w = 48;
   const h = 64;
   const g = new PixelGrid(w, h);
@@ -1756,11 +2152,24 @@ function bake32BitProtestorRight(variant = 0, shoutFrame = 0) {
   const signLift = shoutFrame === 1 ? -3 : 0;
   const stride = shoutFrame === 1 ? 2 : 0;
 
-  const themes = [
-    { jacket: "#9c2f3a", jacketHi: "#c94b56", jacketDark: "#631b24", hair: "#4a2e1e", beanie: "#d9922b", beanieDark: "#9c6216", signBg: "#f7ebd2", signStripe: "#d93b36" },
-    { jacket: "#d4912a", jacketHi: "#f2b84b", jacketDark: "#8f5c16", hair: "#2b211e", beanie: "#2f6e57", beanieDark: "#1c4536", signBg: "#fff6d6", signStripe: "#24573d" },
-    { jacket: "#2c737d", jacketHi: "#489ea8", jacketDark: "#1a4850", hair: "#734224", beanie: "#b83b36", beanieDark: "#7a221f", signBg: "#f5efe6", signStripe: "#2b528c" },
-  ];
+  const themes =
+    climate === "warm"
+      ? [
+          { jacket: "#2c74b8", jacketHi: "#4c9ae0", jacketDark: "#1b4a78", hair: "#2b2019", beanie: "#e8d6a8", beanieDark: "#b59d6b", signBg: "#fff8e8", signStripe: "#245ca8" },
+          { jacket: "#e87e38", jacketHi: "#ff9e59", jacketDark: "#a84f18", hair: "#4a2c18", beanie: "#f4f2eb", beanieDark: "#c7c2b6", signBg: "#fff6d6", signStripe: "#d95b26" },
+          { jacket: "#3a9c6d", jacketHi: "#5ec492", jacketDark: "#226646", hair: "#241d1a", beanie: "#3678b5", beanieDark: "#1f4d78", signBg: "#f5efe6", signStripe: "#24573d" },
+        ]
+      : climate === "cold"
+        ? [
+            { jacket: "#2b528c", jacketHi: "#4d78b8", jacketDark: "#18325c", hair: "#4a2e1e", beanie: "#d93b36", beanieDark: "#8c1e1a", signBg: "#f2f8ff", signStripe: "#245ca8" },
+            { jacket: "#b53636", jacketHi: "#e05858", jacketDark: "#751c1c", hair: "#2b211e", beanie: "#f0e6d2", beanieDark: "#b8aa92", signBg: "#fff8eb", signStripe: "#b53636" },
+            { jacket: "#2e6b5e", jacketHi: "#4c9686", jacketDark: "#1a4239", hair: "#734224", beanie: "#f2b84b", beanieDark: "#b57e1b", signBg: "#f5f8ff", signStripe: "#2e6b5e" },
+          ]
+        : [
+            { jacket: "#9c2f3a", jacketHi: "#c94b56", jacketDark: "#631b24", hair: "#4a2e1e", beanie: "#d9922b", beanieDark: "#9c6216", signBg: "#f7ebd2", signStripe: "#d93b36" },
+            { jacket: "#d4912a", jacketHi: "#f2b84b", jacketDark: "#8f5c16", hair: "#2b211e", beanie: "#2f6e57", beanieDark: "#1c4536", signBg: "#fff6d6", signStripe: "#24573d" },
+            { jacket: "#2c737d", jacketHi: "#489ea8", jacketDark: "#1a4850", hair: "#734224", beanie: "#b83b36", beanieDark: "#7a221f", signBg: "#f5efe6", signStripe: "#2b528c" },
+          ];
   const th = themes[variant % themes.length];
 
   // 1. Tall wooden picket-sign pole & BIG hand-painted cardboard protest sign held high!
@@ -2295,8 +2704,17 @@ function bake32BitRoadFlare(frame = 0) {
 /**
  * Bake all 32-bit street-life sprites (roving turkeys, annoying protestors, spooky graveyard characters, EMTs, police & crisp pixel speech bubbles).
  */
-export function bake32BitStreetLifeSprites(chants = []) {
+export function bake32BitStreetLifeSprites(chants = [], opts = {}) {
   const out = {};
+  const biomeConfig = opts.biomeConfig || null;
+  const season = opts.season || "fall";
+  const climate =
+    biomeConfig?.wildlifeStyle === "tundra" ||
+    (season === "winter" && (!biomeConfig || biomeConfig.wildlifeStyle === "new_england" || biomeConfig.wildlifeStyle === "europe"))
+      ? "cold"
+      : biomeConfig?.wildlifeStyle === "israel" || biomeConfig?.wildlifeStyle === "desert" || biomeConfig?.id === "tropical_coastal"
+        ? "warm"
+        : "mild";
 
   // Roving Wild Turkeys (strut left/right + dramatic puffed tail fan!)
   const tR0 = bake32BitTurkeyRight(0, false);
@@ -2346,10 +2764,29 @@ export function bake32BitStreetLifeSprites(chants = []) {
     out[`dog_${dv}_alert_left`] = mirrorCanvasHorizontal(dAlertR);
   }
 
-  // 3 Annoying Sidewalk Protestor variants (waving signs & shouting into megaphones!)
+  // Regional 32-Bit Wildlife Species (Israel Parakeet & Rock Hyrax, Tundra Arctic Fox, Desert Roadrunner, Europe Red Fox!)
+  for (const [kind, baker] of [
+    ["parakeet", (f, a) => bake32BitParakeetRight(f, a)],
+    ["hyrax", (f, a) => bake32BitHyraxRight(f, a)],
+    ["arctic_fox", (f, a) => bake32BitFoxRight("arctic", f, a)],
+    ["red_fox", (f, a) => bake32BitFoxRight("red", f, a)],
+    ["roadrunner", (f, a) => bake32BitRoadrunnerRight(f, a)],
+  ]) {
+    const r0 = baker(0, false);
+    const r1 = baker(1, false);
+    const al = baker(0, true);
+    out[`${kind}_right_0`] = r0;
+    out[`${kind}_right_1`] = r1;
+    out[`${kind}_left_0`] = mirrorCanvasHorizontal(r0);
+    out[`${kind}_left_1`] = mirrorCanvasHorizontal(r1);
+    out[`${kind}_alert_right`] = al;
+    out[`${kind}_alert_left`] = mirrorCanvasHorizontal(al);
+  }
+
+  // 3 Annoying Sidewalk Protestor variants (waving signs & shouting into megaphones, climate-dressed!)
   for (let v = 0; v < 3; v++) {
-    const pR0 = bake32BitProtestorRight(v, 0);
-    const pR1 = bake32BitProtestorRight(v, 1);
+    const pR0 = bake32BitProtestorRight(v, 0, climate);
+    const pR1 = bake32BitProtestorRight(v, 1, climate);
     out[`protestor_${v}_right_0`] = pR0;
     out[`protestor_${v}_right_1`] = pR1;
     out[`protestor_${v}_left_0`] = mirrorCanvasHorizontal(pR0);
@@ -2679,7 +3116,9 @@ export function bake32BitStreetLifeSprites(chants = []) {
     accent: "#e67e22",
     textColor: "#421d08",
   });
-  out.bubble_npc_hi = bakePixelSpeechBubble("HI LIAM!", {
+  const heroLabel = String(opts.heroName || "LIAM").toUpperCase().replace(/[^A-Z0-9 ]/g, "").trim().slice(0, 8) || "EXPLORER";
+  const cityLabel = String(opts.cityShort || "NEWTON").toUpperCase().replace(/[^A-Z0-9 ]/g, "").trim().slice(0, 8) || "TOWN";
+  out.bubble_npc_hi = bakePixelSpeechBubble(`HI ${heroLabel}!`, {
     bg: "#fff9e0",
     accent: "#2e9c5e",
     textColor: "#143822",
@@ -2718,6 +3157,26 @@ export function bake32BitStreetLifeSprites(chants = []) {
     bg: "#e8f6ff",
     accent: "#d9382e",
     textColor: "#1a2845",
+  });
+  out.bubble_squawk = bakePixelSpeechBubble("SQUAWK!", {
+    bg: "#eaffea",
+    accent: "#2ea83b",
+    textColor: "#123b18",
+  });
+  out.bubble_squeak = bakePixelSpeechBubble("SQUEAK!", {
+    bg: "#fff6e3",
+    accent: "#a67d56",
+    textColor: "#3b2614",
+  });
+  out.bubble_yip = bakePixelSpeechBubble("YIP YIP!", {
+    bg: "#eef7ff",
+    accent: "#3a8ee6",
+    textColor: "#142c4a",
+  });
+  out.bubble_meep = bakePixelSpeechBubble("MEEP MEEP!", {
+    bg: "#fff0d6",
+    accent: "#cf7a2b",
+    textColor: "#42200a",
   });
   out.bubble_watch_sign = bakePixelSpeechBubble("GOT ANY SNACKS?", {
     bg: "#fff6db",
@@ -2789,7 +3248,7 @@ export function bake32BitStreetLifeSprites(chants = []) {
     accent: "#1a1c24",
     textColor: "#1a1404",
   });
-  out.bubble_fire_clear = bakePixelSpeechBubble("NEWTON FIRE HERE!", {
+  out.bubble_fire_clear = bakePixelSpeechBubble(`${cityLabel} FIRE HERE!`, {
     bg: "#ffebe8",
     accent: "#d9221c",
     textColor: "#4a1210",
@@ -2801,7 +3260,8 @@ export function bake32BitStreetLifeSprites(chants = []) {
       textColor: "#291a18",
     });
   });
-  BIKER_CHANTS.forEach((line, idx) => {
+  const activeBikerChants = Array.isArray(opts.bikerChants) && opts.bikerChants.length > 0 ? opts.bikerChants : BIKER_CHANTS;
+  activeBikerChants.forEach((line, idx) => {
     out[`bubble_biker_${idx}`] = bakePixelSpeechBubble(line, {
       bg: "#fbffd1",
       accent: "#d92820",

@@ -4470,7 +4470,7 @@ export function bake32BitHouseStack(building, tileSize = 16, colorOverrideMap = 
 /**
  * Generate the full high-craft 16-bit SNES pixel-art tile, prop & hero sprite atlas.
  */
-export function buildSnesSpriteAtlas(paletteName = "autumn_golden", biomeConfig = null) {
+export function buildSnesSpriteAtlas(paletteName = "autumn_golden", biomeConfig = null, atlasOpts = {}) {
   const resolvedPaletteKey = biomeConfig?.paletteKey || paletteName;
   const P = PALETTES[resolvedPaletteKey] || PALETTES[paletteName] || PALETTES.autumn_golden;
   const sprites = {};
@@ -5031,6 +5031,50 @@ export function buildSnesSpriteAtlas(paletteName = "autumn_golden", biomeConfig 
     sprites[`soccer_goal_${side}`] = canvas;
   }
 
+  // Regional Park Props: Tennis Net, Beach Volleyball Net, and Winter Ice Hockey Goals!
+  {
+    const { canvas, ctx } = makeCanvas(14, 34);
+    px(ctx, 5, 2, 4, 30, "rgba(18, 28, 36, 0.25)");
+    px(ctx, 5, 1, 4, 3, P.outline);
+    px(ctx, 6, 2, 2, 1, "#2f7d4c");
+    px(ctx, 5, 30, 4, 3, P.outline);
+    px(ctx, 6, 31, 2, 1, "#2f7d4c");
+    for (let ny = 4; ny < 30; ny += 2) {
+      px(ctx, 6, ny, 2, 1, "rgba(245, 248, 252, 0.8)");
+    }
+    px(ctx, 6, 3, 2, 28, "#ffffff");
+    sprites.tennis_net = canvas;
+  }
+  {
+    const { canvas, ctx } = makeCanvas(16, 36);
+    px(ctx, 6, 2, 4, 32, "rgba(42, 30, 14, 0.22)");
+    px(ctx, 5, 1, 4, 34, P.outline);
+    px(ctx, 6, 2, 2, 32, "#e8edf5");
+    px(ctx, 6, 2, 2, 4, "#245ca8");
+    px(ctx, 6, 30, 2, 4, "#245ca8");
+    for (let ny = 6; ny < 30; ny += 2) {
+      px(ctx, 8, ny, 3, 1, "rgba(255, 255, 255, 0.78)");
+    }
+    sprites.volleyball_net = canvas;
+  }
+  for (const side of ["left", "right"]) {
+    const { canvas, ctx } = makeCanvas(14, 22);
+    const isLeft = side === "left";
+    const frontX = isLeft ? 10 : 2;
+    const backX = isLeft ? 2 : 10;
+    const netX = Math.min(frontX, backX) + 1;
+    const netW = Math.abs(frontX - backX) - 1;
+    for (let ny = 4; ny < 18; ny += 2) {
+      for (let nx = netX; nx < netX + netW; nx += 2) {
+        px(ctx, nx, ny, 1, 1, "rgba(242, 248, 255, 0.8)");
+      }
+    }
+    px(ctx, backX, 4, 2, 14, "#b8c7d9");
+    px(ctx, frontX - 1, 2, 4, 18, P.outline);
+    px(ctx, frontX, 3, 2, 16, "#d9362e");
+    sprites[`hockey_goal_${side}`] = canvas;
+  }
+
   // Baseball Chain-Link Backstop behind Home Plate (40x18)
   {
     const { canvas, ctx } = makeCanvas(40, 18);
@@ -5562,15 +5606,22 @@ export function buildSnesSpriteAtlas(paletteName = "autumn_golden", biomeConfig 
     sprites.drop_acorn = canvas;
   }
 
-  // --- 11. Pre-Baked Super Mario 3–Detail 24x28 Hero Sprites (Liam: Polo & Kippah + Little League Uniform!) ---
+  // --- 11. Pre-Baked Super Mario 3–Detail 24x28 Hero Sprites (with custom Hero Profile & regional Soccer/Baseball kit!) ---
+  const heroSpriteOpts = {
+    heroProfile: atlasOpts.heroProfile || null,
+    soccerKit:
+      biomeConfig?.parkSports === "soccer_primary" ||
+      biomeConfig?.parkSports === "coastal_beach" ||
+      biomeConfig?.parkSports === "europe_tennis_soccer",
+  };
   for (const outfit of Object.keys(HERO_OUTFITS)) {
     for (const dir of ["down", "up", "left", "right"]) {
       for (let step = 0; step < 3; step++) {
-        sprites[`hero_${outfit}_${dir}_${step}`] = bakeSmb3HeroSprite(dir, step, false, outfit);
+        sprites[`hero_${outfit}_${dir}_${step}`] = bakeSmb3HeroSprite(dir, step, false, outfit, heroSpriteOpts);
       }
-      sprites[`hero_${outfit}_scooter_${dir}`] = bakeSmb3HeroSprite(dir, 0, true, outfit);
+      sprites[`hero_${outfit}_scooter_${dir}`] = bakeSmb3HeroSprite(dir, 0, true, outfit, heroSpriteOpts);
     }
-    sprites[`hero_${outfit}_fanfare`] = bakeSmb3HeroFanfareSprite(outfit);
+    sprites[`hero_${outfit}_fanfare`] = bakeSmb3HeroFanfareSprite(outfit, heroSpriteOpts);
   }
   // Default unprefixed aliases point to Liam's default Everyday Polo & Kippah outfit
   for (const dir of ["down", "up", "left", "right"]) {
@@ -5846,8 +5897,21 @@ export function buildSnesSpriteAtlas(paletteName = "autumn_golden", biomeConfig 
   // Upgrade terrain tiles, lush trees, street signs, vehicles & props to 32-bit 2x native pixel detail!
   upgradeAtlasTo32Bit(sprites, P, biomeConfig);
 
-  // Register 32-bit roving wild Newton turkeys, annoying sidewalk protestors & pixel speech bubbles!
-  Object.assign(sprites, bake32BitStreetLifeSprites(PROTEST_CHANTS));
+  // Register 32-bit roving regional wildlife, sidewalk marchers & pixel speech bubbles!
+  const activeChants =
+    Array.isArray(atlasOpts.localChants) && atlasOpts.localChants.length > 0
+      ? atlasOpts.localChants
+      : PROTEST_CHANTS;
+  Object.assign(
+    sprites,
+    bake32BitStreetLifeSprites(activeChants, {
+      biomeConfig,
+      season: atlasOpts.season,
+      bikerChants: atlasOpts.bikerChants,
+      heroName: atlasOpts.heroName,
+      cityShort: atlasOpts.cityShort,
+    })
+  );
 
   return sprites;
 }
@@ -6046,6 +6110,95 @@ export function bakeParkFieldCanvas(field, tileSize = 16) {
     px(ctx, mx + cw - 2 - boxW, boxY, boxW, 1, "#f4f8fc");
     px(ctx, mx + cw - 2 - boxW, boxY + boxH - 1, boxW, 1, "#f4f8fc");
     px(ctx, mx + cw - 2 - boxW, boxY, 1, boxH, "#f4f8fc");
+    return canvas;
+  }
+
+  if (field.kind === "tennis_court") {
+    // Mediterranean clay-terracotta / hardcourt tennis court with crisp white service boxes!
+    px(ctx, 2, 2, w - 4, h - 4, "#1d2228");
+    px(ctx, 3, 3, w - 6, h - 6, "#2c7a56"); // green outer apron
+    const mx = 8;
+    const my = 7;
+    const cw = w - mx * 2;
+    const ch = h - my * 2;
+    px(ctx, mx, my, cw, ch, "#c96a42"); // sunlit clay court surface!
+    for (let y = my + 2; y < my + ch - 2; y += 5) {
+      for (let x = mx + 2; x < mx + cw - 2; x += 8) {
+        px(ctx, x, y, 2, 1, "#b55a36");
+      }
+    }
+    // Outer doubles sidelines & baselines
+    px(ctx, mx, my, cw, 1, "#f7f9fc");
+    px(ctx, mx, my + ch - 1, cw, 1, "#f7f9fc");
+    px(ctx, mx, my, 1, ch, "#f7f9fc");
+    px(ctx, mx + cw - 1, my, 1, ch, "#f7f9fc");
+    // Singles sidelines (inset)
+    const alley = Math.max(4, Math.floor(ch * 0.14));
+    px(ctx, mx, my + alley, cw, 1, "#f7f9fc");
+    px(ctx, mx, my + ch - 1 - alley, cw, 1, "#f7f9fc");
+    // Service lines & center service line
+    const srvInset = Math.floor(cw * 0.24);
+    px(ctx, mx + srvInset, my + alley, 1, ch - alley * 2, "#f7f9fc");
+    px(ctx, mx + cw - 1 - srvInset, my + alley, 1, ch - alley * 2, "#f7f9fc");
+    px(ctx, mx + srvInset, cy, cw - srvInset * 2, 1, "#f7f9fc");
+    // Center net shadow & net line
+    px(ctx, cx - 1, my - 2, 3, ch + 4, "rgba(24, 28, 36, 0.35)");
+    px(ctx, cx, my - 2, 1, ch + 4, "#ffffff");
+    return canvas;
+  }
+
+  if (field.kind === "beach_volleyball") {
+    // Sunlit golden beach-volleyball sand court with royal-blue boundary tape!
+    px(ctx, 2, 2, w - 4, h - 4, "#8a6d43");
+    px(ctx, 3, 3, w - 6, h - 6, "#f0d395");
+    for (let y = 5; y < h - 5; y += 4) {
+      for (let x = 5; x < w - 5; x += 6) {
+        px(ctx, x, y, 2, 1, "#dec07e");
+        px(ctx, x + 2, y + 2, 1, 1, "#fff1c7");
+      }
+    }
+    const mx = 7;
+    const my = 6;
+    const cw = w - mx * 2;
+    const ch = h - my * 2;
+    px(ctx, mx, my, cw, 2, "#245ca8");
+    px(ctx, mx, my + ch - 2, cw, 2, "#245ca8");
+    px(ctx, mx, my, 2, ch, "#245ca8");
+    px(ctx, mx + cw - 2, my, 2, ch, "#245ca8");
+    // Center shadow line under net
+    px(ctx, cx - 1, my, 2, ch, "rgba(46, 36, 18, 0.25)");
+    return canvas;
+  }
+
+  if (field.kind === "ice_rink") {
+    // Outdoor frozen winter skating & hockey rink with white dasher boards, red goal creases & blue lines!
+    px(ctx, 2, 2, w - 4, h - 4, "#243042");
+    px(ctx, 3, 3, w - 6, h - 6, "#eef4fa"); // white dasher boards
+    const mx = 6;
+    const my = 6;
+    const cw = w - mx * 2;
+    const ch = h - my * 2;
+    px(ctx, mx, my, cw, ch, "#d6eefc"); // gleaming ice sheet
+    // Diagonal ice sheen stripes
+    for (let i = 0; i < cw; i += 14) {
+      px(ctx, mx + i, my + 1, 5, ch - 2, "#e8f6ff");
+    }
+    // Red center line & blue zone lines
+    px(ctx, cx, my, 2, ch, "#d9362e");
+    const blueOff = Math.floor(cw * 0.24);
+    px(ctx, cx - blueOff, my, 2, ch, "#2a6bd9");
+    px(ctx, cx + blueOff, my, 2, ch, "#2a6bd9");
+    // Center faceoff circle
+    for (let a = 0; a < 360; a += 10) {
+      const rad = (a * Math.PI) / 180;
+      px(ctx, Math.round(cx + Math.cos(rad) * 9), Math.round(cy + Math.sin(rad) * 9), 1, 1, "#2a6bd9");
+    }
+    px(ctx, cx - 1, cy - 1, 3, 3, "#d9362e");
+    // Goal lines & pale-blue goal creases!
+    px(ctx, mx + 7, my, 1, ch, "#d9362e");
+    px(ctx, mx + cw - 8, my, 1, ch, "#d9362e");
+    px(ctx, mx + 8, cy - 5, 5, 10, "#8cc8f5");
+    px(ctx, mx + cw - 13, cy - 5, 5, 10, "#8cc8f5");
     return canvas;
   }
 

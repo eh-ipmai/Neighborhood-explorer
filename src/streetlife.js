@@ -63,6 +63,81 @@ export const CRITTER_ARCHETYPES = {
     variants: 2,
     hasTrailingLeash: true,
   },
+  parakeet: {
+    kind: "parakeet",
+    name: "Green Parakeet",
+    icon: "🦜",
+    bubble: "bubble_squawk",
+    sound: "squirrel",
+    roamSpeed: 22,
+    chaseSpeed: 26,
+    fleeSpeed: 76,
+    hitRadius: 13.0,
+    hitToast: "💥 SQUAWK! A swooping green neighborhood parakeet startled you and took 1 heart!",
+    shooToast: "🦜 SQUAWK! The bright green parakeet fluttered up into an olive tree!",
+    variants: 1,
+    hasTrailingLeash: false,
+  },
+  hyrax: {
+    kind: "hyrax",
+    name: "Rock Hyrax",
+    icon: "🐹",
+    bubble: "bubble_squeak",
+    sound: "squirrel",
+    roamSpeed: 18,
+    chaseSpeed: 21,
+    fleeSpeed: 62,
+    hitRadius: 13.0,
+    hitToast: "💥 SQUEAK! A curious Jerusalem rock hyrax bumped your sneakers and took 1 heart!",
+    shooToast: "🐹 SQUEAK! The plump rock hyrax scampered safely onto a sunny limestone wall!",
+    variants: 1,
+    hasTrailingLeash: false,
+  },
+  arctic_fox: {
+    kind: "arctic_fox",
+    name: "Arctic Fox",
+    icon: "🦊",
+    bubble: "bubble_yip",
+    sound: "dog",
+    roamSpeed: 22,
+    chaseSpeed: 26,
+    fleeSpeed: 74,
+    hitRadius: 13.5,
+    hitToast: "💥 YIP! A playful snowy arctic fox darted past your boots and took 1 heart!",
+    shooToast: "🦊 YIP YIP! The fluffy white arctic fox bounded gracefully over a snowbank!",
+    variants: 1,
+    hasTrailingLeash: false,
+  },
+  red_fox: {
+    kind: "red_fox",
+    name: "Urban Red Fox",
+    icon: "🦊",
+    bubble: "bubble_yip",
+    sound: "dog",
+    roamSpeed: 21,
+    chaseSpeed: 25,
+    fleeSpeed: 72,
+    hitRadius: 13.5,
+    hitToast: "💥 YIP! A cheeky urban red fox dashed across the lane and took 1 heart!",
+    shooToast: "🦊 YIP! The red fox trotted smoothly behind a garden hedge!",
+    variants: 1,
+    hasTrailingLeash: false,
+  },
+  roadrunner: {
+    kind: "roadrunner",
+    name: "Desert Roadrunner",
+    icon: "🐦",
+    bubble: "bubble_meep",
+    sound: "squirrel",
+    roamSpeed: 26,
+    chaseSpeed: 30,
+    fleeSpeed: 84,
+    hitRadius: 13.0,
+    hitToast: "💥 MEEP! A speedy desert roadrunner zipped past your ankles and took 1 heart!",
+    shooToast: "🐦 MEEP MEEP! The roadrunner sprinted off in a puff of desert dust!",
+    variants: 1,
+    hasTrailingLeash: false,
+  },
 };
 
 export const SPOOKY_ARCHETYPES = [
@@ -119,6 +194,86 @@ export const JOGGER_CHANTS = [
   "DON'T BREAK MY STRIDE!",
   "STRAVA SEGMENT PR!!",
 ];
+
+/**
+ * Region-aware sidewalk marcher & cyclist chants so every country/climate feels alive!
+ */
+export function getRegionalStreetChants(biomeConfig = null, cityShort = "Town", isNewton = false) {
+  if (isNewton) {
+    return {
+      protestChants: PROTEST_CHANTS,
+      bikerChants: ["ON YOUR LEFT!", "SHARE THE ROAD!", "STRAVA PR!", "BIKE LANE!", "WATCH CARBON!"],
+    };
+  }
+  const city = String(cityShort || "TOWN").toUpperCase().slice(0, 10);
+  const style = biomeConfig?.wildlifeStyle || "new_england";
+  if (style === "israel") {
+    return {
+      protestChants: [
+        "MORE FALAFEL!",
+        "MORE GLIDA!",
+        "FRESH BUREKAS!",
+        "SAVE THE CATS!",
+        "WARM PITA NOW!",
+        "READ MY SIGN!!",
+        "NO MORE HOMEWORK!",
+        `SHALOM ${city}!`,
+      ],
+      bikerChants: ["WATCH THE E-BIKE!", "BEEP BEEP!", "BIKE LANE!", "SABABA PACE!", "ON YOUR LEFT!"],
+    };
+  }
+  if (style === "tundra") {
+    return {
+      protestChants: [
+        "HOT COCOA NOW!",
+        "MORE ICE RINKS!",
+        "SAVE THE SNOW!",
+        "SHOVEL THIS WALK!",
+        "WARM MITTENS!",
+        "READ MY SIGN!!",
+        "NO MORE HOMEWORK!",
+        `GO ${city}!`,
+      ],
+      bikerChants: ["FAT TIRE EXPRESS!", "ICE PATCH AHEAD!", "SNOW TIRES!", "ON YOUR LEFT!", "BRRR!!"],
+    };
+  }
+  if (style === "desert") {
+    return {
+      protestChants: [
+        "MORE SHADE TREES!",
+        "COLD LEMONADE!",
+        "SAVE THE CACTI!",
+        "MORE SPLASH PADS!",
+        "FREE TACOS NOW!",
+        "READ MY SIGN!!",
+        "NO MORE HOMEWORK!",
+        `HONK FOR ${city}!`,
+      ],
+      bikerChants: ["DESERT CRUISER!", "HYDRATE!", "BIKE LANE!", "ON YOUR LEFT!", "SHARE THE ROAD!"],
+    };
+  }
+  if (style === "europe") {
+    return {
+      protestChants: [
+        "MORE GELATO!",
+        "FRESH CROISSANTS!",
+        "SAVE THE PLAZA!",
+        "MORE SOCCER!",
+        "PEDESTRIAN ZONE!",
+        "READ MY SIGN!!",
+        "NO MORE HOMEWORK!",
+        `VIVA ${city}!`,
+      ],
+      bikerChants: ["RING RING!!", "CARGO BIKE!", "CYCLE LANE!", "ON YOUR LEFT!", "MIND THE COBBLES!"],
+    };
+  }
+  return {
+    protestChants: PROTEST_CHANTS.map((c) =>
+      c === "HONK FOR NEWTON!" ? `HONK FOR ${city}!` : c
+    ),
+    bikerChants: ["ON YOUR LEFT!", "SHARE THE ROAD!", "STRAVA PR!", "BIKE LANE!", "WATCH CARBON!"],
+  };
+}
 
 const WALKABLE_TURKEY_TILES = new Set([0, 1, 2, 4, 7, 9, 10, 11]);
 const WALKABLE_GRAVEYARD_TILES = new Set([0, 7, 9, 11]);
@@ -203,23 +358,24 @@ export function buildStreetLife(
   const tileSize = worldMap.tileSize || 16;
   const neighborhoodMeta = getNeighborhoodMeta(worldMap);
   const biomeConfig = getBiomeConfig(worldMap);
-  const isIsraelWildlife = biomeConfig.wildlifeStyle === "israel";
-  const localChants = neighborhoodMeta.isNewton
-    ? PROTEST_CHANTS
-    : isIsraelWildlife
-      ? [
-          "MORE FALAFEL!",
-          "MORE ICE CREAM!",
-          "FRESH BUREKAS!",
-          "SAVE THE CATS!",
-          "WARM PITA NOW!",
-          "READ MY SIGN!!",
-          "NO MORE HOMEWORK!",
-          `SHALOM ${neighborhoodMeta.cityShort.toUpperCase().slice(0, 10)}!`,
-        ]
-      : PROTEST_CHANTS.map((c) =>
-          c === "HONK FOR NEWTON!" ? `HONK FOR ${neighborhoodMeta.cityShort.toUpperCase().slice(0, 12)}!` : c
-        );
+  const wildlifeStyle = biomeConfig.wildlifeStyle || "new_england";
+  const isIsraelWildlife = wildlifeStyle === "israel";
+  const hasTurkeys = wildlifeStyle === "new_england";
+  const regionalCritters =
+    wildlifeStyle === "israel"
+      ? biomeConfig.id === "israel_desert"
+        ? ["cat", "roadrunner", "dog"]
+        : ["cat", "parakeet", "hyrax", "dog"]
+      : wildlifeStyle === "desert"
+        ? ["roadrunner", "cat", "dog"]
+        : wildlifeStyle === "tundra"
+          ? ["arctic_fox", "dog"]
+          : wildlifeStyle === "europe"
+            ? ["red_fox", "cat", "dog"]
+            : ["squirrel", "cat", "dog"];
+  const regionalChants = getRegionalStreetChants(biomeConfig, neighborhoodMeta.cityShort, neighborhoodMeta.isNewton);
+  const localChants = regionalChants.protestChants;
+  const bikerChants = regionalChants.bikerChants;
   const localQuips = neighborhoodMeta.isNewton
     ? PROTESTOR_QUIPS
     : isIsraelWildlife
@@ -516,9 +672,8 @@ export function buildStreetLife(
     }
   }
 
-  // --- 2. Guarantee 3 Roving Wild Turkeys near Home Base (only in New England / US turkey regions;
-  //        in Israel, Jerusalem & Tel Aviv neighborhoods have iconic friendly street cats instead!) ---
-  if (!isIsraelWildlife) {
+  // --- 2. Guarantee 3 Roving Wild Turkeys near Home Base (only in New England turkey regions!) ---
+  if (hasTurkeys) {
     for (let r = 4; r <= 14 && turkeys.length < 3; r++) {
       for (let dy = -r; dy <= r && turkeys.length < 3; dy++) {
         for (let dx = -r; dx <= r && turkeys.length < 3; dx++) {
@@ -538,7 +693,7 @@ export function buildStreetLife(
   }
 
   // --- 2b. Guarantee local neighborhood critters near Home Base! ---
-  const nearCritterKinds = isIsraelWildlife ? ["cat", "cat", "dog"] : ["squirrel", "cat", "dog"];
+  const nearCritterKinds = regionalCritters.slice(0, 3);
   for (const kind of nearCritterKinds) {
     let placedNear = false;
     for (let r = 5; r <= 18 && !placedNear; r++) {
@@ -596,8 +751,8 @@ export function buildStreetLife(
     }
   }
 
-  // --- 4. Distribute Roving Wild Turkeys evenly across EVERY neighborhood sector (US/New England) ---
-  if (!isIsraelWildlife) {
+  // --- 4. Distribute Roving Wild Turkeys evenly across EVERY neighborhood sector (New England) ---
+  if (hasTurkeys) {
     const turkeyCell = width >= 200 ? 30 : 14;
     for (let cy0 = 8; cy0 < height - 8; cy0 += turkeyCell) {
       for (let cx0 = 8; cx0 < width - 8; cx0 += turkeyCell) {
@@ -637,7 +792,7 @@ export function buildStreetLife(
   }
 
   // --- 4b. Distribute Local Neighborhood Critters across EVERY neighborhood sector! ---
-  const critterOrder = isIsraelWildlife ? ["cat", "cat", "dog"] : ["squirrel", "cat", "dog"];
+  const critterOrder = regionalCritters;
   const critterCell = width >= 200 ? 34 : 16;
   let cellCounter = 0;
   for (let cy0 = 8; cy0 < height - 8; cy0 += critterCell) {
@@ -810,6 +965,8 @@ export function buildStreetLife(
     graveyardGrid: effectiveGraveGrid,
     isNewton: neighborhoodMeta.isNewton,
     cityShort: neighborhoodMeta.cityShort,
+    localChants,
+    bikerChants,
   };
 }
 

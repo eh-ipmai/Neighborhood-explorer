@@ -25,6 +25,13 @@ import {
 import { geocodeAddress } from "./generator/geocode.js";
 import { BIOME_LIST } from "./biomes.js";
 import {
+  HERO_HAIR_STYLES,
+  HERO_HAIR_COLORS,
+  HERO_SKIN_TONES,
+  HERO_HEADWEAR,
+  resolveHeroProfile,
+} from "./characters.js";
+import {
   BUILTIN_NEWTON_ID,
   saveNeighborhoodPack,
   listNeighborhoodPacks,
@@ -78,6 +85,10 @@ export function createNeighborhoodStudio({
   const selectSize = document.getElementById("studio-size");
   const selectBiome = document.getElementById("studio-biome");
   const selectLabels = document.getElementById("studio-labels");
+  const selectHairStyle = document.getElementById("studio-hair-style");
+  const selectHairColor = document.getElementById("studio-hair-color");
+  const selectSkinTone = document.getElementById("studio-skin-tone");
+  const selectHeadwear = document.getElementById("studio-headwear");
   const quickAddrButtons = Array.from(document.querySelectorAll("[data-quick-addr]"));
   const prePlacesListEl = document.getElementById("studio-pre-places-list");
   const inputPreName = document.getElementById("studio-pre-name");
@@ -95,6 +106,12 @@ export function createNeighborhoodStudio({
   const selectActiveBiome = document.getElementById("studio-active-biome");
   const btnApplyBiome = document.getElementById("btn-studio-apply-biome");
   const biomeStatusEl = document.getElementById("studio-biome-status");
+  const selectActiveHairStyle = document.getElementById("studio-active-hair-style");
+  const selectActiveHairColor = document.getElementById("studio-active-hair-color");
+  const selectActiveSkinTone = document.getElementById("studio-active-skin-tone");
+  const selectActiveHeadwear = document.getElementById("studio-active-headwear");
+  const btnApplyHero = document.getElementById("btn-studio-apply-hero");
+  const heroStatusEl = document.getElementById("studio-hero-status");
   const placesListEl = document.getElementById("studio-places-list");
   const inputPlaceName = document.getElementById("studio-place-name");
   const selectPlaceLocMode = document.getElementById("studio-place-loc-mode");
@@ -269,9 +286,17 @@ export function createNeighborhoodStudio({
     if (progressTextEl) progressTextEl.textContent = `Looking up "${address}"...`;
 
     try {
+      const heroProfile = resolveHeroProfile({
+        hairStyle: selectHairStyle?.value,
+        hairColor: selectHairColor?.value,
+        skinTone: selectSkinTone?.value,
+        headwear: selectHeadwear?.value,
+        tzitzit: selectHeadwear?.value === "kippah",
+      });
       const pack = await buildNeighborhoodPackage({
         address,
         heroName,
+        heroProfile,
         size,
         biome,
         labelMode,
@@ -338,6 +363,15 @@ export function createNeighborhoodStudio({
         neighborhoodMeta?.biome ||
         "new_england_autumn";
     }
+    const curHero = resolveHeroProfile(
+      workingPack.worldMap?.meta?.heroProfile ||
+        workingPack.meta?.heroProfile ||
+        neighborhoodMeta?.heroProfile
+    );
+    if (selectActiveHairStyle) selectActiveHairStyle.value = curHero.hairStyle;
+    if (selectActiveHairColor) selectActiveHairColor.value = curHero.hairColor;
+    if (selectActiveSkinTone) selectActiveSkinTone.value = curHero.skinTone;
+    if (selectActiveHeadwear) selectActiveHeadwear.value = curHero.headwear;
     if (placesListEl) {
       placesListEl.innerHTML = "";
       for (const lm of workingPack.landmarks || []) {
@@ -437,6 +471,42 @@ export function createNeighborhoodStudio({
       }, 350);
     } catch (err) {
       setStatus(biomeStatusEl, `Could not switch biome: ${err.message}`, true);
+    }
+  });
+
+  btnApplyHero?.addEventListener("click", async () => {
+    const nextHeroProfile = resolveHeroProfile({
+      hairStyle: selectActiveHairStyle?.value,
+      hairColor: selectActiveHairColor?.value,
+      skinTone: selectActiveSkinTone?.value,
+      headwear: selectActiveHeadwear?.value,
+      tzitzit: selectActiveHeadwear?.value === "kippah",
+    });
+    try {
+      workingPack = {
+        ...workingPack,
+        meta: {
+          ...(workingPack.meta || {}),
+          heroProfile: nextHeroProfile,
+        },
+        worldMap: {
+          ...(workingPack.worldMap || {}),
+          meta: {
+            ...(workingPack.worldMap?.meta || {}),
+            heroProfile: nextHeroProfile,
+          },
+        },
+      };
+      await persistWorkingPack();
+      setStatus(heroStatusEl, "✅ Updated Explorer Style! Reloading your hero sprites...");
+      setTimeout(() => {
+        const u = new URL(window.location.href);
+        u.searchParams.delete("pack");
+        u.searchParams.set("neighborhood", workingPack.meta.id);
+        window.location.href = u.toString();
+      }, 350);
+    } catch (err) {
+      setStatus(heroStatusEl, `Could not update hero style: ${err.message}`, true);
     }
   });
 
@@ -700,6 +770,25 @@ export function createNeighborhoodStudio({
       selectBiome.appendChild(opt);
     }
   }
+
+  const fillSelectFromMap = (el, mapObj, defaultVal) => {
+    if (!el || el.options.length > 0) return;
+    for (const item of Object.values(mapObj)) {
+      const opt = document.createElement("option");
+      opt.value = item.id;
+      opt.textContent = item.label;
+      el.appendChild(opt);
+    }
+    if (defaultVal) el.value = defaultVal;
+  };
+  fillSelectFromMap(selectHairStyle, HERO_HAIR_STYLES, "short");
+  fillSelectFromMap(selectHairColor, HERO_HAIR_COLORS, "light_brown");
+  fillSelectFromMap(selectSkinTone, HERO_SKIN_TONES, "warm");
+  fillSelectFromMap(selectHeadwear, HERO_HEADWEAR, "none");
+  fillSelectFromMap(selectActiveHairStyle, HERO_HAIR_STYLES, "short");
+  fillSelectFromMap(selectActiveHairColor, HERO_HAIR_COLORS, "light_brown");
+  fillSelectFromMap(selectActiveSkinTone, HERO_SKIN_TONES, "warm");
+  fillSelectFromMap(selectActiveHeadwear, HERO_HEADWEAR, "kippah");
 
   return {
     open,

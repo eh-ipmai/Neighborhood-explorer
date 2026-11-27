@@ -7,6 +7,7 @@
  */
 
 import { getBiomeConfig, getDrivingSideForCountry } from "./biomes.js";
+import { DEFAULT_HERO_PROFILE, resolveHeroProfile } from "./characters.js";
 
 export const LEGACY_SAVE_STORAGE_KEY = "neighborhood_explorer_save_v1";
 export const LEGACY_HOUSE_COLORS_STORAGE_KEY = "neighborhood_explorer_house_colors_v1";
@@ -142,6 +143,11 @@ export function getNeighborhoodMeta(worldMap) {
   const labelMode = rawMeta.labelMode || "bilingual";
   const biomeConfig = getBiomeConfig(worldMap);
   const biome = rawMeta.biome || biomeConfig.id;
+  const heroProfile = rawMeta.heroProfile
+    ? resolveHeroProfile(rawMeta.heroProfile)
+    : isNewton
+      ? { ...DEFAULT_HERO_PROFILE }
+      : resolveHeroProfile({ ...DEFAULT_HERO_PROFILE, headwear: "none", tzitzit: false });
   const id =
     (rawMeta.id && String(rawMeta.id).trim()) ||
     (isNewton ? "newton_centre" : slugifyNeighborhood(`${homeAddress}_${townName}`));
@@ -154,6 +160,7 @@ export function getNeighborhoodMeta(worldMap) {
     cityShort,
     homeAddress,
     heroName,
+    heroProfile,
     countryCode,
     drivingSide,
     labelMode,

@@ -933,7 +933,13 @@ async function boot() {
     sunWash: biomeConfig?.sunWash || null,
   });
 
-  const atlas = buildSnesSpriteAtlas(biomeConfig?.paletteKey || "autumn_golden", biomeConfig);
+  const atlas = buildSnesSpriteAtlas(biomeConfig?.paletteKey || "autumn_golden", biomeConfig, {
+    heroProfile: neighborhoodMeta.heroProfile,
+    localChants: streetLife.localChants,
+    bikerChants: streetLife.bikerChants,
+    heroName,
+    cityShort,
+  });
   await k.registerSprites(atlas);
 
   function resetToHome() {
@@ -5471,6 +5477,22 @@ async function boot() {
           : `cat_${cr.variant}_${cr.facing}_${step}`;
         drawX = Math.round(cr.x - 10);
         drawY = Math.round(cr.y - 15 + totalHop);
+      } else if (cr.kind === "parakeet") {
+        spr = isAlert ? `parakeet_alert_${cr.facing}` : `parakeet_${cr.facing}_${step}`;
+        drawX = Math.round(cr.x - 9);
+        drawY = Math.round(cr.y - 16 + totalHop);
+      } else if (cr.kind === "hyrax") {
+        spr = isAlert ? `hyrax_alert_${cr.facing}` : `hyrax_${cr.facing}_${step}`;
+        drawX = Math.round(cr.x - 10);
+        drawY = Math.round(cr.y - 13 + totalHop);
+      } else if (cr.kind === "arctic_fox" || cr.kind === "red_fox") {
+        spr = isAlert ? `${cr.kind}_alert_${cr.facing}` : `${cr.kind}_${cr.facing}_${step}`;
+        drawX = Math.round(cr.x - 12);
+        drawY = Math.round(cr.y - 16 + totalHop);
+      } else if (cr.kind === "roadrunner") {
+        spr = isAlert ? `roadrunner_alert_${cr.facing}` : `roadrunner_${cr.facing}_${step}`;
+        drawX = Math.round(cr.x - 12);
+        drawY = Math.round(cr.y - 17 + totalHop);
       } else {
         // Runaway dog with animated trailing leash behind collar (58x38 native -> 29x19 logical)
         spr = isAlert
