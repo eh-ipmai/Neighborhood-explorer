@@ -99,6 +99,14 @@ import { computeRoadTileMarkings } from "./road_markings.js";
 import { createVectorRoadRenderer } from "./vector_roads.js";
 import { getNavigationSubgrid } from "./subgrid.js";
 import { getNeighborhoodMeta } from "./neighborhood_meta.js";
+import {
+  BUILTIN_NEWTON_ID,
+  getActiveNeighborhoodId,
+  setActiveNeighborhoodId,
+  loadNeighborhoodPack,
+  saveNeighborhoodPack,
+} from "./generator/pack_store.js";
+import { validateNeighborhoodPack } from "./generator/pack_builder.js";
 
 const VIEW_W = 320;
 const VIEW_H = 180;
@@ -321,13 +329,70 @@ function buildNeighborhoodProps(
   };
 }
 
-async function boot() {
+async function loadActiveNeighborhoodData() {
+  // 1. Optional URL ?pack=<path-or-url> lets families host or share a portable neighborhood_pack.json!
+  const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const packUrl = params?.get("pack");
+  if (packUrl) {
+    try {
+      const remotePack = await loadJson(packUrl);
+      const check = validateNeighborhoodPack(remotePack);
+      if (check.valid) {
+        await saveNeighborhoodPack(remotePack).catch(() => {});
+        if (remotePack.meta?.id) setActiveNeighborhoodId(remotePack.meta.id);
+        return {
+          worldMap: remotePack.worldMap,
+          landmarks: remotePack.landmarks || [],
+          quests: remotePack.quests || [],
+          baseHouseColors: remotePack.houseColors || {},
+          activePack: remotePack,
+        };
+      }
+    } catch (err) {
+      console.warn("Could not load ?pack= URL, falling back to local/default neighborhood:", err);
+    }
+  }
+
+  // 2. Check if user selected a saved custom neighborhood from the in-browser Studio (IndexedDB)
+  const requestedId = params?.get("neighborhood") || getActiveNeighborhoodId();
+  if (requestedId && requestedId !== BUILTIN_NEWTON_ID) {
+    try {
+      const savedPack = await loadNeighborhoodPack(requestedId);
+      const check = validateNeighborhoodPack(savedPack);
+      if (check.valid) {
+        setActiveNeighborhoodId(requestedId);
+        return {
+          worldMap: savedPack.worldMap,
+          landmarks: savedPack.landmarks || [],
+          quests: savedPack.quests || [],
+          baseHouseColors: savedPack.houseColors || {},
+          activePack: savedPack,
+        };
+      }
+    } catch (err) {
+      console.warn("Could not load saved custom neighborhood, falling back to default:", err);
+    }
+    setActiveNeighborhoodId(BUILTIN_NEWTON_ID);
+  }
+
+  // 3. Default built-in neighborhood from ./data/* (Newton Centre or CLI-generated data/)
   const [worldMap, landmarks, quests, baseHouseColors] = await Promise.all([
     loadJson("./data/world_map.json"),
     loadJson("./data/landmarks.json").catch(() => []),
     loadJson("./data/quests.json").catch(() => []),
     loadJson("./data/house_colors.json").catch(() => ({})),
   ]);
+  return {
+    worldMap,
+    landmarks,
+    quests,
+    baseHouseColors,
+    activePack: null,
+  };
+}
+
+async function boot() {
+  const { worldMap, landmarks, quests, baseHouseColors, activePack } = await loadActiveNeighborhoodData();
 
   const neighborhoodMeta = getNeighborhoodMeta(worldMap);
   const houseColorsStorageKey = neighborhoodMeta.houseColorsStorageKey || HOUSE_COLORS_STORAGE_KEY;
