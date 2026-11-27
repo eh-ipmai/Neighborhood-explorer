@@ -354,8 +354,8 @@ test("Universal Prayer Book naming & quests/items from all local religions work 
   const html = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf8");
   assert.ok(html.includes("📖 Prayer Book (K)"), "Touch button should say Prayer Book (K)");
   assert.equal(html.includes("📖 Siddur"), false, "Touch button should no longer say Siddur");
-  const topRightMatch = html.match(/<div id="top-right-stack">([\s\S]*?)<div id="tools-drawer"/);
-  assert.ok(topRightMatch && topRightMatch[1].includes('id="btn-studio-hud"'), "Top-right HUD should expose a direct Build Neighborhood button");
+  const topCenterMatch = html.match(/<div id="top-center-bar">([\s\S]*?)<\/div>/);
+  assert.ok(topCenterMatch && topCenterMatch[1].includes('id="btn-studio-hud"'), "Top-center HUD bar should expose a direct Build Neighborhood button");
   assert.equal(ITEM_CATALOG.pocket_siddur.name, "Pocket Prayer Book");
 
   const dispel = performSiddurDispel({ spookyChars: [], turkeys: [], critters: [] }, { x: 0, y: 0 });
