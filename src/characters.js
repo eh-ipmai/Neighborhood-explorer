@@ -18,6 +18,8 @@
  *  - Matching 32-bit 44x52 Neighborhood NPCs!
  */
 
+import { LOCAL_FLAIR_PROFILES, getLocalFlairProfile } from "./local_flair.js";
+
 export const HERO_OUTFITS = {
   polo: { id: "polo", label: "Polo & Kippah", shortLabel: "Polo", icon: "👕" },
   baseball: { id: "baseball", label: "Little League", shortLabel: "Baseball", icon: "⚾" },
@@ -2269,18 +2271,118 @@ export const PROTESTOR_BIOME_STYLES = {
       { skin: ["#f0c299", "#ffdbb8"], top: "#e8a82e", topHi: "#ffd066", topDark: "#ad7615", bottom: "#3a4559", bottomHi: "#556480", shoe: "#e84855", hair: "#734224", headType: "none", head: "#734224", headDark: "#4a2914", accent: "#2b6ec9", accentDark: "#1a4687", signBg: "#fff8eb", signStripe: "#d95b26" },
     ],
   },
+  paris_france: {
+    id: "paris_france",
+    topStyle: "breton_stripes",
+    bottomStyle: "pants",
+    shoeStyle: "boots",
+    neckStyle: "scarf",
+    variants: [
+      { skin: ["#f5caa0", "#ffe0bd"], topStyle: "breton_stripes", top: "#f7f5f0", topHi: "#ffffff", topDark: "#1c3c73", bottom: "#202838", bottomHi: "#36435e", shoe: "#3b2316", hair: "#3b2417", headType: "beret", head: "#c92a35", headDark: "#80151d", accent: "#d9343f", accentDark: "#941d25", mustache: true, signBg: "#fff9ed", signStripe: "#244778" },
+      { skin: ["#f0c299", "#ffdbb8"], topStyle: "trench", top: "#c49a62", topHi: "#e0ba82", topDark: "#876539", bottom: "#262d3d", bottomHi: "#3d4861", shoe: "#2e1d14", hair: "#593520", headType: "beret", head: "#223b66", headDark: "#132340", accent: "#f0e6d2", accentDark: "#bfa984", glasses: true, signBg: "#fff6e6", signStripe: "#c92a35" },
+      { skin: ["#e6b68c", "#fad0aa"], topStyle: "trench", top: "#7d2638", topHi: "#a63a50", topDark: "#4f1420", bottom: "#1e222e", bottomHi: "#343b4f", shoe: "#241914", hair: "#241b18", headType: "beret", head: "#262b38", headDark: "#13161f", accent: "#f2c64b", accentDark: "#ba8f22", sunglasses: true, signBg: "#fff8eb", signStripe: "#244778" },
+    ],
+  },
+  brooklyn_nyc: {
+    id: "brooklyn_nyc",
+    topStyle: "hoodie_vest",
+    bottomStyle: "pants",
+    shoeStyle: "sneakers",
+    neckStyle: "none",
+    variants: [
+      { skin: ["#f5cca4", "#ffe3c2"], topStyle: "bekishe", shoeStyle: "boots", neckStyle: "white_collar", top: "#1e212b", topHi: "#323747", topDark: "#0f1117", bottom: "#171921", bottomHi: "#282c38", shoe: "#14141a", hair: "#2b1d14", headType: "hasidic_fedora", head: "#1a1c24", headDark: "#0d0e14", accent: "#f7f8fa", accentDark: "#d4dae6", beard: true, payot: true, glasses: true, signBg: "#fff9e8", signStripe: "#244778" },
+      { skin: ["#e6b58a", "#fad0a8"], topStyle: "flannel", shoeStyle: "sneakers", neckStyle: "none", top: "#9c352f", topHi: "#c94e47", topDark: "#5e1c18", bottom: "#2a384d", bottomHi: "#415473", shoe: "#f2efe6", hair: "#4f311c", headType: "beanie", head: "#d9922b", headDark: "#945f14", accent: "#294f47", accentDark: "#19332d", beard: true, glasses: true, signBg: "#fff6d6", signStripe: "#9c352f" },
+      { skin: ["#c98c60", "#e3a77b"], topStyle: "hoodie_vest", shoeStyle: "sneakers", neckStyle: "hoodie", top: "#244375", topHi: "#3b65a8", topDark: "#15284a", bottom: "#2b303d", bottomHi: "#444b5e", shoe: "#f7f5f0", hair: "#1d1715", headType: "cap", head: "#182c4f", headDark: "#0d1a30", accent: "#f2c64b", accentDark: "#b58b1f", signBg: "#f2f7ff", signStripe: "#d95b26" },
+    ],
+  },
+  london_uk: {
+    id: "london_uk",
+    topStyle: "trench",
+    bottomStyle: "pants",
+    shoeStyle: "boots",
+    neckStyle: "scarf",
+    variants: [
+      { skin: ["#f7d4b2", "#ffe6cc"], topStyle: "trench", top: "#3b4252", topHi: "#576178", topDark: "#232833", bottom: "#1d222e", bottomHi: "#323a4d", shoe: "#241a16", hair: "#593b25", headType: "bowler", head: "#1f222b", headDark: "#101218", accent: "#b52b38", accentDark: "#7a1822", mustache: true, signBg: "#fff9f0", signStripe: "#b52b38" },
+      { skin: ["#f0c299", "#ffdbb8"], topStyle: "trench", top: "#d9a52e", topHi: "#f5c856", topDark: "#966d17", bottom: "#24344d", bottomHi: "#3b5275", shoe: "#2b4d3e", hair: "#8c4a26", headType: "flat_cap", head: "#2f614d", headDark: "#1b3b2e", accent: "#244778", accentDark: "#152b4a", signBg: "#f2f7ff", signStripe: "#244778" },
+      { skin: ["#d69a6c", "#edb488"], topStyle: "nordic_sweater", top: "#243d63", topHi: "#3c5f94", topDark: "#142540", bottom: "#363842", bottomHi: "#505463", shoe: "#3d261a", hair: "#241c1a", headType: "flat_cap", head: "#6e472b", headDark: "#452a17", accent: "#e85d4a", accentDark: "#a83324", glasses: true, signBg: "#fff8eb", signStripe: "#b52b38" },
+    ],
+  },
+  italy_rome: {
+    id: "italy_rome",
+    topStyle: "short_shirt",
+    bottomStyle: "pants",
+    shoeStyle: "boots",
+    neckStyle: "scarf",
+    variants: [
+      { skin: ["#e6b58a", "#fad0a8"], topStyle: "short_shirt", top: "#f5efe0", topHi: "#ffffff", topDark: "#c7bda8", bottom: "#2b4770", bottomHi: "#446aa3", shoe: "#5c341d", hair: "#241914", headType: "none", head: "#241914", headDark: "#120c0a", accent: "#2e8c52", accentDark: "#d93b36", sunglasses: true, signBg: "#fff9eb", signStripe: "#2e8c52" },
+      { skin: ["#f0c097", "#ffdbb8"], topStyle: "breton_stripes", top: "#ffffff", topHi: "#ffffff", topDark: "#c9382e", bottom: "#262b38", bottomHi: "#3f4659", shoe: "#3b2316", hair: "#332018", headType: "flat_cap", head: "#f7f5f0", headDark: "#c9c4b8", accent: "#2d8c52", accentDark: "#1c5e35", mustache: true, signBg: "#fff6e6", signStripe: "#c9382e" },
+      { skin: ["#dda57a", "#f2bf96"], topStyle: "trench", top: "#29527a", topHi: "#4277ab", topDark: "#18334f", bottom: "#8c7a5b", bottomHi: "#b39f7d", shoe: "#4a2a18", hair: "#1f1715", headType: "vespa_helmet", head: "#d93b36", headDark: "#8f1e1a", accent: "#f7f5f0", accentDark: "#c9c4b8", sunglasses: true, signBg: "#fff8eb", signStripe: "#2e8c52" },
+    ],
+  },
+  texas_southwest: {
+    id: "texas_southwest",
+    topStyle: "flannel",
+    bottomStyle: "pants",
+    shoeStyle: "boots",
+    neckStyle: "bandana",
+    variants: [
+      { skin: ["#e8b88e", "#fad2ae"], topStyle: "flannel", top: "#c94d24", topHi: "#f07246", topDark: "#852d10", bottom: "#2e4b73", bottomHi: "#486fa6", shoe: "#5c341a", hair: "#4f2f1a", headType: "cowboy_hat", head: "#d9b984", headDark: "#9c7c4c", accent: "#d93b36", accentDark: "#941d19", mustache: true, signBg: "#fff5e0", signStripe: "#c94d24" },
+      { skin: ["#d99e70", "#f0ba8d"], topStyle: "vest_shirt", top: "#3b65a8", topHi: "#618fd6", topDark: "#213c6b", bottom: "#363842", bottomHi: "#505463", shoe: "#4a2a16", hair: "#291c15", headType: "cowboy_hat", head: "#8f5232", headDark: "#5c311b", accent: "#26a8b8", accentDark: "#166f7a", sunglasses: true, signBg: "#fff8e8", signStripe: "#213c6b" },
+      { skin: ["#c98d60", "#e3a87b"], topStyle: "short_shirt", top: "#5e8f68", topHi: "#84ba8f", topDark: "#3a5e42", bottom: "#7d684c", bottomHi: "#a38b6a", shoe: "#54341e", hair: "#1e1715", headType: "wide_hat", head: "#e6cfa3", headDark: "#b09668", accent: "#f2c64b", accentDark: "#ba8f22", signBg: "#f7f0e0", signStripe: "#c94d24" },
+    ],
+  },
+  mexico_latin: {
+    id: "mexico_latin",
+    topStyle: "serape",
+    bottomStyle: "pants",
+    shoeStyle: "boots",
+    neckStyle: "none",
+    variants: [
+      { skin: ["#d6996b", "#edb487"], topStyle: "serape", top: "#d93b36", topHi: "#f56b5e", topDark: "#8f1e1b", bottom: "#2b384d", bottomHi: "#445775", shoe: "#4f2e1a", hair: "#1f1715", headType: "sombrero", head: "#e6c36e", headDark: "#b58e38", accent: "#289c68", accentDark: "#f2c64b", mustache: true, signBg: "#fff8e0", signStripe: "#228c4e" },
+      { skin: ["#e0a87b", "#f5c49c"], topStyle: "aloha", shoeStyle: "sandals", top: "#1e9ca8", topHi: "#4fd1de", topDark: "#12646e", bottom: "#8c7456", bottomHi: "#b39876", shoe: "#5c3920", hair: "#241916", headType: "sun_hat", head: "#f2d89c", headDark: "#c7a461", accent: "#ff6b8a", accentDark: "#ffe066", signBg: "#fff5eb", signStripe: "#d93b36" },
+      { skin: ["#cc8d5e", "#e6aa7c"], topStyle: "tee", bottomStyle: "shorts", shoeStyle: "sneakers", top: "#228c4e", topHi: "#3ec273", topDark: "#13572f", bottom: "#ffffff", bottomHi: "#ffffff", shoe: "#d93b36", hair: "#1c1514", headType: "cap", head: "#228c4e", headDark: "#13572f", accent: "#d93b36", accentDark: "#ffffff", signBg: "#f2fff5", signStripe: "#d93b36" },
+    ],
+  },
+  new_orleans_jazz: {
+    id: "new_orleans_jazz",
+    topStyle: "vest_shirt",
+    bottomStyle: "pants",
+    shoeStyle: "boots",
+    neckStyle: "scarf",
+    variants: [
+      { skin: ["#9c6340", "#bd815a"], topStyle: "vest_shirt", top: "#6b2d8c", topHi: "#944bc2", topDark: "#411759", bottom: "#1e222e", bottomHi: "#343b4f", shoe: "#241914", hair: "#1a1412", headType: "fedora_gold", head: "#291c38", headDark: "#140c1f", accent: "#f2c64b", accentDark: "#2ea854", sunglasses: true, signBg: "#fff8e6", signStripe: "#6b2d8c" },
+      { skin: ["#c98d60", "#e3a87b"], topStyle: "short_shirt", shoeStyle: "sneakers", top: "#2ea854", topHi: "#56d47d", topDark: "#196932", bottom: "#d9c496", bottomHi: "#f2e0b8", shoe: "#ffffff", hair: "#241914", headType: "sun_hat", head: "#f2d89c", headDark: "#c7a461", accent: "#7b32a8", accentDark: "#f2c64b", signBg: "#f5fff0", signStripe: "#2ea854" },
+      { skin: ["#e0a87b", "#f5c49c"], topStyle: "short_shirt", top: "#f2c64b", topHi: "#ffe07d", topDark: "#b58b1f", bottom: "#3b2459", bottomHi: "#5c3b87", shoe: "#3b2316", hair: "#3b2417", headType: "fedora_gold", head: "#6b2d8c", headDark: "#411759", accent: "#2ea854", accentDark: "#f2c64b", signBg: "#fff9e6", signStripe: "#6b2d8c" },
+    ],
+  },
 };
 
 /**
- * Resolve which biome/seasonal outfit style sidewalk protestors wear.
+ * Resolve which biome/seasonal/local-flair outfit style sidewalk protestors wear.
  */
-export function resolveProtestorOutfitStyle(biomeConfig = null, season = "fall") {
+export function resolveProtestorOutfitStyle(biomeConfig = null, season = "fall", localFlairId = null) {
   // Backwards-compatible support for legacy climate strings ("cold" | "warm" | "mild")
   if (typeof biomeConfig === "string") {
     if (PROTESTOR_BIOME_STYLES[biomeConfig]) return biomeConfig;
     if (biomeConfig === "cold") return "winter_parka";
     if (biomeConfig === "warm") return "israel_jerusalem";
     return "new_england_autumn";
+  }
+
+  // City / cultural Local Flair overrides generic biome when provided!
+  if (localFlairId && LOCAL_FLAIR_PROFILES[localFlairId]) {
+    const flairStyle = LOCAL_FLAIR_PROFILES[localFlairId].protestStyleId;
+    if (flairStyle && PROTESTOR_BIOME_STYLES[flairStyle]) {
+      // Only override with winter_parka on snowy ground unless it's Brooklyn/Nordic (which already handle cold!)
+      if (
+        biomeConfig?.hasSnowGround &&
+        flairStyle !== "brooklyn_nyc" &&
+        flairStyle !== "winter_parka"
+      ) {
+        return "winter_parka";
+      }
+      return flairStyle;
+    }
   }
 
   const id = biomeConfig?.id || "";
@@ -2309,8 +2411,510 @@ export function resolveProtestorOutfitStyle(biomeConfig = null, season = "fall")
 }
 
 /**
+ * Shared 32-bit character legs, footwear, torso, neck, head, headwear & facial-detail painter
+ * used by both Biome/Flair Sidewalk Protestors and Friendly Sidewalk Locals!
+ */
+function draw32BitCharacterCore(g, cx, topY, th, styleCfg, { stride = 0, mouthMode = "smile", armMode = "none" } = {}) {
+  const skinMid = th.skin?.[0] || LIAM_PAL.skinMid;
+  const skinHi = th.skin?.[1] || LIAM_PAL.skinHi;
+  const topStyle = th.topStyle || styleCfg.topStyle || "jacket";
+  const bottomStyle = th.bottomStyle || styleCfg.bottomStyle || "pants";
+  const shoeStyle = th.shoeStyle || styleCfg.shoeStyle || "boots";
+  const neckStyle = th.neckStyle !== undefined ? th.neckStyle : styleCfg.neckStyle || "none";
+  const mittens = Boolean(th.mittens ?? styleCfg.mittens);
+  const handCol = mittens ? th.head : skinMid;
+  const handMat = mittens ? "cap" : "skin";
+
+  // 1. Legs & Footwear
+  const legPositions = [
+    { lx: cx - 5 - stride, isFront: false },
+    { lx: cx + 1 + stride, isFront: true },
+  ];
+  for (const { lx, isFront } of legPositions) {
+    const legCol = th.bottom;
+    const legHi = isFront ? th.bottomHi : th.bottom;
+    const legW = bottomStyle === "wide_pants" ? 6 : 5;
+
+    if (bottomStyle === "shorts") {
+      g.rect(lx, topY + 33, legW, 6, legCol, "pants");
+      g.rect(lx + 1, topY + 34, 2, 4, legHi, "pants");
+      g.rect(lx + 1, topY + 39, 3, 5, skinMid, "skin");
+      g.rect(lx + 2, topY + 39, 1, 4, skinHi, "skin");
+    } else if (bottomStyle === "snowpants") {
+      g.rect(lx, topY + 33, 6, 11, legCol, "pants");
+      g.rect(lx + 1, topY + 34, 3, 9, legHi, "pants");
+      g.rect(lx, topY + 38, 6, 1, "#121926", "pants");
+    } else {
+      g.rect(lx, topY + 33, legW, 11, legCol, "pants");
+      g.rect(lx + 1, topY + 34, 2, 9, legHi, "pants");
+    }
+
+    if (shoeStyle === "sandals") {
+      g.rect(lx, topY + 44, 6, 2, th.shoe, "shoe");
+      g.rect(lx + 1, topY + 43, 4, 1, skinMid, "skin");
+      g.rect(lx + 2, topY + 43, 2, 1, th.shoe, "shoe");
+    } else if (shoeStyle === "snowboots") {
+      g.rect(lx - 1, topY + 42, 7, 2, "#f0f4fa", "scarf");
+      g.rect(lx - 1, topY + 44, 7, 3, th.shoe, "shoe");
+    } else if (shoeStyle === "sneakers") {
+      g.rect(lx - 1, topY + 43, 7, 3, th.shoe, "shoe");
+      g.rect(lx - 1, topY + 45, 7, 2, "#d8e0eb", "shoe");
+      g.rect(lx + 1, topY + 43, 3, 1, th.topHi, "shoe");
+    } else {
+      g.rect(lx - 1, topY + 43, 7, 4, th.shoe, "shoe");
+    }
+  }
+
+  // 2. Torso Silhouette tailored to biome / cultural flair!
+  if (topStyle === "bekishe") {
+    // Classic Hasidic / Yerushalmi long tailored black coat (bekishe/kapote) with crisp white shirt V-neck!
+    g.rect(cx - 7, topY + 21, 14, 19, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 16, th.topHi, "polo");
+    g.rect(cx - 7, topY + 38, 14, 2, th.topDark, "polo");
+    // Crisp white shirt triangle visible at chest!
+    g.rect(cx - 1, topY + 21, 4, 5, "#ffffff", "scarf");
+    g.rect(cx, topY + 26, 2, 2, "#e8edf5", "scarf");
+    // Subtle dark coat buttons & gartel waist line
+    g.rect(cx - 7, topY + 31, 14, 2, th.topDark, "polo");
+    g.rect(cx + 2, topY + 27, 2, 2, th.topDark, "polo");
+    g.rect(cx + 2, topY + 34, 2, 2, th.topDark, "polo");
+  } else if (topStyle === "breton_stripes") {
+    // Iconic Parisian marinière / Italian pizzeria crisp horizontal striped shirt!
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
+    for (let sy = topY + 23; sy <= topY + 31; sy += 3) {
+      g.rect(cx - 7, sy, 14, 2, th.topDark, "polo");
+    }
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+  } else if (topStyle === "flannel") {
+    // Plaid flannel shirt (Brooklyn hipster / New England autumn / Texas western!)
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
+    for (let fy = topY + 23; fy <= topY + 31; fy += 3) {
+      g.rect(cx - 7, fy, 14, 1, th.topDark, "polo");
+    }
+    for (let fx = cx - 5; fx <= cx + 5; fx += 4) {
+      g.rect(fx, topY + 21, 1, 12, th.topDark, "polo");
+    }
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+  } else if (topStyle === "hoodie_vest") {
+    // Cozy hoodie under a quilted puffer vest (Brooklyn classic / Boston iced-coffee look!)
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 10, 10, th.topHi, "polo");
+    g.rect(cx - 7, topY + 25, 14, 1, th.topDark, "polo");
+    g.rect(cx - 7, topY + 29, 14, 1, th.topDark, "polo");
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+    g.rect(cx + 1, topY + 22, 1, 10, th.accent, "scarf"); // zipper glint
+  } else if (topStyle === "yukata") {
+    // Traditional East Asian festival yukata / hanbok wrap with bold obi sash!
+    g.rect(cx - 7, topY + 21, 14, 16, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 13, th.topHi, "polo");
+    g.line(cx - 3, topY + 21, cx + 3, topY + 28, "#ffffff", "scarf");
+    g.line(cx + 3, topY + 21, cx - 2, topY + 28, th.topDark, "polo");
+    // Vibrant obi waist sash!
+    g.rect(cx - 7, topY + 28, 14, 4, th.accent, "scarf");
+    g.rect(cx - 7, topY + 30, 14, 1, th.accentDark, "scarf");
+    g.rect(cx - 7, topY + 35, 14, 2, th.topDark, "polo");
+  } else if (topStyle === "serape") {
+    // Festive colorful striped serape poncho!
+    g.rect(cx - 8, topY + 21, 16, 14, th.top, "polo");
+    g.rect(cx - 8, topY + 24, 16, 2, th.accentDark, "scarf");
+    g.rect(cx - 8, topY + 27, 16, 2, th.accent, "scarf");
+    g.rect(cx - 8, topY + 30, 16, 2, "#ffffff", "scarf");
+    g.rect(cx - 8, topY + 33, 16, 2, th.topDark, "polo");
+  } else if (topStyle === "trench") {
+    g.rect(cx - 7, topY + 21, 14, 16, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 13, th.topHi, "polo");
+    g.rect(cx - 7, topY + 35, 14, 2, th.topDark, "polo");
+    g.rect(cx + 1, topY + 26, 2, 2, th.topDark, "polo");
+    g.rect(cx + 1, topY + 30, 2, 2, th.topDark, "polo");
+    g.rect(cx - 7, topY + 29, 14, 2, th.topDark, "polo");
+  } else if (topStyle === "parka") {
+    g.rect(cx - 8, topY + 21, 16, 14, th.top, "polo");
+    g.rect(cx - 6, topY + 22, 11, 11, th.topHi, "polo");
+    g.rect(cx - 8, topY + 25, 16, 1, th.topDark, "polo");
+    g.rect(cx - 8, topY + 29, 16, 1, th.topDark, "polo");
+    g.rect(cx - 8, topY + 33, 16, 2, th.topDark, "polo");
+    g.rect(cx - 7, topY + 19, 14, 3, "#f5f8fc", "scarf");
+    g.rect(cx - 6, topY + 20, 12, 1, "#dce6f2", "scarf");
+  } else if (topStyle === "aloha") {
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+    g.rect(cx - 4, topY + 24, 2, 2, th.accent, "scarf");
+    g.rect(cx + 1, topY + 27, 2, 2, th.accentDark, "scarf");
+    g.rect(cx - 3, topY + 29, 2, 2, th.accentDark, "scarf");
+    g.rect(cx + 3, topY + 23, 2, 2, th.accent, "scarf");
+  } else if (topStyle === "nordic_sweater") {
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
+    g.rect(cx - 7, topY + 24, 14, 4, th.accentDark, "scarf");
+    for (let nx = cx - 6; nx <= cx + 5; nx += 3) {
+      g.rect(nx, topY + 25, 2, 2, th.accent, "scarf");
+    }
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+  } else if (topStyle === "vest_shirt") {
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
+    g.rect(cx - 6, topY + 22, 12, 10, "#d9c496", "scarf");
+    g.rect(cx - 4, topY + 23, 3, 9, th.topHi, "polo");
+    g.rect(cx + 1, topY + 26, 4, 3, "#bfa370", "scarf");
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+  } else if (topStyle === "streetwear") {
+    g.rect(cx - 7, topY + 21, 14, 12, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 9, th.topHi, "polo");
+    g.rect(cx - 2, topY + 22, 4, 11, th.accent, "scarf");
+    g.rect(cx - 7, topY + 32, 14, 2, th.accent, "scarf");
+    g.rect(cx - 7, topY + 31, 14, 1, th.topDark, "polo");
+  } else if (topStyle === "short_shirt" || topStyle === "tee") {
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+    if (topStyle === "short_shirt") {
+      g.line(cx + 1, topY + 22, cx + 1, topY + 32, th.topDark, "polo");
+      g.rect(cx - 4, topY + 25, 3, 3, th.topDark, "polo");
+    } else if (th.accent) {
+      g.rect(cx - 6, topY + 25, 12, 2, th.accent, "scarf");
+    }
+  } else {
+    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
+    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
+    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
+  }
+
+  // 3. Neck accessory
+  if (neckStyle === "scarf") {
+    g.rect(cx - 6, topY + 20, 12, 3, th.accent, "scarf");
+    g.rect(cx + 1, topY + 23, 3, 6, th.accentDark, "scarf");
+  } else if (neckStyle === "bandana") {
+    g.rect(cx - 5, topY + 20, 11, 2, th.accent, "scarf");
+    g.rect(cx - 2, topY + 22, 7, 2, th.accent, "scarf");
+    g.rect(cx, topY + 24, 4, 2, th.accentDark, "scarf");
+  } else if (neckStyle === "collar") {
+    g.rect(cx - 4, topY + 20, 9, 2, th.topHi, "polo");
+  } else if (neckStyle === "white_collar") {
+    g.rect(cx - 4, topY + 20, 9, 2, "#ffffff", "scarf");
+  } else if (neckStyle === "hoodie") {
+    g.rect(cx - 6, topY + 20, 12, 2, th.topDark, "polo");
+    g.rect(cx, topY + 22, 1, 4, th.accent, "scarf");
+    g.rect(cx + 3, topY + 22, 1, 4, th.accent, "scarf");
+  }
+
+  // 4. Sculpted side-ish head + headwear, facial hair & expression!
+  g.ellipse(cx, topY + 12, 7.2, 7.4, skinMid, "skin");
+  g.ellipse(cx + 2, topY + 11, 4.4, 4.6, skinHi, "skin");
+  g.rect(cx + 6, topY + 13, 2, 2, skinMid, "skin");
+  g.rect(cx - 7, topY + 8, 6, 8, th.hair, "hair");
+
+  // Optional side curls (payot) & neat full beard (Hasidic Brooklyn / Yerushalmi / hipster!)
+  if (th.payot) {
+    g.rect(cx - 2, topY + 11, 2, 8, th.hair, "hair");
+    g.set(cx - 1, topY + 18, th.hair, "hair");
+  }
+  if (th.beard) {
+    g.ellipse(cx + 2.5, topY + 18.2, 5.2, 3.2, th.hair, "hair");
+    g.rect(cx - 1, topY + 15, 3, 4, th.hair, "hair");
+  }
+
+  // Headwear!
+  const ht = th.headType || "beanie";
+  if (ht === "hasidic_fedora") {
+    // Classic wide-brim black Hasidic / Yerushalmi fedora hat with pinched crown & silk band!
+    g.rect(cx - 10, topY + 7, 20, 2, th.headDark, "cap");
+    g.rect(cx - 9, topY + 6, 18, 2, th.head, "cap");
+    g.rect(cx - 6, topY + 1, 12, 6, th.head, "cap");
+    g.rect(cx - 5, topY + 5, 10, 1, "#2f3445", "scarf"); // subtle satin hatband
+  } else if (ht === "bowler") {
+    // Classic rounded British bowler hat with upturned brim!
+    g.ellipse(cx - 1, topY + 4.5, 6.2, 4.2, th.head, "cap");
+    g.rect(cx - 9, topY + 7, 18, 2, th.headDark, "cap");
+    g.set(cx - 9, topY + 6, th.head, "cap");
+    g.set(cx + 8, topY + 6, th.head, "cap");
+  } else if (ht === "cowboy_hat") {
+    // Classic wide upturned Stetson cowboy hat with leather band!
+    g.rect(cx - 11, topY + 7, 22, 2, th.headDark, "cap");
+    g.rect(cx - 12, topY + 6, 3, 2, th.head, "cap");
+    g.rect(cx + 9, topY + 6, 3, 2, th.head, "cap");
+    g.rect(cx - 5, topY + 1, 10, 6, th.head, "cap");
+    g.rect(cx - 2, topY + 1, 4, 2, th.headDark, "cap"); // center crease
+    g.rect(cx - 5, topY + 5, 10, 2, th.accent, "scarf");
+  } else if (ht === "sombrero") {
+    // Festive wide-brim embroidered sombrero!
+    g.ellipse(cx, topY + 7.5, 13.0, 2.5, th.headDark, "cap");
+    g.ellipse(cx, topY + 7.0, 12.2, 1.9, th.head, "cap");
+    g.ellipse(cx, topY + 3.5, 5.2, 4.0, th.head, "cap");
+    g.rect(cx - 10, topY + 7, 20, 1, th.accent, "scarf");
+    g.rect(cx - 5, topY + 5, 10, 2, th.top, "scarf");
+  } else if (ht === "vespa_helmet") {
+    // Retro glossy Italian open-face scooter helmet with chrome rim!
+    g.ellipse(cx - 1, topY + 7.5, 8.2, 5.4, th.head, "cap");
+    g.ellipse(cx - 1, topY + 5.0, 5.6, 2.4, "#ff7a70", "cap");
+    g.rect(cx - 8, topY + 9, 16, 2, "#e8eef5", "scarf");
+  } else if (ht === "fedora_gold") {
+    // Jazzy New Orleans Mardi Gras fedora with gold ribbon!
+    g.rect(cx - 10, topY + 7, 20, 2, th.headDark, "cap");
+    g.rect(cx - 6, topY + 2, 12, 5, th.head, "cap");
+    g.rect(cx - 6, topY + 5, 12, 2, "#f2c64b", "scarf");
+  } else if (ht === "pom_beanie") {
+    g.ellipse(cx - 2, topY + 1, 2.5, 2.2, th.accent, "scarf");
+    g.ellipse(cx - 1, topY + 6.5, 7.6, 4.6, th.head, "cap");
+    g.rect(cx - 8, topY + 8, 16, 2, th.headDark, "cap");
+  } else if (ht === "sun_hat" || ht === "wide_hat") {
+    g.ellipse(cx, topY + 8, 11.2, 2.3, th.headDark, "cap");
+    g.ellipse(cx, topY + 7.5, 10.4, 1.8, th.head, "cap");
+    g.ellipse(cx - 1, topY + 5, 6.2, 3.2, th.head, "cap");
+    g.rect(cx - 6, topY + 6, 12, 2, th.accent, "scarf");
+  } else if (ht === "bucket_hat") {
+    g.ellipse(cx - 1, topY + 5.5, 6.4, 3.4, th.head, "cap");
+    g.rect(cx - 9, topY + 7, 18, 2, th.head, "cap");
+    g.rect(cx - 8, topY + 8, 17, 2, th.headDark, "cap");
+  } else if (ht === "cap") {
+    g.ellipse(cx - 1, topY + 6.5, 7.4, 4.4, th.head, "cap");
+    g.rect(cx - 7, topY + 8, 15, 2, th.headDark, "cap");
+    g.rect(cx + 4, topY + 8, 8, 2, th.headDark, "cap");
+  } else if (ht === "kippah") {
+    g.ellipse(cx, topY + 7.5, 7.4, 4.2, th.hair, "hair");
+    g.ellipse(cx - 3, topY + 4.5, 4.5, 2.6, th.head, "cap");
+    g.rect(cx - 7, topY + 6, 8, 1, th.headDark, "cap");
+  } else if (ht === "beret") {
+    g.ellipse(cx - 2, topY + 5.5, 8.6, 3.6, th.head, "cap");
+    g.ellipse(cx - 3, topY + 4.5, 5.5, 2.0, th.head, "cap");
+    g.rect(cx - 2, topY + 2, 2, 2, th.headDark, "cap");
+    g.rect(cx - 7, topY + 8, 14, 1, th.headDark, "cap");
+  } else if (ht === "flat_cap") {
+    g.ellipse(cx - 1, topY + 6.5, 8.2, 3.4, th.head, "cap");
+    g.rect(cx - 7, topY + 8, 17, 2, th.headDark, "cap");
+  } else if (ht === "alpine_hat") {
+    g.ellipse(cx - 1, topY + 5.5, 6.8, 3.6, th.head, "cap");
+    g.rect(cx - 9, topY + 8, 18, 2, th.headDark, "cap");
+    g.rect(cx - 5, topY + 6, 10, 2, th.accentDark, "scarf");
+    g.line(cx - 5, topY + 6, cx - 9, topY + 1, th.accent, "scarf");
+  } else if (ht === "none") {
+    g.ellipse(cx - 1, topY + 7.2, 7.6, 4.4, th.hair, "hair");
+    g.rect(cx + 1, topY + 7, 6, 2, th.hair, "hair");
+  } else {
+    g.ellipse(cx - 1, topY + 6.5, 7.6, 4.6, th.head, "cap");
+    g.rect(cx - 8, topY + 8, 16, 2, th.headDark || "#291a18", "cap");
+  }
+
+  // Face: eye, glasses/sunglasses, mustache & mouth!
+  if (th.sunglasses) {
+    g.rect(cx + 2, topY + 11, 6, 3, "#141824", "cap");
+    g.rect(cx + 3, topY + 11, 4, 2, "#38b6ff", "scarf");
+    g.set(cx + 3, topY + 11, "#ffffff", "scarf");
+  } else {
+    g.rect(cx + 3, topY + 10, 4, 1, "#291a18", "skin");
+    g.rect(cx + 4, topY + 11, 2, 3, "#1c1312", "skin");
+    g.set(cx + 4, topY + 11, "#ffffff", "skin");
+    if (th.glasses) {
+      g.rect(cx + 3, topY + 10, 4, 1, "#242836", "cap");
+      g.rect(cx + 3, topY + 14, 4, 1, "#242836", "cap");
+      g.set(cx + 2, topY + 11, "#242836", "cap");
+    }
+  }
+  if (th.mustache) {
+    g.rect(cx + 3, topY + 14, 5, 2, th.hair, "hair");
+    g.set(cx + 8, topY + 13, th.hair, "hair"); // jaunty curled tip!
+  }
+  if (mouthMode === "shout") {
+    g.rect(cx + 4, topY + 15, 3, 3, "#7a1c1c", "skin");
+    g.rect(cx + 5, topY + 15, 2, 1, "#ffffff", "skin");
+  } else if (mouthMode === "eat") {
+    g.rect(cx + 4, topY + 15, 3, 2, "#8c2b2b", "skin");
+    g.set(cx + 5, topY + 15, "#ffffff", "skin");
+  } else {
+    g.rect(cx + 4, topY + 16, 3, 1, "#8c2b2b", "skin");
+  }
+
+  return { skinMid, skinHi, topStyle, handCol, handMat };
+}
+
+/**
+ * Draw iconic held cultural props (French baguette & steaming espresso, Hasidic sefer,
+ * Brooklyn pizza slice & iced latte, London teacup & umbrella, gelato, ramen, taco, guitar,
+ * giant Bavarian pretzel, cinnamon bun & cocoa, surfboard, jazz trumpet!) for Friendly Locals.
+ */
+function drawHeldCulturalProp(g, cx, topY, propType, isEating = false, skinMid = LIAM_PAL.skinMid, topHi = "#5499f0", isShortSleeve = false) {
+  const liftY = isEating ? -4 : 0;
+
+  // Back-arm carried items (baguette tucked under arm, rolled umbrella, surfboard, canvas tote!)
+  if (propType === "baguette_coffee") {
+    // Iconic crusty golden French baguette tucked under back arm!
+    g.line(cx - 10, topY + 17, cx - 2, topY + 31, "#d9923b", "prop");
+    g.line(cx - 9, topY + 17, cx - 1, topY + 31, "#f2c266", "prop");
+    g.line(cx - 11, topY + 18, cx - 3, topY + 32, "#a8681f", "prop");
+    // Diagonal artisan score marks on the baguette crust!
+    g.set(cx - 9, topY + 19, "#8c5216", "prop");
+    g.set(cx - 7, topY + 22, "#8c5216", "prop");
+    g.set(cx - 5, topY + 25, "#8c5216", "prop");
+  } else if (propType === "tea_umbrella") {
+    // Classic British rolled black brolly with curved wood crook handle!
+    g.line(cx - 9, topY + 25, cx - 12, topY + 45, "#1f2430", "prop");
+    g.line(cx - 8, topY + 25, cx - 11, topY + 44, "#363e52", "prop");
+    g.rect(cx - 10, topY + 22, 4, 2, "#8c542c", "prop");
+    g.rect(cx - 11, topY + 23, 2, 2, "#b87442", "prop");
+  } else if (propType === "iced_latte_tote") {
+    // Williamsburg canvas tote bag slung on back shoulder!
+    g.rect(cx - 12, topY + 26, 7, 10, "#f0e6cf", "prop");
+    g.rect(cx - 11, topY + 27, 5, 8, "#fff8e8", "prop");
+    g.rect(cx - 10, topY + 29, 3, 2, "#294f47", "prop"); // indie bookstore logo!
+  } else if (propType === "surfboard_smoothie") {
+    // Colorful coastal surfboard tucked under back arm!
+    g.ellipse(cx - 11, topY + 26, 3.2, 13.0, "#38d9c8", "prop");
+    g.rect(cx - 11, topY + 15, 2, 22, "#ffe066", "prop");
+    g.rect(cx - 13, topY + 24, 5, 3, "#ff5c7a", "prop");
+  }
+
+  // Front arm reaching forward (lifts up when sipping/eating/playing!)
+  const armY = topY + 22 + Math.round(liftY * 0.5);
+  if (isShortSleeve) {
+    g.rect(cx + 4, armY, 3, 4, topHi, "polo");
+    g.rect(cx + 7, armY, 5, 3, skinMid, "skin");
+  } else {
+    g.rect(cx + 4, armY, 6, 4, topHi, "polo");
+    g.rect(cx + 9, armY, 3, 3, skinMid, "skin");
+  }
+
+  const hx = cx + 11;
+  const hy = topY + 19 + liftY;
+
+  if (propType === "baguette_coffee" || propType === "croissant_coffee" || propType === "teacup_saucer" || propType === "tea_umbrella") {
+    // Steaming porcelain café espresso / teacup (+ optional crescent croissant!)
+    g.rect(hx - 1, hy + 4, 8, 2, "#d8e0eb", "prop"); // saucer
+    g.rect(hx, hy, 6, 5, "#ffffff", "prop");
+    g.rect(hx + 1, hy + 1, 4, 2, propType.includes("tea") ? "#b56724" : "#4a2614", "prop");
+    g.rect(hx + 6, hy + 1, 2, 3, "#d8e0eb", "prop"); // handle
+    // Rising hot coffee/tea steam wisps!
+    g.set(hx + 1, hy - 2 - (isEating ? 1 : 0), "#ffffff", "steam");
+    g.set(hx + 4, hy - 3, "#e8f4ff", "steam");
+    if (propType === "croissant_coffee") {
+      // Flaky golden crescent croissant!
+      g.ellipse(hx - 2, hy + 1, 3.5, 2.2, "#e09c38", "prop");
+      g.rect(hx - 3, hy, 3, 1, "#ffe08a", "prop");
+    }
+  } else if (propType === "sefer_book") {
+    // Gold-trimmed hardcover sefer / pocket book held warmly!
+    g.rect(hx - 3, hy - 1, 7, 10, "#1c3363", "prop");
+    g.rect(hx - 2, hy, 5, 8, "#2b4f94", "prop");
+    g.rect(hx - 1, hy + 2, 3, 1, "#f4d35e", "prop"); // gold title bar
+    g.rect(hx - 1, hy + 5, 3, 1, "#f4d35e", "prop");
+    g.rect(hx + 3, hy, 1, 8, "#fff6db", "prop"); // cream pages
+  } else if (propType === "ny_pizza_coffee") {
+    // Iconic folded NY cheese & pepperoni pizza slice + blue Anthora cup!
+    g.rect(hx - 1, hy - 1, 7, 2, "#d9923b", "prop"); // golden crust
+    g.rect(hx, hy + 1, 6, 2, "#f5cf47", "prop"); // melty cheese
+    g.rect(hx + 1, hy + 3, 4, 2, "#f5cf47", "prop");
+    g.rect(hx + 2, hy + 5, 2, 2, "#e09c2b", "prop");
+    g.set(hx + 2, hy + 2, "#d93226", "prop"); // pepperoni
+    g.set(hx + 4, hy + 1, "#d93226", "prop");
+  } else if (propType === "iced_coffee" || propType === "iced_latte_tote" || propType === "surfboard_smoothie") {
+    // Clear iced coffee / oat-latte / smoothie cup with green straw & ice cubes!
+    const drinkCol = propType === "surfboard_smoothie" ? "#ff5c8a" : propType === "iced_latte_tote" ? "#d6b084" : "#8c542c";
+    g.rect(hx + 2, hy - 5, 1, 5, "#38c97e", "prop"); // straw
+    g.rect(hx, hy - 1, 6, 2, "#e8f4ff", "prop"); // dome lid
+    g.rect(hx, hy + 1, 6, 6, drinkCol, "prop");
+    g.rect(hx + 1, hy + 2, 2, 2, "#ffffff", "prop"); // ice cube glint
+    g.rect(hx + 3, hy + 4, 2, 2, "#f2e2c4", "prop"); // milk swirl
+  } else if (propType === "cider_donut_cup") {
+    // Warm cinnamon-sugar New England cider donut!
+    g.ellipse(hx + 2, hy + 2, 4.0, 4.0, "#b86b2e", "prop");
+    g.ellipse(hx + 2, hy + 1.5, 3.0, 2.8, "#d98c44", "prop");
+    g.ellipse(hx + 2, hy + 2, 1.3, 1.3, "#4a2614", "prop"); // donut hole
+    g.set(hx + 1, hy, "#fff0c2", "prop");
+    g.set(hx + 4, hy + 1, "#fff0c2", "prop");
+  } else if (propType === "falafel_pita") {
+    // Stuffed Israeli pita with crispy falafel balls, salad & tahini drizzle!
+    g.ellipse(hx + 2, hy + 3, 4.5, 4.2, "#ebd09c", "prop");
+    g.rect(hx - 1, hy - 1, 2, 2, "#6e421e", "prop"); // falafel ball
+    g.rect(hx + 2, hy - 2, 2, 2, "#7d4c24", "prop");
+    g.rect(hx + 4, hy - 1, 2, 2, "#3da854", "prop"); // fresh herbs
+    g.rect(hx, hy, 5, 1, "#fff9eb", "prop"); // white tahini!
+  } else if (propType === "matkot_paddle") {
+    // Wooden Tel Aviv beach matkot paddle + bouncing ball!
+    g.rect(hx + 1, hy + 3, 2, 4, "#d93b36", "prop"); // red grip
+    g.ellipse(hx + 2, hy - 2, 4.2, 4.6, "#d99b4e", "prop");
+    g.ellipse(hx + 2, hy - 2, 2.6, 3.0, "#f0bd75", "prop");
+    if (isEating) {
+      g.ellipse(hx + 6, hy - 7, 1.6, 1.6, "#242836", "prop"); // bouncing matkot ball!
+    }
+  } else if (propType === "gelato_espresso") {
+    // Double-scoop Italian pistachio & strawberry gelato cone!
+    g.rect(hx + 1, hy + 2, 4, 5, "#d99848", "prop");
+    g.rect(hx + 2, hy + 5, 2, 3, "#b5742c", "prop");
+    g.ellipse(hx + 3, hy, 3.4, 2.6, "#88e07c", "prop"); // pistachio scoop!
+    g.ellipse(hx + 2.5, hy - 3, 2.8, 2.2, "#ff8ca8", "prop"); // strawberry scoop!
+    g.set(hx + 3, hy - 4, "#ffffff", "prop");
+  } else if (propType === "pizza_box") {
+    // Hot steaming Italian Margherita pizzeria box carried flat!
+    g.rect(hx - 4, hy + 1, 13, 4, "#f2e2c2", "prop");
+    g.rect(hx - 3, hy + 2, 11, 2, "#fff5e0", "prop");
+    g.rect(hx, hy + 2, 4, 1, "#d9362e", "prop"); // pizzeria emblem
+    g.set(hx + 1, hy - 1, "#ffffff", "steam");
+    g.set(hx + 5, hy - 2, "#fff0cc", "steam");
+  } else if (propType === "ramen_bowl") {
+    // Steaming Japanese lacquer ramen bowl with golden noodles & chopsticks!
+    g.ellipse(hx + 2, hy + 3, 5.0, 3.2, "#c92a2a", "prop");
+    g.rect(hx - 2, hy + 1, 9, 2, "#f2c64b", "prop"); // golden noodles
+    g.set(hx + 2, hy, "#ffffff", "prop"); // narutomaki
+    g.line(hx + 3, hy - 3, hx + 8, hy - 1, "#8c542c", "prop"); // chopsticks
+    g.set(hx, hy - 2, "#ffffff", "steam");
+    g.set(hx + 3, hy - 4, "#e8f4ff", "steam");
+  } else if (propType === "fan_matcha") {
+    // Open patterned Japanese folding fan (sensu)!
+    g.ellipse(hx + 2, hy - 1, 5.2, 4.0, "#ff85a8", "prop");
+    g.rect(hx - 2, hy + 1, 9, 2, "#ffd966", "prop");
+    g.rect(hx + 1, hy + 2, 2, 3, "#8c542c", "prop");
+    g.set(hx + 2, hy - 2, "#ffffff", "prop");
+  } else if (propType === "onigiri_matcha") {
+    // Triangular white rice onigiri wrapped in dark green nori seaweed!
+    g.rect(hx + 1, hy - 2, 3, 2, "#ffffff", "prop");
+    g.rect(hx, hy, 5, 2, "#ffffff", "prop");
+    g.rect(hx - 1, hy + 2, 7, 3, "#ffffff", "prop");
+    g.rect(hx + 1, hy + 2, 3, 3, "#1b4228", "prop"); // nori strip!
+  } else if (propType === "taco_drink") {
+    // Crispy golden street taco with green lettuce & red salsa!
+    g.ellipse(hx + 2, hy + 2, 4.8, 3.0, "#f2c24b", "prop");
+    g.rect(hx - 1, hy, 7, 2, "#38b85c", "prop"); // lettuce/cilantro
+    g.rect(hx, hy - 1, 2, 1, "#e63946", "prop"); // salsa
+    g.rect(hx + 3, hy - 1, 2, 1, "#e63946", "prop");
+  } else if (propType === "acoustic_guitar") {
+    // Honey-wood acoustic guitar strapped across torso!
+    g.ellipse(cx + 1, topY + 29, 5.2, 4.4, "#c97a32", "prop");
+    g.ellipse(cx + 1, topY + 29, 2.0, 2.0, "#3b2010", "prop"); // soundhole
+    g.line(cx + 4, topY + 26, cx + 14, topY + 18 + liftY, "#6e3d19", "prop"); // fret neck!
+    g.rect(cx + 13, topY + 16 + liftY, 3, 3, "#4a2610", "prop"); // headstock
+  } else if (propType === "giant_pretzel") {
+    // Giant twisted golden Bavarian Brezel with salt crystals!
+    g.ellipse(hx + 2, hy + 1, 5.0, 4.2, "#a85c24", "prop");
+    g.ellipse(hx + 2, hy + 1, 3.6, 2.8, "#d48138", "prop");
+    g.rect(hx, hy, 2, 2, "#3b2316", "prop");
+    g.rect(hx + 3, hy, 2, 2, "#3b2316", "prop");
+    g.set(hx + 1, hy - 2, "#ffffff", "prop"); // coarse salt!
+    g.set(hx + 4, hy + 3, "#ffffff", "prop");
+  } else if (propType === "cocoa_bun") {
+    // Steaming Nordic hot cocoa mug + swirled cinnamon bun!
+    g.rect(hx, hy, 6, 6, "#d93b36", "prop");
+    g.rect(hx + 1, hy + 1, 4, 2, "#5c3018", "prop");
+    g.set(hx + 2, hy + 1, "#ffffff", "prop"); // marshmallow!
+    g.rect(hx + 6, hy + 1, 2, 3, "#d93b36", "prop");
+    g.set(hx + 1, hy - 2, "#ffffff", "steam");
+    g.set(hx + 4, hy - 3, "#e8f4ff", "steam");
+  } else if (propType === "brass_trumpet") {
+    // Gleaming golden New Orleans jazz trumpet!
+    g.rect(hx - 2, hy + 1, 9, 2, "#f2c64b", "prop");
+    g.rect(hx + 6, hy - 1, 3, 6, "#ffe07d", "prop"); // flared bell
+    g.rect(hx + 1, hy - 1, 3, 2, "#d9a024", "prop"); // valves
+    if (isEating) {
+      // Floating golden musical jazz notes!
+      g.rect(hx + 10, hy - 3, 2, 3, "#ffe066", "steam");
+      g.rect(hx + 11, hy - 5, 3, 1, "#ffe066", "steam");
+    }
+  }
+}
+
+/**
  * Bake 32-bit Pure Pixel Sidewalk Protestor waving a big cardboard picket sign + megaphone,
- * dressed in authentic biome-specific outfits, headwear, footwear & accessories!
+ * dressed in authentic biome & local-flair outfits, headwear, footwear & accessories!
  */
 function bake32BitProtestorRight(variant = 0, shoutFrame = 0, styleOrClimate = "new_england_autumn") {
   const w = 48;
@@ -2324,8 +2928,6 @@ function bake32BitProtestorRight(variant = 0, shoutFrame = 0, styleOrClimate = "
   const styleKey = resolveProtestorOutfitStyle(styleOrClimate);
   const styleCfg = PROTESTOR_BIOME_STYLES[styleKey] || PROTESTOR_BIOME_STYLES.new_england_autumn;
   const th = styleCfg.variants[variant % styleCfg.variants.length];
-  const skinMid = th.skin?.[0] || LIAM_PAL.skinMid;
-  const skinHi = th.skin?.[1] || LIAM_PAL.skinHi;
 
   // 1. Tall wooden picket-sign pole & BIG hand-painted cardboard protest sign held high!
   const poleX = cx - 8;
@@ -2341,233 +2943,17 @@ function bake32BitProtestorRight(variant = 0, shoutFrame = 0, styleOrClimate = "
   g.rect(signX + 19, signY + 3, 2, 6, th.signStripe, "sign");
   g.rect(signX + 19, signY + 11, 2, 2, th.signStripe, "sign");
 
-  // 2. Legs & Footwear tailored to biome (shorts + sandals, wide streetwear pants + white sneakers, snowpants + fur boots, trousers + boots)
-  const legPositions = [
-    { lx: cx - 5 - stride, isFront: false },
-    { lx: cx + 1 + stride, isFront: true },
-  ];
-  for (const { lx, isFront } of legPositions) {
-    const legCol = isFront ? th.bottom : th.bottom;
-    const legHi = isFront ? th.bottomHi : th.bottom;
-    const legW = styleCfg.bottomStyle === "wide_pants" ? 6 : 5;
+  // 2. Character body, headwear, clothing & expression!
+  const { skinMid, topStyle, handCol, handMat } = draw32BitCharacterCore(g, cx, topY, th, styleCfg, {
+    stride,
+    mouthMode: shoutFrame === 1 ? "shout" : "smile",
+  });
 
-    if (styleCfg.bottomStyle === "shorts") {
-      // Breezy summer/coastal shorts + sunlit lower leg!
-      g.rect(lx, topY + 33, legW, 6, legCol, "pants");
-      g.rect(lx + 1, topY + 34, 2, 4, legHi, "pants");
-      g.rect(lx + 1, topY + 39, 3, 5, skinMid, "skin");
-      g.rect(lx + 2, topY + 39, 1, 4, skinHi, "skin");
-    } else if (styleCfg.bottomStyle === "snowpants") {
-      // Insulated puffy winter snow trousers with quilted knee seam
-      g.rect(lx, topY + 33, 6, 11, legCol, "pants");
-      g.rect(lx + 1, topY + 34, 3, 9, legHi, "pants");
-      g.rect(lx, topY + 38, 6, 1, "#121926", "pants");
-    } else {
-      g.rect(lx, topY + 33, legW, 11, legCol, "pants");
-      g.rect(lx + 1, topY + 34, 2, 9, legHi, "pants");
-    }
-
-    // Biome footwear
-    if (styleCfg.shoeStyle === "sandals") {
-      // Strapped sandals / coastal flip-flops showing sunlit toes!
-      g.rect(lx, topY + 44, 6, 2, th.shoe, "shoe");
-      g.rect(lx + 1, topY + 43, 4, 1, skinMid, "skin");
-      g.rect(lx + 2, topY + 43, 2, 1, th.shoe, "shoe");
-    } else if (styleCfg.shoeStyle === "snowboots") {
-      // Fur-trimmed insulated winter snow boots!
-      g.rect(lx - 1, topY + 42, 7, 2, "#f0f4fa", "scarf");
-      g.rect(lx - 1, topY + 44, 7, 3, th.shoe, "shoe");
-    } else if (styleCfg.shoeStyle === "sneakers") {
-      // Crisp chunky modern sneakers with white sole & colored accent
-      g.rect(lx - 1, topY + 43, 7, 3, th.shoe, "shoe");
-      g.rect(lx - 1, topY + 45, 7, 2, "#d8e0eb", "shoe");
-      g.rect(lx + 1, topY + 43, 3, 1, th.topHi, "shoe");
-    } else {
-      g.rect(lx - 1, topY + 43, 7, 4, th.shoe, "shoe");
-    }
-  }
-
-  // 3. Back hand gripping picket pole (with cozy mittens in winter!) + Biome Torso Silhouette!
-  const handCol = styleCfg.mittens ? th.head : skinMid;
-  const handMat = styleCfg.mittens ? "cap" : "skin";
+  // Back hand gripping picket pole
   g.rect(poleX - 1, topY + 19 + signLift, 5, 4, handCol, handMat);
 
-  if (styleCfg.topStyle === "trench") {
-    // Chic European long tailored trench/peacoat extending slightly over hips + lapels & double buttons!
-    g.rect(cx - 7, topY + 21, 14, 16, th.top, "polo");
-    g.rect(cx - 5, topY + 22, 9, 13, th.topHi, "polo");
-    g.rect(cx - 7, topY + 35, 14, 2, th.topDark, "polo");
-    g.rect(cx + 1, topY + 26, 2, 2, th.topDark, "polo"); // coat buttons
-    g.rect(cx + 1, topY + 30, 2, 2, th.topDark, "polo");
-    g.rect(cx - 7, topY + 29, 14, 2, th.topDark, "polo"); // tailored belt
-  } else if (styleCfg.topStyle === "parka") {
-    // Puffy quilted Arctic/Winter down parka with fluffy white faux-fur hood collar!
-    g.rect(cx - 8, topY + 21, 16, 14, th.top, "polo");
-    g.rect(cx - 6, topY + 22, 11, 11, th.topHi, "polo");
-    g.rect(cx - 8, topY + 25, 16, 1, th.topDark, "polo"); // puffer baffle seams
-    g.rect(cx - 8, topY + 29, 16, 1, th.topDark, "polo");
-    g.rect(cx - 8, topY + 33, 16, 2, th.topDark, "polo");
-    // Fluffy fur-trimmed hood collar resting on shoulders
-    g.rect(cx - 7, topY + 19, 14, 3, "#f5f8fc", "scarf");
-    g.rect(cx - 6, topY + 20, 12, 1, "#dce6f2", "scarf");
-  } else if (styleCfg.topStyle === "aloha") {
-    // Vibrant Tropical Aloha / Floral short-sleeve shirt with pixel hibiscus blossoms!
-    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
-    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
-    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
-    // Crisp colorful floral pattern dots
-    g.rect(cx - 4, topY + 24, 2, 2, th.accent, "scarf");
-    g.rect(cx + 1, topY + 27, 2, 2, th.accentDark, "scarf");
-    g.rect(cx - 3, topY + 29, 2, 2, th.accentDark, "scarf");
-    g.rect(cx + 3, topY + 23, 2, 2, th.accent, "scarf");
-  } else if (styleCfg.topStyle === "nordic_sweater") {
-    // Cozy Alpine / Nordic Fair Isle sweater with pixel snowflake chest band + mountain vest!
-    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
-    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
-    // Iconic Fair Isle zigzag chest band!
-    g.rect(cx - 7, topY + 24, 14, 4, th.accentDark, "scarf");
-    for (let nx = cx - 6; nx <= cx + 5; nx += 3) {
-      g.rect(nx, topY + 25, 2, 2, th.accent, "scarf");
-    }
-    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
-  } else if (styleCfg.topStyle === "vest_shirt") {
-    // Desert breathable cotton shirt with light canvas utility vest & chest pocket
-    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
-    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
-    g.rect(cx - 6, topY + 22, 12, 10, "#d9c496", "scarf");
-    g.rect(cx - 4, topY + 23, 3, 9, th.topHi, "polo"); // open vest front
-    g.rect(cx + 1, topY + 26, 4, 3, "#bfa370", "scarf"); // utility pocket
-    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
-  } else if (styleCfg.topStyle === "streetwear") {
-    // East Asian Urban layered overshirt/cardigan with crisp white tee peek at hem & collar!
-    g.rect(cx - 7, topY + 21, 14, 12, th.top, "polo");
-    g.rect(cx - 5, topY + 22, 9, 9, th.topHi, "polo");
-    g.rect(cx - 2, topY + 22, 4, 11, th.accent, "scarf"); // crisp inner white tee
-    g.rect(cx - 7, topY + 32, 14, 2, th.accent, "scarf"); // layered white tee hem
-    g.rect(cx - 7, topY + 31, 14, 1, th.topDark, "polo");
-  } else if (styleCfg.topStyle === "short_shirt" || styleCfg.topStyle === "tee") {
-    // Breezy Mediterranean / Summer short-sleeve shirt or casual tee
-    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
-    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
-    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
-    if (styleCfg.topStyle === "short_shirt") {
-      // Crisp button placket & chest pocket
-      g.line(cx + 1, topY + 22, cx + 1, topY + 32, th.topDark, "polo");
-      g.rect(cx - 4, topY + 25, 3, 3, th.topDark, "polo");
-    } else if (th.accent) {
-      // Casual tee chest stripe!
-      g.rect(cx - 6, topY + 25, 12, 2, th.accent, "scarf");
-    }
-  } else {
-    // Classic New England Autumn jacket
-    g.rect(cx - 7, topY + 21, 14, 13, th.top, "polo");
-    g.rect(cx - 5, topY + 22, 9, 10, th.topHi, "polo");
-    g.rect(cx - 7, topY + 32, 14, 2, th.topDark, "polo");
-  }
-
-  // Neck accessory (knit scarf, desert bandana, collar, or hoodie cords)
-  if (styleCfg.neckStyle === "scarf") {
-    g.rect(cx - 6, topY + 20, 12, 3, th.accent, "scarf");
-    g.rect(cx + 1, topY + 23, 3, 6, th.accentDark, "scarf");
-  } else if (styleCfg.neckStyle === "bandana") {
-    // Triangular desert neckerchief bandana!
-    g.rect(cx - 5, topY + 20, 11, 2, th.accent, "scarf");
-    g.rect(cx - 2, topY + 22, 7, 2, th.accent, "scarf");
-    g.rect(cx, topY + 24, 4, 2, th.accentDark, "scarf");
-  } else if (styleCfg.neckStyle === "collar") {
-    g.rect(cx - 4, topY + 20, 9, 2, th.topHi, "polo");
-  } else if (styleCfg.neckStyle === "hoodie") {
-    g.rect(cx - 6, topY + 20, 12, 2, th.topDark, "polo");
-    g.rect(cx, topY + 22, 1, 4, th.accent, "scarf");
-    g.rect(cx + 3, topY + 22, 1, 4, th.accent, "scarf");
-  }
-
-  // 4. Sculpted side-ish head + biome-specific headwear, sunglasses/glasses & shouting expression!
-  g.ellipse(cx, topY + 12, 7.2, 7.4, skinMid, "skin");
-  g.ellipse(cx + 2, topY + 11, 4.4, 4.6, skinHi, "skin");
-  g.rect(cx + 6, topY + 13, 2, 2, skinMid, "skin"); // nose
-  g.rect(cx - 7, topY + 8, 6, 8, th.hair, "hair");
-
-  // Biome Headwear!
-  const ht = th.headType || "beanie";
-  if (ht === "pom_beanie") {
-    g.ellipse(cx - 2, topY + 1, 2.5, 2.2, th.accent, "scarf"); // fluffy pom-pom!
-    g.ellipse(cx - 1, topY + 6.5, 7.6, 4.6, th.head, "cap");
-    g.rect(cx - 8, topY + 8, 16, 2, th.headDark, "cap");
-  } else if (ht === "sun_hat" || ht === "wide_hat") {
-    // Wide woven straw sun hat or desert safari brim!
-    g.ellipse(cx, topY + 8, 11.2, 2.3, th.headDark, "cap");
-    g.ellipse(cx, topY + 7.5, 10.4, 1.8, th.head, "cap");
-    g.ellipse(cx - 1, topY + 5, 6.2, 3.2, th.head, "cap");
-    g.rect(cx - 6, topY + 6, 12, 2, th.accent, "scarf"); // colorful hatband!
-  } else if (ht === "bucket_hat") {
-    // Classic Mediterranean / East Asian urban bucket hat with sloped brim!
-    g.ellipse(cx - 1, topY + 5.5, 6.4, 3.4, th.head, "cap");
-    g.rect(cx - 9, topY + 7, 18, 2, th.head, "cap");
-    g.rect(cx - 8, topY + 8, 17, 2, th.headDark, "cap");
-  } else if (ht === "cap") {
-    // Baseball / sun cap with visor jutting forward!
-    g.ellipse(cx - 1, topY + 6.5, 7.4, 4.4, th.head, "cap");
-    g.rect(cx - 7, topY + 8, 15, 2, th.headDark, "cap");
-    g.rect(cx + 4, topY + 8, 8, 2, th.headDark, "cap");
-  } else if (ht === "kippah") {
-    // Full dark hair crown + neat knitted kippah at back-crown!
-    g.ellipse(cx, topY + 7.5, 7.4, 4.2, th.hair, "hair");
-    g.ellipse(cx - 3, topY + 4.5, 4.5, 2.6, th.head, "cap");
-    g.rect(cx - 7, topY + 6, 8, 1, th.headDark, "cap");
-  } else if (ht === "beret") {
-    // Chic tilted European artist/cafe beret!
-    g.ellipse(cx - 2, topY + 5.5, 8.6, 3.6, th.head, "cap");
-    g.ellipse(cx - 3, topY + 4.5, 5.5, 2.0, th.head, "cap");
-    g.rect(cx - 2, topY + 2, 2, 2, th.headDark, "cap"); // beret stem!
-    g.rect(cx - 7, topY + 8, 14, 1, th.headDark, "cap");
-  } else if (ht === "flat_cap") {
-    // Classic European wool flat cap / newsboy cap!
-    g.ellipse(cx - 1, topY + 6.5, 8.2, 3.4, th.head, "cap");
-    g.rect(cx - 7, topY + 8, 17, 2, th.headDark, "cap");
-  } else if (ht === "alpine_hat") {
-    // Alpine mountain felt cap with jaunty red feather!
-    g.ellipse(cx - 1, topY + 5.5, 6.8, 3.6, th.head, "cap");
-    g.rect(cx - 9, topY + 8, 18, 2, th.headDark, "cap");
-    g.rect(cx - 5, topY + 6, 10, 2, th.accentDark, "scarf");
-    g.line(cx - 5, topY + 6, cx - 9, topY + 1, th.accent, "scarf"); // jaunty feather!
-  } else if (ht === "none") {
-    // Neat uncovered hair silhouette (sunny coastal / East Asian urban look)
-    g.ellipse(cx - 1, topY + 7.2, 7.6, 4.4, th.hair, "hair");
-    g.rect(cx + 1, topY + 7, 6, 2, th.hair, "hair");
-  } else {
-    // Default ribbed knit beanie
-    g.ellipse(cx - 1, topY + 6.5, 7.6, 4.6, th.head, "cap");
-    g.rect(cx - 8, topY + 8, 16, 2, th.headDark || "#291a18", "cap");
-  }
-
-  // Face: expressive eye, optional sunglasses / urban round glasses & shouting mouth!
-  if (th.sunglasses) {
-    g.rect(cx + 2, topY + 11, 6, 3, "#141824", "cap");
-    g.rect(cx + 3, topY + 11, 4, 2, "#38b6ff", "scarf");
-    g.set(cx + 3, topY + 11, "#ffffff", "scarf");
-  } else {
-    g.rect(cx + 3, topY + 10, 4, 1, "#291a18", "skin");
-    g.rect(cx + 4, topY + 11, 2, 3, "#1c1312", "skin");
-    g.set(cx + 4, topY + 11, "#ffffff", "skin");
-    if (th.glasses) {
-      g.rect(cx + 3, topY + 10, 4, 1, "#242836", "cap");
-      g.rect(cx + 3, topY + 14, 4, 1, "#242836", "cap");
-      g.set(cx + 2, topY + 11, "#242836", "cap");
-    }
-  }
-  if (shoutFrame === 1) {
-    g.rect(cx + 4, topY + 15, 3, 3, "#7a1c1c", "skin");
-    g.rect(cx + 5, topY + 15, 2, 1, "#ffffff", "skin");
-  } else {
-    g.rect(cx + 4, topY + 16, 3, 2, "#8c2b2b", "skin");
-  }
-
-  // 5. Front arm (short sleeve shows sunlit forearm on warm/summer biomes!) holding a loud MEGAPHONE!
-  const isShortSleeve =
-    styleCfg.topStyle === "tee" ||
-    styleCfg.topStyle === "aloha" ||
-    styleCfg.topStyle === "short_shirt";
+  // Front arm holding a loud MEGAPHONE!
+  const isShortSleeve = topStyle === "tee" || topStyle === "aloha" || topStyle === "short_shirt";
   if (isShortSleeve) {
     g.rect(cx + 4, topY + 22, 3, 4, th.topHi, "polo");
     g.rect(cx + 7, topY + 22, 5, 3, skinMid, "skin");
@@ -2593,6 +2979,40 @@ function bake32BitProtestorRight(variant = 0, shoutFrame = 0, styleOrClimate = "
     mega: "#421515",
     wave: "#a65912",
     polo: th.topDark,
+  });
+  return g.toCanvas(0.5, { cx: cx, cy: 60, rx: 10, ry: 3.0 });
+}
+
+/**
+ * Bake a Friendly 32-Bit Sidewalk Local (48x64 native @ 0.5 scale) dressed in unmistakable
+ * regional/city stereotypes & carrying iconic local props (baguette & coffee, Hasidic hat & sefer,
+ * NY pizza slice, London teacup & brolly, Italian gelato, Japanese ramen/fan, cowboy taco/guitar, etc.)!
+ * frame: 0 = walk A, 1 = walk B, 2 = pause to sip/eat/play prop!
+ */
+export function bake32BitLocalRight(localVariantCfg, frame = 0) {
+  const w = 48;
+  const h = 64;
+  const g = new PixelGrid(w, h);
+  const cx = 22;
+  const isEating = frame === 2;
+  const topY = isEating ? 13 : 14;
+  const stride = frame === 1 ? 2 : frame === 0 ? -1 : 0;
+  const th = localVariantCfg || LOCAL_FLAIR_PROFILES.neighborhood_classic.locals[0];
+
+  const { skinMid, topStyle } = draw32BitCharacterCore(g, cx, topY, th, th, {
+    stride,
+    mouthMode: isEating ? "eat" : "smile",
+  });
+
+  const isShortSleeve = topStyle === "tee" || topStyle === "aloha" || topStyle === "short_shirt";
+  drawHeldCulturalProp(g, cx, topY, th.heldProp || "iced_coffee", isEating, skinMid, th.topHi, isShortSleeve);
+
+  g.applySelOut({
+    ...LIAM_SELOUT,
+    scarf: "#4a3820",
+    prop: "#362010",
+    steam: "#94b4cc",
+    polo: th.topDark || "#1c2436",
   });
   return g.toCanvas(0.5, { cx: cx, cy: 60, rx: 10, ry: 3.0 });
 }
@@ -3055,7 +3475,8 @@ export function bake32BitStreetLifeSprites(chants = [], opts = {}) {
   const out = {};
   const biomeConfig = opts.biomeConfig || null;
   const season = opts.season || "fall";
-  const protestorStyle = resolveProtestorOutfitStyle(biomeConfig, season);
+  const activeLocalFlair = opts.localFlair ? getLocalFlairProfile(opts.localFlair) : null;
+  const protestorStyle = resolveProtestorOutfitStyle(biomeConfig, season, activeLocalFlair?.id || null);
 
   // Roving Wild Turkeys (strut left/right + dramatic puffed tail fan!)
   const tR0 = bake32BitTurkeyRight(0, false);
@@ -3124,7 +3545,7 @@ export function bake32BitStreetLifeSprites(chants = [], opts = {}) {
     out[`${kind}_alert_left`] = mirrorCanvasHorizontal(al);
   }
 
-  // 3 Sidewalk Protestor variants (waving signs & shouting into megaphones, dressed in biome-specific outfits!)
+  // 3 Sidewalk Protestor variants (waving signs & shouting into megaphones, dressed in biome & local-flair outfits!)
   for (let v = 0; v < 3; v++) {
     const pR0 = bake32BitProtestorRight(v, 0, protestorStyle);
     const pR1 = bake32BitProtestorRight(v, 1, protestorStyle);
@@ -3132,6 +3553,40 @@ export function bake32BitStreetLifeSprites(chants = [], opts = {}) {
     out[`protestor_${v}_right_1`] = pR1;
     out[`protestor_${v}_left_0`] = mirrorCanvasHorizontal(pR0);
     out[`protestor_${v}_left_1`] = mirrorCanvasHorizontal(pR1);
+  }
+
+  // 3 Friendly Sidewalk Local variants (strolling & pausing to sip coffee, munch baguettes/pizza/tacos/pretzels, or read!)
+  const resolvedLocalProfile = activeLocalFlair || getLocalFlairProfile(
+    biomeConfig?.id === "israel_jerusalem" || biomeConfig?.id === "israel_galilee"
+      ? "jerusalem_israel"
+      : biomeConfig?.id === "israel_coastal" || biomeConfig?.id === "israel_desert"
+        ? "tel_aviv_israel"
+        : biomeConfig?.id === "european_historic"
+          ? "european_classic"
+          : biomeConfig?.id === "east_asian_urban"
+            ? "tokyo_japan"
+            : biomeConfig?.id === "tundra"
+              ? "nordic_arctic"
+              : biomeConfig?.id === "alpine"
+                ? "germany_alpine"
+                : biomeConfig?.id === "southwest_desert"
+                  ? "texas_southwest"
+                  : biomeConfig?.id === "tropical_coastal"
+                    ? "california_tropical"
+                    : "boston_new_england"
+  );
+  const localVariants = resolvedLocalProfile.locals || LOCAL_FLAIR_PROFILES.neighborhood_classic.locals;
+  for (let v = 0; v < 3; v++) {
+    const lvCfg = localVariants[v % localVariants.length];
+    const lR0 = bake32BitLocalRight(lvCfg, 0);
+    const lR1 = bake32BitLocalRight(lvCfg, 1);
+    const lREat = bake32BitLocalRight(lvCfg, 2);
+    out[`local_${v}_right_0`] = lR0;
+    out[`local_${v}_right_1`] = lR1;
+    out[`local_${v}_right_eat`] = lREat;
+    out[`local_${v}_left_0`] = mirrorCanvasHorizontal(lR0);
+    out[`local_${v}_left_1`] = mirrorCanvasHorizontal(lR1);
+    out[`local_${v}_left_eat`] = mirrorCanvasHorizontal(lREat);
   }
 
   // 3 Spooky Graveyard Character archetypes (Skeleton, Phantom, Pumpkin Ghoul — walk + attack/lunge!)
@@ -3421,31 +3876,44 @@ export function bake32BitStreetLifeSprites(chants = [], opts = {}) {
     }
   });
 
-  // Crisp 32-bit pixel speech bubbles!
-  out.bubble_jogger_0 = bakePixelSpeechBubble("ON YOUR LEFT!!", {
-    bg: "#f4ffcf",
-    accent: "#d93820",
-    textColor: "#2e1a06",
-  });
-  out.bubble_jogger_1 = bakePixelSpeechBubble("TRACK!! MOVE IT!!", {
-    bg: "#fff0d1",
-    accent: "#e05b19",
-    textColor: "#3b1705",
-  });
-  out.bubble_jogger_2 = bakePixelSpeechBubble("SUB-3 MARATHON PACE!", {
-    bg: "#e6f8ff",
-    accent: "#1c72d9",
-    textColor: "#0e2647",
-  });
-  out.bubble_jogger_3 = bakePixelSpeechBubble("DON'T BREAK MY STRIDE!", {
-    bg: "#ffe8f2",
-    accent: "#d92b70",
-    textColor: "#420d22",
-  });
-  out.bubble_jogger_4 = bakePixelSpeechBubble("STRAVA SEGMENT PR!!", {
-    bg: "#fff4cc",
-    accent: "#fc4c02",
-    textColor: "#381604",
+  // Crisp 32-bit pixel speech bubbles (region & local-flair aware!)
+  const defaultJoggerChants = [
+    "ON YOUR LEFT!!",
+    "TRACK!! MOVE IT!!",
+    "SUB-3 MARATHON PACE!",
+    "DON'T BREAK MY STRIDE!",
+    "STRAVA SEGMENT PR!!",
+  ];
+  const activeJoggerChants =
+    Array.isArray(opts.joggerChants) && opts.joggerChants.length >= 5
+      ? opts.joggerChants
+      : defaultJoggerChants;
+  const joggerBubblePalettes = [
+    { bg: "#f4ffcf", accent: "#d93820", textColor: "#2e1a06" },
+    { bg: "#fff0d1", accent: "#e05b19", textColor: "#3b1705" },
+    { bg: "#e6f8ff", accent: "#1c72d9", textColor: "#0e2647" },
+    { bg: "#ffe8f2", accent: "#d92b70", textColor: "#420d22" },
+    { bg: "#fff4cc", accent: "#fc4c02", textColor: "#381604" },
+  ];
+  for (let ji = 0; ji < 5; ji++) {
+    out[`bubble_jogger_${ji}`] = bakePixelSpeechBubble(
+      activeJoggerChants[ji] || defaultJoggerChants[ji],
+      joggerBubblePalettes[ji]
+    );
+  }
+  const activeLocalBubbles = resolvedLocalProfile.localBubbles || LOCAL_FLAIR_PROFILES.neighborhood_classic.localBubbles;
+  const localBubblePalettes = [
+    { bg: "#fff8e8", accent: "#c94b36", textColor: "#2e1a0c" },
+    { bg: "#eef8ff", accent: "#245ca8", textColor: "#102847" },
+    { bg: "#f2fff5", accent: "#288c52", textColor: "#123820" },
+    { bg: "#fff3f8", accent: "#b8366e", textColor: "#3d1226" },
+    { bg: "#fffbe0", accent: "#c98c1e", textColor: "#3b2406" },
+  ];
+  activeLocalBubbles.forEach((line, li) => {
+    out[`bubble_local_${li}`] = bakePixelSpeechBubble(
+      line,
+      localBubblePalettes[li % localBubblePalettes.length]
+    );
   });
   out.bubble_jogger_whoa = bakePixelSpeechBubble("WHOA! NICE PACE!", {
     bg: "#e6fbff",

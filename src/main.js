@@ -901,8 +901,10 @@ async function boot() {
   const atlas = buildSnesSpriteAtlas(biomeConfig?.paletteKey || "autumn_golden", biomeConfig, {
     heroProfile: neighborhoodMeta.heroProfile,
     season: neighborhoodMeta.season,
+    localFlair: neighborhoodMeta.localFlair,
     localChants: streetLife.localChants,
     bikerChants: streetLife.bikerChants,
+    joggerChants: streetLife.joggerChants,
     heroName,
     cityShort,
   });
@@ -1595,6 +1597,30 @@ async function boot() {
       }
       if (nearby.kind === "protestor") {
         shareSnackWithProtestor(nearby);
+        return;
+      }
+      if (nearby.kind === "local") {
+        const res = interactWithStreetLife(streetLife, nearby, playerState.x, playerState.y, {});
+        if (res) {
+          playDialogueOpenSfx();
+          if (res.xpReward) {
+            questSystem.state.safetyXP += res.xpReward;
+            questSystem.save();
+          }
+          for (let i = 0; i < 5; i++) {
+            const ang = (i / 5) * Math.PI * 2;
+            leafParticles.push({
+              x: nearby.target.x,
+              y: nearby.target.y - 16,
+              vx: Math.cos(ang) * 18,
+              vy: Math.sin(ang) * 10 - 20,
+              life: 0.52,
+              sprite: i % 2 === 0 ? "fx_sparkle_gold" : "fx_music_note",
+              noGravity: true,
+            });
+          }
+          ui?.showSafetyToast(res.toast, 3400);
+        }
         return;
       }
       if (
@@ -5534,6 +5560,33 @@ async function boot() {
             const bSpr = atlas[bKey];
             const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 34;
             k.drawSprite(bKey, Math.round(footX - bwLog / 2), jyDraw - 10 + bob, 1, bbAngle, footX, footY);
+          }
+        },
+      });
+    }
+
+    // Friendly Sidewalk Locals celebrating unmistakable local flair (baguettes & coffee in Paris, Hasidic & hipsters & pizza in Brooklyn, tea & brollies in London, etc.!)
+    for (const loc of streetLife.locals || []) {
+      const locTx = loc.x / tileSize;
+      const locTy = loc.y / tileSize;
+      if (locTx < startX - 2 || locTx > endX + 2 || locTy < startY - 2 || locTy > endY + 2) continue;
+      const isEating = (loc.eatTimer || 0) > 0;
+      const frame = isEating ? "eat" : String(Math.floor(loc.animTimer) % 2);
+      const spr = `local_${loc.variant}_${loc.facing}_${frame}`;
+      const lxDraw = Math.round(loc.x - 12);
+      const lyDraw = Math.round(loc.y - 28);
+      const footX = Math.round(loc.x);
+      const footY = Math.round(loc.y + 3);
+      drawables.push({
+        sortY: depthOf(footX, footY),
+        draw: () => {
+          k.drawSprite(spr, lxDraw, lyDraw, 1, bbAngle, footX, footY);
+          if (loc.bubbleTimer > 0) {
+            const bob = Math.round(Math.sin(tSec * 8 + loc.x) * 1.1);
+            const bKey = loc.bubbleSprite || "bubble_local_0";
+            const bSpr = atlas[bKey];
+            const bwLog = bSpr ? bSpr.width * (bSpr.__pixelScale || 0.5) : 32;
+            k.drawSprite(bKey, Math.round(footX - bwLog / 2), lyDraw - 10 + bob, 1, bbAngle, footX, footY);
           }
         },
       });

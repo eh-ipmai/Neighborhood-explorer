@@ -15,6 +15,7 @@ import {
   formatInternationalAddress,
   isIsraelLocation,
 } from "../biomes.js";
+import { getLocalFlairProfile } from "../local_flair.js";
 
 /**
  * Respectful, kid-friendly registry of local faith traditions discovered from real OSM
@@ -690,6 +691,10 @@ export function generateLandmarksAndQuests({
     countryCode,
     townName: resolvedMeta.townName || cityShort,
   });
+  const localFlair = resolvedMeta.localFlair || getLocalFlairProfile({
+    origin: worldMap.origin,
+    meta: resolvedMeta,
+  });
 
   const margin = Math.max(6, Math.min(12, Math.floor(Math.min(width, height) * 0.04)));
   const minSpacing = Math.max(8, Math.min(14, Math.floor(Math.min(width, height) * 0.045)));
@@ -935,9 +940,32 @@ export function generateLandmarksAndQuests({
       healHearts = trad.healHearts;
       sprite = trad.sprite;
     } else if (isIsrael && (cand.category === "food_shop" || cand.category === "ice_cream_bakery")) {
+      if (localFlair?.localNpcNames?.length) {
+        npcName = localFlair.localNpcNames[countSoFar % localFlair.localNpcNames.length];
+      }
       dialogue = [
         `Shalom ${heroName}! Welcome to ${cand.name}! Fresh warm burekas, pita & treats right off the counter (+${tpl.healHearts || 2} hearts)!`,
         "We packed extra snacks in your bag too — press N to share with neighbors or feed friendly street cats!",
+      ];
+    } else if (
+      localFlair &&
+      localFlair.id !== "neighborhood_classic" &&
+      (cand.category === "food_shop" || cand.category === "ice_cream_bakery")
+    ) {
+      if (localFlair.localNpcNames?.length) {
+        npcName = localFlair.localNpcNames[countSoFar % localFlair.localNpcNames.length];
+      }
+      dialogue = [
+        `${localFlair.greeting}, ${heroName}! Welcome to ${cand.name}! Enjoy our famous ${localFlair.signatureFood} with ${localFlair.signatureDrink} (+${tpl.healHearts || 2} hearts)!`,
+        "We tucked extra local snacks in your pocket too — press N to share with hungry sidewalk marchers or critters!",
+      ];
+    } else if (localFlair && localFlair.id !== "neighborhood_classic" && cand.category === "civic") {
+      if (localFlair.localNpcNames?.length) {
+        npcName = localFlair.localNpcNames[(countSoFar + 2) % localFlair.localNpcNames.length];
+      }
+      dialogue = [
+        `${localFlair.greeting}, ${heroName}! Welcome to ${cand.name} right in the heart of ${cityShort}!`,
+        `Take this shiny Explorer Token — and don't forget to grab some ${localFlair.signatureFood} while exploring!`,
       ];
     }
     const lm = {

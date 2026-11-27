@@ -12,6 +12,7 @@ import {
   detectSeasonForLocation,
   detectLocalQuirks,
 } from "./biomes.js";
+import { detectLocalFlair, getLocalFlairProfile } from "./local_flair.js";
 import { DEFAULT_HERO_PROFILE, resolveHeroProfile } from "./characters.js";
 
 export const LEGACY_SAVE_STORAGE_KEY = "neighborhood_explorer_save_v1";
@@ -173,6 +174,17 @@ export function getNeighborhoodMeta(worldMap) {
     : isNewton
       ? { ...DEFAULT_HERO_PROFILE }
       : resolveHeroProfile({ ...DEFAULT_HERO_PROFILE, headwear: "none", tzitzit: false });
+  const localFlairId = detectLocalFlair({
+    lat: origin?.lat,
+    lon: origin?.lon,
+    countryCode,
+    townName,
+    address: homeAddress,
+    biomeId: biome,
+    preset,
+    explicitFlair: rawMeta.localFlair || "",
+  });
+  const localFlair = getLocalFlairProfile(localFlairId);
   const id =
     (rawMeta.id && String(rawMeta.id).trim()) ||
     (isNewton ? "newton_centre" : slugifyNeighborhood(`${homeAddress}_${townName}`));
@@ -193,6 +205,8 @@ export function getNeighborhoodMeta(worldMap) {
     season,
     quirks,
     biomeConfig,
+    localFlairId,
+    localFlair,
     saveStorageKey: isNewton
       ? LEGACY_SAVE_STORAGE_KEY
       : `neighborhood_explorer_save_${id}_v1`,

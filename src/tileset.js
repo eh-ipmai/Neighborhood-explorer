@@ -6820,7 +6820,9 @@ export function buildSnesSpriteAtlas(paletteName = "autumn_golden", biomeConfig 
     bake32BitStreetLifeSprites(activeChants, {
       biomeConfig,
       season: atlasOpts.season,
+      localFlair: atlasOpts.localFlair,
       bikerChants: atlasOpts.bikerChants,
+      joggerChants: atlasOpts.joggerChants,
       heroName: atlasOpts.heroName,
       cityShort: atlasOpts.cityShort,
     })

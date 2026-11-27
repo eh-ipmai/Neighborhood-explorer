@@ -16,6 +16,7 @@ import { buildGraveyardMask, getGraveyardGhostPos } from "./graveyards.js";
 import { getNavigationSubgrid } from "./subgrid.js";
 import { getNeighborhoodMeta } from "./neighborhood_meta.js";
 import { getBiomeConfig } from "./biomes.js";
+import { getLocalFlairProfile, formatLocalFlairChants } from "./local_flair.js";
 
 export const CRITTER_ARCHETYPES = {
   squirrel: {
@@ -196,13 +197,25 @@ export const JOGGER_CHANTS = [
 ];
 
 /**
- * Region-aware sidewalk marcher & cyclist chants so every country/climate feels alive!
+ * Region & local-flair aware sidewalk marcher, jogger & cyclist chants so every city/culture feels alive!
  */
-export function getRegionalStreetChants(biomeConfig = null, cityShort = "Town", isNewton = false) {
+export function getRegionalStreetChants(biomeConfig = null, cityShort = "Town", isNewton = false, localFlair = null) {
   if (isNewton) {
     return {
       protestChants: PROTEST_CHANTS,
       bikerChants: ["ON YOUR LEFT!", "SHARE THE ROAD!", "STRAVA PR!", "BIKE LANE!", "WATCH CARBON!"],
+      joggerChants: JOGGER_CHANTS,
+    };
+  }
+  if (localFlair && typeof localFlair === "object" && Array.isArray(localFlair.protestChants)) {
+    return {
+      protestChants: formatLocalFlairChants(localFlair.protestChants, cityShort),
+      bikerChants: Array.isArray(localFlair.bikerChants) && localFlair.bikerChants.length >= 5
+        ? localFlair.bikerChants
+        : ["ON YOUR LEFT!", "SHARE THE ROAD!", "STRAVA PR!", "BIKE LANE!", "WATCH CARBON!"],
+      joggerChants: Array.isArray(localFlair.joggerChants) && localFlair.joggerChants.length >= 5
+        ? localFlair.joggerChants
+        : JOGGER_CHANTS,
     };
   }
   const city = String(cityShort || "TOWN").toUpperCase().slice(0, 10);
@@ -220,6 +233,7 @@ export function getRegionalStreetChants(biomeConfig = null, cityShort = "Town", 
         `SHALOM ${city}!`,
       ],
       bikerChants: ["WATCH THE E-BIKE!", "BEEP BEEP!", "BIKE LANE!", "SABABA PACE!", "ON YOUR LEFT!"],
+      joggerChants: JOGGER_CHANTS,
     };
   }
   if (style === "tundra") {
@@ -235,6 +249,7 @@ export function getRegionalStreetChants(biomeConfig = null, cityShort = "Town", 
         `GO ${city}!`,
       ],
       bikerChants: ["FAT TIRE EXPRESS!", "ICE PATCH AHEAD!", "SNOW TIRES!", "ON YOUR LEFT!", "BRRR!!"],
+      joggerChants: JOGGER_CHANTS,
     };
   }
   if (style === "desert") {
@@ -250,6 +265,7 @@ export function getRegionalStreetChants(biomeConfig = null, cityShort = "Town", 
         `HONK FOR ${city}!`,
       ],
       bikerChants: ["DESERT CRUISER!", "HYDRATE!", "BIKE LANE!", "ON YOUR LEFT!", "SHARE THE ROAD!"],
+      joggerChants: JOGGER_CHANTS,
     };
   }
   if (style === "europe") {
@@ -265,6 +281,7 @@ export function getRegionalStreetChants(biomeConfig = null, cityShort = "Town", 
         `VIVA ${city}!`,
       ],
       bikerChants: ["RING RING!!", "CARGO BIKE!", "CYCLE LANE!", "ON YOUR LEFT!", "MIND THE COBBLES!"],
+      joggerChants: JOGGER_CHANTS,
     };
   }
   return {
@@ -272,6 +289,7 @@ export function getRegionalStreetChants(biomeConfig = null, cityShort = "Town", 
       c === "HONK FOR NEWTON!" ? `HONK FOR ${city}!` : c
     ),
     bikerChants: ["ON YOUR LEFT!", "SHARE THE ROAD!", "STRAVA PR!", "BIKE LANE!", "WATCH CARBON!"],
+    joggerChants: JOGGER_CHANTS,
   };
 }
 
@@ -373,28 +391,37 @@ export function buildStreetLife(
           : wildlifeStyle === "europe"
             ? ["red_fox", "cat", "dog"]
             : ["squirrel", "cat", "dog"];
-  const regionalChants = getRegionalStreetChants(biomeConfig, neighborhoodMeta.cityShort, neighborhoodMeta.isNewton);
+  const localFlair = neighborhoodMeta.localFlair || getLocalFlairProfile(worldMap);
+  const regionalChants = getRegionalStreetChants(
+    biomeConfig,
+    neighborhoodMeta.cityShort,
+    neighborhoodMeta.isNewton,
+    localFlair
+  );
   const localChants = regionalChants.protestChants;
   const bikerChants = regionalChants.bikerChants;
+  const joggerChants = regionalChants.joggerChants || JOGGER_CHANTS;
   const localQuips = neighborhoodMeta.isNewton
     ? PROTESTOR_QUIPS
-    : isIsraelWildlife
-      ? [
-          "Shalom neighbor! Marching for MORE FALAFEL & GLIDA really works up an appetite — got a snack to share?",
-          "We're marching peacefully for MORE SHADED PARKS & OLIVE TREES! A snack break sounds amazing!",
-          "Hey there, Explorer! Our tummies are rumbling — share a snack and we'll happily step aside!",
-          `FRESH BUREKAS FOR EVERY KID IN ${neighborhoodMeta.cityShort.toUpperCase()}! Speaking of which, got a snack?`,
-          "Ooh, strolling in the warm sunshine makes us super hungry! Got a snack from your kitchen?",
-          "Todah for saying hi, neighbor! If you have a snack to share, we'll gladly clear the sidewalk!",
-        ]
-      : [
-          "Hi neighbor! Marching for MORE ICE CREAM really works up an appetite — got a snack to share?",
-          "We're marching peacefully for MORE PARKS & GREEN TREES! A snack break sounds amazing!",
-          "Hey there, Explorer! Our tummies are rumbling — share a snack and we'll happily step aside!",
-          `FREE SNACKS FOR EVERY KID IN ${neighborhoodMeta.cityShort.toUpperCase()}! Speaking of which, do you have a snack?`,
-          "Ooh, marching down the neighborhood sidewalk makes us super hungry! Got a snack from your kitchen?",
-          "Thanks for saying hi, neighbor! If you have a snack to share, we'll gladly clear the sidewalk!",
-        ];
+    : Array.isArray(localFlair?.protestQuips) && localFlair.protestQuips.length > 0
+      ? localFlair.protestQuips
+      : isIsraelWildlife
+        ? [
+            "Shalom neighbor! Marching for MORE FALAFEL & GLIDA really works up an appetite — got a snack to share?",
+            "We're marching peacefully for MORE SHADED PARKS & OLIVE TREES! A snack break sounds amazing!",
+            "Hey there, Explorer! Our tummies are rumbling — share a snack and we'll happily step aside!",
+            `FRESH BUREKAS FOR EVERY KID IN ${neighborhoodMeta.cityShort.toUpperCase()}! Speaking of which, got a snack?`,
+            "Ooh, strolling in the warm sunshine makes us super hungry! Got a snack from your kitchen?",
+            "Todah for saying hi, neighbor! If you have a snack to share, we'll gladly clear the sidewalk!",
+          ]
+        : [
+            "Hi neighbor! Marching for MORE ICE CREAM really works up an appetite — got a snack to share?",
+            "We're marching peacefully for MORE PARKS & GREEN TREES! A snack break sounds amazing!",
+            "Hey there, Explorer! Our tummies are rumbling — share a snack and we'll happily step aside!",
+            `FREE SNACKS FOR EVERY KID IN ${neighborhoodMeta.cityShort.toUpperCase()}! Speaking of which, do you have a snack?`,
+            "Ooh, marching down the neighborhood sidewalk makes us super hungry! Got a snack from your kitchen?",
+            "Thanks for saying hi, neighbor! If you have a snack to share, we'll gladly clear the sidewalk!",
+          ];
   const home = spawnTile || worldMap.origin?.spawnTile || { x: Math.floor(width / 2), y: Math.floor(height / 2) };
   const subgrid = getNavigationSubgrid(worldMap);
   const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
@@ -962,12 +989,156 @@ export function buildStreetLife(
     mobs,
     spookyChars,
     joggers: buildSidewalkJoggers(worldMap, spawnTile),
+    locals: buildSidewalkLocals(worldMap, spawnTile, localFlair),
     graveyardGrid: effectiveGraveGrid,
     isNewton: neighborhoodMeta.isNewton,
     cityShort: neighborhoodMeta.cityShort,
+    localFlairId: localFlair.id,
+    localFlair,
     localChants,
     bikerChants,
+    joggerChants,
   };
+}
+
+/**
+ * Spawn Friendly Sidewalk Locals celebrating local cultural & neighborhood stereotypes
+ * (e.g., baguette & espresso Parisians, Hasidic + hipster + pizza Brooklynites, tea & brolly Londoners,
+ * gelato/pizza Italians, cowboy-hat Texans, kimono/ramen Tokyoites!).
+ * Strictly non-hostile, non-blocking, and always kept off vector roads.
+ */
+function buildSidewalkLocals(worldMap, spawnTile = null, localFlair = null) {
+  const { width, height } = worldMap.dimensions;
+  const base = worldMap.layers.base;
+  const collision = worldMap.layers.collision;
+  const tileSize = worldMap.tileSize || 16;
+  const home = spawnTile || worldMap.origin?.spawnTile || { x: Math.floor(width / 2), y: Math.floor(height / 2) };
+  const subgrid = getNavigationSubgrid(worldMap);
+  const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
+  const profile = localFlair || getLocalFlairProfile(worldMap);
+  const localDefs = Array.isArray(profile.locals) && profile.locals.length > 0 ? profile.locals : [];
+  const quips = Array.isArray(profile.localQuips) && profile.localQuips.length > 0 ? profile.localQuips : ["Hi neighbor!"];
+  const bubbles = Array.isArray(profile.localBubbles) && profile.localBubbles.length > 0 ? profile.localBubbles : ["HI NEIGHBOR!"];
+
+  const locals = [];
+  const used = new Set();
+
+  const isLocalPx = (lx, ly) => {
+    if (useSub) {
+      const sx = Math.floor(lx / subgrid.subCellSize);
+      const sy = Math.floor(ly / subgrid.subCellSize);
+      if (sx < 8 || sy < 8 || sx >= subgrid.subW - 8 || sy >= subgrid.subH - 8) return false;
+      if (subgrid.isSolidAtSub(sx, sy)) return false;
+      if (subgrid.isRoadAtPx(lx, ly)) return false;
+      const t = subgrid.getSurfaceIdAtSub(sx, sy);
+      return t === 1 || t === 11 || t === 9;
+    }
+    const tx = Math.floor(lx / tileSize);
+    const ty = Math.floor(ly / tileSize);
+    if (tx < 3 || ty < 3 || tx >= width - 3 || ty >= height - 3) return false;
+    const idx = ty * width + tx;
+    if (collision && collision[idx] === 1) return false;
+    const t = base[idx];
+    return t === 1 || t === 11 || t === 9;
+  };
+
+  const isLocalTile = (tx, ty) => {
+    if (tx < 3 || ty < 3 || tx >= width - 3 || ty >= height - 3) return false;
+    const idx = ty * width + tx;
+    if (collision && collision[idx] === 1) return false;
+    const t = base[idx];
+    if (!(t === 1 || t === 11 || t === 9)) return false;
+    return isLocalPx(tx * tileSize + tileSize * 0.5, ty * tileSize + tileSize * 0.5);
+  };
+
+  const addLocal = (tx, ty) => {
+    if (used.has(`${tx},${ty}`) || !isLocalTile(tx, ty)) return false;
+    const cx = tx * tileSize + tileSize / 2;
+    const cy = ty * tileSize + tileSize / 2;
+    const idx = locals.length;
+    const h = hash2(tx, ty, 829 + idx * 17);
+    const dirs = [
+      { dx: 1, dy: 0 },
+      { dx: -1, dy: 0 },
+      { dx: 0, dy: 1 },
+      { dx: 0, dy: -1 },
+    ].filter(
+      (d) =>
+        isLocalPx(cx + d.dx * 6, cy + d.dy * 6) &&
+        isLocalPx(cx + d.dx * 12, cy + d.dy * 12)
+    );
+    const d0 = dirs.length > 0 ? dirs[h % dirs.length] : { dx: 1, dy: 0 };
+    const variant = idx % Math.max(1, Math.min(3, localDefs.length || 3));
+    const def = localDefs[variant] || {};
+    const bubbleIdx = idx % bubbles.length;
+    locals.push({
+      id: `local_${idx}`,
+      variant,
+      archetype: def.archetype || "neighbor",
+      roleName: def.roleName || "Friendly Neighbor",
+      heldProp: def.heldProp || "iced_coffee",
+      flairId: profile.id,
+      x: cx,
+      y: cy,
+      dx: d0.dx,
+      dy: d0.dy,
+      canWalk: dirs.length > 0,
+      speed: 17 + (h % 6),
+      facing: d0.dx < 0 ? "left" : "right",
+      animTimer: (h % 10) * 0.2,
+      eatTimer: (h % 3 === 0) ? 1.8 : 0,
+      eatCooldown: 3.5 + (h % 5),
+      bubbleIndex: bubbleIdx,
+      bubbleSprite: `bubble_local_${bubbleIdx}`,
+      bubbleTimer: 0,
+      greetCooldown: 0,
+      greeted: false,
+      quip: quips[idx % quips.length],
+    });
+    for (let oy = -3; oy <= 3; oy++) {
+      for (let ox = -3; ox <= 3; ox++) used.add(`${tx + ox},${ty + oy}`);
+    }
+    return true;
+  };
+
+  // 1. Guarantee 3 distinct local-flair neighbors right near Home Base so kids spot local culture immediately!
+  let nearHome = 0;
+  for (let r = 3; r <= 18 && nearHome < 3; r++) {
+    for (let dy = -r; dy <= r && nearHome < 3; dy++) {
+      for (let dx = -r; dx <= r && nearHome < 3; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const tx = home.x + dx;
+        const ty = home.y + dy;
+        if (tx < 3 || ty < 3 || tx >= width - 3 || ty >= height - 3) continue;
+        if ((base[ty * width + tx] === 1 || base[ty * width + tx] === 11) && addLocal(tx, ty)) {
+          nearHome++;
+        }
+      }
+    }
+  }
+
+  // 2. Distribute Friendly Sidewalk Locals evenly across every neighborhood sector!
+  const cell = width >= 200 ? 34 : 18;
+  for (let cy0 = 8; cy0 < height - 8; cy0 += cell) {
+    for (let cx0 = 8; cx0 < width - 8; cx0 += cell) {
+      const sx = cx0 + (hash2(cx0, cy0, 467) % Math.min(cell, width - 8 - cx0));
+      const sy = cy0 + (hash2(cx0, cy0, 503) % Math.min(cell, height - 8 - cy0));
+      let placed = false;
+      for (let r = 0; r <= 12 && !placed; r++) {
+        for (let dy = -r; dy <= r && !placed; dy++) {
+          for (let dx = -r; dx <= r && !placed; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+            const tx = sx + dx;
+            const ty = sy + dy;
+            if (tx >= 4 && ty >= 4 && tx < width - 4 && ty < height - 4 && (base[ty * width + tx] === 1 || base[ty * width + tx] === 11)) {
+              if (addLocal(tx, ty)) placed = true;
+            }
+          }
+        }
+      }
+    }
+  }
+  return locals;
 }
 
 /**
@@ -1178,6 +1349,15 @@ export function findNearbyStreetLife(streetLife, px, py, maxDistPx = 28) {
       best = { kind: "spooky", target: sp, dist: d };
     }
   }
+  if (!best) {
+    const localMaxDist = Math.max(maxDistPx, 28);
+    for (const loc of streetLife.locals || []) {
+      const d = Math.hypot(px - loc.x, py - loc.y);
+      if (d <= localMaxDist && (!best || d < best.dist)) {
+        best = { kind: "local", target: loc, dist: d };
+      }
+    }
+  }
   return best;
 }
 
@@ -1305,6 +1485,25 @@ export function tossSnackAtAnimal(entry, playerX, playerY, options = {}) {
  */
 export function interactWithStreetLife(streetLife, entry, playerX, playerY, options = {}) {
   if (!entry || !entry.target) return null;
+  if (entry.kind === "local") {
+    const loc = entry.target;
+    const firstGreet = !loc.greeted;
+    loc.greeted = true;
+    loc.facing = playerX >= loc.x ? "right" : "left";
+    loc.eatTimer = 2.6;
+    loc.bubbleIndex = ((loc.bubbleIndex ?? 0) + 1) % 5;
+    loc.bubbleSprite = `bubble_local_${loc.bubbleIndex}`;
+    loc.bubbleTimer = 3.2;
+    loc.greetCooldown = 4.0;
+    return {
+      kind: "local",
+      roleName: loc.roleName || "Friendly Neighbor",
+      firstGreet,
+      xpReward: firstGreet ? 5 : 0,
+      toast: `💬 ${loc.roleName || "Neighbor"}: "${loc.quip}"${firstGreet ? " (+5 XP)" : ""}`,
+      sound: "local_hi",
+    };
+  }
   if (entry.kind === "protestor") {
     const pr = entry.target;
     const { hasSnack = false, consumeSnack = null, isEasyMode = false } = options || {};
@@ -2171,6 +2370,79 @@ export function updateStreetLife(
       }
     }
     if (jg.dx !== 0) jg.facing = jg.dx > 0 ? "right" : "left";
+  }
+
+  // --- 5. Update Friendly Sidewalk Locals (stroll peacefully off roads & pause to eat/sip local treats! 0 damage!) ---
+  const isLocalMovePx = (lx, ly) => {
+    if (useSubJog) {
+      const sx = Math.floor(lx / subgrid.subCellSize);
+      const sy = Math.floor(ly / subgrid.subCellSize);
+      if (sx < 8 || sy < 8 || sx >= subgrid.subW - 8 || sy >= subgrid.subH - 8) return false;
+      if (subgrid.isSolidAtSub(sx, sy)) return false;
+      if (subgrid.isRoadAtPx(lx, ly)) return false;
+      const t = subgrid.getSurfaceIdAtSub(sx, sy);
+      return t === 1 || t === 11 || t === 9;
+    }
+    const tx = Math.floor(lx / tileSize);
+    const ty = Math.floor(ly / tileSize);
+    if (tx < 2 || ty < 2 || tx >= width - 2 || ty >= height - 2) return false;
+    const idx = ty * width + tx;
+    if (collision && collision[idx] === 1) return false;
+    const t = base[idx];
+    return t === 1 || t === 11 || t === 9;
+  };
+  for (const loc of streetLife.locals || []) {
+    const dist = Math.hypot(px - loc.x, py - loc.y);
+    if (dist > 440) continue;
+    if (loc.bubbleTimer > 0) loc.bubbleTimer = Math.max(0, loc.bubbleTimer - dt);
+    if (loc.greetCooldown > 0) loc.greetCooldown = Math.max(0, loc.greetCooldown - dt);
+    if ((loc.eatTimer || 0) > 0) loc.eatTimer = Math.max(0, loc.eatTimer - dt);
+    if ((loc.eatCooldown || 0) > 0) loc.eatCooldown = Math.max(0, loc.eatCooldown - dt);
+
+    // Friendly wave & local speech bubble when the explorer strolls close!
+    if (dist < 46 && loc.greetCooldown <= 0) {
+      loc.bubbleIndex = ((loc.bubbleIndex ?? 0) + 1) % 5;
+      loc.bubbleSprite = `bubble_local_${loc.bubbleIndex}`;
+      loc.bubbleTimer = 2.6;
+      loc.greetCooldown = 6.5;
+      loc.eatTimer = Math.max(loc.eatTimer || 0, 1.4);
+      loc.facing = px >= loc.x ? "right" : "left";
+    }
+
+    // Periodically pause on the sidewalk to sip coffee / nibble baguette/pizza/taco/pretzel!
+    if ((loc.eatTimer || 0) <= 0 && (loc.eatCooldown || 0) <= 0) {
+      loc.eatTimer = 2.2;
+      loc.eatCooldown = 6.5;
+    }
+
+    if ((loc.eatTimer || 0) > 0 || !loc.canWalk) {
+      loc.animTimer += dt * 2.5;
+      continue;
+    }
+
+    loc.animTimer += dt * 5.2;
+    const nx = loc.x + loc.dx * loc.speed * dt;
+    const ny = loc.y + loc.dy * loc.speed * dt;
+    if (isLocalMovePx(nx + loc.dx * 5, ny + loc.dy * 5)) {
+      loc.x = nx;
+      loc.y = ny;
+    } else {
+      const stepProbe = useSubJog ? 8 : tileSize;
+      const turns = [
+        { dx: -loc.dy, dy: loc.dx },
+        { dx: loc.dy, dy: -loc.dx },
+        { dx: -loc.dx, dy: -loc.dy },
+      ].filter((d) => isLocalMovePx(loc.x + d.dx * stepProbe, loc.y + d.dy * stepProbe));
+      if (turns.length > 0) {
+        const chosen = turns[Math.floor(loc.animTimer) % turns.length];
+        loc.dx = chosen.dx;
+        loc.dy = chosen.dy;
+      } else {
+        loc.dx = -loc.dx;
+        loc.dy = -loc.dy;
+      }
+    }
+    if (loc.dx !== 0) loc.facing = loc.dx > 0 ? "right" : "left";
   }
 }
 

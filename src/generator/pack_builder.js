@@ -25,6 +25,7 @@ import {
   detectLocalQuirks,
   getDrivingSideForCountry,
 } from "../biomes.js";
+import { detectLocalFlair } from "../local_flair.js";
 import { snapToWalkableTile } from "../quests.js";
 import { projectLatLonToFloatTile } from "../vector_roads.js";
 
@@ -201,6 +202,15 @@ export async function buildNeighborhoodPackage({
     address: geo.homeAddress,
     countryCode: resolvedCountryCode,
   });
+  const resolvedLocalFlair = detectLocalFlair({
+    lat: geo.lat,
+    lon: geo.lon,
+    countryCode: resolvedCountryCode,
+    townName: geo.townName,
+    address: geo.homeAddress,
+    biomeId: resolvedBiome,
+    preset: "generic",
+  });
 
   const meta = {
     id: slugifyNeighborhood(`${geo.homeAddress}_${geo.townName}`),
@@ -214,6 +224,7 @@ export async function buildNeighborhoodPackage({
     drivingSide: resolvedDrivingSide,
     biome: resolvedBiome,
     season: resolvedSeason,
+    localFlair: resolvedLocalFlair,
     ...(resolvedQuirks.length > 0 ? { quirks: resolvedQuirks } : {}),
     labelMode: resolvedLabelMode,
     generatedAt: new Date().toISOString(),
