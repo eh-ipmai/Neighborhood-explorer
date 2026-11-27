@@ -301,7 +301,7 @@ export function buildParkFeatures(worldMap, excludedGrid = null) {
  * Trees NEVER spawn on trails, sidewalks, roads, water, buildings, park athletic fields, or graveyards.
  * Returns Uint8Array where 0 = none, 1 = oak tree, 2 = evergreen pine.
  */
-export function buildWoodlandTreeGrid(worldMap, parkOccupiedGrid = null, graveyardGrid = null) {
+export function buildWoodlandTreeGrid(worldMap, parkOccupiedGrid = null, graveyardGrid = null, opts = {}) {
   const { width, height } = worldMap.dimensions;
   const base = worldMap.layers.base;
   const treeGrid = new Uint8Array(width * height);
@@ -319,6 +319,36 @@ export function buildWoodlandTreeGrid(worldMap, parkOccupiedGrid = null, graveya
     }
     return false;
   };
+
+  // Keep building front doorways, landmarks, and Home Base spawn 100% clear of blocking tree canopies!
+  const clearZoneMask = new Uint8Array(width * height);
+  const markClear = (tx, ty, rad = 1) => {
+    for (let dy = -rad; dy <= rad; dy++) {
+      const ny = ty + dy;
+      if (ny < 0 || ny >= height) continue;
+      const off = ny * width;
+      for (let dx = -rad; dx <= rad; dx++) {
+        const nx = tx + dx;
+        if (nx >= 0 && nx < width) clearZoneMask[off + nx] = 1;
+      }
+    }
+  };
+  if (worldMap.origin?.spawnTile) {
+    markClear(worldMap.origin.spawnTile.x, worldMap.origin.spawnTile.y, 1);
+  }
+  for (const lm of opts.landmarks || []) {
+    const lx = lm.walkTileX ?? lm.tileX;
+    const ly = lm.walkTileY ?? lm.tileY;
+    if (typeof lx === "number" && typeof ly === "number") markClear(lx, ly, 1);
+  }
+  for (const b of worldMap.buildings || []) {
+    if (!b?.bounds) continue;
+    const midX = Math.floor((b.bounds.minX + b.bounds.maxX) / 2);
+    const doorY = b.bounds.maxY + 1;
+    if (doorY >= 0 && doorY < height && midX >= 0 && midX < width) {
+      clearZoneMask[doorY * width + midX] = 1;
+    }
+  }
 
   const isUrban = (t) =>
     t === 1 || t === 2 || t === 3 || t === 4 || t === 5 || t === 8 || t === 12 || t === 13;
@@ -361,12 +391,57 @@ export function buildWoodlandTreeGrid(worldMap, parkOccupiedGrid = null, graveya
     }
   }
 
+  // Step 0: Prioritize REAL OpenStreetMap natural=tree & natural=tree_row positions when present!
+  // Enforces strict zero-overlap against vector roads, buildings, front doors, park fields & graveyards.
+  const hasNearbyTree = (tx, ty, rad = 1) => {
+    for (let dy = -rad; dy <= rad; dy++) {
+      const ny = ty + dy;
+      if (ny < 0 || ny >= height) continue;
+      const off = ny * width;
+      for (let dx = -rad; dx <= rad; dx++) {
+        const nx = tx + dx;
+        if (nx >= 0 && nx < width && treeGrid[off + nx] !== 0) return true;
+      }
+    }
+    return false;
+  };
+
+  for (const ot of worldMap.osmTrees || []) {
+    const tx = ot.tx;
+    const ty = ot.ty;
+    if (tx < 1 || ty < 1 || tx >= width - 1 || ty >= height - 1) continue;
+    const idx = ty * width + tx;
+    const cur = base[idx];
+    if (!isWoodOrGrass(cur)) continue;
+    if (clearZoneMask[idx] === 1) continue;
+    if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) continue;
+    if (graveyardGrid && graveyardGrid[idx] !== 0) continue;
+    if (isTileTouchedByVectorRoad(tx, ty)) continue;
+    // Never overlap building footprints or roads
+    let safe = true;
+    for (let dy = -1; dy <= 1 && safe; dy++) {
+      const rOff = (ty + dy) * width;
+      for (let dx = -1; dx <= 1; dx++) {
+        const nt = base[rOff + (tx + dx)];
+        if (nt === 5 || nt === 6 || nt === 12 || nt === 13) {
+          safe = false;
+          break;
+        }
+      }
+    }
+    if (!safe) continue;
+    if (hasNearbyTree(tx, ty, 1)) continue;
+    treeGrid[idx] = ot.kind === 2 ? 2 : 1;
+  }
+
   for (let ty = 1; ty < height - 1; ty++) {
     const rowOff = ty * width;
     for (let tx = 1; tx < width - 1; tx++) {
       const idx = rowOff + tx;
+      if (treeGrid[idx] !== 0) continue;
       const cur = base[idx];
       if (!isWoodOrGrass(cur)) continue;
+      if (clearZoneMask[idx] === 1) continue;
       if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) continue;
       if (graveyardGrid && graveyardGrid[idx] !== 0) continue;
       if (isTileTouchedByVectorRoad(tx, ty)) continue;
@@ -464,7 +539,8 @@ export function buildWoodlandTreeGrid(worldMap, parkOccupiedGrid = null, graveya
         // Rich New England woodland mix: ~60% tall evergreen pines + ~40% leafy oaks
         treeGrid[idx] = hash % 5 < 3 ? 2 : 1;
       } else {
-        if (treeGrid[(ty - 1) * width + tx] !== 0 || treeGrid[rowOff + (tx - 1)] !== 0) continue;
+        // Precision canopy spacing in residential yards & manicured parks (zero double-stacked blobs!)
+        if (hasNearbyTree(tx, ty, cur === 11 ? 2 : 1)) continue;
         const isPine = isWoodlandFringe ? hash % 2 === 0 : hash % 4 === 0;
         treeGrid[idx] = isPine ? 2 : 1;
       }
@@ -472,4 +548,115 @@ export function buildWoodlandTreeGrid(worldMap, parkOccupiedGrid = null, graveya
   }
 
   return treeGrid;
+}
+
+/**
+ * Precision Curb-Aligned Street Furniture & Park Bench Placement (Pure JS — testable in Node!).
+ * Guarantees:
+ *  - Every street lamp & fire hydrant sits strictly on a walkable sidewalk tile (base === 1),
+ *    100% clear of vector road asphalt, solid sub-cells, building footprints, and front doors,
+ *    annotated with `curbSide: "n"|"s"|"e"|"w"` pointing toward the adjacent road curb.
+ *  - Every park bench sits strictly on open park turf bordering a sidewalk or trail, clear of trees/fields/roads.
+ */
+export function buildCurbAlignedFurniture(
+  worldMap,
+  { treeGrid = null, parkOccupiedGrid = null, graveyardGrid = null, landmarks = [] } = {}
+) {
+  const { width, height } = worldMap.dimensions;
+  const base = worldMap.layers.base;
+  const tileSize = worldMap.tileSize || 16;
+  const subgrid = getNavigationSubgrid(worldMap);
+  const useSub = Boolean(subgrid && subgrid.hasVectorRoads);
+
+  const isRoadId = (t) => t === 2 || t === 3 || t === 4 || t === 12 || t === 13;
+  const isBlockedByVectorRoad = (tx, ty) => {
+    if (!useSub) return false;
+    const cx = tx * tileSize + tileSize * 0.5;
+    const cy = ty * tileSize + tileSize * 0.5;
+    if (subgrid.isRoadAtPx(cx, cy)) return true;
+    const sx = Math.floor(cx / subgrid.subCellSize);
+    const sy = Math.floor(cy / subgrid.subCellSize);
+    return subgrid.isSolidAtSub(sx, sy);
+  };
+
+  // Never block front doors or landmarks with lamps or hydrants
+  const reserved = new Set();
+  for (const lm of landmarks || []) {
+    const lx = lm.walkTileX ?? lm.tileX;
+    const ly = lm.walkTileY ?? lm.tileY;
+    if (typeof lx === "number" && typeof ly === "number") reserved.add(`${lx},${ly}`);
+  }
+  for (const b of worldMap.buildings || []) {
+    if (!b?.bounds) continue;
+    const midX = Math.floor((b.bounds.minX + b.bounds.maxX) / 2);
+    reserved.add(`${midX},${b.bounds.maxY + 1}`);
+  }
+
+  const streetLamps = [];
+  const hydrants = [];
+  const parkBenches = [];
+  const lampBlockUsed = new Set();
+
+  for (let ty = 1; ty < height - 1; ty++) {
+    for (let tx = 1; tx < width - 1; tx++) {
+      const idx = ty * width + tx;
+      const cur = base[idx];
+      if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) continue;
+      if (isBlockedByVectorRoad(tx, ty)) continue;
+      if (reserved.has(`${tx},${ty}`)) continue;
+
+      const n = base[(ty - 1) * width + tx];
+      const s = base[(ty + 1) * width + tx];
+      const w = base[ty * width + (tx - 1)];
+      const e = base[ty * width + (tx + 1)];
+
+      // Park benches neatly aligned along park edges facing a sidewalk or dirt path
+      if (cur === 11 && (!treeGrid || treeGrid[idx] === 0)) {
+        const faceDir = s === 1 || s === 9 ? "s" : n === 1 || n === 9 ? "n" : null;
+        if (faceDir && ((tx * 29 + ty * 43) % 19 === 0)) {
+          parkBenches.push({ tx, ty, facing: faceDir });
+        }
+        continue;
+      }
+
+      if (cur !== 1) continue;
+
+      // Determine exact curb side facing adjacent street!
+      const curbSide = isRoadId(s)
+        ? "s"
+        : isRoadId(n)
+          ? "n"
+          : isRoadId(e)
+            ? "e"
+            : isRoadId(w)
+              ? "w"
+              : null;
+      if (!curbSide) continue;
+
+      const nearCrosswalk = n === 4 || s === 4 || w === 4 || e === 4;
+      let placedHydrant = false;
+
+      if (nearCrosswalk) {
+        if (((tx * 31 + ty * 17) & 15) === 0) {
+          hydrants.push({ tx, ty, curbSide });
+          placedHydrant = true;
+        }
+      } else if ((isRoadId(s) || isRoadId(n)) && (isRoadId(e) || isRoadId(w))) {
+        if ((tx * 19 + ty * 37) % 11 === 0) {
+          hydrants.push({ tx, ty, curbSide });
+          placedHydrant = true;
+        }
+      }
+
+      if (!placedHydrant) {
+        const blockKey = `${Math.floor(tx / 7)},${Math.floor(ty / 7)}`;
+        if (!lampBlockUsed.has(blockKey) && (nearCrosswalk || ((tx * 17 + ty * 29) >>> 0) % 11 === 0)) {
+          lampBlockUsed.add(blockKey);
+          streetLamps.push({ tx, ty, curbSide });
+        }
+      }
+    }
+  }
+
+  return { streetLamps, hydrants, parkBenches };
 }

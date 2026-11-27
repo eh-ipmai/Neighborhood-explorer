@@ -32,6 +32,11 @@ export function buildOverpassQuery(bbox, timeoutSec = 45) {
   way["landuse"~"grass|forest|meadow|recreation_ground|village_green|cemetery|grave_yard"](${bboxStr});
   way["amenity"="grave_yard"](${bboxStr});
   way["natural"~"wood|grassland"](${bboxStr});
+  way["landuse"="orchard"](${bboxStr});
+  node["natural"="tree"](${bboxStr});
+  way["natural"="tree_row"](${bboxStr});
+  way["barrier"="city_wall"](${bboxStr});
+  way["historic"="citywalls"](${bboxStr});
   way["surface"~"sand|dirt|earth|gravel|unpaved"](${bboxStr});
   way["highway"](${bboxStr});
   way["amenity"="parking"](${bboxStr});
@@ -42,10 +47,12 @@ export function buildOverpassQuery(bbox, timeoutSec = 45) {
   relation["type"="multipolygon"]["landuse"~"cemetery|grave_yard|forest|grass"](${bboxStr});
   relation["type"="multipolygon"]["building"](${bboxStr});
   node["addr:housenumber"](${bboxStr});
-  node["amenity"~"library|ice_cream|cafe|fire_station|school|college|university|place_of_worship|restaurant|fast_food|townhall|community_centre|museum|arts_centre|post_office"](${bboxStr});
+  node["amenity"~"library|ice_cream|cafe|fire_station|police|hospital|clinic|school|college|university|place_of_worship|restaurant|fast_food|townhall|community_centre|museum|arts_centre|post_office|recycling"](${bboxStr});
   node["shop"~"bakery|pastry|coffee|books|confectionery|supermarket|convenience|greengrocer|deli"](${bboxStr});
   node["leisure"~"park|playground|pitch"](${bboxStr});
-  way["amenity"~"library|ice_cream|cafe|fire_station|school|college|university|place_of_worship|restaurant|townhall|community_centre|museum"](${bboxStr});
+  way["amenity"~"library|ice_cream|cafe|fire_station|police|hospital|clinic|school|college|university|place_of_worship|restaurant|fast_food|townhall|community_centre|museum|post_office|recycling"](${bboxStr});
+  way["railway"="station"](${bboxStr});
+  way["tourism"~"museum|gallery"](${bboxStr});
 );
 out tags geom;
 `;

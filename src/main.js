@@ -78,7 +78,7 @@ import {
   bakeParkFieldCanvas,
   normalizeAddress,
 } from "./tileset.js";
-import { buildParkFeatures, buildWoodlandTreeGrid } from "./parks.js";
+import { buildParkFeatures, buildWoodlandTreeGrid, buildCurbAlignedFurniture } from "./parks.js";
 import { buildGraveyardFeatures, getGraveyardGhostPos } from "./graveyards.js";
 import {
   JOGGER_CHANTS,
@@ -206,37 +206,30 @@ function buildNeighborhoodProps(
     const sy = Math.floor(cy / subgrid.subCellSize);
     return subgrid.isSolidAtSub(sx, sy);
   };
-  // 0 = none, 1 = autumn oak/maple tree, 2 = evergreen pine (dense canopies in truly wooded areas!)
-  const treeGrid = buildWoodlandTreeGrid(worldMap, parkOccupiedGrid, graveyardGrid);
-  const hydrants = [];
+  // 0 = none, 1 = regional deciduous tree, 2 = evergreen pine/cypress (real OSM trees prioritized!)
+  const treeGrid = buildWoodlandTreeGrid(worldMap, parkOccupiedGrid, graveyardGrid, { landmarks });
+  const { streetLamps, hydrants, parkBenches } = buildCurbAlignedFurniture(worldMap, {
+    treeGrid,
+    parkOccupiedGrid,
+    graveyardGrid,
+    landmarks,
+  });
   const parkedCars = buildParkingLotCars(worldMap, {
     parkOccupiedGrid,
     graveyardGrid,
     spawnTile,
     landmarks,
   });
-  const parkBenches = [];
   const shoreReeds = [];
   const leafPiles = [];
   const leafPileMap = new Map();
-  const streetLamps = [];
   const gardenShrubs = [];
-  const lampBlockUsed = new Set();
 
   for (let ty = 1; ty < height - 1; ty++) {
     for (let tx = 1; tx < width - 1; tx++) {
       const idx = ty * width + tx;
       const cur = base[idx];
       if (parkOccupiedGrid && parkOccupiedGrid[idx] === 1) continue;
-
-      // Park benches neatly placed on park turf bordering a sidewalk or dirt path
-      if (cur === 11 && treeGrid[idx] === 0 && !isPropOnVectorRoad(tx, ty)) {
-        const n = base[(ty - 1) * width + tx];
-        const s = base[(ty + 1) * width + tx];
-        if ((s === 1 || s === 9 || n === 1 || n === 9) && ((tx * 29 + ty * 43) % 19 === 0)) {
-          parkBenches.push({ tx, ty });
-        }
-      }
 
       // Lakeside cattail reeds on sandy/grassy pond edges
       if ((cur === 10 || cur === 0) && !isPropOnVectorRoad(tx, ty)) {
@@ -250,7 +243,7 @@ function buildNeighborhoodProps(
         }
       }
 
-      // Green boxwood garden shrubs tucked beside houses & lawns for lush autumn contrast
+      // Green boxwood / Bougainvillea garden shrubs tucked beside houses & lawns
       if (cur === 0 && treeGrid[idx] === 0 && (!graveyardGrid || graveyardGrid[idx] === 0) && !isPropOnVectorRoad(tx, ty)) {
         const n = base[(ty - 1) * width + tx];
         const s = base[(ty + 1) * width + tx];
@@ -276,44 +269,16 @@ function buildNeighborhoodProps(
         }
       }
 
-      if (cur === 1 && !isPropOnVectorRoad(tx, ty)) {
+      if (allowLeafPiles && cur === 1 && !isPropOnVectorRoad(tx, ty)) {
         const n = base[(ty - 1) * width + tx];
         const s = base[(ty + 1) * width + tx];
         const w = base[ty * width + (tx - 1)];
         const e = base[ty * width + (tx + 1)];
-        const nearCrosswalk = n === 4 || s === 4 || w === 4 || e === 4;
         const nearRoad = isRoadTile(n) || isRoadTile(s) || isRoadTile(w) || isRoadTile(e);
-        let placedHydrant = false;
-
-        if (nearCrosswalk) {
-          if (((tx * 31 + ty * 17) & 15) === 0) {
-            hydrants.push({ tx, ty });
-            placedHydrant = true;
-          }
-        } else if (
-          (isRoadTile(s) || isRoadTile(n)) &&
-          (isRoadTile(e) || isRoadTile(w))
-        ) {
-          if ((tx * 19 + ty * 37) % 11 === 0) {
-            hydrants.push({ tx, ty });
-            placedHydrant = true;
-          }
-        }
-
-        // Vintage curved-arm street lamps spaced cleanly along corners & road-bordering sidewalks
-        if (!placedHydrant && nearRoad) {
-          const blockKey = `${Math.floor(tx / 7)},${Math.floor(ty / 7)}`;
-          if (
-            !lampBlockUsed.has(blockKey) &&
-            (nearCrosswalk || ((tx * 17 + ty * 29) >>> 0) % 11 === 0)
-          ) {
-            lampBlockUsed.add(blockKey);
-            streetLamps.push({ tx, ty });
-          } else if (allowLeafPiles && (((tx * 41 + ty * 29) >>> 0) % 13 === 0) && (!graveyardGrid || graveyardGrid[idx] === 0)) {
-            const pile = { tx, ty, variant: (tx + ty) & 1, lastScatter: -99 };
-            leafPiles.push(pile);
-            leafPileMap.set(`${tx},${ty}`, pile);
-          }
+        if (nearRoad && (((tx * 41 + ty * 29) >>> 0) % 13 === 0) && (!graveyardGrid || graveyardGrid[idx] === 0)) {
+          const pile = { tx, ty, variant: (tx + ty) & 1, lastScatter: -99 };
+          leafPiles.push(pile);
+          leafPileMap.set(`${tx},${ty}`, pile);
         }
       }
     }

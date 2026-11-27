@@ -346,6 +346,82 @@ export function classifyBuildingKind(tags = {}, bounds = null, address = "", nam
   ) {
     return "fire_station";
   }
+  if (
+    amenity === "police" ||
+    lowerName.includes("police") ||
+    lowerName.includes("precinct") ||
+    lowerName.includes("משטרה")
+  ) {
+    return "police_station";
+  }
+  if (
+    amenity === "post_office" ||
+    lowerName.includes("post office") ||
+    lowerName.includes("usps") ||
+    lowerName.includes("דואר")
+  ) {
+    return "post_office";
+  }
+  if (
+    amenity === "townhall" ||
+    lowerName.includes("city hall") ||
+    lowerName.includes("town hall") ||
+    lowerName.includes("עירייה") ||
+    lowerName.includes("העירייה")
+  ) {
+    return "city_hall";
+  }
+  if (
+    amenity === "recycling" ||
+    amenity === "waste_transfer_station" ||
+    tags.man_made === "works" ||
+    lowerName.includes("sanitation") ||
+    lowerName.includes("public works") ||
+    lowerName.includes("dpw") ||
+    lowerName.includes("recycling center")
+  ) {
+    return "sanitation";
+  }
+  if (
+    amenity === "hospital" ||
+    b === "hospital" ||
+    lowerName.includes("hospital") ||
+    lowerName.includes("medical center") ||
+    lowerName.includes("בית חולים") ||
+    lowerName.includes("קופת חולים")
+  ) {
+    return "hospital_clinic";
+  }
+  if (
+    tags.railway === "station" ||
+    b === "train_station" ||
+    b === "transportation" ||
+    tags.public_transport === "station" ||
+    lowerName.includes("train station") ||
+    lowerName.includes("mbta station") ||
+    lowerName.includes("תחנת רכבת")
+  ) {
+    return "transit_station";
+  }
+  if (
+    tags.tourism === "museum" ||
+    tags.tourism === "gallery" ||
+    amenity === "arts_centre" ||
+    b === "museum" ||
+    lowerName.includes("museum") ||
+    lowerName.includes("מוזיאון")
+  ) {
+    return "museum";
+  }
+  if (
+    b === "industrial" ||
+    b === "warehouse" ||
+    b === "factory" ||
+    b === "manufacture" ||
+    tags.landuse === "industrial"
+  ) {
+    return "industrial";
+  }
   if (b === "greenhouse" || b === "conservatory" || lowerName.includes("greenhouse") || lowerName.includes("conservatory")) {
     return "greenhouse";
   }
@@ -382,7 +458,6 @@ export function classifyBuildingKind(tags = {}, bounds = null, address = "", nam
   }
   if (
     amenity === "place_of_worship" ||
-    amenity === "townhall" ||
     amenity === "community_centre" ||
     b === "church" ||
     b === "synagogue" ||
@@ -395,6 +470,9 @@ export function classifyBuildingKind(tags = {}, bounds = null, address = "", nam
     lowerName.includes("chapel") ||
     lowerName.includes("temple") ||
     lowerName.includes("synagogue") ||
+    lowerName.includes("mosque") ||
+    lowerName.includes("masjid") ||
+    lowerName.includes("מסגד") ||
     lowerName.includes("congregation") ||
     lowerName.includes("beth el") ||
     lowerName.includes("beit knesset") ||
@@ -4291,6 +4369,7 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
   const relations = [];
   const crossingNodes = [];
   const addressNodes = [];
+  const osmTreeNodes = [];
 
   const projectNode = (n) =>
     projectLatLonToTile(n.lat, n.lon, mapCenter.lat, mapCenter.lon, width, height, scaleMetersPerTile);
@@ -4310,6 +4389,17 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
       nodes.set(el.id, el);
       if (el.tags && (el.tags.highway === "crossing" || el.tags.crossing)) {
         crossingNodes.push(el);
+      }
+      if (el.tags && el.tags.natural === "tree") {
+        const pt = projectNode(el);
+        if (inBounds(pt.x, pt.y, width, height)) {
+          const leafType = String(el.tags.leaf_type || "").toLowerCase();
+          const sp = String(el.tags.species || el.tags.genus || "").toLowerCase();
+          const isEvergreen =
+            leafType === "needleleaved" ||
+            /pine|spruce|cypress|fir|cedar|pinus|cupressus/.test(sp);
+          osmTreeNodes.push({ tx: pt.x, ty: pt.y, kind: isEvergreen ? 2 : 1 });
+        }
       }
       if (el.tags && el.tags["addr:housenumber"]) {
         const pt = projectNode(el);
@@ -4918,6 +5008,42 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     }
   }
 
+  // Extract real OSM tree_row ways into individual spaced osmTreeNodes!
+  for (const way of ways) {
+    const tags = way.tags || {};
+    if (tags.natural !== "tree_row") continue;
+    const pts = (way.nodes || [])
+      .map((nid) => nodes.get(nid))
+      .filter(Boolean)
+      .map((n) => projectNode(n));
+    if (pts.length < 2) continue;
+    const isEvergreen = String(tags.leaf_type || "").toLowerCase() === "needleleaved";
+    for (let i = 0; i < pts.length - 1; i++) {
+      const dist = Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y);
+      const steps = Math.max(1, Math.floor(dist / 2));
+      for (let s = 0; s <= steps; s++) {
+        const tx = Math.round(pts[i].x + ((pts[i + 1].x - pts[i].x) * s) / steps);
+        const ty = Math.round(pts[i].y + ((pts[i + 1].y - pts[i].y) * s) / steps);
+        if (inBounds(tx, ty, width, height)) {
+          osmTreeNodes.push({ tx, ty, kind: isEvergreen ? 2 : 1 });
+        }
+      }
+    }
+  }
+
+  // Deduplicate OSM tree locations cleanly on tile grid
+  const osmTreeSeen = new Set();
+  const osmTrees = [];
+  for (const t of osmTreeNodes) {
+    const k = `${t.tx},${t.ty}`;
+    if (osmTreeSeen.has(k)) continue;
+    osmTreeSeen.add(k);
+    osmTrees.push(t);
+  }
+
+  // Compute street-facing orientation & tight neighbor clearance for every building
+  computeBuildingPlacementMeta(cleanBuildings, base, width, height);
+
   const vectorRoads = extractVectorRoadsFromOsm(elements, {
     width,
     height,
@@ -4959,9 +5085,76 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
     },
     streetZones,
     buildings: cleanBuildings,
+    ...(osmTrees.length > 0 ? { osmTrees } : {}),
     ...(!isNewtonPreset ? { graveyards: extractedGraveyards } : {}),
     vectorRoads,
   };
+}
+
+/**
+ * Precision Building Placement Pass:
+ * Computes each building's street-facing cardinal orientation ("s"|"n"|"e"|"w"),
+ * floating-point centroid, and tight horizontal/vertical neighbor clearance so
+ * visual house canvases never overlap neighboring houses or spill onto street asphalt!
+ */
+export function computeBuildingPlacementMeta(buildings, base, width, height) {
+  const isRoadOrWalk = (t) =>
+    t === TILE_IDS.SIDEWALK ||
+    t === TILE_IDS.RESIDENTIAL_ROAD ||
+    t === TILE_IDS.MAIN_ROAD ||
+    t === TILE_IDS.CROSSWALK ||
+    t === TILE_IDS.HIGHWAY;
+
+  for (const b of buildings || []) {
+    if (!b?.bounds) continue;
+    const { minX, minY, maxX, maxY } = b.bounds;
+    const cx = Math.round((minX + maxX) / 2);
+    const cy = Math.round((minY + maxY) / 2);
+    b.centroid = {
+      x: Number(((minX + maxX + 1) * 0.5).toFixed(2)),
+      y: Number(((minY + maxY + 1) * 0.5).toFixed(2)),
+    };
+
+    // Scan outward up to 7 tiles in all 4 cardinal directions to find nearest road/sidewalk!
+    let bestDir = "s";
+    let bestDist = Infinity;
+    const dirs = [
+      { dir: "s", dx: 0, dy: 1, sx: cx, sy: maxY },
+      { dir: "n", dx: 0, dy: -1, sx: cx, sy: minY },
+      { dir: "e", dx: 1, dy: 0, sx: maxX, sy: cy },
+      { dir: "w", dx: -1, dy: 0, sx: minX, sy: cy },
+    ];
+    for (const d of dirs) {
+      for (let step = 1; step <= 7; step++) {
+        const tx = d.sx + d.dx * step;
+        const ty = d.sy + d.dy * step;
+        if (!inBounds(tx, ty, width, height)) break;
+        const t = base[ty * width + tx];
+        if (isRoadOrWalk(t)) {
+          // Slight tie-break preference for south-facing ("s") in 3/4 top-down SNES projection
+          const score = step + (d.dir === "s" ? -0.15 : 0);
+          if (score < bestDist) {
+            bestDist = score;
+            bestDir = d.dir;
+          }
+          break;
+        }
+      }
+    }
+    b.facing = bestDir;
+
+    // Measure immediate neighbor clearance (check if another building wall sits within 1 tile left/right!)
+    let tightLeft = false;
+    let tightRight = false;
+    for (let y = minY; y <= maxY; y++) {
+      if (minX - 1 >= 0 && base[y * width + (minX - 1)] === TILE_IDS.BUILDING_WALL) tightLeft = true;
+      if (maxX + 1 < width && base[y * width + (maxX + 1)] === TILE_IDS.BUILDING_WALL) tightRight = true;
+    }
+    if (tightLeft || tightRight) {
+      b.maxVisualTilesW = maxX - minX + 1;
+    }
+  }
+  return buildings;
 }
 
 /**

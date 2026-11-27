@@ -1014,6 +1014,14 @@ export const BUILDING_STYLE_PRESETS = {
   corner_market: { label: "Market", mode: "kind" },
   office_plaza: { label: "Office", mode: "kind" },
   fire_station: { label: "Firehouse", mode: "kind" },
+  police_station: { label: "Police", mode: "kind" },
+  post_office: { label: "Post Office", mode: "kind" },
+  city_hall: { label: "City Hall", mode: "kind" },
+  hospital_clinic: { label: "Hospital", mode: "kind" },
+  sanitation: { label: "DPW", mode: "kind" },
+  industrial: { label: "Industrial", mode: "kind" },
+  transit_station: { label: "Station", mode: "kind" },
+  museum: { label: "Museum", mode: "kind" },
   greenhouse: { label: "Greenhouse", mode: "kind" },
   apartments: { label: "Apts", mode: "kind" },
   garage: { label: "Garage", mode: "kind" },
@@ -1797,6 +1805,9 @@ export function getBuildingVisualCategory(building, colorOverrideMap = {}) {
     if (/temple|beth\s*el|synagogue|chabad|congregation|israel|tefillah|shul|beit\s*knesset|בית\s*כנסת|בית\s*הכנסת/.test(label)) {
       return "synagogue";
     }
+    if (/mosque|masjid|מסגד|جامع/.test(label)) {
+      return "mosque";
+    }
     if (/church|chapel|parish|baptist|episcopal|st\.?\s*paul|trinity|כנסייה/.test(label)) {
       return "church";
     }
@@ -1819,12 +1830,30 @@ export function getBuildingSignText(building, category, style = {}) {
       return "LIBRARY";
     case "synagogue":
       return /temple/.test(label) ? "TEMPLE" : "SHUL";
+    case "mosque":
+      return "MOSQUE";
     case "church":
       return /chapel/.test(label) ? "CHAPEL" : "CHURCH";
     case "gothic_chapel":
       return "CHAPEL";
     case "civic":
       return "CIVIC";
+    case "city_hall":
+      return "CITY HALL";
+    case "post_office":
+      return "POST";
+    case "police_station":
+      return "POLICE";
+    case "sanitation":
+      return "DPW";
+    case "industrial":
+      return /warehouse/.test(label) ? "DEPOT" : "WORKS";
+    case "hospital_clinic":
+      return /clinic|kupat|קופת/.test(label) ? "CLINIC" : "HOSPITAL";
+    case "transit_station":
+      return "STATION";
+    case "museum":
+      return "MUSEUM";
     case "fire_station":
       return "FIRE";
     case "bakery_cafe":
@@ -2649,10 +2678,18 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
   let bh;
   if (effectiveKind === "house") {
     const rawW = footW - 2 * hd;
-    bw = Math.max(48 * hd, Math.min(64 * hd, rawW));
+    const tightCapW =
+      typeof building.maxVisualTilesW === "number" && building.maxVisualTilesW > 0
+        ? Math.max(24 * hd, building.maxVisualTilesW * tileSize - 2 * hd)
+        : 64 * hd;
+    bw = Math.min(tightCapW, Math.max(48 * hd, Math.min(64 * hd, rawW)));
     bh = Math.max(52 * hd, Math.min(60 * hd, footH + 10 * hd));
   } else if (effectiveKind === "duplex") {
-    bw = Math.max(54 * hd, Math.min(72 * hd, footW - 2 * hd));
+    const tightCapW =
+      typeof building.maxVisualTilesW === "number" && building.maxVisualTilesW > 0
+        ? Math.max(28 * hd, building.maxVisualTilesW * tileSize - 2 * hd)
+        : 72 * hd;
+    bw = Math.min(tightCapW, Math.max(54 * hd, Math.min(72 * hd, footW - 2 * hd)));
     bh = Math.max(54 * hd, Math.min(64 * hd, footH + 10 * hd));
   } else if (effectiveKind === "garage") {
     bw = Math.max(24 * hd, Math.min(44 * hd, footW - 2 * hd));
@@ -2660,12 +2697,26 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
   } else if (effectiveKind === "greenhouse") {
     bw = Math.max(36 * hd, Math.min(64 * hd, footW - 2 * hd));
     bh = Math.max(36 * hd, Math.min(48 * hd, footH + 8 * hd));
-  } else if (effectiveKind === "library" || effectiveKind === "school" || effectiveKind === "civic") {
+  } else if (
+    effectiveKind === "library" ||
+    effectiveKind === "school" ||
+    effectiveKind === "civic" ||
+    effectiveKind === "city_hall" ||
+    effectiveKind === "museum" ||
+    effectiveKind === "hospital_clinic"
+  ) {
     bw = Math.max(66 * hd, Math.min(124 * hd, footW - 2 * hd));
     bh = Math.max(62 * hd, Math.min(78 * hd, footH + 14 * hd));
-  } else if (effectiveKind === "fire_station") {
-    bw = Math.max(58 * hd, Math.min(96 * hd, footW - 2 * hd));
-    bh = Math.max(56 * hd, Math.min(68 * hd, footH + 12 * hd));
+  } else if (
+    effectiveKind === "fire_station" ||
+    effectiveKind === "police_station" ||
+    effectiveKind === "post_office" ||
+    effectiveKind === "sanitation" ||
+    effectiveKind === "industrial" ||
+    effectiveKind === "transit_station"
+  ) {
+    bw = Math.max(58 * hd, Math.min(104 * hd, footW - 2 * hd));
+    bh = Math.max(56 * hd, Math.min(70 * hd, footH + 12 * hd));
   } else if (
     effectiveKind === "commercial" ||
     effectiveKind === "bakery_cafe" ||
@@ -2732,6 +2783,189 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
     for (let sx = bx + 8 * hd; sx < bx + bw - 6 * hd; sx += 14 * hd) {
       px(ctx, sx, by + 6 * hd, 2 * hd, 7 * hd, "#36281c");
     }
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
+
+  // =========================================================================
+  // 0B. EXPANDED MUNICIPAL & INDUSTRIAL TAXONOMY:
+  //     Post Office, Police Precinct, City Hall, Hospital/Clinic,
+  //     Sanitation/DPW, Industrial Warehouse, Transit Station & Museum!
+  // =========================================================================
+  if (
+    effectiveKind === "post_office" ||
+    effectiveKind === "police_station" ||
+    effectiveKind === "city_hall" ||
+    effectiveKind === "hospital_clinic" ||
+    effectiveKind === "sanitation" ||
+    effectiveKind === "industrial" ||
+    effectiveKind === "transit_station" ||
+    effectiveKind === "museum"
+  ) {
+    const roofH = Math.min(14 * hd, Math.max(9 * hd, Math.floor(bh * 0.22)));
+    const wallH = Math.max(26 * hd, bh - roofH);
+    const wallY = by + roofH;
+    const isIsraelBiome = String(biomeConfig?.id || "").startsWith("israel_");
+
+    const themeMap = {
+      post_office: { roof: "#4c5c75", wall: isIsraelBiome ? "#e8d9bc" : "#a84438", trim: "#f5efe6", badgeBg: "#1d4c8f", badgeTrim: "#f4d35e", badgeFg: "#ffffff" },
+      police_station: { roof: "#36455c", wall: "#d4dce6", trim: "#1c4a8f", badgeBg: "#143870", badgeTrim: "#68b5ff", badgeFg: "#ffffff" },
+      city_hall: { roof: "#475469", wall: "#ebe2d2", trim: "#f7f3eb", badgeBg: "#3d2c63", badgeTrim: "#f4d35e", badgeFg: "#fff8d6" },
+      hospital_clinic: { roof: "#587082", wall: "#f2f5f7", trim: "#d4e0e8", badgeBg: "#c92a35", badgeTrim: "#ffffff", badgeFg: "#ffffff" },
+      sanitation: { roof: "#526358", wall: "#c9cfc7", trim: "#387849", badgeBg: "#2a633b", badgeTrim: "#f4d35e", badgeFg: "#ffffff" },
+      industrial: { roof: "#5e646e", wall: "#9ca3ad", trim: "#69707a", badgeBg: "#3d424d", badgeTrim: "#e8a832", badgeFg: "#ffe885" },
+      transit_station: { roof: "#3d6b8c", wall: "#d9e2eb", trim: "#2c5475", badgeBg: "#1b4970", badgeTrim: "#80d6ff", badgeFg: "#ffffff" },
+      museum: { roof: "#5c554d", wall: "#e8dec8", trim: "#f7f2e6", badgeBg: "#6e4624", badgeTrim: "#f4d35e", badgeFg: "#fff8dc" },
+    };
+    const tm = themeMap[effectiveKind];
+
+    // Base Roof + Facade Shell
+    px(ctx, bx - 1, by - 1, bw + 2, roofH + wallH + 2, O);
+    px(ctx, bx, by, bw, roofH, tm.roof);
+    if (effectiveKind === "industrial") {
+      // Sawtooth corrugated steel industrial roof ridges + rooftop exhaust vents!
+      for (let sx = bx + 2 * hd; sx < bx + bw - 6 * hd; sx += 10 * hd) {
+        px(ctx, sx, by + hd, 8 * hd, roofH - 2 * hd, "#7c838f");
+        px(ctx, sx, by + hd, 3 * hd, roofH - 2 * hd, "#98d4f0"); // sawtooth skylight strip
+        px(ctx, sx + 7 * hd, by + hd, hd, roofH - 2 * hd, "#3b404a");
+      }
+    } else if (effectiveKind === "transit_station") {
+      // Arched glass-and-steel station canopy roof!
+      px(ctx, bx + 2 * hd, by + 2 * hd, bw - 4 * hd, roofH - 4 * hd, "#7cc4e8");
+      for (let gx = bx + 6 * hd; gx < bx + bw - 4 * hd; gx += 8 * hd) {
+        px(ctx, gx, by + hd, hd, roofH - 2 * hd, "#2a455e");
+      }
+    } else {
+      px(ctx, bx + 2 * hd, by + 2 * hd, Math.max(4, bw - 4 * hd), Math.max(3, roofH - 4 * hd), shadeHex(tm.roof, -20));
+    }
+
+    // Parapet cornice trim + Snow cap in winter
+    px(ctx, bx - 2 * hd, wallY - 3 * hd, bw + 4 * hd, 4 * hd, O);
+    px(ctx, bx - hd, wallY - 2 * hd, bw + 2 * hd, 2 * hd, biomeConfig?.hasSnowRoofs ? "#ffffff" : tm.trim);
+    px(ctx, bx, wallY + hd, bw, wallH - hd, tm.wall);
+
+    // Distinct Architectural Crowns & Features per Building Type!
+    if (effectiveKind === "city_hall") {
+      // Grand domed clock tower + twin flagpoles!
+      const tw = 18 * hd;
+      const tx = midX - Math.floor(tw / 2);
+      const ty = by - 13 * hd;
+      px(ctx, midX - 6 * hd, ty - 6 * hd, 12 * hd, 6 * hd, O);
+      px(ctx, midX - 5 * hd, ty - 5 * hd, 10 * hd, 5 * hd, "#d9ad4c");
+      px(ctx, tx - 1, ty, tw + 2, 15 * hd, O);
+      px(ctx, tx, ty + 1, tw, 13 * hd, "#f7f2e6");
+      px(ctx, midX - 4 * hd, ty + 3 * hd, 8 * hd, 8 * hd, O);
+      px(ctx, midX - 3 * hd, ty + 4 * hd, 6 * hd, 6 * hd, "#ffffff");
+      px(ctx, midX, ty + 5 * hd, hd, 3 * hd, O);
+      px(ctx, midX, ty + 7 * hd, 2 * hd, hd, O);
+      drawFlagpole(ctx, bx + 2 * hd, wallY + wallH + 2 * hd, wallH + roofH + 8 * hd, { hd, O });
+      drawFlagpole(ctx, bx + bw - 2 * hd, wallY + wallH + 2 * hd, wallH + roofH + 8 * hd, { hd, O });
+    } else if (effectiveKind === "police_station") {
+      // Bold royal-blue precinct stripe + glowing blue globe precinct lamps!
+      px(ctx, bx, wallY + 3 * hd, bw, 3 * hd, "#1c4a8f");
+      px(ctx, bx, wallY + 4 * hd, bw, hd, "#68b5ff");
+      for (const lx of [midX - 11 * hd, midX + 8 * hd]) {
+        px(ctx, lx, wallY + wallH - 11 * hd, 3 * hd, 3 * hd, O);
+        px(ctx, lx + 1, wallY + wallH - 10 * hd, 3 * hd - 2, 3 * hd - 2, "#59bfff");
+        px(ctx, lx + hd, wallY + wallH - 10 * hd, hd, hd, "#ffffff");
+      }
+    } else if (effectiveKind === "hospital_clinic") {
+      // Iconic Red Medical Cross (or Red Star of David in Israel!) + ambulance bay canopy!
+      const cxM = midX;
+      const cyM = wallY + 12 * hd;
+      if (isIsraelBiome) {
+        // Red Magen David Adom emblem
+        px(ctx, cxM - 4 * hd, cyM - 2 * hd, 8 * hd, 2 * hd, "#d9242e");
+        px(ctx, cxM - 4 * hd, cyM + 2 * hd, 8 * hd, 2 * hd, "#d9242e");
+        px(ctx, cxM - 2 * hd, cyM - 4 * hd, 4 * hd, 8 * hd, "#d9242e");
+        px(ctx, cxM - hd, cyM - hd, 2 * hd, 2 * hd, "#ffffff");
+      } else {
+        px(ctx, cxM - 4 * hd, cyM - hd, 8 * hd, 3 * hd, "#d9242e");
+        px(ctx, cxM - hd, cyM - 4 * hd, 3 * hd, 9 * hd, "#d9242e");
+      }
+    } else if (effectiveKind === "post_office") {
+      // Classic regional street postbox right out front (Red in Israel/UK, Blue USPS in US!)
+      const pbx = bx + 5 * hd;
+      const pby = wallY + wallH - 7 * hd;
+      const boxCol = isIsraelBiome || biomeConfig?.id === "european_historic" ? "#cf2828" : "#1f539e";
+      px(ctx, pbx - 1, pby - 1, 6 * hd + 2, 8 * hd + 2, O);
+      px(ctx, pbx, pby, 6 * hd, 8 * hd, boxCol);
+      px(ctx, pbx + hd, pby + 2 * hd, 4 * hd, hd, "#ffffff");
+      drawFlagpole(ctx, bx + bw - 3 * hd, wallY + wallH + 2 * hd, wallH + roofH + 6 * hd, { hd, O });
+    } else if (effectiveKind === "sanitation" || effectiveKind === "industrial") {
+      // Overhead roll-up steel bays + yellow safety bollards (+ green/blue recycling bins for DPW!)
+      const bayCount = bw >= 52 * hd ? 2 : 1;
+      const bayW = Math.min(18 * hd, Math.floor((bw - 12 * hd) / bayCount));
+      const bayH = Math.min(14 * hd, wallH - 12 * hd);
+      for (let i = 0; i < bayCount; i++) {
+        const bxx =
+          bayCount === 2
+            ? bx + 5 * hd + i * (bw - 10 * hd - bayW)
+            : midX - Math.floor(bayW / 2);
+        const byy = wallY + wallH - bayH - hd;
+        px(ctx, bxx - 1, byy - 1, bayW + 2, bayH + 2, O);
+        px(ctx, bxx, byy, bayW, bayH, "#7a828f");
+        for (let sl = byy + 3 * hd; sl < byy + bayH; sl += 3 * hd) {
+          px(ctx, bxx, sl, bayW, 1, "#4a505c");
+        }
+        // Yellow loading dock bollards
+        px(ctx, bxx - 2 * hd, wallY + wallH - 4 * hd, hd, 4 * hd, "#f4c430");
+        px(ctx, bxx + bayW + hd, wallY + wallH - 4 * hd, hd, 4 * hd, "#f4c430");
+      }
+      if (effectiveKind === "sanitation") {
+        // Green & Blue Municipal Recycling Bins
+        px(ctx, bx + 2 * hd, wallY + wallH - 5 * hd, 5 * hd, 5 * hd, "#2c8c4c");
+        px(ctx, bx + bw - 7 * hd, wallY + wallH - 5 * hd, 5 * hd, 5 * hd, "#2969b8");
+      }
+    } else if (effectiveKind === "museum") {
+      // Colorful vertical hanging museum exhibition banners flanking classical doorway!
+      for (const [bnX, bnCol] of [
+        [bx + 6 * hd, "#c9384a"],
+        [bx + 13 * hd, "#2c6cb8"],
+        [bx + bw - 18 * hd, "#2c8c64"],
+        [bx + bw - 11 * hd, "#d98c24"],
+      ]) {
+        if (bnX > bx + 2 * hd && bnX + 4 * hd < bx + bw - 2 * hd) {
+          px(ctx, bnX - 1, wallY + 7 * hd, 4 * hd + 2, 13 * hd, O);
+          px(ctx, bnX, wallY + 8 * hd, 4 * hd, 11 * hd, bnCol);
+          px(ctx, bnX + hd, wallY + 10 * hd, 2 * hd, 2 * hd, "#fff4b8");
+        }
+      }
+    } else if (effectiveKind === "transit_station") {
+      // Hanging round station clock + wide glass commuter doors!
+      px(ctx, midX - 4 * hd, wallY + 10 * hd, 8 * hd, 8 * hd, O);
+      px(ctx, midX - 3 * hd, wallY + 11 * hd, 6 * hd, 6 * hd, "#ffffff");
+      px(ctx, midX, wallY + 12 * hd, hd, 2 * hd, O);
+      px(ctx, midX, wallY + 14 * hd, 2 * hd, hd, O);
+    }
+
+    // Crisp Signboard Marquee + Central Entryway (for non-bay buildings)
+    drawSignMarquee(ctx, signText || effectiveKind.toUpperCase(), midX, wallY + 2 * hd, bw - 8 * hd, {
+      bg: tm.badgeBg,
+      trim: tm.badgeTrim,
+      fg: tm.badgeFg,
+      hd,
+      O,
+    });
+    if (effectiveKind !== "sanitation" && effectiveKind !== "industrial") {
+      const doorW = Math.min(14 * hd, Math.floor(bw * 0.24));
+      const doorH = Math.min(12 * hd, wallH - 14 * hd);
+      const doorX = midX - Math.floor(doorW / 2);
+      const doorY = wallY + wallH - doorH - hd;
+      px(ctx, doorX - 2, doorY - 2, doorW + 4, doorH + 3, O);
+      px(ctx, doorX, doorY, doorW, doorH, effectiveKind === "hospital_clinic" || effectiveKind === "transit_station" ? "#7cc4e8" : "#5e3622");
+      px(ctx, midX, doorY, 1, doorH, O);
+      // Flanking daylight windows
+      const winW = 8 * hd;
+      const winH = 9 * hd;
+      const winY = wallY + Math.max(10 * hd, Math.floor((wallH - winH) / 2));
+      if (bx + 5 * hd + winW < doorX - 3 * hd) {
+        drawClassroomWindow(ctx, bx + 5 * hd, winY, winW, winH, O);
+      }
+      if (bx + bw - 5 * hd - winW > doorX + doorW + 3 * hd) {
+        drawClassroomWindow(ctx, bx + bw - 5 * hd - winW, winY, winW, winH, O);
+      }
+    }
+    drawAddressPlaque(ctx, building, midX, by + 2 * hd, bw, O);
     return { canvas, offsetX: -padSide, offsetY: -padTop };
   }
 
@@ -3714,6 +3948,7 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
     const wallH = Math.max(26 * hd, bh - roofH);
     const wallY = by + roofH;
     const isSynagogue = category === "synagogue";
+    const isMosque = category === "mosque";
     const isChurch = category === "church";
     const isGothic = category === "gothic_chapel";
 
@@ -3777,6 +4012,34 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
         O,
       });
       drawStainedGlassRose(ctx, midX, wallY + 13 * hd, 5 * hd, { palette: "synagogue", O });
+    } else if (isMosque) {
+      // Classical Limestone Mosque Dome + Slender Minaret Tower!
+      const domeW = Math.min(28 * hd, Math.floor(bw * 0.42));
+      const domeH = 15 * hd;
+      const domeY = by - 11 * hd;
+      for (let r = 0; r < domeH; r++) {
+        const t = r / Math.max(1, domeH - 1);
+        const half = Math.max(2, Math.round(Math.sin(t * Math.PI * 0.5) * (domeW / 2)));
+        const ry = domeY + r;
+        px(ctx, midX - half - 1, ry, half * 2 + 2, 1, O);
+        px(ctx, midX - half, ry, half * 2, 1, r < domeH * 0.35 ? "#54b8a6" : "#2d8a7b");
+      }
+      px(ctx, midX - hd, domeY - 4 * hd, 2 * hd, 4 * hd, "#f4d35e");
+      // Slender limestone minaret on right corner
+      const minX = bx + bw - 9 * hd;
+      px(ctx, minX - 1, by - 20 * hd, 6 * hd + 2, 22 * hd, O);
+      px(ctx, minX, by - 19 * hd, 6 * hd, 20 * hd, "#f0e6d2");
+      px(ctx, minX - hd, by - 14 * hd, 8 * hd, 2 * hd, "#d4c3a3");
+      px(ctx, minX + hd, by - 23 * hd, 4 * hd, 4 * hd, "#2d8a7b");
+      px(ctx, portX - 1, wallY, portW + 2, wallH, O);
+      px(ctx, portX, wallY + hd, portW, wallH - hd, "#f5ebd8");
+      drawSignMarquee(ctx, signText || "MOSQUE", midX, wallY + hd, portW + 4 * hd, {
+        bg: "#1e6357",
+        trim: "#f4d35e",
+        fg: "#fff8d6",
+        hd,
+        O,
+      });
     } else if (isGothic) {
       // Spooky Gothic Cemetery Chapel needle spire & glowing eerie teal/violet rose window!
       px(ctx, midX - 2 * hd, by - 19 * hd, 4 * hd, 14 * hd, O);

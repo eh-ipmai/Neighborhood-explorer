@@ -34,9 +34,19 @@ export const NON_RESIDENTIAL_MAP_INK = {
   library: "#248f7c",      // Oxidized Copper Library Teal
   synagogue: "#6f42a6",    // Regal Civic Purple
   church: "#6f42a6",       // Regal Civic Purple
+  mosque: "#2a7d6f",       // Turquoise Mosque Dome Teal
   gothic_chapel: "#525870",// Gothic Slate
   civic: "#6f42a6",        // Regal Civic Purple
+  city_hall: "#5e3c99",    // Deep Municipal Purple
+  post_office: "#26599c",  // Federal Postal Blue
+  police_station: "#1b4485",// Precinct Navy Blue
   fire_station: "#d92b24", // Firehouse Red
+  hospital_clinic: "#cf344a",// Clinical Crimson
+  sanitation: "#4c7a52",   // Public Works Green
+  industrial: "#696e78",   // Industrial Steel Gray
+  transit_station: "#2e739e",// Transit Rail Blue
+  museum: "#9c6b30",       // Classical Museum Ochre
+  city_wall: "#9e8660",    // Fortified Limestone Wall
   bakery_cafe: "#e07124",  // Warm Shop/Café Orange
   corner_market: "#e07124",// Warm Shop/Market Orange
   commercial: "#e07124",   // Warm Commercial Orange
