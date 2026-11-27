@@ -4752,6 +4752,8 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
         : undefined;
     const osmColor = tags["building:colour"] ? String(tags["building:colour"]) : "";
     const osmRoofColor = tags["roof:colour"] ? String(tags["roof:colour"]) : "";
+    const isOldCityBuilding =
+      Array.isArray(config?.meta?.quirks) && config.meta.quirks.includes("jerusalem_old_city");
 
     buildings.push({
       id,
@@ -4762,11 +4764,53 @@ export function rasterizeOsmData(elements, config = DEFAULT_CONFIG) {
       kind,
       ...(arch ? { arch } : {}),
       isHomeBase,
+      ...(isOldCityBuilding ? { isOldCity: true } : {}),
       styleIndex,
       ...(osmColor ? { osmColor } : {}),
       ...(osmRoofColor ? { osmRoofColor } : {}),
       bounds,
     });
+  }
+
+  // Historic Fortified City Walls (e.g., Old City of Jerusalem Ottoman ramparts via barrier=city_wall / historic=citywalls!)
+  for (const way of ways) {
+    const tags = way.tags || {};
+    if (tags.barrier !== "city_wall" && tags.historic !== "citywalls") continue;
+    const pts = (way.nodes || [])
+      .map((nid) => nodes.get(nid))
+      .filter(Boolean)
+      .map((n) => projectNode(n));
+    if (pts.length < 2) continue;
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+    for (let i = 0; i < pts.length - 1; i++) {
+      drawLine(base, width, height, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, TILE_IDS.BUILDING_WALL, 0);
+      minX = Math.min(minX, pts[i].x, pts[i + 1].x);
+      maxX = Math.max(maxX, pts[i].x, pts[i + 1].x);
+      minY = Math.min(minY, pts[i].y, pts[i + 1].y);
+      maxY = Math.max(maxY, pts[i].y, pts[i + 1].y);
+    }
+    minX = Math.max(0, minX);
+    minY = Math.max(0, minY);
+    maxX = Math.min(width - 1, maxX);
+    maxY = Math.min(height - 1, maxY);
+    if (maxX >= minX && maxY >= minY) {
+      const wallName = formatBilingualName(tags, { labelMode }) || "Old City Wall";
+      buildings.push({
+        id: way.id ? `osm_wall_${way.id}` : `wall_${minX}_${minY}`,
+        houseNumber: "",
+        street: "",
+        address: wallName,
+        name: wallName,
+        kind: "city_wall",
+        isHomeBase: false,
+        isOldCity: true,
+        styleIndex: 1,
+        bounds: { minX, minY, maxX, maxY },
+      });
+    }
   }
 
   // Local Newton Centre detail: small parking lot immediately west of 575 Boylston St

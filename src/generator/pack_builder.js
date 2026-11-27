@@ -19,7 +19,10 @@ import { generateLandmarksAndQuests } from "./poi_landmarks.js";
 import { slugifyNeighborhood } from "../neighborhood_meta.js";
 import {
   BIOME_PRESETS,
+  SEASONS,
   detectBiomeForLocation,
+  detectSeasonForLocation,
+  detectLocalQuirks,
   getDrivingSideForCountry,
 } from "../biomes.js";
 import { snapToWalkableTile } from "../quests.js";
@@ -183,6 +186,21 @@ export async function buildNeighborhoodPackage({
           preset: "generic",
         });
   const resolvedLabelMode = ["bilingual", "en", "local"].includes(labelMode) ? labelMode : "bilingual";
+  const resolvedSeason =
+    season && season !== "auto" && SEASONS[season]
+      ? season
+      : detectSeasonForLocation({
+          lat: geo.lat,
+          biomeId: resolvedBiome,
+          isNewton: false,
+        });
+  const resolvedQuirks = detectLocalQuirks({
+    lat: geo.lat,
+    lon: geo.lon,
+    townName: geo.townName,
+    address: geo.homeAddress,
+    countryCode: resolvedCountryCode,
+  });
 
   const meta = {
     id: slugifyNeighborhood(`${geo.homeAddress}_${geo.townName}`),
@@ -195,7 +213,8 @@ export async function buildNeighborhoodPackage({
     countryCode: resolvedCountryCode,
     drivingSide: resolvedDrivingSide,
     biome: resolvedBiome,
-    season: season || "auto",
+    season: resolvedSeason,
+    ...(resolvedQuirks.length > 0 ? { quirks: resolvedQuirks } : {}),
     labelMode: resolvedLabelMode,
     generatedAt: new Date().toISOString(),
   };

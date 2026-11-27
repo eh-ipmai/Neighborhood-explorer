@@ -935,6 +935,7 @@ async function boot() {
 
   const atlas = buildSnesSpriteAtlas(biomeConfig?.paletteKey || "autumn_golden", biomeConfig, {
     heroProfile: neighborhoodMeta.heroProfile,
+    season: neighborhoodMeta.season,
     localChants: streetLife.localChants,
     bikerChants: streetLife.bikerChants,
     heroName,

@@ -6,7 +6,12 @@
  * (565 Boylston St) map, saves, and custom landmarks.
  */
 
-import { getBiomeConfig, getDrivingSideForCountry } from "./biomes.js";
+import {
+  getBiomeConfig,
+  getDrivingSideForCountry,
+  detectSeasonForLocation,
+  detectLocalQuirks,
+} from "./biomes.js";
 import { DEFAULT_HERO_PROFILE, resolveHeroProfile } from "./characters.js";
 
 export const LEGACY_SAVE_STORAGE_KEY = "neighborhood_explorer_save_v1";
@@ -143,6 +148,26 @@ export function getNeighborhoodMeta(worldMap) {
   const labelMode = rawMeta.labelMode || "bilingual";
   const biomeConfig = getBiomeConfig(worldMap);
   const biome = rawMeta.biome || biomeConfig.id;
+  const season =
+    biomeConfig.season ||
+    rawMeta.season ||
+    detectSeasonForLocation({
+      lat: origin?.lat,
+      biomeId: biome,
+      isNewton,
+    });
+  const quirks =
+    Array.isArray(rawMeta.quirks) && rawMeta.quirks.length > 0
+      ? rawMeta.quirks
+      : Array.isArray(biomeConfig.quirks) && biomeConfig.quirks.length > 0
+        ? biomeConfig.quirks
+        : detectLocalQuirks({
+            lat: origin?.lat,
+            lon: origin?.lon,
+            townName,
+            address: homeAddress,
+            countryCode,
+          });
   const heroProfile = rawMeta.heroProfile
     ? resolveHeroProfile(rawMeta.heroProfile)
     : isNewton
@@ -165,6 +190,8 @@ export function getNeighborhoodMeta(worldMap) {
     drivingSide,
     labelMode,
     biome,
+    season,
+    quirks,
     biomeConfig,
     saveStorageKey: isNewton
       ? LEGACY_SAVE_STORAGE_KEY

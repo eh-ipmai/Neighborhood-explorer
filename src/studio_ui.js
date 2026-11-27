@@ -23,7 +23,7 @@ import {
   addCustomQuestToPack,
 } from "./generator/pack_builder.js";
 import { geocodeAddress } from "./generator/geocode.js";
-import { BIOME_LIST } from "./biomes.js";
+import { BIOME_LIST, SEASON_LIST, SEASONS } from "./biomes.js";
 import {
   HERO_HAIR_STYLES,
   HERO_HAIR_COLORS,
@@ -84,6 +84,7 @@ export function createNeighborhoodStudio({
   const inputHero = document.getElementById("studio-hero");
   const selectSize = document.getElementById("studio-size");
   const selectBiome = document.getElementById("studio-biome");
+  const selectSeason = document.getElementById("studio-season");
   const selectLabels = document.getElementById("studio-labels");
   const selectHairStyle = document.getElementById("studio-hair-style");
   const selectHairColor = document.getElementById("studio-hair-color");
@@ -104,6 +105,7 @@ export function createNeighborhoodStudio({
   // Tab 2: Places & Goals
   const activeTownBadgeEl = document.getElementById("studio-active-town-badge");
   const selectActiveBiome = document.getElementById("studio-active-biome");
+  const selectActiveSeason = document.getElementById("studio-active-season");
   const btnApplyBiome = document.getElementById("btn-studio-apply-biome");
   const biomeStatusEl = document.getElementById("studio-biome-status");
   const selectActiveHairStyle = document.getElementById("studio-active-hair-style");
@@ -263,6 +265,7 @@ export function createNeighborhoodStudio({
     const heroName = String(inputHero?.value || "").trim() || "Explorer";
     const size = String(selectSize?.value || "walkable");
     const biome = String(selectBiome?.value || "auto");
+    const season = String(selectSeason?.value || "auto");
     const labelMode = String(selectLabels?.value || "bilingual");
 
     if (!address) {
@@ -299,6 +302,7 @@ export function createNeighborhoodStudio({
         heroProfile,
         size,
         biome,
+        season,
         labelMode,
         customPlacesConfig: preBuildPlaces.length > 0 ? { places: preBuildPlaces } : null,
         onProgress: (ev) => {
@@ -362,6 +366,21 @@ export function createNeighborhoodStudio({
         workingPack.meta?.biome ||
         neighborhoodMeta?.biome ||
         "new_england_autumn";
+    }
+    if (selectActiveSeason) {
+      if (selectActiveSeason.options.length === 0) {
+        for (const s of Object.values(SEASONS)) {
+          const opt = document.createElement("option");
+          opt.value = s.id;
+          opt.textContent = s.label;
+          selectActiveSeason.appendChild(opt);
+        }
+      }
+      selectActiveSeason.value =
+        workingPack.worldMap?.meta?.season ||
+        workingPack.meta?.season ||
+        neighborhoodMeta?.season ||
+        "fall";
     }
     const curHero = resolveHeroProfile(
       workingPack.worldMap?.meta?.heroProfile ||
@@ -445,6 +464,7 @@ export function createNeighborhoodStudio({
 
   btnApplyBiome?.addEventListener("click", async () => {
     const nextBiome = String(selectActiveBiome?.value || "").trim();
+    const nextSeason = String(selectActiveSeason?.value || "").trim();
     if (!nextBiome) return;
     try {
       workingPack = {
@@ -452,17 +472,19 @@ export function createNeighborhoodStudio({
         meta: {
           ...(workingPack.meta || {}),
           biome: nextBiome,
+          ...(nextSeason ? { season: nextSeason } : {}),
         },
         worldMap: {
           ...(workingPack.worldMap || {}),
           meta: {
             ...(workingPack.worldMap?.meta || {}),
             biome: nextBiome,
+            ...(nextSeason ? { season: nextSeason } : {}),
           },
         },
       };
       await persistWorkingPack();
-      setStatus(biomeStatusEl, "✅ Switched biome! Reloading neighborhood with new grass, trees, stone & roads...");
+      setStatus(biomeStatusEl, "✅ Switched biome & season! Reloading neighborhood...");
       setTimeout(() => {
         const u = new URL(window.location.href);
         u.searchParams.delete("pack");
@@ -768,6 +790,14 @@ export function createNeighborhoodStudio({
       opt.value = b.id;
       opt.textContent = b.label;
       selectBiome.appendChild(opt);
+    }
+  }
+  if (selectSeason && selectSeason.options.length === 0) {
+    for (const s of SEASON_LIST) {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.label;
+      selectSeason.appendChild(opt);
     }
   }
 

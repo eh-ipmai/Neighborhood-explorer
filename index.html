@@ -1761,9 +1761,12 @@
               <label class="studio-field-label" for="studio-address">Starting Home Address</label>
               <input id="studio-address" type="text" dir="auto" placeholder="e.g., Emek Refaim 24, Jerusalem, Israel · or 1204 Barton Springs Rd, Austin, TX" autocomplete="street-address" />
               <div class="studio-quick-row">
-                <button class="studio-quick-chip" type="button" data-quick-addr="Emek Refaim 24, Jerusalem, Israel" data-quick-biome="israel_jerusalem">🕍 Jerusalem (Emek Refaim)</button>
-                <button class="studio-quick-chip" type="button" data-quick-addr="24 Dizengoff St, Tel Aviv, Israel" data-quick-biome="israel_coastal">🏖️ Tel Aviv (Dizengoff)</button>
-                <button class="studio-quick-chip" type="button" data-quick-addr="1204 Barton Springs Rd, Austin, TX" data-quick-biome="auto">🎸 Austin, TX</button>
+                <button class="studio-quick-chip" type="button" data-quick-addr="Emek Refaim 24, Jerusalem, Israel" data-quick-biome="israel_jerusalem">🕍 Jerusalem</button>
+                <button class="studio-quick-chip" type="button" data-quick-addr="Jaffa Gate, Old City, Jerusalem, Israel" data-quick-biome="israel_jerusalem">🧱 Old City</button>
+                <button class="studio-quick-chip" type="button" data-quick-addr="24 Dizengoff St, Tel Aviv, Israel" data-quick-biome="israel_coastal">🏖️ Tel Aviv</button>
+                <button class="studio-quick-chip" type="button" data-quick-addr="Laugavegur 22, Reykjavik, Iceland" data-quick-biome="tundra">❄️ Reykjavik</button>
+                <button class="studio-quick-chip" type="button" data-quick-addr="Asakusa, Tokyo, Japan" data-quick-biome="east_asian_urban">⛩️ Tokyo</button>
+                <button class="studio-quick-chip" type="button" data-quick-addr="1204 Barton Springs Rd, Austin, TX" data-quick-biome="auto">🎸 Austin</button>
               </div>
             </div>
             <div class="studio-grid-2">
@@ -1782,13 +1785,17 @@
                 <select id="studio-biome"></select>
               </div>
               <div>
-                <label class="studio-field-label" for="studio-labels">Street &amp; Place Labels</label>
-                <select id="studio-labels">
-                  <option value="bilingual">🌐 Bilingual (English · עברית / Local)</option>
-                  <option value="en">🇬🇧 English First (Local fallback)</option>
-                  <option value="local">🗺️ Local Language Only</option>
-                </select>
+                <label class="studio-field-label" for="studio-season">Season Skin</label>
+                <select id="studio-season"></select>
               </div>
+            </div>
+            <div>
+              <label class="studio-field-label" for="studio-labels">Street &amp; Place Labels</label>
+              <select id="studio-labels">
+                <option value="bilingual">🌐 Bilingual (English · עברית / Local)</option>
+                <option value="en">🇬🇧 English First (Local fallback)</option>
+                <option value="local">🗺️ Local Language Only</option>
+              </select>
             </div>
 
             <div class="studio-box">
@@ -1849,10 +1856,13 @@
             </div>
 
             <div class="studio-box">
-              <h4>🎨 Switch Regional Biome (Grass, Trees, Stone &amp; Roads)</h4>
-              <div style="display:flex; gap:8px; align-items:center;">
-                <select id="studio-active-biome" style="flex:1;"></select>
-                <button id="btn-studio-apply-biome" class="studio-btn primary" type="button">Apply Biome</button>
+              <h4>🎨 Switch Regional Biome &amp; Season (Grass, Snow, Trees, Stone &amp; Roads)</h4>
+              <div class="studio-grid-2">
+                <select id="studio-active-biome"></select>
+                <select id="studio-active-season"></select>
+              </div>
+              <div style="display:flex; justify-content:flex-end;">
+                <button id="btn-studio-apply-biome" class="studio-btn primary" type="button">Apply Biome &amp; Season</button>
               </div>
               <div id="studio-biome-status" class="studio-status"></div>
             </div>

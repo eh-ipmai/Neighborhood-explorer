@@ -475,22 +475,113 @@ function bakeDesertAcaciaTree(seed = 67) {
 }
 
 /**
+ * Bake a 32-bit Snow-Dusted Winter Evergreen Pine (deep frosted spruce boughs laden with sparkling snow!).
+ */
+function bakeWinterSnowPine(seed = 61, compact = false) {
+  const { canvas, ctx } = makeHdCanvas(44, 60);
+  const O = "#142230";
+  ditherShadowEllipse(ctx, 22, 54, compact ? 12 : 15, 4.2);
+  px(ctx, 18, 43, 8, 12, "#241914");
+  px(ctx, 19, 44, 6, 10, "#593e2e");
+  px(ctx, 20, 44, 2, 10, "#7d5b45");
+
+  const tiers = compact
+    ? [
+        { yTop: 32, h: 15, wBot: 28, wTop: 10 },
+        { yTop: 22, h: 14, wBot: 22, wTop: 6 },
+        { yTop: 12, h: 13, wBot: 14, wTop: 2 },
+      ]
+    : [
+        { yTop: 28, h: 19, wBot: 36, wTop: 14 },
+        { yTop: 19, h: 16, wBot: 30, wTop: 10 },
+        { yTop: 11, h: 14, wBot: 22, wTop: 6 },
+        { yTop: 3, h: 12, wBot: 14, wTop: 2 },
+      ];
+  for (const t of tiers) {
+    for (let r = 0; r < t.h; r++) {
+      const frac = r / Math.max(1, t.h - 1);
+      const w = Math.round(t.wTop + (t.wBot - t.wTop) * frac);
+      const x0 = Math.round(22 - w / 2);
+      const y = t.yTop + r;
+      px(ctx, x0 - 1, y, w + 2, 1, O);
+      // Sparkling white/ice-blue snow cap resting on upper half of every bough tier!
+      if (r < Math.max(3, Math.floor(t.h * 0.48))) {
+        px(ctx, x0, y, w, 1, r < 2 ? "#ffffff" : "#dceefc");
+        if (w >= 6 && (r + seed) % 2 === 0) px(ctx, x0 + Math.floor(w * 0.65), y, Math.max(1, Math.floor(w * 0.25)), 1, "#b4d4f0");
+      } else {
+        px(ctx, x0, y, w, 1, r > t.h - 3 ? "#193836" : "#285752");
+        if (r < t.h - 3) px(ctx, x0 + 1, y, Math.max(1, Math.floor(w * 0.45)), 1, "#3f7a70");
+      }
+    }
+  }
+  return canvas;
+}
+
+/**
+ * Bake a 32-bit Sculpted Winter Bare Oak Tree with frosted snow-dusted boughs & snowbank at roots!
+ */
+function bakeWinterBareOak(seed = 73) {
+  const { canvas, ctx } = makeHdCanvas(48, 56);
+  ditherShadowEllipse(ctx, 24, 51, 15, 4.2);
+  // Crisp snowdrift around trunk roots
+  pxEllipse(ctx, 24, 49, 12, 3.2, "#dceefc");
+  pxEllipse(ctx, 22, 48, 8, 2.0, "#ffffff");
+  // Sturdy winter trunk
+  px(ctx, 19, 26, 10, 23, "#241914");
+  px(ctx, 20, 27, 8, 21, "#5c4234");
+  px(ctx, 21, 27, 3, 20, "#856654");
+  // Sculpted spreading bare branches + snow caps along upper edges!
+  const drawBranch = (x0, y0, x1, y1, w) => {
+    const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let i = 0; i <= steps; i++) {
+      const bx = Math.round(x0 + ((x1 - x0) * i) / Math.max(1, steps));
+      const by = Math.round(y0 + ((y1 - y0) * i) / Math.max(1, steps));
+      px(ctx, bx - 1, by - 1, w + 2, w + 2, "#241914");
+      px(ctx, bx, by, w, w, "#664a3a");
+      px(ctx, bx, by - 1, w, 1, "#eef7ff"); // frost/snow rim on top of branch!
+    }
+  };
+  drawBranch(22, 28, 9, 14, 3);
+  drawBranch(14, 19, 6, 10, 2);
+  drawBranch(26, 28, 38, 15, 3);
+  drawBranch(33, 20, 41, 11, 2);
+  drawBranch(24, 26, 21, 9, 2);
+  drawBranch(24, 24, 29, 10, 2);
+  // Subtle frost crystals clinging to twigs
+  for (let i = 0; i < 14; i++) {
+    const sx = 8 + (h2(i, 1, seed + 13) % 32);
+    const sy = 8 + (h2(i, 2, seed + 13) % 16);
+    px(ctx, sx, sy, 2, 1, "#ffffff");
+  }
+  return canvas;
+}
+
+/**
  * Upgrade ground tiles, lush regional trees, sidewalks, leaf piles/petals,
  * street lamps, street signs, vehicles & props to 32-bit 2x native pixels!
  */
 export function upgradeAtlasTo32Bit(sprites, P, biomeConfig = null) {
   const hasFallenLeaves = biomeConfig ? Boolean(biomeConfig.hasFallenLeaves) : true;
+  const hasSnowGround = Boolean(biomeConfig?.hasSnowGround);
   const sidewalkStyle = biomeConfig?.sidewalkStyle || "cobblestone";
   const treeStyle = biomeConfig?.treeStyle || "autumn_new_england";
   const shrubStyle = biomeConfig?.shrubStyle || "boxwood";
   const streetSignStyle = biomeConfig?.streetSignStyle || "us_green";
   const ambientParticleStyle = biomeConfig?.ambientParticleStyle || "autumn_leaves";
   const isIsraelBiome = String(biomeConfig?.id || "").startsWith("israel_");
+  const isIsraelWinter = biomeConfig?.paletteKey === "israel_winter_green";
   const isDesertBiome = biomeConfig?.id === "israel_desert" || biomeConfig?.id === "southwest_desert";
 
   const drawGroundScatter = (ctx, x, y, variant = 0) => {
-    if (hasFallenLeaves) {
+    if (hasSnowGround) {
+      // Sparkling snow crystal glint + tiny ice pebble
+      px(ctx, x, y, 2, 1, variant % 2 === 0 ? "#ffffff" : "#b8d6f0");
+      if (variant % 3 === 0) px(ctx, x + 1, y + 1, 1, 1, "#d8ecfc");
+    } else if (hasFallenLeaves) {
       drawFallenLeaf(ctx, x, y, variant);
+    } else if (isIsraelWinter) {
+      // Iconic Israeli winter red kalaniyot (anemone) blooms dotting emerald green hills!
+      draw32BitFlower(ctx, x, y, "#f03232", "#a81818", "#241914", "#3b6e2e");
     } else if (isDesertBiome) {
       // Sun-warmed sandstone pebbles
       px(ctx, x, y + 1, 3, 1, "rgba(64, 42, 22, 0.25)");
@@ -499,6 +590,9 @@ export function upgradeAtlasTo32Bit(sprites, P, biomeConfig = null) {
       // Pale Jerusalem limestone pebbles & tiny sun-warmed meadow flecks
       px(ctx, x, y + 1, 3, 1, "rgba(62, 52, 34, 0.22)");
       px(ctx, x, y, 2, 1, variant % 2 === 0 ? "#ece2cc" : "#d9cca8");
+    } else if (ambientParticleStyle === "spring_petals") {
+      // Fallen soft pink sakura / almond petals on spring grass!
+      px(ctx, x, y, 2, 1, variant % 2 === 0 ? "#ffb8d4" : "#ffe0ec");
     } else {
       // Crisp fresh clover sprig
       px(ctx, x, y, 2, 1, P.grassLight);
@@ -947,6 +1041,79 @@ export function upgradeAtlasTo32Bit(sprites, P, biomeConfig = null) {
     sprites.tree_oak_2 = bakeOliveTree(39);
     sprites.tree_oak = sprites.tree_oak_0;
     sprites.tree_pine = bakeDatePalmTree(52);
+  } else if (treeStyle === "winter_snow") {
+    sprites.tree_oak_0 = bakeWinterBareOak(13);
+    sprites.tree_oak_1 = bakeWinterSnowPine(23, false);
+    sprites.tree_oak_2 = bakeWinterBareOak(37);
+    sprites.tree_oak = sprites.tree_oak_0;
+    sprites.tree_pine = bakeWinterSnowPine(41, false);
+  } else if (treeStyle === "tundra_spruce") {
+    sprites.tree_oak_0 = bakeWinterSnowPine(17, true);
+    sprites.tree_oak_1 = bakeWinterSnowPine(29, false);
+    sprites.tree_oak_2 = bakeWinterBareOak(43);
+    sprites.tree_oak = sprites.tree_oak_0;
+    sprites.tree_pine = bakeWinterSnowPine(53, true);
+  } else if (treeStyle === "alpine_conifer") {
+    sprites.tree_oak_0 = bakeAutumnOakTree(
+      {
+        outline: "#13291b",
+        deep: "#1f4f32",
+        mid: "#33754a",
+        light: "#559e66",
+        crown: "#86cc8e",
+        speck: "#b8ebb8",
+      },
+      19
+    );
+    sprites.tree_oak_1 = bakeJerusalemPineTree(31);
+    sprites.tree_oak_2 = bakeAutumnOakTree(
+      {
+        outline: "#1a2e1c",
+        deep: "#2e5e32",
+        mid: "#4a8748",
+        light: "#78b865",
+        crown: "#a8de8a",
+        speck: "#d9f7bd",
+      },
+      47
+    );
+    sprites.tree_oak = sprites.tree_oak_0;
+  } else if (treeStyle === "spring_blossom") {
+    // Lush Spring Cherry Blossom (Sakura), White Almond Blossom & Fresh Spring Maple!
+    sprites.tree_oak_0 = bakeFloweringTree(
+      {
+        outline: "#421e31",
+        deep: "#b55780",
+        mid: "#f08eb8",
+        light: "#ffb8d8",
+        crown: "#ffe0ee",
+        speck: "#ffffff",
+      },
+      11
+    );
+    sprites.tree_oak_1 = bakeAutumnOakTree(
+      {
+        outline: "#162e19",
+        deep: "#2a6331",
+        mid: "#489948",
+        light: "#76c963",
+        crown: "#acf08b",
+        speck: "#e0ffbd",
+      },
+      23
+    );
+    sprites.tree_oak_2 = bakeFloweringTree(
+      {
+        outline: "#3b2c36",
+        deep: "#baa8b5",
+        mid: "#e8dce4",
+        light: "#f7f0f5",
+        crown: "#ffffff",
+        speck: "#ffd6e8",
+      },
+      37
+    );
+    sprites.tree_oak = sprites.tree_oak_0;
   } else if (treeStyle === "temperate_summer") {
     sprites.tree_oak_0 = bakeAutumnOakTree(
       {
@@ -1019,8 +1186,14 @@ export function upgradeAtlasTo32Bit(sprites, P, biomeConfig = null) {
     sprites.tree_oak = sprites.tree_oak_1;
   }
 
-  // Deep Olive Evergreen Pine (for New England & Temperate biomes; Israel/Desert already set custom pine/cypress/palm!)
-  if (!sprites.tree_pine || treeStyle === "autumn_new_england" || treeStyle === "temperate_summer") {
+  // Deep Olive Evergreen Pine (for New England, Temperate, Spring & Alpine; Winter/Tundra/Israel/Desert already set custom trees!)
+  if (
+    !sprites.tree_pine ||
+    treeStyle === "autumn_new_england" ||
+    treeStyle === "temperate_summer" ||
+    treeStyle === "spring_blossom" ||
+    treeStyle === "alpine_conifer"
+  ) {
     const { canvas, ctx } = makeHdCanvas(44, 60);
     const O = "#162417";
     ditherShadowEllipse(ctx, 22, 54, 15, 4.5);
@@ -1769,7 +1942,19 @@ export function upgradeAtlasTo32Bit(sprites, P, biomeConfig = null) {
     sprites[`fx_feather_${f}`] = canvas;
   }
   const leafColors =
-    ambientParticleStyle === "olive_blossoms"
+    ambientParticleStyle === "snowflakes"
+      ? [
+          ["#9ec7eb", "#dceefc", "#ffffff"], // sparkling snowflake
+          ["#b4d8f5", "#e8f5ff", "#ffffff"],
+          ["#8cb8e0", "#d0e8fa", "#ffffff"],
+        ]
+      : ambientParticleStyle === "spring_petals"
+        ? [
+            ["#c96992", "#ff9ec8", "#ffe6f2"], // cherry sakura petal
+            ["#d483a8", "#ffb8d8", "#ffffff"],
+            ["#c4b2bd", "#f5e8f0", "#ffffff"],
+          ]
+        : ambientParticleStyle === "olive_blossoms"
       ? [
           ["#9c2260", "#e84a96", "#ff9cd0"], // bougainvillea petal
           ["#c4b898", "#f7f0d8", "#ffffff"], // almond blossom

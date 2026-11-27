@@ -546,6 +546,452 @@ export const PALETTES = {
     treeTrunkDark: "#4f3723",
     treeTrunkLight: "#9e7752",
   },
+  winter_snow: {
+    outline: "#1f2a38",
+    // Sparkling crisp snow-covered lawns & frost-dusted paths!
+    grassBase: "#dcebf7",
+    grassLight: "#f4faff",
+    grassMid: "#c2daf0",
+    grassDark: "#96b7d6",
+    parkBase: "#d0e4f5",
+    parkStripeLight: "#e3f2fc",
+    parkStripeDark: "#bed6eb",
+    parkHighlight: "#ffffff",
+    parkShadow: "#8fb0cf",
+    tallGrassBase: "#b5cde3",
+    tallGrassMid: "#d0e4f5",
+    tallGrassTip: "#ffffff",
+    dirtBase: "#9ca7b5",
+    dirtLight: "#c4cedb",
+    dirtMid: "#7d8896",
+    dirtDark: "#5a6370",
+    dirtPebble: "#f0f7ff",
+    sandBase: "#d4dce6",
+    sandLight: "#eef4fa",
+    sandMid: "#b5c0cf",
+    sandWet: "#8e9bad",
+    sandSparkle: "#ffffff",
+    sidewalkBase: "#c7d2de",
+    sidewalkLight: "#e8f0f7",
+    sidewalkMid: "#adb9c7",
+    sidewalkDark: "#8593a3",
+    sidewalkJoint: "#6b7887",
+    sidewalkMortar: "#6b7887",
+    sidewalkCurbTop: "#f5faff",
+    sidewalkCurbFace: "#8e9bad",
+    sidewalkCurbShadow: "#2b3545",
+    roadRes: "#4c5461",
+    roadResDark: "#3e4552",
+    roadResLight: "#5c6675",
+    roadMain: "#414854",
+    roadMainDark: "#333945",
+    roadMainLight: "#505969",
+    highway: "#353c47",
+    highwayBase: "#353c47",
+    highwayDark: "#282e38",
+    highwayLight: "#444d5c",
+    highwayTrack: "#3d4552",
+    highwayYellow: "#f5c53b",
+    highwayMedian: "#d4e0ed",
+    parkingBase: "#4c5461",
+    parkingLight: "#5d6675",
+    parkingDark: "#3b424d",
+    roadShoulder: "#eef6ff",
+    roadDashWhite: "#f7fbff",
+    roadYellow: "#f5c53b",
+    crosswalkWhite: "#ffffff",
+    crosswalkEdge: "#bdd2e6",
+    waterBase: "#2d638f",
+    waterDeep: "#1e4970",
+    waterMid: "#3c7aa8",
+    waterShallow: "#6aa8d1",
+    waterShallowLight: "#a6dcf5",
+    waterLight: "#8ac7e8",
+    waterShimmer: "#ffffff",
+    treeOutline: "#162433",
+    treeDark: "#1c3d3c",
+    treeMid: "#2c5c56",
+    treeLight: "#dceefc",
+    treeHighlight: "#ffffff",
+    pineDark: "#193836",
+    pineMid: "#285752",
+    pineLight: "#dceefc",
+    pineHighlight: "#ffffff",
+    treeTrunk: "#593e2e",
+    treeTrunkDark: "#382419",
+    treeTrunkLight: "#7d5b45",
+  },
+  spring_blossom: {
+    outline: "#1f2920",
+    grassBase: "#68bd52",
+    grassLight: "#8ce06e",
+    grassMid: "#52a142",
+    grassDark: "#3b7d31",
+    parkBase: "#57b54c",
+    parkStripeLight: "#6ecc5e",
+    parkStripeDark: "#499e42",
+    parkHighlight: "#98ed7e",
+    parkShadow: "#327a2e",
+    tallGrassBase: "#47943b",
+    tallGrassMid: "#66ba52",
+    tallGrassTip: "#a3ed7b",
+    dirtBase: "#b5865a",
+    dirtLight: "#cfa070",
+    dirtMid: "#996e46",
+    dirtDark: "#704d2f",
+    dirtPebble: "#e8dac5",
+    sandBase: "#ebd59b",
+    sandLight: "#faebc0",
+    sandMid: "#d6bc7c",
+    sandWet: "#b59a5d",
+    sandSparkle: "#fffdf0",
+    sidewalkBase: "#d6d1c9",
+    sidewalkLight: "#ece8e1",
+    sidewalkMid: "#c2bdb4",
+    sidewalkDark: "#9c968c",
+    sidewalkJoint: "#827c73",
+    sidewalkMortar: "#827c73",
+    sidewalkCurbTop: "#f5f2ec",
+    sidewalkCurbFace: "#8e887f",
+    sidewalkCurbShadow: "#2e2c2a",
+    roadRes: "#505663",
+    roadResDark: "#424854",
+    roadResLight: "#606775",
+    roadMain: "#444a57",
+    roadMainDark: "#373c47",
+    roadMainLight: "#545b6b",
+    highway: "#373d47",
+    highwayBase: "#373d47",
+    highwayDark: "#2b3038",
+    highwayLight: "#454d59",
+    highwayTrack: "#3f4652",
+    highwayYellow: "#f5c53b",
+    highwayMedian: "#c7ced9",
+    parkingBase: "#4f5561",
+    parkingLight: "#5f6675",
+    parkingDark: "#3e434d",
+    roadShoulder: "#f5f8fc",
+    roadDashWhite: "#f7faff",
+    roadYellow: "#f5c53b",
+    crosswalkWhite: "#ffffff",
+    crosswalkEdge: "#c4ccd8",
+    waterBase: "#2e7eb5",
+    waterDeep: "#1e5c8c",
+    waterMid: "#3c94cc",
+    waterShallow: "#63b8e3",
+    waterShallowLight: "#9be0fa",
+    waterLight: "#7ecbf0",
+    waterShimmer: "#fff7e6",
+    treeOutline: "#3d1e2e",
+    treeDark: "#b55780",
+    treeMid: "#f08eb8",
+    treeLight: "#ffb8d8",
+    treeHighlight: "#ffe6f2",
+    pineDark: "#1d4a32",
+    pineMid: "#2e6e48",
+    pineLight: "#4b9663",
+    pineHighlight: "#7bc48a",
+    treeTrunk: "#6e4630",
+    treeTrunkDark: "#45291a",
+    treeTrunkLight: "#946244",
+  },
+  israel_winter_green: {
+    outline: "#22291c",
+    // Lush emerald-green Israeli winter hills after the rain + blooming red kalaniyot!
+    grassBase: "#689c46",
+    grassLight: "#87bd5c",
+    grassMid: "#528236",
+    grassDark: "#3b6125",
+    parkBase: "#4f9942",
+    parkStripeLight: "#62b051",
+    parkStripeDark: "#418236",
+    parkHighlight: "#8bd46c",
+    parkShadow: "#2e6126",
+    tallGrassBase: "#477832",
+    tallGrassMid: "#649c46",
+    tallGrassTip: "#95cf6b",
+    dirtBase: "#b89f7c",
+    dirtLight: "#d1ba97",
+    dirtMid: "#9c8362",
+    dirtDark: "#756046",
+    dirtPebble: "#ede4d1",
+    sandBase: "#e8d29e",
+    sandLight: "#f5e3b8",
+    sandMid: "#cfb780",
+    sandWet: "#ad9561",
+    sandSparkle: "#fff9e6",
+    sidewalkBase: "#dbd2be",
+    sidewalkLight: "#ede6d5",
+    sidewalkMid: "#c7bda8",
+    sidewalkDark: "#a19681",
+    sidewalkJoint: "#857a67",
+    sidewalkMortar: "#857a67",
+    sidewalkCurbTop: "#f5efe0",
+    sidewalkCurbFace: "#968c78",
+    sidewalkCurbShadow: "#363026",
+    roadRes: "#565a61",
+    roadResDark: "#494d54",
+    roadResLight: "#666b73",
+    roadMain: "#484c54",
+    roadMainDark: "#3c4047",
+    roadMainLight: "#585d66",
+    highway: "#3a3e47",
+    highwayBase: "#3a3e47",
+    highwayDark: "#2e323b",
+    highwayLight: "#494e59",
+    highwayTrack: "#424752",
+    highwayYellow: "#f5f8fc",
+    highwayMedian: "#d4cec2",
+    parkingBase: "#545861",
+    parkingLight: "#646973",
+    parkingDark: "#43474f",
+    roadShoulder: "#f5f8fc",
+    roadDashWhite: "#f7faff",
+    roadYellow: "#f5f8fc",
+    crosswalkWhite: "#ffffff",
+    crosswalkEdge: "#c4ccd6",
+    waterBase: "#2b7ca3",
+    waterDeep: "#1d5d80",
+    waterMid: "#3891ba",
+    waterShallow: "#5cb3d6",
+    waterShallowLight: "#94daf2",
+    waterLight: "#78c4e3",
+    waterShimmer: "#fff9e0",
+    treeOutline: "#1c2e1c",
+    treeDark: "#3b5736",
+    treeMid: "#5c7d52",
+    treeLight: "#85a676",
+    treeHighlight: "#b5d1a3",
+    pineDark: "#194028",
+    pineMid: "#2b613b",
+    pineLight: "#488750",
+    pineHighlight: "#70b36b",
+    treeTrunk: "#706557",
+    treeTrunkDark: "#473f36",
+    treeTrunkLight: "#968a7a",
+  },
+  alpine_green: {
+    outline: "#192420",
+    grassBase: "#4c8f4b",
+    grassLight: "#6bb064",
+    grassMid: "#3b753d",
+    grassDark: "#29572e",
+    parkBase: "#458a48",
+    parkStripeLight: "#57a158",
+    parkStripeDark: "#39753d",
+    parkHighlight: "#7cc476",
+    parkShadow: "#28572d",
+    tallGrassBase: "#346b38",
+    tallGrassMid: "#4d8f4e",
+    tallGrassTip: "#84c47a",
+    dirtBase: "#99826b",
+    dirtLight: "#b59d84",
+    dirtMid: "#7d6853",
+    dirtDark: "#594838",
+    dirtPebble: "#d9d0c5",
+    sandBase: "#d6cbb4",
+    sandLight: "#ebe2cf",
+    sandMid: "#bfb39b",
+    sandWet: "#9c907a",
+    sandSparkle: "#f7f3eb",
+    sidewalkBase: "#b8b4ad",
+    sidewalkLight: "#d4d0c9",
+    sidewalkMid: "#a19d96",
+    sidewalkDark: "#7d7973",
+    sidewalkJoint: "#615e59",
+    sidewalkMortar: "#615e59",
+    sidewalkCurbTop: "#e3e0da",
+    sidewalkCurbFace: "#7a7670",
+    sidewalkCurbShadow: "#2b2a28",
+    roadRes: "#4e535c",
+    roadResDark: "#40454d",
+    roadResLight: "#5e6470",
+    roadMain: "#41464f",
+    roadMainDark: "#343940",
+    roadMainLight: "#525863",
+    highway: "#353942",
+    highwayBase: "#353942",
+    highwayDark: "#292c33",
+    highwayLight: "#434854",
+    highwayTrack: "#3d424d",
+    highwayYellow: "#f5f8fc",
+    highwayMedian: "#c4cbd4",
+    parkingBase: "#4c5159",
+    parkingLight: "#5c626b",
+    parkingDark: "#3b3f47",
+    roadShoulder: "#f5f8fc",
+    roadDashWhite: "#f7faff",
+    roadYellow: "#f5f8fc",
+    crosswalkWhite: "#ffffff",
+    crosswalkEdge: "#c4ccd6",
+    waterBase: "#24709c",
+    waterDeep: "#185378",
+    waterMid: "#3488b5",
+    waterShallow: "#5eb3d9",
+    waterShallowLight: "#98def5",
+    waterLight: "#78c8e8",
+    waterShimmer: "#ffffff",
+    treeOutline: "#13241b",
+    treeDark: "#1d4a31",
+    treeMid: "#2e6e48",
+    treeLight: "#4b9663",
+    treeHighlight: "#7bc48a",
+    pineDark: "#163b2a",
+    pineMid: "#24593d",
+    pineLight: "#3b8058",
+    pineHighlight: "#67b07f",
+    treeTrunk: "#634028",
+    treeTrunkDark: "#3d2516",
+    treeTrunkLight: "#8a5c3c",
+  },
+  tropical_coastal: {
+    outline: "#1a2926",
+    grassBase: "#5ec251",
+    grassLight: "#82de6d",
+    grassMid: "#47a340",
+    grassDark: "#2f7d2e",
+    parkBase: "#4eb84b",
+    parkStripeLight: "#65cf5d",
+    parkStripeDark: "#3fa13f",
+    parkHighlight: "#91eb82",
+    parkShadow: "#2b782c",
+    tallGrassBase: "#3f9c42",
+    tallGrassMid: "#5ec258",
+    tallGrassTip: "#9bf084",
+    dirtBase: "#c99f6b",
+    dirtLight: "#e0b884",
+    dirtMid: "#b08552",
+    dirtDark: "#876238",
+    dirtPebble: "#f7ebd2",
+    sandBase: "#f7e2a8",
+    sandLight: "#fff4cc",
+    sandMid: "#e3c988",
+    sandWet: "#c4a766",
+    sandSparkle: "#ffffff",
+    sidewalkBase: "#e3d9c5",
+    sidewalkLight: "#f5efe0",
+    sidewalkMid: "#cfc3ad",
+    sidewalkDark: "#a89c86",
+    sidewalkJoint: "#8c806c",
+    sidewalkMortar: "#8c806c",
+    sidewalkCurbTop: "#faf6eb",
+    sidewalkCurbFace: "#9e927c",
+    sidewalkCurbShadow: "#3b3428",
+    roadRes: "#585f66",
+    roadResDark: "#4a5057",
+    roadResLight: "#69717a",
+    roadMain: "#4a5159",
+    roadMainDark: "#3d434a",
+    roadMainLight: "#5b636e",
+    highway: "#3e454d",
+    highwayBase: "#3e454d",
+    highwayDark: "#31373d",
+    highwayLight: "#4e5661",
+    highwayTrack: "#464e57",
+    highwayYellow: "#f5c53b",
+    highwayMedian: "#d6cfc2",
+    parkingBase: "#545b63",
+    parkingLight: "#656d75",
+    parkingDark: "#434950",
+    roadShoulder: "#f5f8fc",
+    roadDashWhite: "#ffffff",
+    roadYellow: "#f5c53b",
+    crosswalkWhite: "#ffffff",
+    crosswalkEdge: "#c4d1de",
+    waterBase: "#1ea6bd",
+    waterDeep: "#147e96",
+    waterMid: "#2cc2d9",
+    waterShallow: "#5ee0ed",
+    waterShallowLight: "#a6f7fc",
+    waterLight: "#7ee8f2",
+    waterShimmer: "#ffffff",
+    treeOutline: "#162e18",
+    treeDark: "#246631",
+    treeMid: "#3c9442",
+    treeLight: "#64bd58",
+    treeHighlight: "#9be87b",
+    pineDark: "#1f592c",
+    pineMid: "#34823d",
+    pineLight: "#57b052",
+    pineHighlight: "#8ce072",
+    treeTrunk: "#8c6542",
+    treeTrunkDark: "#5e4128",
+    treeTrunkLight: "#b5895e",
+  },
+  european_historic: {
+    outline: "#221e21",
+    grassBase: "#5c9948",
+    grassLight: "#7bb85e",
+    grassMid: "#498039",
+    grassDark: "#335e29",
+    parkBase: "#4f9446",
+    parkStripeLight: "#62ab56",
+    parkStripeDark: "#427d3b",
+    parkHighlight: "#88cf74",
+    parkShadow: "#2e5e2b",
+    tallGrassBase: "#3d7335",
+    tallGrassMid: "#579447",
+    tallGrassTip: "#8cc76e",
+    dirtBase: "#a88d6e",
+    dirtLight: "#c4a886",
+    dirtMid: "#8c7256",
+    dirtDark: "#66513b",
+    dirtPebble: "#ded2c3",
+    sandBase: "#e0cca0",
+    sandLight: "#f0dfb6",
+    sandMid: "#c9b385",
+    sandWet: "#a89266",
+    sandSparkle: "#faf3dc",
+    sidewalkBase: "#b5b0a8",
+    sidewalkLight: "#cfcac2",
+    sidewalkMid: "#9e9991",
+    sidewalkDark: "#7d7871",
+    sidewalkJoint: "#5e5a54",
+    sidewalkMortar: "#5e5a54",
+    sidewalkCurbTop: "#dedad2",
+    sidewalkCurbFace: "#7a756e",
+    sidewalkCurbShadow: "#2b2826",
+    roadRes: "#565861",
+    roadResDark: "#484a52",
+    roadResLight: "#666973",
+    roadMain: "#484b54",
+    roadMainDark: "#3b3e47",
+    roadMainLight: "#585c66",
+    highway: "#3b3e47",
+    highwayBase: "#3b3e47",
+    highwayDark: "#2e3138",
+    highwayLight: "#494d59",
+    highwayTrack: "#424652",
+    highwayYellow: "#f5f8fc",
+    highwayMedian: "#c7c4be",
+    parkingBase: "#54565e",
+    parkingLight: "#646770",
+    parkingDark: "#42444c",
+    roadShoulder: "#f5f8fc",
+    roadDashWhite: "#f7faff",
+    roadYellow: "#f5f8fc",
+    crosswalkWhite: "#ffffff",
+    crosswalkEdge: "#c4ccd6",
+    waterBase: "#2d6d96",
+    waterDeep: "#1e5175",
+    waterMid: "#3c84b0",
+    waterShallow: "#63add4",
+    waterShallowLight: "#98d8f0",
+    waterLight: "#7bc2e3",
+    waterShimmer: "#fff7e0",
+    treeOutline: "#172919",
+    treeDark: "#245429",
+    treeMid: "#3c7d3b",
+    treeLight: "#64ab52",
+    treeHighlight: "#94d474",
+    pineDark: "#1c4530",
+    pineMid: "#2c6644",
+    pineLight: "#448c5d",
+    pineHighlight: "#70ba82",
+    treeTrunk: "#6b472e",
+    treeTrunkDark: "#452b1b",
+    treeTrunkLight: "#8f6242",
+  },
 };
 
 // Selectable house architectural styles & non-residential building kinds (for Paint modal & house_colors.json)
@@ -925,6 +1371,95 @@ export const HOUSE_COLOR_PRESETS = {
     windowGlow: "#ffe680",
     isStucco: true,
   },
+  alpine_chalet: {
+    label: "Alpine Timber Chalet",
+    swatch: "#8c5936",
+    roofLight: "#5c6473",
+    roofMain: "#414854",
+    roofDark: "#292e38",
+    wallLight: "#b57a4c",
+    wallMain: "#8c5936",
+    wallShade: "#633c22",
+    trim: "#f5efe2",
+    trimShade: "#cfc5b2",
+    door: "#4a2a16",
+    doorDark: "#2e180b",
+    shutter: "#265c3b",
+    porchWood: "#a86e42",
+    windowGlow: "#ffe478",
+  },
+  tropical_coral: {
+    label: "Tropical Coral Stucco",
+    swatch: "#f29f85",
+    roofLight: "#d96c4a",
+    roofMain: "#b84e30",
+    roofDark: "#82311b",
+    wallLight: "#ffc4b0",
+    wallMain: "#f29f85",
+    wallShade: "#d4795d",
+    trim: "#ffffff",
+    trimShade: "#dfd5cc",
+    door: "#248f9c",
+    doorDark: "#155e69",
+    shutter: "#248f9c",
+    porchWood: "#e8d2b0",
+    windowGlow: "#fff0a6",
+    isStucco: true,
+  },
+  tropical_mint: {
+    label: "Tropical Seafoam Stucco",
+    swatch: "#96d9c6",
+    roofLight: "#d96c4a",
+    roofMain: "#b84e30",
+    roofDark: "#82311b",
+    wallLight: "#c4f2e4",
+    wallMain: "#96d9c6",
+    wallShade: "#6eb8a3",
+    trim: "#ffffff",
+    trimShade: "#d4e3de",
+    door: "#e06d4a",
+    doorDark: "#9c4328",
+    shutter: "#246e66",
+    porchWood: "#e8d8ba",
+    windowGlow: "#fff0a6",
+    isStucco: true,
+  },
+  europe_ochre: {
+    label: "European Ochre Plaster",
+    swatch: "#e3b868",
+    roofLight: "#bd583a",
+    roofMain: "#963f26",
+    roofDark: "#692817",
+    wallLight: "#f5d490",
+    wallMain: "#e3b868",
+    wallShade: "#bf9245",
+    trim: "#faf5eb",
+    trimShade: "#cfc7b8",
+    door: "#4a3324",
+    doorDark: "#2b1c12",
+    shutter: "#2c5743",
+    porchWood: "#c7b296",
+    windowGlow: "#ffe685",
+    isStucco: true,
+  },
+  machiya_slate: {
+    label: "East Asian Timber & Plaster",
+    swatch: "#e8e3d8",
+    roofLight: "#5a6373",
+    roofMain: "#3d4452",
+    roofDark: "#242933",
+    wallLight: "#f7f4ed",
+    wallMain: "#e8e3d8",
+    wallShade: "#c7c0b2",
+    trim: "#4a3222",
+    trimShade: "#2e1e14",
+    door: "#5c3b24",
+    doorDark: "#362113",
+    shutter: "#3d2a1d",
+    porchWood: "#754f34",
+    windowGlow: "#ffe699",
+    isStucco: true,
+  },
   adobe_sand: {
     label: "Desert Sandstone",
     swatch: "#dbb086",
@@ -1087,6 +1622,59 @@ export function resolveHouseStyle(building, colorOverrideMap = {}, biomeConfig =
     baseStyle = building.isHomeBase
       ? { ...HOUSE_COLOR_PRESETS.jerusalem_gold }
       : { ...dPalettes[hash % dPalettes.length] };
+  } else if (houseStyleMode === "alpine_timber") {
+    const hash = Math.abs(
+      (building.styleIndex || 1) * 7 + (building.bounds?.minX || 0) * 13 + (building.bounds?.minY || 0) * 29
+    );
+    const aPalettes = [
+      HOUSE_COLOR_PRESETS.alpine_chalet,
+      HOUSE_COLOR_PRESETS.cream_stucco,
+      HOUSE_COLOR_PRESETS.cedar_brown,
+      HOUSE_COLOR_PRESETS.alpine_chalet,
+    ];
+    baseStyle = building.isHomeBase
+      ? { ...HOUSE_COLOR_PRESETS.alpine_chalet, door: "#c93838" }
+      : { ...aPalettes[hash % aPalettes.length] };
+  } else if (houseStyleMode === "tropical_pastel") {
+    const hash = Math.abs(
+      (building.styleIndex || 1) * 7 + (building.bounds?.minX || 0) * 13 + (building.bounds?.minY || 0) * 29
+    );
+    const tPalettes = [
+      HOUSE_COLOR_PRESETS.tropical_coral,
+      HOUSE_COLOR_PRESETS.tropical_mint,
+      HOUSE_COLOR_PRESETS.yellow,
+      HOUSE_COLOR_PRESETS.bauhaus_white,
+    ];
+    baseStyle = building.isHomeBase
+      ? { ...HOUSE_COLOR_PRESETS.tropical_coral }
+      : { ...tPalettes[hash % tPalettes.length] };
+  } else if (houseStyleMode === "european_rowhouse") {
+    const hash = Math.abs(
+      (building.styleIndex || 1) * 7 + (building.bounds?.minX || 0) * 13 + (building.bounds?.minY || 0) * 29
+    );
+    const ePalettes = [
+      HOUSE_COLOR_PRESETS.europe_ochre,
+      HOUSE_COLOR_PRESETS.brick,
+      HOUSE_COLOR_PRESETS.cream_stucco,
+      HOUSE_COLOR_PRESETS.terracotta_stucco,
+      HOUSE_COLOR_PRESETS.slate_blue,
+    ];
+    baseStyle = building.isHomeBase
+      ? { ...HOUSE_COLOR_PRESETS.europe_ochre }
+      : { ...ePalettes[hash % ePalettes.length] };
+  } else if (houseStyleMode === "east_asian_tiled") {
+    const hash = Math.abs(
+      (building.styleIndex || 1) * 7 + (building.bounds?.minX || 0) * 13 + (building.bounds?.minY || 0) * 29
+    );
+    const eaPalettes = [
+      HOUSE_COLOR_PRESETS.machiya_slate,
+      HOUSE_COLOR_PRESETS.machiya_slate,
+      HOUSE_COLOR_PRESETS.cream_stucco,
+      HOUSE_COLOR_PRESETS.gray,
+    ];
+    baseStyle = building.isHomeBase
+      ? { ...HOUSE_COLOR_PRESETS.machiya_slate, door: "#c93838" }
+      : { ...eaPalettes[hash % eaPalettes.length] };
   } else if (building.isHomeBase) {
     baseStyle = { ...HOUSE_COLOR_PRESETS.yellow };
   } else if (building.bcCampus) {
@@ -1177,6 +1765,10 @@ export function resolveHouseStyle(building, colorOverrideMap = {}, biomeConfig =
   // Warm golden-hour glowing interior windows on every neighborhood home & civic building
   baseStyle.windowGlow = "#ffe070";
 
+  if (biomeConfig) {
+    baseStyle.snowRoof = Boolean(biomeConfig.hasSnowRoofs);
+    baseStyle.hasRoofLeaves = Boolean(biomeConfig.hasFallenLeaves);
+  }
   return baseStyle;
 }
 
@@ -1730,7 +2322,7 @@ function drawShingledRoof(
   style,
   slopeRatio = 0.16,
   O = "#291a18",
-  { hd = 2, leafCluster = true, seed = 0 } = {}
+  { hd = 2, leafCluster = true, snowRoof = false, seed = 0 } = {}
 ) {
   const slopeInsetMax = Math.min(Math.floor(bw * 0.24), Math.max(2 * hd, Math.floor(bw * slopeRatio)));
   const courseH = hd >= 2 ? 4 : 3;
@@ -1799,8 +2391,27 @@ function drawShingledRoof(
   px(ctx, bx - 2 * hd + 1, wallY - hd, bw + 4 * hd - 2, hd, style.trim);
   px(ctx, bx - 2 * hd + 1, wallY, bw + 4 * hd - 2, 1, style.trimShade);
 
-  // Cozy autumn leaf cluster & stray fallen leaves resting on the roof shingles!
-  if (leafCluster && hd >= 2 && bw >= 42 && roofH >= 20) {
+  // Sparkling Winter Snow Blanket & Icicles on roofs when Snow Day / Tundra Winter is active!
+  const activeSnowRoof = Boolean(snowRoof || style.snowRoof);
+  const allowLeaves = leafCluster && style.hasRoofLeaves !== false;
+  if (activeSnowRoof) {
+    const snowBands = Math.max(3 * hd, Math.floor(roofH * 0.42));
+    for (let row = 0; row < snowBands; row++) {
+      const t = row / Math.max(1, roofH - 1);
+      const inset = Math.round((1 - t) * slopeInsetMax);
+      const rx = bx - 2 * hd + inset + 1;
+      const rw = Math.max(2, bw + 4 * hd - inset * 2 - 2);
+      px(ctx, rx, by + row, rw, 1, row < snowBands - hd ? "#ffffff" : "#d0e8fa");
+    }
+    // Fluffy snow drift along lower eaves + tiny sparkling icicles!
+    px(ctx, bx - 2 * hd + 1, wallY - 2 * hd, bw + 4 * hd - 2, 2 * hd, "#ffffff");
+    px(ctx, bx - 2 * hd + 1, wallY - hd, bw + 4 * hd - 2, hd, "#cde6fa");
+    for (let ix = bx; ix < bx + bw; ix += 7 * hd) {
+      px(ctx, ix, wallY, hd, 2 * hd, "#b8e2fc");
+      px(ctx, ix, wallY, hd, hd, "#ffffff");
+    }
+  } else if (allowLeaves && hd >= 2 && bw >= 42 && roofH >= 20) {
+    // Cozy autumn leaf cluster & stray fallen leaves resting on the roof shingles!
     const lcx = bx + Math.floor(bw * (((seed & 1) === 0 ? 0.68 : 0.32)));
     const lcy = by + Math.floor(roofH * 0.56);
     drawRoofLeafCluster(ctx, lcx, lcy, seed + bx);
@@ -2098,6 +2709,31 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
 
   // Soft warm golden-hour dusk drop shadow grounded under the building (SE side)
   px(ctx, bx + 3 * hd, by + Math.floor(bh * 0.25), bw + 2 * hd, Math.floor(bh * 0.78), "rgba(42, 20, 18, 0.34)");
+
+  // =========================================================================
+  // 0. FORTIFIED OLD CITY STONE WALL (Crenelated Ottoman Ramparts — Jerusalem Old City!)
+  // =========================================================================
+  if (effectiveKind === "city_wall") {
+    const wallStyle = HOUSE_COLOR_PRESETS.jerusalem_gold;
+    const rampartH = Math.max(22 * hd, bh);
+    px(ctx, bx - 1, by - 1, bw + 2, rampartH + 2, O);
+    px(ctx, bx, by, bw, rampartH, wallStyle.wallMain);
+    drawWallTexture(ctx, bx, by, bw, rampartH, wallStyle, hd);
+    // Crenelated limestone battlements (merlons & embrasures) crowning the city wall!
+    const merlonW = 6 * hd;
+    const merlonH = 5 * hd;
+    for (let mx = bx; mx < bx + bw - 2 * hd; mx += merlonW + 3 * hd) {
+      const mw = Math.min(merlonW, bx + bw - mx);
+      px(ctx, mx - 1, by - merlonH, mw + 2, merlonH + 1, O);
+      px(ctx, mx, by - merlonH + 1, mw, merlonH, wallStyle.wallLight);
+      px(ctx, mx, by - merlonH + 1, mw, hd, "#fff8e8");
+    }
+    // Narrow medieval arrow-slit loopholes along rampart face
+    for (let sx = bx + 8 * hd; sx < bx + bw - 6 * hd; sx += 14 * hd) {
+      px(ctx, sx, by + 6 * hd, 2 * hd, 7 * hd, "#36281c");
+    }
+    return { canvas, offsetX: -padSide, offsetY: -padTop };
+  }
 
   // =========================================================================
   // 1. GARAGE / SHED / OUTBUILDING (1-car or 2-car wide)
@@ -3302,15 +3938,18 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
   ) {
     const isBauhaus = houseStyleMode === "bauhaus_white";
     const isDesert = houseStyleMode === "desert_stucco";
+    const isOldCity =
+      Boolean(building.isOldCity) ||
+      (Array.isArray(biomeConfig?.quirks) && biomeConfig.quirks.includes("jerusalem_old_city"));
     const hasTerracottaRoof =
-      !isBauhaus && !isDesert && (houseStyleMode === "galilee_stone" ? bSeed % 3 !== 0 : bSeed % 3 === 0);
+      !isOldCity && !isBauhaus && !isDesert && (houseStyleMode === "galilee_stone" ? bSeed % 3 !== 0 : bSeed % 3 === 0);
     const roofH = hasTerracottaRoof
       ? Math.max(13 * hd, Math.floor(bh * 0.34))
       : Math.max(8 * hd, Math.min(13 * hd, Math.floor(bh * 0.22)));
     const wallH = Math.max(22 * hd, bh - roofH);
     const wallY = by + roofH;
 
-    // 1. Roof: either Mediterranean red barrel-tile pitched roof OR flat limestone/stucco parapet + Dud Shemesh!
+    // 1. Roof: either Mediterranean red barrel-tile pitched roof OR flat limestone/stucco parapet + Dud Shemesh (or Old City Stone Vaulted Dome!)
     if (hasTerracottaRoof) {
       const terraStyle = {
         ...style,
@@ -3321,6 +3960,7 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
       drawShingledRoof(ctx, bx, by, bw, roofH, wallY, terraStyle, 0.16, O, {
         hd,
         leafCluster: false,
+        snowRoof: Boolean(biomeConfig?.hasSnowRoofs),
         seed: bSeed,
       });
     } else {
@@ -3334,8 +3974,18 @@ export function bakeSnesBuildingCanvas(building, tileSize = 16, colorOverrideMap
       px(ctx, bx - 2 * hd, wallY - 3 * hd, bw + 4 * hd, 4 * hd, O);
       px(ctx, bx - hd, wallY - 2 * hd, bw + 2 * hd, 2 * hd, style.trim);
       px(ctx, bx - hd, wallY, bw + 2 * hd, hd, style.trimShade);
-      // Iconic Israeli rooftop solar water heater (Dud Shemesh)!
-      if (bw >= 30 * hd) {
+      if (isOldCity && bw >= 22 * hd) {
+        // Historic Old City of Jerusalem vaulted white-limestone rooftop dome!
+        const domeR = Math.min(10 * hd, Math.floor(bw * 0.24));
+        const domeBaseY = by + Math.floor(roofH * 0.65);
+        for (let dr = 0; dr < domeR; dr++) {
+          const half = Math.max(2, Math.round(Math.sqrt(Math.max(0, domeR * domeR - (domeR - dr) * (domeR - dr)))));
+          const ry = domeBaseY - domeR + dr;
+          px(ctx, midX - half - 1, ry, half * 2 + 2, 1, O);
+          px(ctx, midX - half, ry, half * 2, 1, dr < domeR * 0.45 ? "#faf5e8" : "#e3d6be");
+        }
+      } else if (bw >= 30 * hd) {
+        // Iconic Israeli rooftop solar water heater (Dud Shemesh)!
         const solarX = bSeed % 2 === 0 ? bx + 5 * hd : bx + bw - 17 * hd;
         drawSolarWaterHeater(ctx, solarX, by - 5 * hd, hd, O);
       }

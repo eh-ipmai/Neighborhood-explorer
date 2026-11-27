@@ -58,10 +58,10 @@ test("detectBiomeForLocation maps Israel's 4 regions and global biomes accuratel
     detectBiomeForLocation({ lat: 33.4484, lon: -112.074, countryCode: "us", townName: "Phoenix, AZ" }),
     "southwest_desert"
   );
-  // UK -> Temperate Green + Left-Hand Traffic
+  // UK -> Historic European Quarter + Left-Hand Traffic
   assert.equal(
     detectBiomeForLocation({ lat: 51.5074, lon: -0.1278, countryCode: "gb", townName: "London, UK" }),
-    "temperate_green"
+    "european_historic"
   );
   assert.equal(getDrivingSideForCountry("gb"), "left");
   assert.equal(getDrivingSideForCountry("jp"), "left");
